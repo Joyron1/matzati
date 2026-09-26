@@ -1,36 +1,43 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# מצאתי (Matzati)
 
-## Getting Started
+Hebrew, RTL, mobile-first shopping assistant for AliExpress. Users describe what they need in
+free Hebrew and get 3 vetted products with affiliate links. The full spec and working rules are in
+[CLAUDE.md](CLAUDE.md).
 
-First, run the development server:
+## Status
+
+- **M1 – Skeleton & design: done.** All pages render mock data from `lib/mock/` (a banner says so).
+- M2–M6: see the milestones in CLAUDE.md.
+
+## Setup
 
 ```bash
+npm install
+cp .env.example .env.local   # fill in values yourself; never commit .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Commands
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run dev          # local dev
+npm run build        # production build
+npm run lint
+npm run typecheck
+npm test             # vitest
+npm run format       # prettier
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Layout
 
-## Learn More
+| Path                    | What                                                                                |
+| ----------------------- | ----------------------------------------------------------------------------------- |
+| `app/`                  | Routes: `/`, `/search`, `/p/[productId]`, `/go/[productId]`, `/deals`, static pages |
+| `components/`           | UI. Shared button/card classes in `components/styles.ts`                            |
+| `app/globals.css`       | Design tokens (light/dark on `[data-theme]`) mapped into Tailwind                   |
+| `lib/config/`           | Brand name and site flags (`USING_MOCK_DATA`)                                       |
+| `lib/ranking/config.ts` | Filter thresholds, also shown in the UI                                             |
+| `lib/mock/`             | M1 sample data, replaced by the real pipeline in M4                                 |
+| `lib/types.ts`          | Wire types shared by the API and the UI                                             |
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Useful demo URLs while on mock data: `/search?q=...&demo=empty` shows the no-results state.

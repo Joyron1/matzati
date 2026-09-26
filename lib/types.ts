@@ -1,0 +1,66 @@
+// Wire types shared by the API and the UI. Field names follow the spec (snake_case JSON).
+
+export type SortPreference = "best_value" | "cheapest" | "most_popular";
+
+export type ChipKind = "keywords" | "must_have" | "min_price" | "max_price" | "category";
+
+export interface FilterChip {
+  id: string;
+  kind: ChipKind;
+  label_he: string;
+  removable: boolean;
+}
+
+export interface ResultProduct {
+  product_id: string;
+  title_he: string;
+  /** Original AliExpress title, shown for transparency. */
+  title_en: string;
+  why_he: string;
+  price_ils: number;
+  original_price_ils: number | null;
+  /** True when the ILS price was converted from USD by us. */
+  price_is_approx: boolean;
+  discount_pct: number | null;
+  /** From `evaluate_rate`. Null when AliExpress did not return it. */
+  positive_feedback_pct: number | null;
+  /** From `lastest_volume`. */
+  units_sold: number | null;
+  image_urls: string[];
+  category_id: string | null;
+}
+
+export interface SearchResponse {
+  query: string;
+  chips: FilterChip[];
+  sort: SortPreference;
+  checked_count: number;
+  passed_count: number;
+  results: ResultProduct[];
+  more_available: boolean;
+}
+
+export type DealType = "deal" | "holiday" | "dont_buy";
+
+export interface Deal {
+  id: string;
+  type: DealType;
+  title: string;
+  body: string;
+  product_id: string | null;
+  coupon_code: string | null;
+  starts_at: string | null;
+  ends_at: string | null;
+}
+
+export interface Coupon {
+  code: string;
+  description_he: string;
+  valid_until: string | null;
+}
+
+export interface CategoryTips {
+  category_id: string;
+  category_name_he: string;
+  tips_he: string[];
+}

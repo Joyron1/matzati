@@ -1,69 +1,133 @@
-import Image from "next/image";
+import Link from "next/link";
+import {
+  ListChecks,
+  MessageSquareText,
+  ShieldCheck,
+  Sparkles,
+  SlidersHorizontal,
+} from "lucide-react";
+import { ResultsPreview } from "@/components/results-preview";
+import { SaleCountdown } from "@/components/sale-countdown";
+import { SearchComposer } from "@/components/search-composer";
+import { card } from "@/components/styles";
+import { BRAND } from "@/lib/config/brand";
+import { NEXT_SALE } from "@/lib/mock/deals";
+import { EXAMPLE_QUERY, getMockSearch } from "@/lib/mock/search";
+import { FILTERS } from "@/lib/ranking/config";
+import { searchHref } from "@/lib/search-url";
 
-export default function Home() {
+const EXAMPLES = [
+  "מתנה לילדה בת 8 עד 150 ש״ח",
+  "מחזיק טלפון לרכב עם טעינה אלחוטית",
+  "תיק גב עמיד למים לטיולים",
+  "מארגנים למגירות במטבח",
+  "מנורת לילה לחדר ילדים",
+];
+
+const STEPS = [
+  {
+    Icon: MessageSquareText,
+    title: "כותבים בעברית",
+    body: "מה צריך, למי ובאיזה תקציב. לא צריך לנחש מילות חיפוש באנגלית.",
+  },
+  {
+    Icon: SlidersHorizontal,
+    title: "אנחנו מסננים",
+    body: `רק מוצרים עם ${FILTERS.minPositiveFeedbackPct}% משוב חיובי ומעלה ולפחות ${FILTERS.minUnitsSold} מכירות. כל המספרים מגיעים מאלי אקספרס.`,
+  },
+  {
+    Icon: ListChecks,
+    title: "בוחרים מתוך 3",
+    body: "ליד כל מוצר כתוב למה הוא נבחר. אפשר להסיר סינון ולחפש שוב בלחיצה.",
+  },
+];
+
+export default function HomePage() {
+  const example = getMockSearch({ q: EXAMPLE_QUERY, without: [], sort: "best_value" }).response;
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <>
+      <section className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-4 pt-8 sm:px-6 sm:pt-14 lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)] lg:items-start lg:gap-14">
+        <div className="space-y-7">
+          <div className="space-y-4">
+            <p className="inline-flex items-center gap-2 rounded-full bg-accent-soft px-3.5 py-1.5 text-sm font-semibold text-accent-ink">
+              <Sparkles aria-hidden className="size-4" />
+              {BRAND.tagline}
+            </p>
+            <h1 className="font-display text-[2.15rem] leading-[1.15] text-balance text-ink sm:text-5xl lg:text-[2.75rem]">
+              כתבו מה אתם צריכים.
+              <br />
+              <span className="text-accent">קבלו 3 מוצרים שעברו סינון.</span>
+            </h1>
+            <p className="max-w-xl text-lg leading-relaxed text-muted">
+              אנחנו בודקים עד 100 מוצרים באלי אקספרס, מסננים לפי משוב של קונים ומספר מכירות, ומראים
+              רק את מה שעבר.
+            </p>
+          </div>
+
+          <SearchComposer />
+
+          <div className="space-y-3">
+            <h2 className="text-sm font-semibold text-muted">נסו למשל:</h2>
+            <ul className="flex flex-wrap gap-2">
+              {EXAMPLES.map((q) => (
+                <li key={q}>
+                  <Link
+                    href={searchHref({ q })}
+                    className="inline-flex min-h-11 items-center rounded-full border border-line bg-surface px-4 text-sm font-medium text-ink hover:border-accent hover:text-accent-ink"
+                  >
+                    {q}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <ResultsPreview response={example} />
+      </section>
+
+      <section aria-labelledby="how-title" className="mx-auto mt-20 max-w-6xl px-4 sm:px-6">
+        <h2 id="how-title" className="font-display text-3xl">
+          איך זה עובד
+        </h2>
+        <ol className="mt-6 grid gap-4 md:grid-cols-3">
+          {STEPS.map(({ Icon, title, body }, i) => (
+            <li key={title} className={`${card} space-y-3 p-6`}>
+              <div className="flex items-center gap-3">
+                <span className="grid size-11 place-items-center rounded-full bg-accent-soft text-accent-ink">
+                  <Icon aria-hidden className="size-5" />
+                </span>
+                <span className="text-sm font-bold text-muted">שלב {i + 1}</span>
+              </div>
+              <h3 className="text-lg font-bold">{title}</h3>
+              <p className="leading-relaxed text-muted">{body}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <div className="mx-auto mt-6 grid max-w-6xl gap-4 px-4 sm:px-6 md:grid-cols-2">
+        <SaleCountdown title={NEXT_SALE.title_he} startsAt={NEXT_SALE.starts_at} />
+        <section aria-labelledby="trust-title" className={`${card} flex flex-col gap-4 p-6 sm:p-7`}>
+          <span className="grid size-11 place-items-center rounded-full bg-accent-soft text-accent-ink">
+            <ShieldCheck aria-hidden className="size-5" />
+          </span>
+          <h2 id="trust-title" className="font-display text-3xl">
+            איך אנחנו מרוויחים
+          </h2>
+          <p className="leading-relaxed text-muted">
+            כשאתם קונים דרך הקישורים שלנו, אלי אקספרס משלמת לנו עמלה קטנה. המחיר שלכם לא משתנה.
+            העמלה לא משפיעה על הדירוג: מוצר לא יעלה למעלה רק כי הוא משלם לנו יותר.
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/disclosure"
+            className="mt-auto inline-flex min-h-11 items-center self-start font-semibold text-accent-ink underline-offset-4 hover:underline"
           >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+            לגילוי הנאות המלא
+          </Link>
+        </section>
+      </div>
+    </>
   );
 }
