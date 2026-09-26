@@ -2,6 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  images: {
+    // Product images seen in real AliExpress affiliate responses (fixtures/aliexpress).
+    remotePatterns: [{ protocol: "https", hostname: "**.aliexpress-media.com" }],
+  },
   headers: async () => [
     {
       source: "/(.*)",

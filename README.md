@@ -7,7 +7,9 @@ free Hebrew and get 3 vetted products with affiliate links. The full spec and wo
 ## Status
 
 - **M1 – Skeleton & design: done.** All pages render mock data from `lib/mock/` (a banner says so).
-- M2–M6: see the milestones in CLAUDE.md.
+- **M2 – AliExpress client: done.** Signer, typed client, zod schemas from real responses, `npm run check:ali` passes. Verified API behavior: [docs/aliexpress-api.md](docs/aliexpress-api.md).
+- Supabase project `matzati` (eu-central-1) has the §8 schema applied (`supabase/migrations/`).
+- M3–M6: see the milestones in CLAUDE.md.
 
 ## Setup
 
@@ -26,6 +28,7 @@ npm run lint
 npm run typecheck
 npm test             # vitest
 npm run format       # prettier
+npm run check:ali    # AliExpress credential & API check (3 calls; add -- --save to refresh fixtures)
 ```
 
 ## Layout

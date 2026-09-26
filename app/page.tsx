@@ -54,10 +54,9 @@ export default function HomePage() {
               <Sparkles aria-hidden className="size-4" />
               {BRAND.tagline}
             </p>
-            <h1 className="font-display text-[2.15rem] leading-[1.15] text-balance text-ink sm:text-5xl lg:text-[2.75rem]">
-              כתבו מה אתם צריכים.
-              <br />
-              <span className="text-accent">קבלו 3 מוצרים שעברו סינון.</span>
+            <h1 className="font-display text-[2.15rem] leading-[1.15] text-ink sm:text-5xl lg:text-[2.75rem]">
+              <span className="block text-balance">כתבו מה אתם צריכים.</span>
+              <span className="block text-balance text-accent">קבלו 3 מוצרים שעברו סינון.</span>
             </h1>
             <p className="max-w-xl text-lg leading-relaxed text-muted">
               אנחנו בודקים עד 100 מוצרים באלי אקספרס, מסננים לפי משוב של קונים ומספר מכירות, ומראים

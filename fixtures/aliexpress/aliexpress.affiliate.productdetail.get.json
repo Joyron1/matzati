@@ -1,0 +1,60 @@
+{
+  "aliexpress_affiliate_productdetail_get_response": {
+    "resp_result": {
+      "result": {
+        "current_record_count": 1,
+        "products": {
+          "product": [
+            {
+              "app_sale_price": "33.81",
+              "original_price": "67.63",
+              "product_detail_url": "https://he.aliexpress.com/item/1005006338829917.html?pdp_npi=6%40dis%21ILS%2131.36%2115.68%21%21%2167.63%2133.81%21%402140d36117904451450094063e10cf%2112000036815593862%21affd%21%21%21%211%210%21",
+              "product_small_image_urls": {
+                "string": [
+                  "https://ae-pic-a1.aliexpress-media.com/kf/S1054b9147d9e485388688a21f0437e4dL.jpg",
+                  "https://ae-pic-a1.aliexpress-media.com/kf/Sc36c59e5fe24402c874d8cd16bbb123dD.jpg",
+                  "https://ae-pic-a1.aliexpress-media.com/kf/Scb7416e62d2d42ad8e070094cf5a9f60b.jpg",
+                  "https://ae-pic-a1.aliexpress-media.com/kf/S7dbdac86722a4bc4aa9d3c79c67a7190P.jpg",
+                  "https://ae-pic-a1.aliexpress-media.com/kf/S599b8deeab1e40588d8202ecb8a88e9bi.jpg",
+                  "https://ae-pic-a1.aliexpress-media.com/kf/S320805b5a05146c6a6ebd8b624f1eb9aG.jpg"
+                ]
+              },
+              "second_level_category_name": "שעונים אביזרים",
+              "target_sale_price": "15.68",
+              "second_level_category_id": "200000121",
+              "discount": "50%",
+              "product_main_image_url": "https://ae-pic-a1.aliexpress-media.com/kf/S1054b9147d9e485388688a21f0437e4dL.jpg",
+              "first_level_category_id": "1511",
+              "target_sale_price_currency": "ILS",
+              "target_app_sale_price_currency": "ILS",
+              "tax_rate": "0.00",
+              "original_price_currency": "CNY",
+              "shop_url": "https://he.aliexpress.com/store/1102563901",
+              "target_original_price_currency": "ILS",
+              "product_id": "1005006338829917",
+              "target_original_price": "31.36",
+              "product_video_url": "",
+              "first_level_category_name": "שעונים",
+              "promotion_link": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLe5mOF3ZxRkgXTxDel4NhdR1WLVYSoygR9Mm1fajL9UmwmCVRVHwLPp0N3CoTEOZkBxlpMiJfhNlj9Ep8oIsHiV9XkOMRlNzDkumVwGfpDKAxU7PVCNv8N6A718jLqZyqWgKNHoMsblMVKiOSPoiw3lDCwfBFFpMiSGz1PxiJN43XjTL1evPIowkAaKsi1HysyYsBna5cWXHutoM2sPxOjlqvq0GqhbfJCoxC72kkoTwqY4WTjVOn2KAzyeRdDnl834V8lHjjZyESioYir2GVGfXr28BTcbPLW9f0nDOiSlmp4ubLUGY02vbKUVDMwrxFQSOVRAzaAnCClArNd0HJoIOxZUKXsHrYgcuQIOvxEqm6x7PXmfobHILpdJpZMTYzbVNm7ogBz8Zz39qxnMWvvIYRCbolC1mQvEmta8VkX5cfU54u0xdWo4K8VbNqV9Ybj995QwlG9JEQyeLT7mLlw1IcQAz4EX9B7iITRg4rUQQsu7xKLrwmsuHTbVk1YG1bWVD8hfUHAEWUtD1ki8LTZcMo5g8mWXwjxcok7ZPaQK8EW4wsX3Kkib3LMxOXjAOxFavZf3igOCXamI7n81mNz27Fzw2DOXVwfU8DMU36c6RAThkc1n3UVcixkdSI65p94WfVBugJmCPccz45Vdu4gL0zSPFDhdYEuHcKLtLcb6euVG12w1qDSjn0VjqQMKfQrzO4PBfti3WwgBOFHA7rkVKAPoctqbrIaHPh1NPNZVBFRZL4Y4HwrGoidYgmUhQPfFYV9lW",
+              "sku_id": "12000036815593862",
+              "evaluate_rate": "93.9%",
+              "shop_name": "TIMARCO Factory store Store",
+              "sale_price": "33.81",
+              "product_title": "תיק אחסון כבלים עמיד למים מארגן אלקטרוני דיגיטלי נייד לקו נתונים USB מטען תקע תיק אחסון כבלים לנסיעות",
+              "hot_product_commission_rate": "0.0%",
+              "shop_id": "1102563901",
+              "app_sale_price_currency": "CNY",
+              "sale_price_currency": "CNY",
+              "lastest_volume": 10235,
+              "target_app_sale_price": "15.68",
+              "commission_rate": "7.0%"
+            }
+          ]
+        }
+      },
+      "resp_code": 200
+    },
+    "request_id": "210155f117904451450096234",
+    "_trace_id_": "2140d36117904451450094063e10cf"
+  }
+}

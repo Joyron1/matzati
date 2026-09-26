@@ -1,0 +1,22 @@
+{
+  "aliexpress_affiliate_link_generate_response": {
+    "resp_result": {
+      "result": {
+        "total_result_count": 1,
+        "promotion_links": {
+          "promotion_link": [
+            {
+              "promotion_link": "https://s.click.aliexpress.com/e/_c4Nfja0N",
+              "source_value": "https://www.aliexpress.com/item/1005006338829917.html?pdp_npi=6%40dis%21ILS%2131.36%2115.68%21%21%2167.63%2133.81%21%402141315917904461361435680e0d72%2112000036815593862%21affd%21%21%21%211%210%21"
+            }
+          ]
+        },
+        "tracking_id": "matzati_web_api"
+      },
+      "resp_code": 200,
+      "resp_msg": "Call succeeds"
+    },
+    "request_id": "212a640e17904461378238158",
+    "_trace_id_": "2141315917904461378215868e0d72"
+  }
+}

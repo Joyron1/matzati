@@ -12,8 +12,6 @@ interface ProductImageProps {
   priority?: boolean;
 }
 
-// TODO(M2): add AliExpress image hosts to next.config `images.remotePatterns`
-// once the real hostnames are confirmed from saved API fixtures.
 export function ProductImage({
   src,
   alt,
