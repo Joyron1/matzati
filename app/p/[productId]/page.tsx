@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight, CircleCheck, CircleMinus } from "lucide-react";
 import { BuyButton } from "@/components/buy-button";
+import { CategoryTips } from "@/components/category-tips";
+import { CommunityCoupon } from "@/components/community-coupon";
 import { Price } from "@/components/price";
 import { ProductGallery } from "@/components/product-gallery";
 import { ShareLink } from "@/components/share-link";
@@ -31,7 +33,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
   const data = await productForPage(productId);
   if (!data) notFound();
 
-  const { product, shopName, updatedAt } = data;
+  const { product, shopName, updatedAt, tips, tipsCategoryHe, coupon } = data;
   const pct = product.positive_feedback_pct;
   const sold = product.units_sold;
   // Re-evaluated on current data: values change after a search, and /p can also be opened for a
@@ -124,6 +126,8 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
             )}
           </dl>
 
+          {coupon && <CommunityCoupon deal={coupon} />}
+          {/* The affiliate disclosure stays directly under the buy button (inside BuyButton). */}
           <BuyButton productId={product.product_id} src="product" />
           <ShareLink text={product.title_he} />
         </div>
@@ -162,6 +166,8 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
           כל המספרים כאן הגיעו מאלי אקספרס.
         </p>
       </section>
+
+      {tips && <CategoryTips tips={tips} categoryHe={tipsCategoryHe} className="mt-6 max-w-3xl" />}
     </div>
   );
 }

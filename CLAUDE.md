@@ -235,7 +235,9 @@ Map these into Tailwind (`theme.extend.colors` using `var(--…)`), never hard-c
   Status 2026-09-27: done. Eval of 20 real queries (15 + 5 held out) recorded in `fixtures/llm/`; see `docs/eval-m3.md`.
 - **M4 – Search end-to-end**: `/api/search` pipeline, cache, rate limit, kill switch, `/go` click-out, real results on `/search`.
 - **M5 – Product page, deals, admin**: product refresh, category tips cache, deals CRUD in `/admin`, public `/deals`.
+  Status 2026-09-27: done (admin magic link via Supabase Auth, deals CRUD, public /deals, category tips, community coupons).
 - **M6 – Deploy**: Supabase migrations applied, Vercel env vars set by the owner, production deploy after the owner approves.
+  Status 2026-09-27: live at https://matzati-il.vercel.app (Vercel project matzati-il, Git-connected, env vars set).
 - **Phase 2**: price cron, SEO pages for popular queries (`/s/[slug]`, statically generated), sitemap, analytics (only with a cookie notice).
 
 ## 12. Working rules for Claude Code

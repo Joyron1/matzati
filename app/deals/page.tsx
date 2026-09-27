@@ -1,19 +1,34 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { DEALS_ENABLED } from "@/lib/config/site";
-import { Info } from "lucide-react";
+import { connection } from "next/server";
+import { CloudOff } from "lucide-react";
 import { DealsBoard } from "@/components/deals-board";
+import { StateCard } from "@/components/state-card";
 import { WhatsappCta } from "@/components/whatsapp-cta";
-import { MOCK_DEALS } from "@/lib/mock/deals";
+import { DEALS_ENABLED } from "@/lib/config/site";
+import { listPublishedDeals } from "@/lib/deals/queries";
+import type { Deal } from "@/lib/types";
 
 export const metadata: Metadata = {
   title: "דילים ומבצעים",
   description: "דילים שנבחרו ידנית, תזכורות למבצעים גדולים ומוצרים שעדיף לא לקנות באלי אקספרס.",
 };
 
-// Sample content until the admin-managed deals table goes live (M5).
-export default function DealsPage() {
+async function loadDeals(): Promise<Deal[] | null> {
+  try {
+    return await listPublishedDeals(new Date());
+  } catch (err) {
+    console.error(`[deals] ${err instanceof Error ? `${err.name}: ${err.message}` : String(err)}`);
+    return null;
+  }
+}
+
+export default async function DealsPage() {
   if (!DEALS_ENABLED) notFound();
+  // Rendered per request: which deals have ended depends on the time of the visit.
+  await connection();
+  const deals = await loadDeals();
+
   return (
     <div className="mx-auto max-w-6xl space-y-8 px-4 pt-8 sm:px-6 sm:pt-12">
       <div className="max-w-2xl space-y-3">
@@ -22,12 +37,14 @@ export default function DealsPage() {
           הצוות בוחר ידנית דילים, מזכיר מתי מתחילים המבצעים הגדולים, ומסמן מוצרים שעדיף לא לקנות.
           אין כאן מקומות ממומנים.
         </p>
-        <p className="inline-flex items-center gap-2 rounded-full bg-gold-soft px-4 py-2 text-sm font-semibold text-ink">
-          <Info aria-hidden className="size-4 shrink-0" />
-          דילים לדוגמה — הרשימה האמיתית תעלה בקרוב
-        </p>
       </div>
-      <DealsBoard deals={MOCK_DEALS} />
+      {deals ? (
+        <DealsBoard deals={deals} />
+      ) : (
+        <StateCard Icon={CloudOff} title="לא הצלחנו לטעון את הדילים">
+          <p className="max-w-md leading-relaxed text-muted">נסו לרענן את הדף בעוד רגע.</p>
+        </StateCard>
+      )}
       <WhatsappCta />
     </div>
   );

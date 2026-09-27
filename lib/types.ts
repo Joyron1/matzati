@@ -57,7 +57,13 @@ export interface Deal {
   coupon_code: string | null;
   starts_at: string | null;
   ends_at: string | null;
+  /** Only published deals are public (RLS: anon may select published = true). */
+  published: boolean;
+  created_at: string;
 }
+
+/** Fields an admin edits; id, published and created_at are managed separately. */
+export type DealInput = Omit<Deal, "id" | "published" | "created_at">;
 
 export interface Coupon {
   code: string;

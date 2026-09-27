@@ -72,3 +72,11 @@ const fxSchema = z.object({
 export function usdIlsFallback(source: NodeJS.ProcessEnv = process.env): number {
   return fxSchema.parse(source).USD_ILS_FALLBACK;
 }
+
+/** Lowercased admin emails from ADMIN_EMAILS (comma separated). Empty means nobody is admin. */
+export function adminEmails(source: NodeJS.ProcessEnv = process.env): string[] {
+  return (source.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter((e) => e.includes("@"));
+}

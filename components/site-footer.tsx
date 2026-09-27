@@ -1,16 +1,20 @@
 import Link from "next/link";
 import { BRAND } from "@/lib/config/brand";
 import { DEALS_ENABLED } from "@/lib/config/site";
+import { hasPublishedDeals } from "@/lib/deals/queries";
 import { LogoMark } from "./logo";
 
 const LINKS = [
-  ...(DEALS_ENABLED ? [{ href: "/deals", label: "דילים" }] : []),
   { href: "/disclosure", label: "גילוי נאות" },
   { href: "/privacy", label: "מדיניות פרטיות" },
   { href: "/terms", label: "תנאי שימוש" },
 ];
 
-export function SiteFooter() {
+export async function SiteFooter() {
+  const links =
+    DEALS_ENABLED && (await hasPublishedDeals())
+      ? [{ href: "/deals", label: "דילים" }, ...LINKS]
+      : LINKS;
   return (
     <footer className="mt-20 border-t border-line">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-[1.2fr_1fr]">
@@ -26,7 +30,7 @@ export function SiteFooter() {
         </div>
         <nav aria-label="קישורים באתר">
           <ul className="grid grid-cols-2 gap-x-6 gap-y-1">
-            {LINKS.map((link) => (
+            {links.map((link) => (
               <li key={link.href}>
                 <Link
                   href={link.href}

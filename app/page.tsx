@@ -14,7 +14,7 @@ import { SearchComposer } from "@/components/search-composer";
 import { card, featured } from "@/components/styles";
 import { BRAND } from "@/lib/config/brand";
 import { EXAMPLE_QUERY } from "@/lib/config/site";
-import { NEXT_SALE } from "@/lib/mock/deals";
+import { nextSale } from "@/lib/deals/queries";
 import { FILTERS } from "@/lib/ranking/config";
 import { searchHref } from "@/lib/search-url";
 import { examplePreview } from "@/lib/search/server";
@@ -53,6 +53,27 @@ async function ExamplePreview() {
   await connection(); // never at build time: the first run may call AliExpress and the LLM
   const response = await examplePreview(EXAMPLE_QUERY).catch(() => null);
   return response?.results.length ? <ResultsPreview response={response} /> : null;
+}
+
+/** The next big sale from the deals table (admin-managed); hidden when there is none. */
+async function NextSale() {
+  await connection(); // "next" depends on the time of the visit
+  const now = new Date();
+  const sale = await nextSale(now).catch((err: unknown) => {
+    console.error(
+      `[next-sale] ${err instanceof Error ? `${err.name}: ${err.message}` : String(err)}`,
+    );
+    return null;
+  });
+  if (!sale?.starts_at) return null;
+  return (
+    <SaleCountdown
+      title={sale.title}
+      startsAt={sale.starts_at}
+      endsAt={sale.ends_at}
+      renderedAt={now.getTime()}
+    />
+  );
 }
 
 function PreviewPlaceholder() {
@@ -124,8 +145,14 @@ export default function HomePage() {
       </section>
 
       <div className="mx-auto mt-6 grid max-w-6xl gap-4 px-4 sm:px-6 md:grid-cols-2">
-        <SaleCountdown title={NEXT_SALE.title_he} startsAt={NEXT_SALE.starts_at} />
-        <section aria-labelledby="trust-title" className={`${card} flex flex-col gap-4 p-6 sm:p-7`}>
+        <Suspense fallback={null}>
+          <NextSale />
+        </Suspense>
+        {/* Full width when there is no sale card next to it. */}
+        <section
+          aria-labelledby="trust-title"
+          className={`${card} flex flex-col gap-4 p-6 sm:p-7 md:only:col-span-2`}
+        >
           <span className="grid size-11 place-items-center rounded-full bg-accent-soft text-accent-ink">
             <ShieldCheck aria-hidden className="size-5" />
           </span>

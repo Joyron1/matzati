@@ -4,6 +4,7 @@
 // traces and error messages never reach the caller.
 import "server-only";
 import { APIError as LlmApiError } from "@anthropic-ai/sdk";
+import { after } from "next/server";
 import { cache } from "react";
 import { z } from "zod";
 import { generateLinks, getProductDetails } from "@/lib/aliexpress/affiliate";
@@ -11,12 +12,16 @@ import { AliExpressClient } from "@/lib/aliexpress/client";
 import { AliExpressError } from "@/lib/aliexpress/errors";
 import type { AliProduct } from "@/lib/aliexpress/schemas";
 import { RESULTS_PER_PAGE } from "@/lib/config/site";
+import { couponForProduct } from "@/lib/deals/queries";
 import { aliexpressConfig, ConfigError, llmConfig } from "@/lib/env";
 import { checkSearchRate, clientIp, consumeDailyLlmBudget, hashIp } from "@/lib/guard/rate-limit";
 import { AnthropicProvider } from "@/lib/llm/anthropic";
 import type { LlmProvider } from "@/lib/llm/provider";
 import { serviceClient } from "@/lib/supabase/server";
-import type { ResultProduct, SearchResponse } from "@/lib/types";
+import { categoryLabelHe, tipsCategoryOf, type TipsCategory } from "@/lib/tips/category";
+import { TipsRefresher, type TipsJobDeps } from "@/lib/tips/refresh";
+import { displayableTips, readCategoryTips } from "@/lib/tips/store";
+import type { Deal, ResultProduct, SearchResponse } from "@/lib/types";
 import type { SortPreference } from "./filters";
 import {
   loadMore,
@@ -208,6 +213,12 @@ export interface ProductPageData {
   detailUrl: string;
   shopName: string | null;
   updatedAt: string;
+  /** Generic buying tips for the product's category (LLM job c), or null while there are none. */
+  tips: string[] | null;
+  /** Hebrew name of the category the tips are for; null when we have no translation. */
+  tipsCategoryHe: string | null;
+  /** A published, current community coupon for this product, or null. */
+  coupon: Deal | null;
 }
 
 const itemUrl = (productId: string) => `https://www.aliexpress.com/item/${productId}.html`;
@@ -228,48 +239,122 @@ async function refreshProduct(productId: string, knownLink: string | null) {
   return promotionLink ? { ...product, promotionLink } : null; // never show what we cannot link
 }
 
-function pageData(p: AliProduct, titleHe: string | null, updatedAt: string): ProductPageData {
-  return {
-    product: toResultProduct(p, titleHe ? { title_he: titleHe, why_he: "" } : undefined),
-    detailUrl: p.detailUrl,
-    shopName: p.shop.name,
-    updatedAt,
-  };
+interface PageProduct {
+  product: AliProduct;
+  titleHe: string | null;
+  updatedAt: string;
 }
 
 /**
  * Product saved by one of our searches; refreshed from productdetail.get when older than 24h.
  * Unknown ids return null (404): only products that went through our filters get a page, and a
  * crawler requesting random ids cannot spend AliExpress quota.
+ */
+async function loadPageProduct(productId: string): Promise<PageProduct | null> {
+  const store = new SupabaseStore(serviceClient());
+  const stored = await store.getProduct(productId);
+  if (!stored) return null;
+  const now = new Date();
+  if (
+    stored.product.promotionLink &&
+    now.getTime() - Date.parse(stored.updatedAt) < PRODUCT_TTL_MS
+  ) {
+    return stored;
+  }
+  let fresh: AliProduct | null;
+  try {
+    fresh = await refreshProduct(productId, stored.product.promotionLink);
+  } catch (err) {
+    logError("product", err);
+    // Real data from the last refresh (with its date) beats a 404 while AliExpress is down.
+    return stored;
+  }
+  if (!fresh) return null;
+  const titleHe = stored.titleHe;
+  await store
+    .saveProducts([fresh], { [productId]: titleHe })
+    .catch((err) => logError("product", err));
+  return { product: fresh, titleHe, updatedAt: now.toISOString() };
+}
+
+// One refresher per server instance, so concurrent views of a category share one LLM call.
+const tipsRefresher = new TipsRefresher();
+
+function tipsJobDeps(): TipsJobDeps {
+  const db = serviceClient();
+  const { dailyCap } = guardEnv();
+  return {
+    db,
+    llm: llmProvider(),
+    chargeBudget: () => consumeDailyLlmBudget(db, new Date(), dailyCap),
+  };
+}
+
+/** Runs the refresh after the response is sent; the page never waits for the LLM. */
+function scheduleTipsRefresh(category: TipsCategory) {
+  const job = () => tipsRefresher.refresh(category, tipsJobDeps);
+  try {
+    after(job);
+  } catch {
+    // Outside a request (scripts, tests) there is no after(): run it detached instead.
+    void job();
+  }
+}
+
+/**
+ * Stored tips for the product's category. A missing or stale entry is (re)generated in the
+ * background; until then the page shows the stored list (if it is the current version) or none.
+ */
+async function tipsForPage(
+  p: AliProduct,
+  now: Date,
+): Promise<Pick<ProductPageData, "tips" | "tipsCategoryHe">> {
+  const category = tipsCategoryOf(p.category);
+  if (!category) return { tips: null, tipsCategoryHe: null };
+  const tipsCategoryHe = categoryLabelHe(category.id);
+  try {
+    const entry = await readCategoryTips(category.id, now);
+    if (!entry || entry.stale) scheduleTipsRefresh(category);
+    return { tips: displayableTips(entry), tipsCategoryHe };
+  } catch (err) {
+    // A read failure is not a missing entry: nothing is generated while the database is down.
+    logError("tips", err);
+    return { tips: null, tipsCategoryHe };
+  }
+}
+
+async function couponForPage(productId: string, now: Date): Promise<Deal | null> {
+  try {
+    const deal = await couponForProduct(productId, now);
+    // A "don't buy" warning is never offered as a coupon next to the buy button.
+    return deal && deal.type !== "dont_buy" && deal.coupon_code?.trim() ? deal : null;
+  } catch (err) {
+    logError("coupon", err);
+    return null;
+  }
+}
+
+/**
+ * Everything /p shows: the product (see loadPageProduct), its category tips and a community
+ * coupon. Tips and coupon never fail the page; they are simply left out.
  * Wrapped in cache() so generateMetadata and the page share one lookup (and refresh) per request.
  */
 export const productForPage = cache(async (productId: string): Promise<ProductPageData | null> => {
   if (!PRODUCT_ID.test(productId)) return null;
   try {
-    const store = new SupabaseStore(serviceClient());
-    const stored = await store.getProduct(productId);
-    if (!stored) return null;
+    const loaded = await loadPageProduct(productId);
+    if (!loaded) return null;
+    const { product: p, titleHe, updatedAt } = loaded;
     const now = new Date();
-    if (
-      stored.product.promotionLink &&
-      now.getTime() - Date.parse(stored.updatedAt) < PRODUCT_TTL_MS
-    ) {
-      return pageData(stored.product, stored.titleHe, stored.updatedAt);
-    }
-    let fresh: AliProduct | null;
-    try {
-      fresh = await refreshProduct(productId, stored.product.promotionLink);
-    } catch (err) {
-      logError("product", err);
-      // Real data from the last refresh (with its date) beats a 404 while AliExpress is down.
-      return pageData(stored.product, stored.titleHe, stored.updatedAt);
-    }
-    if (!fresh) return null;
-    const titleHe = stored.titleHe;
-    await store
-      .saveProducts([fresh], { [productId]: titleHe })
-      .catch((err) => logError("product", err));
-    return pageData(fresh, titleHe, now.toISOString());
+    const [tips, coupon] = await Promise.all([tipsForPage(p, now), couponForPage(productId, now)]);
+    return {
+      product: toResultProduct(p, titleHe ? { title_he: titleHe, why_he: "" } : undefined),
+      detailUrl: p.detailUrl,
+      shopName: p.shop.name,
+      updatedAt,
+      ...tips,
+      coupon,
+    };
   } catch (err) {
     logError("product", err);
     return null;

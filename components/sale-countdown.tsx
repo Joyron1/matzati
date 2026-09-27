@@ -13,17 +13,25 @@ function subscribe(onChange: () => void) {
   return () => clearInterval(id);
 }
 const currentMinute = () => Math.floor(Date.now() / 60_000);
-const serverMinute = () => null;
 
 interface SaleCountdownProps {
   title: string;
   startsAt: string;
+  endsAt: string | null;
+  /**
+   * When the server rendered the card (ms). Server HTML and hydration use it, so a sale that is
+   * already running never flashes a countdown; the client clock takes over right after.
+   */
+  renderedAt?: number;
 }
 
-export function SaleCountdown({ title, startsAt }: SaleCountdownProps) {
+export function SaleCountdown({ title, startsAt, endsAt, renderedAt }: SaleCountdownProps) {
+  const serverMinute = () => (renderedAt === undefined ? null : Math.floor(renderedAt / 60_000));
   const minute = useSyncExternalStore(subscribe, currentMinute, serverMinute);
-  const left = minute === null ? null : timeUntil(new Date(startsAt), new Date(minute * 60_000));
-  const started = minute !== null && left === null;
+  const now = minute === null ? null : new Date(minute * 60_000);
+  const left = now === null ? null : timeUntil(new Date(startsAt), now);
+  const started = now !== null && left === null;
+  const ended = now !== null && endsAt !== null && Date.parse(endsAt) <= now.getTime();
 
   const units = [
     { value: left?.days, label: "ימים" },
@@ -39,17 +47,26 @@ export function SaleCountdown({ title, startsAt }: SaleCountdownProps) {
       <div className="space-y-1">
         <p className="flex items-center gap-2 text-sm font-semibold text-ink">
           <CalendarClock aria-hidden className="size-[18px]" />
-          המבצע הגדול הבא
+          {ended ? "מבצע גדול" : started ? "מבצע גדול עכשיו" : "המבצע הגדול הבא"}
         </p>
         <h2 id="next-sale-title" className="font-display text-3xl text-ink">
           {title}
         </h2>
         <p className="text-sm text-muted">
-          מתחיל ב־<bdi dir="ltr">{formatShortDate(startsAt)}</bdi>
+          {started ? "התחיל ב־" : "מתחיל ב־"}
+          <bdi dir="ltr">{formatShortDate(startsAt)}</bdi>
+          {endsAt && (
+            <>
+              {" "}
+              ונמשך עד <bdi dir="ltr">{formatShortDate(endsAt)}</bdi>
+            </>
+          )}
         </p>
       </div>
 
-      {started ? (
+      {ended ? (
+        <p className="text-lg font-bold">המבצע הסתיים.</p>
+      ) : started ? (
         <p className="text-lg font-bold">המבצע כבר התחיל.</p>
       ) : (
         <dl className="grid grid-cols-3 gap-2 sm:gap-3">
@@ -67,7 +84,7 @@ export function SaleCountdown({ title, startsAt }: SaleCountdownProps) {
         </dl>
       )}
 
-      {/* The reminder goes through the WhatsApp channel on /deals, hidden until M5. */}
+      {/* Reminders go out through the WhatsApp channel on /deals. */}
       {DEALS_ENABLED && (
         <Link href="/deals#whatsapp" className={`${btnPrimary} ${btnMd} self-start`}>
           <Bell aria-hidden className="size-[18px]" />

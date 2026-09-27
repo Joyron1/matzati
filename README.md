@@ -12,8 +12,8 @@ Production: https://matzati-il.vercel.app (Vercel project `matzati-il`).
 - **M2 – AliExpress client: done.** Verified API behavior: [docs/aliexpress-api.md](docs/aliexpress-api.md).
 - **M3 – LLM layer: done.** Eval: [docs/eval-m3.md](docs/eval-m3.md).
 - **M4 – Search end to end: done.** Real results on `/search`, `/p/[id]`, the home preview and `/go` click-out; 48h two-level cache, per-IP rate limits and a daily LLM budget in Supabase.
-- **Still mock:** `/deals` (M5, with the admin).
-- M5–M6: see the milestones in CLAUDE.md.
+- **M5 – Admin, deals, tips: done.** `/admin` (magic-link login, ADMIN_EMAILS only) manages deals and coupons; `/deals` and the home countdown read published deals; `/p` shows generic category tips (LLM job c, cached per category) and community coupons. The deals link appears only when a published deal exists.
+- **M6 – Deploy: live** on Vercel (Git-connected). Phase 2 is next; see CLAUDE.md.
 
 Local dev needs Node 22+, or Node 20.10+ with `--experimental-websocket` (set in the `dev` and `start` scripts) because supabase-js needs a WebSocket global.
 
