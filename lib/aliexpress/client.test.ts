@@ -184,6 +184,24 @@ describe("AliExpressClient.call", () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
+  it("waits out a 1-second ApiCallLimit ban and retries", async () => {
+    const ban = {
+      error_response: {
+        type: "ISV",
+        code: "ApiCallLimit",
+        msg: "Api access frequency exceeds the limit. this ban will last 1 seconds",
+      },
+    };
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse(ban))
+      .mockResolvedValueOnce(jsonResponse(okBody(method, [])));
+    const sleep = vi.fn(async () => {});
+    const client = new AliExpressClient(config, { fetch: fetchMock, sleep });
+    await expect(client.call(method)).resolves.toMatchObject({ result: [] });
+    expect(sleep.mock.calls).toEqual([[1200]]);
+  });
+
   it("does not retry auth errors", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()

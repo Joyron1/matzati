@@ -1,0 +1,2988 @@
+{
+  "summary": {
+    "model": "claude-haiku-4-5-20251001",
+    "llmCalls": 39,
+    "aliexpressCalls": 25,
+    "cacheHits": 1,
+    "totalUsd": 0.12926,
+    "totalIls": 0.3921,
+    "usdIls": 3.033
+  },
+  "records": [
+    {
+      "id": "gift-cook",
+      "topic": "gifts",
+      "query": "מתנה לאבא שאוהב לבשל עד 200 ש״ח",
+      "ms": 17710,
+      "parsed": {
+        "keywords_en": "cooking kitchen gadget",
+        "product_terms": [
+          "kitchen gadget",
+          "cooking tool",
+          "chef gift set"
+        ],
+        "requirements": [],
+        "max_price_ils": 200,
+        "sort_preference": "best_value",
+        "product_he": "מתנה לאבא שאוהב לבשל",
+        "category_hint": "kitchen cooking tools"
+      },
+      "meta": {
+        "cache": "none",
+        "llmUsage": [
+          {
+            "kind": "parse",
+            "usage": {
+              "inputTokens": 2515,
+              "outputTokens": 88,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          },
+          {
+            "kind": "explain",
+            "usage": {
+              "inputTokens": 2106,
+              "outputTokens": 353,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          }
+        ],
+        "aliCalls": 1,
+        "rejected": {
+          "feedback": 2,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 32,
+          "requirement": 0
+        },
+        "keywordsTried": [
+          "cooking kitchen gadget"
+        ],
+        "explainRejected": []
+      },
+      "response": {
+        "query": "מתנה לאבא שאוהב לבשל עד 200 ש״ח",
+        "chips": [
+          {
+            "id": "product",
+            "kind": "keywords",
+            "label_he": "מתנה לאבא שאוהב לבשל",
+            "removable": false
+          },
+          {
+            "id": "max",
+            "kind": "max_price",
+            "label_he": "עד ₪200",
+            "removable": true
+          }
+        ],
+        "sort": "best_value",
+        "checked_count": 49,
+        "passed_count": 10,
+        "results": [
+          {
+            "product_id": "1005007345002921",
+            "title_he": "מלקחי מטבח נירוסטה למנות ובשר",
+            "title_en": "Kitchen Gadgets New Stainless Steel Food Tongs BBQ Meat Salad Bread Clip Barbecue Grill Buffet Clamp Non-slip Tong Cooking Tools",
+            "why_he": "מלקחי BBQ נירוסטה נגד החלקה, 98% משוב חיובי, 2075 נמכרו ב־30 הימים האחרונים, ומתחת לתקציב שלכם.",
+            "price_ils": 8.85,
+            "original_price_ils": 18.43,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 2075,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S35d24ae68eac443bb1baa16948cae809M.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sbd0ad519d4a84656be0d6daf05f24a08t.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sf89d8cb0d55749bc859b069a366bf164R.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S5077b7eeeeac40b0a1e2d9edcd88d7f4J.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S7e02f9590e2442088bef167aabead10dU.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S8791e91a4bbd41b0bbbc7331446125b98.jpg"
+            ],
+            "category_id": "15"
+          },
+          {
+            "product_id": "1005012011203067",
+            "title_he": "שפית־מלקח דו־ב־1 ללא הצמדה Nylon",
+            "title_en": "2 In 1 Flip Spatula Tongs Nylon Non Stick Kitchen Gadget Multifunctional EggPancake Fish Omelet French Toast Cooking Making Too",
+            "why_he": "שפית מטבח רב־תכליתית לביצים וחביתות, 98% משוב חיובי, 2332 נמכרו ב־30 הימים האחרונים, ומתחת לתקציב שלכם.",
+            "price_ils": 9.96,
+            "original_price_ils": 19.92,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 2332,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S279f459431914c86a7b68157580e7004j.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sd755271be8f546788c7e2ffe373ab9094.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sbf0d25603956428eadc67b80a7e9a990K.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S7a492ac618584915bd44d21ab5b6fcd68.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S038bd4b4f9e94206a79645df5177c9c7g.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sfe82475e84ba4395819f779394425cf60.jpg"
+            ],
+            "category_id": "15"
+          },
+          {
+            "product_id": "1005013266260514",
+            "title_he": "מסנן נירוסטה לשמירה מטייגון בעת בישול",
+            "title_en": "Stainless Steel Oil Proof Mesh Cooking Anti Splatter Split Guard Kitchen Gadget Splatter Proof Oil Cover Mesh Pot Lid Frying Pan",
+            "why_he": "מגן טיגון נגד ברקות שמן ממש עם רשת נירוסטה, 98% משוב חיובי, 7648 נמכרו ב־30 הימים האחרונים, ומתחת לתקציב שלכם.",
+            "price_ils": 14.08,
+            "original_price_ils": 28.17,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 7648,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S45ba486587d0439396ad618f69132225Q.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S492cfe0cd407421782afef2ffaa60afaJ.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S2ba976019cca415fbd6f7de1ca0132b3p.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S636b121bfafa4e028b66d4e7dd30539cT.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S503a828623644fb191094258c1f1a84ex.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Seb91410a42fd4414af7d791b7bf7b02dR.jpg"
+            ],
+            "category_id": "15"
+          }
+        ],
+        "more_available": true,
+        "filters_key": "075beb9e2bb216acfd6815c2bdb7e66813673a4cfb084d9ff15949aa93f2e12a",
+        "cached": false
+      }
+    },
+    {
+      "id": "kids-toy",
+      "topic": "kids",
+      "query": "צעצוע לילד בן 3 שמלמד צבעים",
+      "ms": 10746,
+      "parsed": {
+        "keywords_en": "color learning toy",
+        "product_terms": [
+          "color learning toy",
+          "educational toy"
+        ],
+        "requirements": [],
+        "sort_preference": "best_value",
+        "product_he": "צעצוע למידת צבעים",
+        "category_hint": "educational toys"
+      },
+      "meta": {
+        "cache": "none",
+        "llmUsage": [
+          {
+            "kind": "parse",
+            "usage": {
+              "inputTokens": 2510,
+              "outputTokens": 77,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          },
+          {
+            "kind": "explain",
+            "usage": {
+              "inputTokens": 2059,
+              "outputTokens": 333,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          }
+        ],
+        "aliCalls": 2,
+        "rejected": {
+          "feedback": 8,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 84,
+          "requirement": 0
+        },
+        "keywordsTried": [
+          "color learning toy",
+          "color learning toy (p2)"
+        ],
+        "explainRejected": []
+      },
+      "response": {
+        "query": "צעצוע לילד בן 3 שמלמד צבעים",
+        "chips": [
+          {
+            "id": "product",
+            "kind": "keywords",
+            "label_he": "צעצוע למידת צבעים",
+            "removable": false
+          }
+        ],
+        "sort": "best_value",
+        "checked_count": 100,
+        "passed_count": 5,
+        "results": [
+          {
+            "product_id": "1005007096712990",
+            "title_he": "צעצוע מסלול כדורים צבעוני מעץ",
+            "title_en": "Colorful Wooden Roller Coaster Educational Circle Toy For Preschool Learning Bead Maze Toy Perfect Gift For Young Children",
+            "why_he": "צעצוע למידה צבעוני להינה עם מסלול כדורים, 98% משוב חיובי, 1316 נמכרו ב־30 הימים האחרונים והזול מבין השלושה.",
+            "price_ils": 13.45,
+            "original_price_ils": 28.01,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 1316,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S300659a89bb6430c99143d8a83d9a837y.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sd90dfdda5a174636b432912a01e59ba5f.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sa7c7682339cf4c99a5cf950f7ef558e42.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S42527f87770841cf8871e74e83a4f895D.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sbb50aaa30bf44502a3d45d655ca3fc21d.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S66cd27f5874b42c2a757526ff15f6352I.jpg"
+            ],
+            "category_id": "26"
+          },
+          {
+            "product_id": "1005007010556247",
+            "title_he": "קוביות מונטסורי צבעוניות לילדים",
+            "title_en": "Montessori Baby Toys 18 Months Sensory Development Learning Educational Toys Colorful Blocks Sorting Game For Babies Infant",
+            "why_he": "צעצוע סיווג צבעים עם קוביות מונטסורי לפיתוח חושי, 98% משוב חיובי, 702 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 20.88,
+            "original_price_ils": 43.5,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 702,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S3898076bb7fe4f27b8cc54bc60ec24ddD.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sa011c239c7b0486e881aa1ac60086eabT.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S5adeea2e959f4bd2b767d7e33f578192y.jpeg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sc59fd14468d643b7ad20db2cc58a65d9j.jpeg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S72f857e47e99437fbdfd02a8f600585f3.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sb496430d3f0c488fb4e12aecbb5549d8g.jpg"
+            ],
+            "category_id": "26"
+          },
+          {
+            "product_id": "1005010332241945",
+            "title_he": "78 אותיות ומספרים מגנטיים צבעוניים",
+            "title_en": "78 PCS Magnetic Letters Numbers Alphabet, Colorful Plastic Educational Toy, Learning Spelling Counting for Kids, Chiristmas Gift",
+            "why_he": "צעצוע למידה צבעוני של אותיות ומספרים מגנטיים להוראת הכתיב וספירה, 98% משוב חיובי, 245 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 22.02,
+            "original_price_ils": 45.87,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 245,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S804177607e10409b8fd502d080bf4f4eR.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Scabc3adc5e334668aed00bebd84cf9fbs.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S640e0146d0644e27b5ccf2b96ea08d0cf.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sa3f7ef7141bb4623859023d7d658efcax.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S97259c07685b4f46a83b4577d7acd3e8j.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S5ae029b2c916473cb858b3e867512649y.jpg"
+            ],
+            "category_id": "26"
+          }
+        ],
+        "more_available": true,
+        "filters_key": "b33f55b662fdff202e776080f29334bb40e359938db12eefdd8c0dfc75d717d4",
+        "cached": false
+      }
+    },
+    {
+      "id": "car-holder",
+      "topic": "car",
+      "query": "מחזיק טלפון לרכב עם טעינה אלחוטית",
+      "ms": 7965,
+      "parsed": {
+        "keywords_en": "wireless charging car phone holder",
+        "product_terms": [
+          "phone holder",
+          "car phone holder",
+          "phone mount"
+        ],
+        "requirements": [
+          {
+            "en": "wireless charging",
+            "alt": [
+              "qi charging"
+            ],
+            "he": "טעינה אלחוטית"
+          }
+        ],
+        "sort_preference": "best_value",
+        "product_he": "מחזיק טלפון לרכב",
+        "category_hint": "car phone mount"
+      },
+      "meta": {
+        "cache": "none",
+        "llmUsage": [
+          {
+            "kind": "parse",
+            "usage": {
+              "inputTokens": 2513,
+              "outputTokens": 111,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          },
+          {
+            "kind": "explain",
+            "usage": {
+              "inputTokens": 2098,
+              "outputTokens": 357,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          }
+        ],
+        "aliCalls": 1,
+        "rejected": {
+          "feedback": 9,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 16,
+          "requirement": 13
+        },
+        "keywordsTried": [
+          "wireless charging car phone holder"
+        ],
+        "explainRejected": []
+      },
+      "response": {
+        "query": "מחזיק טלפון לרכב עם טעינה אלחוטית",
+        "chips": [
+          {
+            "id": "product",
+            "kind": "keywords",
+            "label_he": "מחזיק טלפון לרכב",
+            "removable": false
+          },
+          {
+            "id": "req:wireless charging",
+            "kind": "must_have",
+            "label_he": "טעינה אלחוטית",
+            "removable": true
+          }
+        ],
+        "sort": "best_value",
+        "checked_count": 50,
+        "passed_count": 10,
+        "results": [
+          {
+            "product_id": "1005008830678574",
+            "title_he": "מחזיק טלפון מגנטי לרכב עם טעינה אלחוטית MagSafe",
+            "title_en": "Car Air Vent Magnetic Wireless Charger Phone Holder, Fast Charging Mount Compatible with MagSafe iPhone 17/16/15/14/13/12 Pro",
+            "why_he": "מחזיק לרכב עם טעינה אלחוטית מהירה ו־MagSafe, 98% משוב חיובי, 8249 נמכרו ב־30 הימים האחרונים והזול מבין השלושה.",
+            "price_ils": 13.37,
+            "original_price_ils": 27.86,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 8249,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sd9e02a75f9424d1b87656ef919361848W.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sa6292981c21341ff81071f637c9f51d3d.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S3b69274cc88a46c38b3dd8e819ede910B.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S9597e31c7dc34afcb22f2c2ee61b9416f.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S64ca8c648489481a996b325c4ce46eb5f.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S436d69ec81bb44d5bb08e422c01bdb9aW.png"
+            ],
+            "category_id": "202192403"
+          },
+          {
+            "product_id": "1005011822823662",
+            "title_he": "מחזיק טלפון עם טעינה אלחוטית MagSafe לרכב",
+            "title_en": "Car For Magsafe Wireless Charger Pad Air Vent Phone Holder Stand For iPhone 17~12 Samsung Xiaomi Fast Charging Cellphone Bracket",
+            "why_he": "מחזיק טעינה אלחוטית מהירה ל־iPhone וטלפונים נוספים, 98% משוב חיובי, אבל הכותרת לא מציינת ידית הרכבה.",
+            "price_ils": 15.43,
+            "original_price_ils": 30.87,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 2726,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S304a130afd3d481ba0701d5cd1f8cc7bv.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S4215a34e0b3e4d649b5b30d00d0e9524w.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sb5bd8da76542438bb9327ae0e22192f4m.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S7e079acc7610424fbc3ee65974abd2c3G.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Scdf06754654441799e17687f6030f629e.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sb1663892dd8f4b0ca63d1bd69e5af821g.jpg"
+            ],
+            "category_id": "202192403"
+          },
+          {
+            "product_id": "1005010109558871",
+            "title_he": "מחזיק טלפון עם טעינה אלחוטית MagSafe תאורת RGB",
+            "title_en": "RGB Light Car Magnetic Wireless Charger Phone Holder Air Vent Stand For Magsafe iPhone 16 15 14 13 12 Pro Max Fast Charging Dock",
+            "why_he": "מחזיק טעינה אלחוטית מהירה עם תאורת RGB, 98% משוב חיובי, אבל הכותרת לא מציינת התאמה לכל הטלפונים.",
+            "price_ils": 20.81,
+            "original_price_ils": 43.35,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 3022,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Se75f3ced94f44c9fa072a93267f7a890t.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S65d65a54f2964124a8cc85b8ce90e65c7.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sb975ab640aa040a3a93ed882a97b8e6dF.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S460b661c4bd44aedae9f43fe19634176a.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S5e269a7aa3314b779a035e6df2daafe50.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S2ec0bec95eb443aa9ac60165332c135cN.jpg"
+            ],
+            "category_id": "34"
+          }
+        ],
+        "more_available": true,
+        "filters_key": "6867994de772a9c44b830d726f9f8b678e0be00697d9dc718cff45d80a0529d7",
+        "cached": false
+      }
+    },
+    {
+      "id": "home-drawer",
+      "topic": "home",
+      "query": "מארגן מגירות למטבח",
+      "ms": 8026,
+      "parsed": {
+        "keywords_en": "kitchen drawer organizer",
+        "product_terms": [
+          "drawer organizer",
+          "drawer divider",
+          "kitchen organizer"
+        ],
+        "requirements": [],
+        "sort_preference": "best_value",
+        "product_he": "מארגן מגירות",
+        "category_hint": "kitchen storage"
+      },
+      "meta": {
+        "cache": "none",
+        "llmUsage": [
+          {
+            "kind": "parse",
+            "usage": {
+              "inputTokens": 2500,
+              "outputTokens": 79,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          },
+          {
+            "kind": "explain",
+            "usage": {
+              "inputTokens": 2086,
+              "outputTokens": 347,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          }
+        ],
+        "aliCalls": 1,
+        "rejected": {
+          "feedback": 12,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 23,
+          "requirement": 0
+        },
+        "keywordsTried": [
+          "kitchen drawer organizer"
+        ],
+        "explainRejected": []
+      },
+      "response": {
+        "query": "מארגן מגירות למטבח",
+        "chips": [
+          {
+            "id": "product",
+            "kind": "keywords",
+            "label_he": "מארגן מגירות",
+            "removable": false
+          }
+        ],
+        "sort": "best_value",
+        "checked_count": 49,
+        "passed_count": 12,
+        "results": [
+          {
+            "product_id": "1005007170336837",
+            "title_he": "מארגן מגירה למטבח הרחבתי לסירים וסיר כיסויים",
+            "title_en": "Expandable Kitchen Cabinet Drawer Organizer Rack, Multi‑Purpose Storage Shelf for Pots, Pans, Pot Lids, Cutting Boards Cookware",
+            "why_he": "מארגן מטבח הרחבתי לאחסון סירים, סיר כיסויים וסכו״ם, 98% משוב חיובי ו־3098 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 43.2,
+            "original_price_ils": 90.01,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 3098,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S34b1bdca4b254777a4f45d0dedb73f17M.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S154fe6acb3a04bf7858412c3700452b7q.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S6ec5a64207bd41548b0f0746ccda0a72E.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sa42e8153585240aab375de6b43edfb19H.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Scc584abe62bd44458ef5147eeccbbe85n.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S9f801647beec410daaf965fefd13f5c4N.jpg"
+            ],
+            "category_id": "15"
+          },
+          {
+            "product_id": "1005008429982440",
+            "title_he": "מארגן תבלינים 4 שכבות להתאמה לסיר וטבליות תבלינים",
+            "title_en": "4 Layers Kitchen Spice Drawer Organizer Adjustable Spice Rack for Spice Jars Seasoning Bottles Cabinet Pantry Kitchen Organizer",
+            "why_he": "מארגן תבלינים שכבתי להתאמה לצנצנות תבלינים וטבליות, 98% משוב חיובי ו־1238 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 39.1,
+            "original_price_ils": 78.2,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 1238,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sff616483d03442d3829e9b2d0e518cc2Z.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Se07d657aa5554769b417177efcc91a9d0.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sda78b43a574341e2bbbe04053ce583f9H.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S90c0b7dcfbcd412191834e310ccd25acX.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sd4467b82fd454035bca5afb253497103V.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S9a86c40c7beb49db85e24009e818b2e2w.jpg"
+            ],
+            "category_id": "15"
+          },
+          {
+            "product_id": "1005007938130472",
+            "title_he": "מארגן תבלינים אקרילי הרחבתי 4/2 שכבות",
+            "title_en": "4/2 Layer Spice Drawer Organizer Adjustable Acrylic Spice Jars Rack Tray Expandable Seasoning Organizer Cabinet Kitchen Shelves",
+            "why_he": "מארגן תבלינים אקרילי הרחבתי בעל משיכה ארוכה, 98% משוב חיובי והזול מבין השלושה.",
+            "price_ils": 13.03,
+            "original_price_ils": 27.14,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 687,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S6de943fc83a141908c13c6a4886d7af5M.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S0410d1a09443451c9c5309cb1532673eg.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S68f39fc2ddba40198e6c955512231957I.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S0c7dfa0e72e8460a8ea6b3945f155c75v.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S19490a97de4e44d6b8309b8183abebd9o.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sf152228410724dc399de7c3a4c80ee8ao.jpg"
+            ],
+            "category_id": "15"
+          }
+        ],
+        "more_available": true,
+        "filters_key": "962248b9e0a980709d49093b35e8d48e7f6b38f12751cfbbd1e05658176fed5d",
+        "cached": false
+      }
+    },
+    {
+      "id": "tech-charger",
+      "topic": "tech",
+      "query": "מטען מהיר 65W לטלפון ולמחשב נייד",
+      "ms": 8461,
+      "parsed": {
+        "keywords_en": "65w fast charger",
+        "product_terms": [
+          "fast charger",
+          "65w charger",
+          "power adapter"
+        ],
+        "requirements": [
+          {
+            "en": "65w",
+            "alt": [],
+            "he": "65W"
+          },
+          {
+            "en": "fast charging",
+            "alt": [
+              "quick charge",
+              "rapid charging"
+            ],
+            "he": "טעינה מהירה"
+          }
+        ],
+        "sort_preference": "best_value",
+        "product_he": "מטען מהיר 65W",
+        "category_hint": "laptop charger"
+      },
+      "meta": {
+        "cache": "none",
+        "llmUsage": [
+          {
+            "kind": "parse",
+            "usage": {
+              "inputTokens": 2512,
+              "outputTokens": 126,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          },
+          {
+            "kind": "explain",
+            "usage": {
+              "inputTokens": 2102,
+              "outputTokens": 286,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          }
+        ],
+        "aliCalls": 1,
+        "rejected": {
+          "feedback": 10,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 20,
+          "requirement": 1
+        },
+        "keywordsTried": [
+          "65w fast charger"
+        ],
+        "explainRejected": []
+      },
+      "response": {
+        "query": "מטען מהיר 65W לטלפון ולמחשב נייד",
+        "chips": [
+          {
+            "id": "product",
+            "kind": "keywords",
+            "label_he": "מטען מהיר 65W",
+            "removable": false
+          },
+          {
+            "id": "req:65w",
+            "kind": "must_have",
+            "label_he": "65W",
+            "removable": true
+          },
+          {
+            "id": "req:fast charging",
+            "kind": "must_have",
+            "label_he": "טעינה מהירה",
+            "removable": true
+          }
+        ],
+        "sort": "best_value",
+        "checked_count": 50,
+        "passed_count": 12,
+        "results": [
+          {
+            "product_id": "1005010530302422",
+            "title_he": "מטען GaN 65W עם USB Type-C",
+            "title_en": "65W GaN Fast Charge Charger USB Type C Phone Power Adapter For Samsung Huawei Xiaomi Oneplus iPhone 14ProMix High Speed Charging",
+            "why_he": "מטען 65W עם טעינה מהירה, 98% משוב חיובי, 22306 נמכרו ב־30 הימים האחרונים והזול מבין השלושה.",
+            "price_ils": 9.2,
+            "original_price_ils": 19.17,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 22306,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sba0d0f4d7f1e49c1956783f1e1d8a40aD.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S6b2f30af70f847938cb16e76fd07470cK.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S75d181bb79e443c5b485c985dc0c7054S.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S7d1cc97aeae34d949a7569fa005419556.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S72a1738e1e264c489810f3b428d85e85A.jpg"
+            ],
+            "category_id": "44"
+          },
+          {
+            "product_id": "1005013002690011",
+            "title_he": "מטען GaN 65W עם USB Type-C נייד",
+            "title_en": "GaN 65W USB Type C Fast Charger 2 in 1 Portable Phone Wall Charger Quick Charge EU US UK Plug For iPhone Samsung Xiaomi Huawei",
+            "why_he": "מטען 65W עם טעינה מהירה ותקע רב־תכליתי, 98% משוב חיובי, 20699 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 9.7,
+            "original_price_ils": 19.41,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 20699,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sb72e7b06fc3a4cf6854f545b44e62b0cF.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S04ae4e4d1f6b4f438d0557632af65e00x.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sacefad27060e4a18bf0fd1ec1bba9d34s.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S80e4077ea0984a679ce509b84735fb8eh.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sa4901d70376549b3b5a250986a0bc40dY.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sb4f6079aaeca45778673476f8de173a6O.jpg"
+            ],
+            "category_id": "44"
+          },
+          {
+            "product_id": "1005010376516082",
+            "title_he": "מטען 65W עם כבל USB-C נשלף",
+            "title_en": "65W USB-C Wall Charger with Retractable Cable Super Fast Charging QC 3.0 USB PD for iPhone 17/16 POCO Xiaomi - Phone Chargers",
+            "why_he": "מטען 65W עם טעינה מהירה וכבל נשלף, 98% משוב חיובי, אבל הכותרת לא מציינת שיחוק קוויק.",
+            "price_ils": 15.59,
+            "original_price_ils": 32.47,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 11698,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S04db413f28d64c42a8c3206a43fe2478B.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S55744c85873c4fb99503ced4a0cf91365.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S837283016f30495db86e61d17eca7931a.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S7cbd0c0e19e94c1f809bd928a8d82b698.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S3aec168b2a664481a6d4ced500edb82dt.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S32acea09ddf94665b927bcef28400ca72.jpg"
+            ],
+            "category_id": "202192403"
+          }
+        ],
+        "more_available": true,
+        "filters_key": "c30c0f0e0b39537e760b7885834ec951ad572220241d2790198e7e082acf8432",
+        "cached": false
+      }
+    },
+    {
+      "id": "price-watch",
+      "topic": "price",
+      "query": "שעון חכם עם דופק בפחות מ־150 שקל",
+      "ms": 10185,
+      "parsed": {
+        "keywords_en": "smartwatch heart rate",
+        "product_terms": [
+          "smartwatch"
+        ],
+        "requirements": [
+          {
+            "en": "heart rate monitor",
+            "alt": [
+              "heart rate",
+              "pulse monitor"
+            ],
+            "he": "מד דופק"
+          }
+        ],
+        "max_price_ils": 150,
+        "sort_preference": "best_value",
+        "product_he": "שעון חכם",
+        "category_hint": "fitness smartwatch"
+      },
+      "meta": {
+        "cache": "none",
+        "llmUsage": [
+          {
+            "kind": "parse",
+            "usage": {
+              "inputTokens": 2511,
+              "outputTokens": 95,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          },
+          {
+            "kind": "explain",
+            "usage": {
+              "inputTokens": 1890,
+              "outputTokens": 112,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          }
+        ],
+        "aliCalls": 2,
+        "rejected": {
+          "feedback": 26,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 28,
+          "requirement": 6
+        },
+        "keywordsTried": [
+          "smartwatch heart rate",
+          "fitness smartwatch"
+        ],
+        "explainRejected": []
+      },
+      "response": {
+        "query": "שעון חכם עם דופק בפחות מ־150 שקל",
+        "chips": [
+          {
+            "id": "product",
+            "kind": "keywords",
+            "label_he": "שעון חכם",
+            "removable": false
+          },
+          {
+            "id": "req:heart rate monitor",
+            "kind": "must_have",
+            "label_he": "מד דופק",
+            "removable": true
+          },
+          {
+            "id": "max",
+            "kind": "max_price",
+            "label_he": "עד ₪150",
+            "removable": true
+          }
+        ],
+        "sort": "best_value",
+        "checked_count": 61,
+        "passed_count": 1,
+        "results": [
+          {
+            "product_id": "1005008830601930",
+            "title_he": "שעון חכם LAXASFIT עם מד דופק",
+            "title_en": "LAXASFIT Smartwatch Bluetooth Talk Smartwatch Message Alert Heart Rate Monitor Sports Watch for Android IOS Men Women",
+            "why_he": "שעון חכם עם מד דופק עבור Android ו־iOS, 98% משוב חיובי ו־6131 נמכרו ב־30 הימים האחרונים, מתחת לתקציב שלכם.",
+            "price_ils": 14.48,
+            "original_price_ils": 28.96,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 6131,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sa82a2c18c6d04220b9455c443e3436e47.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S666287aa00d74c35af6922a796ce7984d.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sdadc4d43055b4dcdaaded86f171105e9I.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sb65dc9a9d55e470bb694d311d33b4cfb1.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S26c6539411584bf8b0bffc4a973cd850V.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sd8954b1ce23c4065b5447464f06cf5325.jpg"
+            ],
+            "category_id": "44"
+          }
+        ],
+        "more_available": false,
+        "filters_key": "9289e3620572938494273cad972e7ac4994d51a82907c7c11ff14166fa5ecb3c",
+        "cached": false
+      }
+    },
+    {
+      "id": "typo-earbuds",
+      "topic": "typos",
+      "query": "אוזניות בלוטות לריצה עמידות למיים",
+      "ms": 8226,
+      "parsed": {
+        "keywords_en": "bluetooth headphones running waterproof",
+        "product_terms": [
+          "bluetooth headphones",
+          "wireless headphones",
+          "bluetooth earbuds"
+        ],
+        "requirements": [
+          {
+            "en": "waterproof",
+            "alt": [
+              "water resistant",
+              "ipx"
+            ],
+            "he": "עמידות למים"
+          }
+        ],
+        "sort_preference": "best_value",
+        "product_he": "אוזניות בלוטוס לריצה",
+        "category_hint": "sports headphones"
+      },
+      "meta": {
+        "cache": "none",
+        "llmUsage": [
+          {
+            "kind": "parse",
+            "usage": {
+              "inputTokens": 2509,
+              "outputTokens": 118,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          },
+          {
+            "kind": "explain",
+            "usage": {
+              "inputTokens": 2094,
+              "outputTokens": 304,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          }
+        ],
+        "aliCalls": 1,
+        "rejected": {
+          "feedback": 8,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 23,
+          "requirement": 8
+        },
+        "keywordsTried": [
+          "bluetooth headphones running waterproof"
+        ],
+        "explainRejected": [
+          {
+            "product_id": "1005012308536449",
+            "rejected": {
+              "why_he": "אוזניות עצם אלחוטיות עמידות למים וזיעה לריצה וركיבה על אופניים, 98% משוב חיובי והנמכרות ביותר מבין השלושה.",
+              "why_problem": "foreign_script"
+            }
+          }
+        ]
+      },
+      "response": {
+        "query": "אוזניות בלוטות לריצה עמידות למיים",
+        "chips": [
+          {
+            "id": "product",
+            "kind": "keywords",
+            "label_he": "אוזניות בלוטוס לריצה",
+            "removable": false
+          },
+          {
+            "id": "req:waterproof",
+            "kind": "must_have",
+            "label_he": "עמידות למים",
+            "removable": true
+          }
+        ],
+        "sort": "best_value",
+        "checked_count": 48,
+        "passed_count": 8,
+        "results": [
+          {
+            "product_id": "1005012308536449",
+            "title_he": "אוזניות עצם Lenovo S102 Bluetooth V6.0 לריצה",
+            "title_en": "Lenovo S102 Bone Conduction Bluetooth V6.0 Earphones Wireless Sports Headphones Waterproof Sweatproof Running Cycling Neckband",
+            "why_he": "98% משוב חיובי ו־410 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 91.36,
+            "original_price_ils": 182.73,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 410,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sce0740e2c4db43dcb041e6819e48d6eaN.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S101cafbd14ff4f07a6bd7cd544375dc7m.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S6eed5ff1408a4fc495d6d7809bd1a563d.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sbea43d9b456545c19d8e193fcce9c3d5G.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Se90b4e6702904fb59cd34f73a6a52e54B.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S328d77505b434d929dd6ef2387f0f32d4.jpg"
+            ],
+            "category_id": "44"
+          },
+          {
+            "product_id": "1005011674789869",
+            "title_he": "אוזניות עצם Bluetooth 2026 לריצה עמידות למים",
+            "title_en": "2026 New Bone Conduction Bluetooth Earbuds Non-In-Ear Running Sports Waterproof Over-Ear Style Long Battery Life Low Noise",
+            "why_he": "אוזניות עצם בלוטוס עמידות למים לריצה עם סוללה ארוכה, 97% משוב חיובי והזול מבין השלושה.",
+            "price_ils": 23.52,
+            "original_price_ils": null,
+            "price_is_approx": false,
+            "discount_pct": 0,
+            "positive_feedback_pct": 97,
+            "units_sold": 117,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S4272bfd3d8c34240a0487389ad05d4a0q.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S69cda148e70647c9b9863cb556733bae0.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S21fde18808544ef0954e276bb9f7e31c6.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S6761db2eefc14bcf8a1997cbd97df35et.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sbbd1ae3385874f8982f95cdce30af2cf1.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sed1371d53fc141da8046c25f111e15ec3.png"
+            ],
+            "category_id": "44"
+          },
+          {
+            "product_id": "1005007623121003",
+            "title_he": "אוזניות TWS Bluetooth 5.3 עם בידוד רעש IP7",
+            "title_en": "Sport Wireless Headphone TWS Wireless Earphones Bluetooth 5.3 Earbuds with ENC Noise Cancellation Mic IP7 Waterproof for Running",
+            "why_he": "אוזניות אלחוטיות עמידות למים IP7 עם ביטול רעש למראות ריצה, 97.3% משוב חיובי.",
+            "price_ils": 62.38,
+            "original_price_ils": 135.6,
+            "price_is_approx": false,
+            "discount_pct": 54,
+            "positive_feedback_pct": 97.3,
+            "units_sold": 132,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S84809e3ec88e4e6b899735d93bdd3cb6O.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S51922ba1493f441a9a3f71695d9600c8b.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S4656aad71ffa4f6fb4accf3830a2e067p.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S6e8b64b6d8d1433ea71e532da04fb849u.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S045a4d06577e42469a9c27e47bc0c8aao.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Se7a0bfc4225e4b31a727c84f5b9899bfb.jpg"
+            ],
+            "category_id": "44"
+          }
+        ],
+        "more_available": true,
+        "filters_key": "bf491c3424709757ad6522265745c835ac7fbf6638822bd2fe5bca27930c644e",
+        "cached": false
+      }
+    },
+    {
+      "id": "slang-mouse",
+      "topic": "slang",
+      "query": "משהו שווה לגיימינג, עכבר שקט שלא מרעיש",
+      "ms": 6694,
+      "parsed": {
+        "keywords_en": "silent gaming mouse",
+        "product_terms": [
+          "gaming mouse",
+          "silent mouse",
+          "quiet mouse"
+        ],
+        "requirements": [
+          {
+            "en": "silent",
+            "alt": [
+              "quiet",
+              "noise-free",
+              "soundless"
+            ],
+            "he": "שקט"
+          }
+        ],
+        "sort_preference": "best_value",
+        "product_he": "עכבר גיימינג שקט",
+        "category_hint": "gaming peripherals"
+      },
+      "meta": {
+        "cache": "none",
+        "llmUsage": [
+          {
+            "kind": "parse",
+            "usage": {
+              "inputTokens": 2516,
+              "outputTokens": 105,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          },
+          {
+            "kind": "explain",
+            "usage": {
+              "inputTokens": 2059,
+              "outputTokens": 303,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          }
+        ],
+        "aliCalls": 1,
+        "rejected": {
+          "feedback": 6,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 20,
+          "requirement": 9
+        },
+        "keywordsTried": [
+          "silent gaming mouse"
+        ],
+        "explainRejected": []
+      },
+      "response": {
+        "query": "משהו שווה לגיימינג, עכבר שקט שלא מרעיש",
+        "chips": [
+          {
+            "id": "product",
+            "kind": "keywords",
+            "label_he": "עכבר גיימינג שקט",
+            "removable": false
+          },
+          {
+            "id": "req:silent",
+            "kind": "must_have",
+            "label_he": "שקט",
+            "removable": true
+          }
+        ],
+        "sort": "best_value",
+        "checked_count": 50,
+        "passed_count": 11,
+        "results": [
+          {
+            "product_id": "1005006904646242",
+            "title_he": "עכבר גיימינג אלחוטי RGB שקט",
+            "title_en": "Ergonomic Wireless Gaming Mouse RGB Backlight USB Compatible Rechargeable Silent Backlit Mouse for Laptop PC - Silent Gaming Mic",
+            "why_he": "עכבר גיימינג אלחוטי שקט עם תאורה RGB וטעינה, 98% משוב חיובי ו־8967 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 11.22,
+            "original_price_ils": 23.38,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 8967,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S306beaca1dc3498a8ba0c4e937fdd812m.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S08f0d996ffb94718a5bbe653d928db85N.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S597dc6a64ba34a23b16b0025d06124ceg.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S91b6a6e9d5a14f389d46fd8c7cb7c897s.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sc71f3569cc6c4de092ada0018dd12924i.png"
+            ],
+            "category_id": "7"
+          },
+          {
+            "product_id": "1005008077489612",
+            "title_he": "עכבר אלחוטי שקט Bluetooth",
+            "title_en": "Bluetooth-compatible Mouse Wireless Mouse Silent Computer Mice Portable Working Gaming Mouse for Laptop iPad Air Pro Tablet PC",
+            "why_he": "עכבר אלחוטי שקט ב־Bluetooth עם תומך טעינה, 98% משוב חיובי ו־4621 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 10.76,
+            "original_price_ils": 22.42,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 4621,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Seb0167af4ac54ca39698c240c06f2d19I.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sabc487b463474c72a84e924aee0e73dch.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S6d9a372a16184a019e009bb6a0473539F.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sc06feca5cb814d969bfcf4912959653bu.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sc5fa079e111a4a938b78720f24c8bc5f8.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sd96614260ec84c1ebf42305173143e09e.jpg"
+            ],
+            "category_id": "7"
+          },
+          {
+            "product_id": "1005010653523244",
+            "title_he": "עכבר גיימינג Bluetooth 2.4G שקט",
+            "title_en": "Bluetooth 2.4G USB Wireless Mouse Ergonomic Silent Gaming Mouse Portable Rechargeable RGB Backlight Mouse For Computer Laptop PC",
+            "why_he": "עכבר גיימינג שקט ב־Bluetooth ו־2.4G עם RGB וטעינה, 98% משוב חיובי ו־6159 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 12.74,
+            "original_price_ils": 25.47,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 6159,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sd054ec906c744b238367cea9db93c61ex.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Scc6ae9a2325c41f09b1125c478d06052m.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S9f1e8eea62634066ad50f0226c400bd7u.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sf187c0e8477a4ebf8f8f6e86eacba51at.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S645adcaba4c24b8d82a1e11ebaf0708b4.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S19aa1bb55667488289ae49910a8e583cc.jpg"
+            ],
+            "category_id": "44"
+          }
+        ],
+        "more_available": true,
+        "filters_key": "7ccbc54fbfc6cedc805b28a4257a183052656d1ee6cf3c069390bc50b0222d6e",
+        "cached": false
+      }
+    },
+    {
+      "id": "kids-bottle",
+      "topic": "kids",
+      "query": "בקבוק מים לגן שלא נוזל",
+      "ms": 8380,
+      "parsed": {
+        "keywords_en": "leak proof water bottle",
+        "product_terms": [
+          "water bottle",
+          "garden bottle"
+        ],
+        "requirements": [
+          {
+            "en": "leak proof",
+            "alt": [
+              "no leak",
+              "non spill"
+            ],
+            "he": "אטום לדיסות"
+          }
+        ],
+        "sort_preference": "best_value",
+        "product_he": "בקבוק מים לגן",
+        "category_hint": "children water bottles"
+      },
+      "meta": {
+        "cache": "none",
+        "llmUsage": [
+          {
+            "kind": "parse",
+            "usage": {
+              "inputTokens": 2505,
+              "outputTokens": 105,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          },
+          {
+            "kind": "explain",
+            "usage": {
+              "inputTokens": 2071,
+              "outputTokens": 304,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          }
+        ],
+        "aliCalls": 1,
+        "rejected": {
+          "feedback": 3,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 13,
+          "requirement": 8
+        },
+        "keywordsTried": [
+          "leak proof water bottle"
+        ],
+        "explainRejected": []
+      },
+      "response": {
+        "query": "בקבוק מים לגן שלא נוזל",
+        "chips": [
+          {
+            "id": "product",
+            "kind": "keywords",
+            "label_he": "בקבוק מים לגן",
+            "removable": false
+          },
+          {
+            "id": "req:leak proof",
+            "kind": "must_have",
+            "label_he": "אטום לדיסות",
+            "removable": true
+          }
+        ],
+        "sort": "best_value",
+        "checked_count": 50,
+        "passed_count": 12,
+        "results": [
+          {
+            "product_id": "1005008660226570",
+            "title_he": "בקבוק מים ספורט אטום לדיסות עם קשית עם שעון",
+            "title_en": "Sports Water Bottle with Time-Tracking Straw Leak Proof Locking Flip Cover for Easy Carry Ideal Outdoor Adventures With Time Mar",
+            "why_he": "בקבוק אטום לדיסות עם כיסוי הפוך נעול, 98% משוב חיובי ו־10324 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 12.11,
+            "original_price_ils": 25.23,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 10324,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S28de75b659754acc927160e3ae65620bO.jpeg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S69a9b0fd9bb44a96a4bba4a1f88e3d0a9.jpeg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sc8bd15a88658498d90e65a7af45a9c46U.jpeg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sef9344c6b8474fd08a3f95090b51deafb.jpeg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S17aa8b0d096c478ea26f11ddce21eec2y.jpeg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S40c82a0ca9494e14a7981664e54e0cdbn.jpeg"
+            ],
+            "category_id": "18"
+          },
+          {
+            "product_id": "1005012978011412",
+            "title_he": "בקבוק מים אטום לדיסות 500ml / 650ml עם מסנן",
+            "title_en": "Leak Proof Sports Water Bottle High Quality Tour Hiking Portable Drink Bottles with Filter 500ml 650ml Camping Gym Cup",
+            "why_he": "בקבוק אטום לדיסות באיכות גבוהה עם מסנן, 98% משוב חיובי והנמכר ביותר מבין השלושה.",
+            "price_ils": 18.11,
+            "original_price_ils": 36.22,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 18351,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S64a1f3b2e42643cfafe79480a40c5edc6.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S638283fd95a14ef4aecba65c7b0b2a83Z.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S077bed2600e542488dde9440dad37112V.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Saee97e8f4c6e474288efae4685f3aac6G.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S6a9dba535c3a43499c40e40ec82b95e5a.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S954e3e9dba6e42698caf781044d99adaw.jpg"
+            ],
+            "category_id": "15"
+          },
+          {
+            "product_id": "1005007306682299",
+            "title_he": "מחזיק בקבוק לאופניים אטום לדיסות",
+            "title_en": "Bike Water Bottle Holder, Durable Leak Proof Non Slip, Lightweight Premium Bike Cup Holder, Adjustable Bicycle Accessories",
+            "why_he": "מחזיק בקבוק אטום לדיסות לאופניים, אבל זהו אביזר משלים ולא בקבוק המים עצמו.",
+            "price_ils": 7.71,
+            "original_price_ils": 16.06,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 4363,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S079f9f0a73f74eb59aabf7146ef0a1f1S.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S3e479ba4203144e6aec209d0c7ef1ceaC.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sfce7c06d57c54b09a8978afdf588dd4cE.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S7601dd1f7e794c659492c06963d8b592V.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Scd5f67f63af84c6291972f282c27d6c6R.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S18d3155433804f999c93977952933c0fv.jpg"
+            ],
+            "category_id": "18"
+          }
+        ],
+        "more_available": true,
+        "filters_key": "7be25518e5330d59c6ea46791de58a984354824e987322c65af9f47bf6cef62a",
+        "cached": false
+      }
+    },
+    {
+      "id": "home-nightlight",
+      "topic": "home",
+      "query": "מנורת לילה לחדר ילדים עם חיישן תנועה",
+      "ms": 7696,
+      "parsed": {
+        "keywords_en": "night light motion sensor",
+        "product_terms": [
+          "night light",
+          "nightlight"
+        ],
+        "requirements": [
+          {
+            "en": "motion sensor",
+            "alt": [
+              "motion detection",
+              "motion activated"
+            ],
+            "he": "חיישן תנועה"
+          }
+        ],
+        "sort_preference": "best_value",
+        "product_he": "מנורת לילה לחדר ילדים",
+        "category_hint": "kids night light"
+      },
+      "meta": {
+        "cache": "none",
+        "llmUsage": [
+          {
+            "kind": "parse",
+            "usage": {
+              "inputTokens": 2513,
+              "outputTokens": 109,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          },
+          {
+            "kind": "explain",
+            "usage": {
+              "inputTokens": 2074,
+              "outputTokens": 308,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          }
+        ],
+        "aliCalls": 1,
+        "rejected": {
+          "feedback": 7,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 10,
+          "requirement": 1
+        },
+        "keywordsTried": [
+          "night light motion sensor"
+        ],
+        "explainRejected": []
+      },
+      "response": {
+        "query": "מנורת לילה לחדר ילדים עם חיישן תנועה",
+        "chips": [
+          {
+            "id": "product",
+            "kind": "keywords",
+            "label_he": "מנורת לילה לחדר ילדים",
+            "removable": false
+          },
+          {
+            "id": "req:motion sensor",
+            "kind": "must_have",
+            "label_he": "חיישן תנועה",
+            "removable": true
+          }
+        ],
+        "sort": "best_value",
+        "checked_count": 50,
+        "passed_count": 12,
+        "results": [
+          {
+            "product_id": "1005006860874836",
+            "title_he": "מנורת לילה LED עם חיישן תנועה נטענת USB-C",
+            "title_en": "LED Motion Sensor Light Wireless LED Night Light Type C Rechargeable Light Cabinet Wardrobe Lamp Staircase Backlight For Kitchen",
+            "why_he": "מנורת לילה עם חיישן תנועה, נטענת ב־USB-C, 98% משוב חיובי ו־64434 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 6.95,
+            "original_price_ils": 14.47,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 64434,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Se1a27cccdb7a4e748a39829ca90d8c3cK.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sf3b53854508b4bab8506a6f599013f89k.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Seb61d60314e04d03954b0729547e9612u.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sdc970a0e7d694328a64a8819bfe4d3adJ.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S37f1e759ee0b4bc99c464bf1a998fba3h.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S40ba7550a57a470fba697a8e17d7ed93v.jpg"
+            ],
+            "category_id": "39"
+          },
+          {
+            "product_id": "1005007345055984",
+            "title_he": "מנורת לילה LED עם חיישן תנועה אלחוטית",
+            "title_en": "1pc Motion Sensor Night Light - Wireless LED Detector Lamp for Bedroom, Staircase, Closet, and Room Decor-night",
+            "why_he": "מנורת לילה אלחוטית עם חיישן תנועה, 98% משוב חיובי ו־38219 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 7.24,
+            "original_price_ils": 14.47,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 38219,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sab46d01dfa5d496cb82a11be6bdca2deC.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S4575090694094db48c1ad085349f1c16o.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S28685245c5ae461384703b0d1eef8b3fZ.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sb1d7542327cf45d5afb972cbcaeac1b7J.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S9b4551230d8b440fb96a5886f0a89d16h.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S94ee964b691f49a385f97603d45b6b4eJ.png"
+            ],
+            "category_id": "39"
+          },
+          {
+            "product_id": "1005006994791021",
+            "title_he": "מנורת לילה LED אלחוטית עם חיישן תנועה",
+            "title_en": "Wireless LED Night Lights Motion Sensor Lights Closet Kitchen Night Lights Bedroom Detector Light Cabinet Staircase Backlit",
+            "why_he": "מנורת לילה אלחוטית עם חיישן תנועה, 98% משוב חיובי ו־37210 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 9.37,
+            "original_price_ils": 18.75,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 37210,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S9a4367e4091e4c6987b1843c6cb63f6fe.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S597f47dc8a21495d84e13bf4df9a1e86t.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S5434a6b0a64d4f539fba129edd84b1d1T.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sa59a8d7a19764714b9a9964d014a56de5.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S357b7968a68c48bb9f4c88dd5a560363k.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S6e3188b68cd54a7a9404ac4ff99c65b3r.jpg"
+            ],
+            "category_id": "39"
+          }
+        ],
+        "more_available": true,
+        "filters_key": "6499bec728da13bb6e70f18a528b9c8b7ffb29620c28daf5c454f08a78f7f1f4",
+        "cached": false
+      }
+    },
+    {
+      "id": "price-range-bag",
+      "topic": "price",
+      "query": "תיק גב לטיולים בין 80 ל־200 ש״ח עמיד למים",
+      "ms": 8012,
+      "parsed": {
+        "keywords_en": "waterproof hiking backpack",
+        "product_terms": [
+          "backpack",
+          "hiking backpack",
+          "trekking backpack"
+        ],
+        "requirements": [
+          {
+            "en": "waterproof",
+            "alt": [
+              "water resistant",
+              "water repellent"
+            ],
+            "he": "עמיד למים"
+          }
+        ],
+        "min_price_ils": 80,
+        "max_price_ils": 200,
+        "sort_preference": "best_value",
+        "product_he": "תיק גב לטיולים",
+        "category_hint": "outdoor backpack"
+      },
+      "meta": {
+        "cache": "none",
+        "llmUsage": [
+          {
+            "kind": "parse",
+            "usage": {
+              "inputTokens": 2519,
+              "outputTokens": 114,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          },
+          {
+            "kind": "explain",
+            "usage": {
+              "inputTokens": 2101,
+              "outputTokens": 332,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          }
+        ],
+        "aliCalls": 1,
+        "rejected": {
+          "feedback": 1,
+          "volume": 0,
+          "currency": 0,
+          "price": 2,
+          "type": 13,
+          "requirement": 6
+        },
+        "keywordsTried": [
+          "waterproof hiking backpack"
+        ],
+        "explainRejected": []
+      },
+      "response": {
+        "query": "תיק גב לטיולים בין 80 ל־200 ש״ח עמיד למים",
+        "chips": [
+          {
+            "id": "product",
+            "kind": "keywords",
+            "label_he": "תיק גב לטיולים",
+            "removable": false
+          },
+          {
+            "id": "req:waterproof",
+            "kind": "must_have",
+            "label_he": "עמיד למים",
+            "removable": true
+          },
+          {
+            "id": "min",
+            "kind": "min_price",
+            "label_he": "מ־₪80",
+            "removable": true
+          },
+          {
+            "id": "max",
+            "kind": "max_price",
+            "label_he": "עד ₪200",
+            "removable": true
+          }
+        ],
+        "sort": "best_value",
+        "checked_count": 49,
+        "passed_count": 12,
+        "results": [
+          {
+            "product_id": "1005007170232910",
+            "title_he": "תיק גב BANGE עמיד למים 15.6 אינץ׳ עם יציאת USB",
+            "title_en": "BANGE Lightweight 15.6 inch Laptop Backpack Waterproof USB Charge Port Multifunctional Travel Hiking School Bag Mochila for Men",
+            "why_he": "תיק גב עמיד למים לטיולים עם כניסת USB לטעינה, מתחת לתקציב שלכם, 98% משוב חיובי ו־2283 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 101.33,
+            "original_price_ils": 211.11,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 2283,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S2c05452d64d146a697ce70c7ee65d7e1V.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sc091cf4e3d144492a4e753fcf40a9efdP.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S0a7e7fb591be43e08a2ae32605e791baS.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S670db2fbc2124cd0b79fc4d026a529b07.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S9ed5f9c8d38a41eb860ab91d0d13f268I.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S852eb5da511e446f89fc30a6d268feedD.jpg"
+            ],
+            "category_id": "1524"
+          },
+          {
+            "product_id": "1005007805618542",
+            "title_he": "תיק גב טקטי 38L עמיד למים עם מערכת MOLLE",
+            "title_en": "38L Tactical Backpack Style, Large Capacity Waterproof Outdoor Rucksack with MOLLE System, Hiking Camping Travel Bug Out Bag",
+            "why_he": "תיק גב עמיד למים בגודל 38L עם מערכת MOLLE לתיקייה, מתחת לתקציב שלכם, 98% משוב חיובי.",
+            "price_ils": 105.03,
+            "original_price_ils": 210.07,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 952,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Se9686aa3631e48b0bd47acf8f0e76b4d3.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S1193057a6cde47f780347d98b0fc7911j.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S6de9bac376bf4540a8e83eff2fa24d52M.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S12d022327a1f450a895f60e1b9b013a5r.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sbb9066ae41bb49508adc893ecb5ca05fp.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S24ea547f181e4b73a4d01d9af61c2615u.jpg"
+            ],
+            "category_id": "1524"
+          },
+          {
+            "product_id": "1005009582247884",
+            "title_he": "תיק גב עמיד למים Ready to Race לאופנוע וטיולים",
+            "title_en": "Ready to Race Logo Waterproof Motorcycle Backpack Hiking Lightweight Trekking Fishing Duffel Bag For KTM Ready to Race Adv Duke",
+            "why_he": "תיק גב עמיד למים קל משקל לטיולים וטיולי אופנוע, מתחת לתקציב שלכם, 98% משוב חיובי.",
+            "price_ils": 83.78,
+            "original_price_ils": 167.56,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 390,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sf2f588b9183848a4851873d9266a4c695.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S501d4ade1e16447a839ccbacc1af3361o.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Se6fb1e019d5348348c63262049db88b2G.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S001ed4df5f2849b1a43d31c397034839S.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sb6327830180e424b916781241adff8c1h.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S44eb445decdf43a793dc2c3d9cdf762aX.jpg"
+            ],
+            "category_id": "201355758"
+          }
+        ],
+        "more_available": true,
+        "filters_key": "41c2b560c8e84e88258e876f58f30caaa6f06dbc8edbf52725391ba0691b6964",
+        "cached": false
+      }
+    },
+    {
+      "id": "cheapest-cable",
+      "topic": "price",
+      "query": "הכי זול: כבל USB-C לאייפון 15",
+      "ms": 7688,
+      "parsed": {
+        "keywords_en": "usb-c cable iphone 15",
+        "product_terms": [
+          "usb-c cable"
+        ],
+        "requirements": [],
+        "sort_preference": "cheapest",
+        "product_he": "כבל USB-C לאייפון 15",
+        "category_hint": "phone charging cable"
+      },
+      "meta": {
+        "cache": "none",
+        "llmUsage": [
+          {
+            "kind": "parse",
+            "usage": {
+              "inputTokens": 2507,
+              "outputTokens": 88,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          },
+          {
+            "kind": "explain",
+            "usage": {
+              "inputTokens": 2079,
+              "outputTokens": 350,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          }
+        ],
+        "aliCalls": 1,
+        "rejected": {
+          "feedback": 1,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 10,
+          "requirement": 0
+        },
+        "keywordsTried": [
+          "usb-c cable iphone 15"
+        ],
+        "explainRejected": []
+      },
+      "response": {
+        "query": "הכי זול: כבל USB-C לאייפון 15",
+        "chips": [
+          {
+            "id": "product",
+            "kind": "keywords",
+            "label_he": "כבל USB-C לאייפון 15",
+            "removable": false
+          }
+        ],
+        "sort": "cheapest",
+        "checked_count": 50,
+        "passed_count": 12,
+        "results": [
+          {
+            "product_id": "1005006997190677",
+            "title_he": "כבל USB-C ל־USB-C 100W עם PD",
+            "title_en": "100W C to C USB C to USB C PD Cable for iPhone 15 Pro Max iPad 10 MacBook Huawei Xiaomi Type C to Type C PD Fast Charging Cable",
+            "why_he": "כבל טעינה מהיר עם PD 100W שמתאים לאייפון 15, הזול מבין השלושה, 98% משוב חיובי ו־12553 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 4.35,
+            "original_price_ils": 8.69,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 12553,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S22c5e2e7098048148cf775263ad83e8fc.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S2f9204f9844b4a34b30f38738d7caad7C.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sb90d845953c842d8b11be6339f365148y.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S4af1f50d82f94e4785a95d79d05a945bO.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Se02404f34a9e46aead7b781da6d4099de.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Scb1491ad0e174fe082e9f596e5fae52dU.png"
+            ],
+            "category_id": "202192403"
+          },
+          {
+            "product_id": "1005013255385720",
+            "title_he": "כבל USB-C עם תכנון מחזיק מפתחות",
+            "title_en": "USB Type C to Type C Charging Cable with Short Extension, Keychain Design, Suitable for iPhone 15, 16, Samsung, and Xiao mi",
+            "why_he": "כבל USB-C קומפקטי עם תכנון מחזיק מפתחות המתאים לאייפון 15, 98% משוב חיובי ו־11771 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 4.84,
+            "original_price_ils": 9.69,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 11771,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sff9141e978d449adb77e4f5642028ff9E.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sbf36d7b51ef94a59a85789170a0c2ff9B.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S16cd5852c247432f91335a48332cafedL.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S9ba72d4d5dc747e6a5dba82747835bfbE.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S03e493e8e49b4f70b2c96378a58916a58.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S0d52620961554e698e4a88f72949f94f5.jpg"
+            ],
+            "category_id": "202192403"
+          },
+          {
+            "product_id": "1005007010293617",
+            "title_he": "כבל USB-C 60W עם PD לטעינה מהירה",
+            "title_en": "60W USB C Cable For iPhone 16 15 Plus Pro Max Xiaomi Type C Cable PD Fast Charger Cord Type-C Cable Phone Cable Accessories",
+            "why_he": "כבל טעינה מהיר עם PD 60W שמתאים לאייפון 15, 98% משוב חיובי והנמכר ביותר מבין השלושה עם 24695 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 4.92,
+            "original_price_ils": 10.24,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 24695,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sa4880e18514b4a639bc39532062d1ecbB.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S317e0da08a054e64b852c4246cde8ca2e.jpeg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S7c7d8420d96343ee94b22fef35cec060w.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S8c7957dd614a49dcac8acac002eb1a37X.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S0d49aee8dcdf4743b48ef637b7f5516ch.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S4015d0291fba4da293ba0686006e225a8.jpg"
+            ],
+            "category_id": "44"
+          }
+        ],
+        "more_available": true,
+        "filters_key": "e0949c3195fba4874a76f8a16638b0d729b03c095435f71c3a413d3ec5c1dc1e",
+        "cached": false
+      }
+    },
+    {
+      "id": "pair-a",
+      "topic": "paraphrase",
+      "query": "אוזניות לריצה, עמידות למים, עד 100 ש״ח",
+      "ms": 12759,
+      "parsed": {
+        "keywords_en": "waterproof running earbuds",
+        "product_terms": [
+          "running earbuds",
+          "running headphones",
+          "sports earbuds"
+        ],
+        "requirements": [
+          {
+            "en": "waterproof",
+            "alt": [
+              "water resistant",
+              "ipx"
+            ],
+            "he": "עמידות למים"
+          }
+        ],
+        "max_price_ils": 100,
+        "sort_preference": "best_value",
+        "product_he": "אוזניות לריצה",
+        "category_hint": "sports headphones"
+      },
+      "meta": {
+        "cache": "none",
+        "llmUsage": [
+          {
+            "kind": "parse",
+            "usage": {
+              "inputTokens": 2515,
+              "outputTokens": 113,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          },
+          {
+            "kind": "explain",
+            "usage": {
+              "inputTokens": 2001,
+              "outputTokens": 259,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          }
+        ],
+        "aliCalls": 3,
+        "rejected": {
+          "feedback": 31,
+          "volume": 22,
+          "currency": 0,
+          "price": 0,
+          "type": 80,
+          "requirement": 2
+        },
+        "keywordsTried": [
+          "waterproof running earbuds",
+          "running earbuds",
+          "sports headphones"
+        ],
+        "explainRejected": [
+          {
+            "product_id": "1005012245998962",
+            "rejected": {
+              "why_he": "אוזניות עצם אלחוטיות עמידות למים ברמה IPX8 עם מיקרופון, מתאימות לריצה וגם לשחייה, 349 נמכרו ב־30 הימים האחרונים ומתחת לתקציב שלכם.",
+              "why_problem": "too_long"
+            }
+          }
+        ]
+      },
+      "response": {
+        "query": "אוזניות לריצה, עמידות למים, עד 100 ש״ח",
+        "chips": [
+          {
+            "id": "product",
+            "kind": "keywords",
+            "label_he": "אוזניות לריצה",
+            "removable": false
+          },
+          {
+            "id": "req:waterproof",
+            "kind": "must_have",
+            "label_he": "עמידות למים",
+            "removable": true
+          },
+          {
+            "id": "max",
+            "kind": "max_price",
+            "label_he": "עד ₪100",
+            "removable": true
+          }
+        ],
+        "sort": "best_value",
+        "checked_count": 137,
+        "passed_count": 2,
+        "results": [
+          {
+            "product_id": "1005013100925225",
+            "title_he": "אוזניות ספורט Bluetooth 4.2 עמידות למים",
+            "title_en": "Wireless Bluetooth 4.2 Earphone Sports Running Headset Waterproof Earbuds Music Magnetic Headphone With HD Mic For Xiaomi Huawei",
+            "why_he": "אוזניות ספורט אלחוטיות עמידות למים עם מיקרופון ברור, 98% משוב חיובי, 244 נמכרו ב־30 הימים האחרונים ומתחת לתקציב שלכם.",
+            "price_ils": 7.76,
+            "original_price_ils": 15.52,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 244,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S93f38956d65644dc88eda769583480f9U.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S7cd3375791184910b223cbb227cf369c3.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S1162330c11ab430eac2bf311b687ad19T.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sc58031fa1e8b4225bae830ee78f28951q.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S6999fea25b9d4d519307e57dc81bfb6cz.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S3cb9a25a1639476ab9ffc4ebc6a5e787F.jpg"
+            ],
+            "category_id": "44"
+          },
+          {
+            "product_id": "1005012245998962",
+            "title_he": "אוזניות עצם Lenovo Bluetooth 5.4 IPX8 לספורט",
+            "title_en": "Lenovo Bluetooth 5.4 Bone Conduction Headphones Wireless Sports Earbuds IPX8 Waterproof with Mic for Swimming Running Fitness",
+            "why_he": "96% משוב חיובי ו־349 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 13.7,
+            "original_price_ils": null,
+            "price_is_approx": false,
+            "discount_pct": 0,
+            "positive_feedback_pct": 96,
+            "units_sold": 349,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Se50ba9cdd69242f3a6993a3c9fedad727.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S67bdcb58971d43e39b6021be80be2c6de.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S59dea54d310f4b91a8b97829cc6e3f67B.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S0222f1037a774ef8b0de668f6cc17967S.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sd0b7836451de4c168d385c9fc948e09b2.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S96192c1a143442bd866c7ede056921ddY.jpg"
+            ],
+            "category_id": "44"
+          }
+        ],
+        "more_available": false,
+        "filters_key": "610352f5cbcdfc1545ede43d2a0d96fd26d45b5dde807e1859640a8a8498b91e",
+        "cached": false
+      }
+    },
+    {
+      "id": "pair-a2",
+      "topic": "paraphrase",
+      "query": "אוזניות ריצה עמידות במים עד 100 שקל",
+      "ms": 8123,
+      "parsed": {
+        "keywords_en": "waterproof running headphones",
+        "product_terms": [
+          "running headphones",
+          "sports headphones",
+          "running earbuds"
+        ],
+        "requirements": [
+          {
+            "en": "waterproof",
+            "alt": [
+              "water resistant",
+              "ipx"
+            ],
+            "he": "עמידות במים"
+          }
+        ],
+        "max_price_ils": 100,
+        "sort_preference": "best_value",
+        "product_he": "אוזניות ריצה",
+        "category_hint": "sports earbuds"
+      },
+      "meta": {
+        "cache": "none",
+        "llmUsage": [
+          {
+            "kind": "parse",
+            "usage": {
+              "inputTokens": 2511,
+              "outputTokens": 112,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          },
+          {
+            "kind": "explain",
+            "usage": {
+              "inputTokens": 2097,
+              "outputTokens": 332,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          }
+        ],
+        "aliCalls": 1,
+        "rejected": {
+          "feedback": 15,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 28,
+          "requirement": 3
+        },
+        "keywordsTried": [
+          "waterproof running headphones"
+        ],
+        "explainRejected": []
+      },
+      "response": {
+        "query": "אוזניות ריצה עמידות במים עד 100 שקל",
+        "chips": [
+          {
+            "id": "product",
+            "kind": "keywords",
+            "label_he": "אוזניות ריצה",
+            "removable": false
+          },
+          {
+            "id": "req:waterproof",
+            "kind": "must_have",
+            "label_he": "עמידות במים",
+            "removable": true
+          },
+          {
+            "id": "max",
+            "kind": "max_price",
+            "label_he": "עד ₪100",
+            "removable": true
+          }
+        ],
+        "sort": "best_value",
+        "checked_count": 49,
+        "passed_count": 3,
+        "results": [
+          {
+            "product_id": "1005009177267583",
+            "title_he": "אוזניות HTC NE19 Bluetooth ספורט אלחוטיות",
+            "title_en": "HTC NE19 Bluetooth Earphones AI OWS Sports Wireless Headphones with Mic Powerful Bass AI Translator Earbuds Waterproof Long Life",
+            "why_he": "אוזניות ריצה אלחוטיות עמידות במים עם מיקרופון ובס חזק, 93.3% משוב חיובי ו־1212 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 35.22,
+            "original_price_ils": null,
+            "price_is_approx": false,
+            "discount_pct": 0,
+            "positive_feedback_pct": 93.3,
+            "units_sold": 1212,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sdcd2a4ff8cd349b1a2a0f97da428b494B.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S27b0aa0941a64c77945ae28d0e21361ep.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S9bf2a75a012d46648780b42f29b93db0N.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sfcaeb2145b1543ca95c0b49bf3bc41e2d.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sd5075651ab1e4432bffd1be20e24e70fZ.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sf8786c3d8c0547b5aca2c6937e11f116C.jpg"
+            ],
+            "category_id": "44"
+          },
+          {
+            "product_id": "1005011677078001",
+            "title_he": "אוזניות עצם Lenovo Bluetooth 5.4 ספורט IPX8",
+            "title_en": "Lenovo Bone Conduction Headset Wireless Swimming Sports Headphone IPX8 Bluetooth 5.4 With Mic Waterproof Exercise Fitness New",
+            "why_he": "אוזניות ריצה בהולכת עצם עמידות במים IPX8, מתחת לתקציב שלכם ו־897 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 8.21,
+            "original_price_ils": null,
+            "price_is_approx": false,
+            "discount_pct": 0,
+            "positive_feedback_pct": 90.9,
+            "units_sold": 897,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S8c1af1bd105347928262e08d1ca29b14o.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S0922255dac794e0db0b2b414b8e147b88.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S125015a3f1324a40ab3e440e0c313ed7f.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S83722a7cec6b409baf7c390c157ed71fg.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S9d91ab08ebe44ece9259361e7d3f855ex.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S6a459fddb6c24c4c920274e66c5d6f23x.jpg"
+            ],
+            "category_id": "44"
+          },
+          {
+            "product_id": "1005007582608533",
+            "title_he": "אוזניות עצם B8 Bluetooth 5.3 IPX5 ריצה",
+            "title_en": "B8 True Bone Conduction Earphones Bluetooth 5.3 Sports Wireless Headphones Ear Hook IPX5 Waterproof Headset for Running Driving",
+            "why_he": "אוזניות ריצה בהולכת עצם עמידות במים IPX5 עם וו אוזן, 90.3% משוב חיובי והנמכרות ביותר מבין השלושה.",
+            "price_ils": 34.51,
+            "original_price_ils": null,
+            "price_is_approx": false,
+            "discount_pct": 0,
+            "positive_feedback_pct": 90.3,
+            "units_sold": 4768,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S14ce8d5aa4ef4de5b176be2570cf0fdbG.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S542ca3d686da45afbc32fbe72319a0953.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sfe29c050c9ba4875b8a1dab6cb4d444ep.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S9a23eadc32b740c199d403a50a330e45i.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S7d2b66b454e04487b3a784afc5063da8r.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S1a2a13eb4ed4479ca9acf9dc8edf4543y.jpg"
+            ],
+            "category_id": "44"
+          }
+        ],
+        "more_available": false,
+        "filters_key": "fac2d0168803b6c93eb94694014af7bea9ee63381a82e7c3bbd6d7c8b368dc73",
+        "cached": false
+      }
+    },
+    {
+      "id": "pair-b2",
+      "topic": "paraphrase",
+      "query": "מעמד לפלאפון לאוטו עם טעינה אלחוטית",
+      "ms": 2579,
+      "parsed": {
+        "keywords_en": "wireless charging car phone holder",
+        "product_terms": [
+          "phone holder",
+          "car phone holder",
+          "phone mount"
+        ],
+        "requirements": [
+          {
+            "en": "wireless charging",
+            "alt": [
+              "qi charging"
+            ],
+            "he": "טעינה אלחוטית"
+          }
+        ],
+        "sort_preference": "best_value",
+        "product_he": "מעמד לפלאפון לאוטו",
+        "category_hint": "car phone mount"
+      },
+      "meta": {
+        "cache": "results",
+        "llmUsage": [
+          {
+            "kind": "parse",
+            "usage": {
+              "inputTokens": 2515,
+              "outputTokens": 113,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          }
+        ],
+        "aliCalls": 0,
+        "rejected": null,
+        "keywordsTried": [],
+        "explainRejected": []
+      },
+      "response": {
+        "query": "מעמד לפלאפון לאוטו עם טעינה אלחוטית",
+        "chips": [
+          {
+            "id": "product",
+            "kind": "keywords",
+            "label_he": "מעמד לפלאפון לאוטו",
+            "removable": false
+          },
+          {
+            "id": "req:wireless charging",
+            "kind": "must_have",
+            "label_he": "טעינה אלחוטית",
+            "removable": true
+          }
+        ],
+        "sort": "best_value",
+        "checked_count": 50,
+        "passed_count": 10,
+        "results": [
+          {
+            "product_id": "1005008830678574",
+            "title_he": "מחזיק טלפון מגנטי לרכב עם טעינה אלחוטית MagSafe",
+            "title_en": "Car Air Vent Magnetic Wireless Charger Phone Holder, Fast Charging Mount Compatible with MagSafe iPhone 17/16/15/14/13/12 Pro",
+            "why_he": "מחזיק לרכב עם טעינה אלחוטית מהירה ו־MagSafe, 98% משוב חיובי, 8249 נמכרו ב־30 הימים האחרונים והזול מבין השלושה.",
+            "price_ils": 13.37,
+            "original_price_ils": 27.86,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 8249,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sd9e02a75f9424d1b87656ef919361848W.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sa6292981c21341ff81071f637c9f51d3d.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S3b69274cc88a46c38b3dd8e819ede910B.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S9597e31c7dc34afcb22f2c2ee61b9416f.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S64ca8c648489481a996b325c4ce46eb5f.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S436d69ec81bb44d5bb08e422c01bdb9aW.png"
+            ],
+            "category_id": "202192403"
+          },
+          {
+            "product_id": "1005011822823662",
+            "title_he": "מחזיק טלפון עם טעינה אלחוטית MagSafe לרכב",
+            "title_en": "Car For Magsafe Wireless Charger Pad Air Vent Phone Holder Stand For iPhone 17~12 Samsung Xiaomi Fast Charging Cellphone Bracket",
+            "why_he": "מחזיק טעינה אלחוטית מהירה ל־iPhone וטלפונים נוספים, 98% משוב חיובי, אבל הכותרת לא מציינת ידית הרכבה.",
+            "price_ils": 15.43,
+            "original_price_ils": 30.87,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 2726,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S304a130afd3d481ba0701d5cd1f8cc7bv.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S4215a34e0b3e4d649b5b30d00d0e9524w.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sb5bd8da76542438bb9327ae0e22192f4m.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S7e079acc7610424fbc3ee65974abd2c3G.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Scdf06754654441799e17687f6030f629e.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sb1663892dd8f4b0ca63d1bd69e5af821g.jpg"
+            ],
+            "category_id": "202192403"
+          },
+          {
+            "product_id": "1005010109558871",
+            "title_he": "מחזיק טלפון עם טעינה אלחוטית MagSafe תאורת RGB",
+            "title_en": "RGB Light Car Magnetic Wireless Charger Phone Holder Air Vent Stand For Magsafe iPhone 16 15 14 13 12 Pro Max Fast Charging Dock",
+            "why_he": "מחזיק טעינה אלחוטית מהירה עם תאורת RGB, 98% משוב חיובי, אבל הכותרת לא מציינת התאמה לכל הטלפונים.",
+            "price_ils": 20.81,
+            "original_price_ils": 43.35,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 3022,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Se75f3ced94f44c9fa072a93267f7a890t.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S65d65a54f2964124a8cc85b8ce90e65c7.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sb975ab640aa040a3a93ed882a97b8e6dF.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S460b661c4bd44aedae9f43fe19634176a.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S5e269a7aa3314b779a035e6df2daafe50.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S2ec0bec95eb443aa9ac60165332c135cN.jpg"
+            ],
+            "category_id": "34"
+          }
+        ],
+        "more_available": true,
+        "filters_key": "6867994de772a9c44b830d726f9f8b678e0be00697d9dc718cff45d80a0529d7",
+        "cached": true
+      }
+    },
+    {
+      "id": "ho-neck-pillow",
+      "topic": "held-out",
+      "query": "כרית לצוואר לטיסות ארוכות",
+      "ms": 7586,
+      "parsed": {
+        "keywords_en": "neck pillow travel",
+        "product_terms": [
+          "neck pillow",
+          "travel pillow",
+          "neck support pillow"
+        ],
+        "requirements": [],
+        "sort_preference": "best_value",
+        "product_he": "כרית לצוואר לטיסות",
+        "category_hint": "travel accessories"
+      },
+      "meta": {
+        "cache": "none",
+        "llmUsage": [
+          {
+            "kind": "parse",
+            "usage": {
+              "inputTokens": 2506,
+              "outputTokens": 85,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          },
+          {
+            "kind": "explain",
+            "usage": {
+              "inputTokens": 2065,
+              "outputTokens": 308,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          }
+        ],
+        "aliCalls": 1,
+        "rejected": {
+          "feedback": 2,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 17,
+          "requirement": 0
+        },
+        "keywordsTried": [
+          "neck pillow travel"
+        ],
+        "explainRejected": []
+      },
+      "response": {
+        "query": "כרית לצוואר לטיסות ארוכות",
+        "chips": [
+          {
+            "id": "product",
+            "kind": "keywords",
+            "label_he": "כרית לצוואר לטיסות",
+            "removable": false
+          }
+        ],
+        "sort": "best_value",
+        "checked_count": 50,
+        "passed_count": 12,
+        "results": [
+          {
+            "product_id": "1005010706919284",
+            "title_he": "כרית צוואר 3D לנסיעות",
+            "title_en": "Car Seat Headrest Universal Travel Rest 3D Neck Pillow Protect Neck Soft Fluffy Comfortable Neck Rest Car Accessories",
+            "why_he": "כרית צוואר רכה ונוחה לטיסות וללא הצורך בתמיכה נוספת, 98% משוב חיובי ו־6959 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 31.25,
+            "original_price_ils": 62.49,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 6959,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S2f84b4717f5441599f46c132b33ed737y.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S19a5777784e44b6b9441bf5be69e2510J.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S1f0099864368464c82f62f389ec1597aQ.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sf6a4ff929a1b496cb7340e33ecd3550bG.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S9e3f13cb93b440d2867b886a2fa97a91N.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sec21960628414d6eb50f17488d2868e3y.jpg"
+            ],
+            "category_id": "34"
+          },
+          {
+            "product_id": "1005011653758907",
+            "title_he": "כרית צוואר מתנפחת משולשת",
+            "title_en": "Triangular Inflatable Travel Pillow, Flocked Multi-use Cushion, Neck Lumbar Leg Support Pillow for Car Office",
+            "why_he": "כרית צוואר מתנפחת לטיסות עם גם תמיכה לגב וקרסול, 98% משוב חיובי ו־4336 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 17.32,
+            "original_price_ils": 34.63,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 4336,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sff44859b485e445aa6b80984931e4e80u.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sc7afe91876204001b6b3e148c7065d6bt.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S95e09722d3844e1280ab4b475407b118v.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sd46c04f5e9d342ffa2f546ad1f99ddc4Z.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sc3110f05c90a48ce8dd9024704bdf5d3g.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sd078537fbb6f49bda831c20799761baby.jpg"
+            ],
+            "category_id": "15"
+          },
+          {
+            "product_id": "1005007857139553",
+            "title_he": "כרית צוואר מתנפחת קלה וקומפקטית",
+            "title_en": "Ultra Soft Inflatable Travel Pillow Portable Neck And Lumbar Support for Camping Pool Car Outdoor Comfort Lightweight Compact",
+            "why_he": "כרית צוואר מתנפחת קלה לטיסות עם גם תמיכה לגב, 98% משוב חיובי והזול מבין השלושה.",
+            "price_ils": 12.12,
+            "original_price_ils": 25.25,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 3600,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Secd2fbe5740e4ba88aef41d0bb9e46228.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sccf0e7f5244a4542b9255d8c100e93a2v.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S778572eb2876456cb01b6d431d588f0ah.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S3b620108d8744950b23c4467c8cbbf52R.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sfcf39b55e7d64359950753cfbc0526can.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S5bec4a9e995f44e78e4e2b8915ce9344Z.jpg"
+            ],
+            "category_id": "18"
+          }
+        ],
+        "more_available": true,
+        "filters_key": "48cd33a5cf6dd3b933e69297c1ebf5532bb0d163907d947a03edcd3c9161f57a",
+        "cached": false
+      }
+    },
+    {
+      "id": "ho-gift-garden",
+      "topic": "held-out",
+      "query": "מתנה לסבתא שאוהבת לגנן עד 120 ש״ח",
+      "ms": 10788,
+      "parsed": {
+        "keywords_en": "gardening tools set",
+        "product_terms": [
+          "gardening tools",
+          "garden tools"
+        ],
+        "requirements": [],
+        "max_price_ils": 120,
+        "sort_preference": "best_value",
+        "product_he": "כלים לגינון",
+        "category_hint": "garden hand tools"
+      },
+      "meta": {
+        "cache": "none",
+        "llmUsage": [
+          {
+            "kind": "parse",
+            "usage": {
+              "inputTokens": 2517,
+              "outputTokens": 74,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          },
+          {
+            "kind": "explain",
+            "usage": {
+              "inputTokens": 2060,
+              "outputTokens": 287,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          }
+        ],
+        "aliCalls": 2,
+        "rejected": {
+          "feedback": 13,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 79,
+          "requirement": 0
+        },
+        "keywordsTried": [
+          "gardening tools set",
+          "gardening tools set (p2)"
+        ],
+        "explainRejected": [
+          {
+            "product_id": "1005005888682049",
+            "rejected": {
+              "why_he": "סט כלים לגינה כולל אתה, מגרפה ושוריד עם ידיות ארגונומיות, 98.6% משוב חיובי.",
+              "why_problem": "singular_address"
+            }
+          }
+        ]
+      },
+      "response": {
+        "query": "מתנה לסבתא שאוהבת לגנן עד 120 ש״ח",
+        "chips": [
+          {
+            "id": "product",
+            "kind": "keywords",
+            "label_he": "כלים לגינון",
+            "removable": false
+          },
+          {
+            "id": "max",
+            "kind": "max_price",
+            "label_he": "עד ₪120",
+            "removable": true
+          }
+        ],
+        "sort": "best_value",
+        "checked_count": 100,
+        "passed_count": 7,
+        "results": [
+          {
+            "product_id": "1005011654004250",
+            "title_he": "סט 3 כלים לגינה נייד",
+            "title_en": "3PC/1Set Mini Gardening Tools Set Portable Small Gardening Tool With Handles Shovel Rake Indoor Gardening Planting Flower Tools",
+            "why_he": "סט שלושה כלים לגינה עם ידיות כולל אתים ומגרפה, 98% משוב חיובי ו־2920 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 5.62,
+            "original_price_ils": 11.24,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 2920,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S1d10342a204a44e381e1a07b9ee7b87eb.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S79e95eafb4fe4ccb8a22a02ad79d5fc0H.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S6a7dd0c268b845f8aca8a77f2baf9ae7s.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S3467f9005c004366a057597c2573a8a8N.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S4e47b8d89a2343afb0cd4a856509fb68X.jpg"
+            ],
+            "category_id": "15"
+          },
+          {
+            "product_id": "1005010439353509",
+            "title_he": "סט 10 שימים לנעילות",
+            "title_en": "10PCS Padlock Shim Picks Set Accessories Set Tools Home Garden Tools",
+            "why_he": "אביזר משלים, לא כלי גינה: סט 10 שימים לנעילות לשימוש בבית וגינה, אבל הכותרת לא מציינת שימוש בגינון.",
+            "price_ils": 7,
+            "original_price_ils": 14,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 577,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Scf76a49faeb04b72bace9c2af3eedd5cz.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S0c16b480a2c84752bfbae58a5d08ceb0s.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S0fcf499ebd3d4125a374b1f579b60a5bF.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S1beab6a6de2343f5984f48e113994924U.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S77047e2a57e04a9e916a5b82eacce601c.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S7145067c2c7646a698d8c08e37e14147K.jpg"
+            ],
+            "category_id": "1420"
+          },
+          {
+            "product_id": "1005005888682049",
+            "title_he": "כלים לגינה עם ידיות ארגונומיות",
+            "title_en": "Garden Tool Hand Trowel,Rake,Cultivator,Weeder Tools With Ergonomic Handle,Garden Lawn Farmland Transplant Gardening Bonsai Tool",
+            "why_he": "98.6% משוב חיובי ו־310 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 19.91,
+            "original_price_ils": 39.25,
+            "price_is_approx": false,
+            "discount_pct": 49,
+            "positive_feedback_pct": 98.6,
+            "units_sold": 310,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S22af04d905c64d2b86322d0fce12ab112.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sf066056ea8194e6db38768c3c94179c9y.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S028b6d2c69c6466dbca18dd765f108ebi.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sc4c93ba4bca14b5dbd5d429ef3dbe5e16.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S835efab50cc84b81b08013c47f6190a8y.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S956bcbe935c041c9b8261a0e8f440f1dc.jpg"
+            ],
+            "category_id": "1420"
+          }
+        ],
+        "more_available": true,
+        "filters_key": "6f00c337cb444ddc2858593a9ba458c3defd458efcf917af5e59e1beb65f2285",
+        "cached": false
+      }
+    },
+    {
+      "id": "ho-powerbank",
+      "topic": "held-out",
+      "query": "סוללת גיבוי קטנה לטלפון 10000 מיליאמפר",
+      "ms": 7455,
+      "parsed": {
+        "keywords_en": "power bank 10000mah",
+        "product_terms": [
+          "power bank",
+          "portable charger"
+        ],
+        "requirements": [
+          {
+            "en": "10000mah",
+            "alt": [],
+            "he": "10000 מיליאמפר"
+          }
+        ],
+        "sort_preference": "best_value",
+        "product_he": "סוללת גיבוי",
+        "category_hint": "portable chargers"
+      },
+      "meta": {
+        "cache": "none",
+        "llmUsage": [
+          {
+            "kind": "parse",
+            "usage": {
+              "inputTokens": 2517,
+              "outputTokens": 105,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          },
+          {
+            "kind": "explain",
+            "usage": {
+              "inputTokens": 2104,
+              "outputTokens": 353,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          }
+        ],
+        "aliCalls": 1,
+        "rejected": {
+          "feedback": 1,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 3,
+          "requirement": 4
+        },
+        "keywordsTried": [
+          "power bank 10000mah"
+        ],
+        "explainRejected": []
+      },
+      "response": {
+        "query": "סוללת גיבוי קטנה לטלפון 10000 מיליאמפר",
+        "chips": [
+          {
+            "id": "product",
+            "kind": "keywords",
+            "label_he": "סוללת גיבוי",
+            "removable": false
+          },
+          {
+            "id": "req:10000mah",
+            "kind": "must_have",
+            "label_he": "10000 מיליאמפר",
+            "removable": true
+          }
+        ],
+        "sort": "best_value",
+        "checked_count": 48,
+        "passed_count": 12,
+        "results": [
+          {
+            "product_id": "1005010425880598",
+            "title_he": "סוללת גיבוי Baseus 10000mAh עם כבלי USB-C מובנים",
+            "title_en": "Baseus 10000mAh Power Bank 22.5W Built-In Dual USB-C Cable Thinner Fast Charging for iPhone 17 Pro Max Samsung S25 Xiaomi Poco",
+            "why_he": "סוללת גיבוי בנפח 10000mAh עם שני כבלי USB-C מובנים, 98.9% משוב חיובי ו־3694 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 85.72,
+            "original_price_ils": 181.98,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98.9,
+            "units_sold": 3694,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S93dd085b5adc406fa3a69ea59e208297y.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S61ad4ecb8f4946158fa6e891a5675b1co.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S058b86dbb9b741f7a40ec97106de3747K.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sbb16fbc7f7f34614bf1fe372cf4258e3S.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S076172ad5f2a4bd6a054327b51c9b7e7w.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S1f45d03b71574b669718432a228520eba.jpg"
+            ],
+            "category_id": "202192403"
+          },
+          {
+            "product_id": "1005006860850404",
+            "title_he": "פנס אופניים 10000mAh עם סוללת גיבוי",
+            "title_en": "Bicycle Light 10000mAh Bike Light Power Bank Flashlight USB Charging MTB Mountain Bicycle Cycling Headlight Lamp Accessories",
+            "why_he": "אביזר משלים, לא סוללת גיבוי רגילה: פנס אופניים בנוסף לסוללת גיבוי 10000mAh עם טעינת USB.",
+            "price_ils": 48.18,
+            "original_price_ils": 100.38,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 4815,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S576e52fab65444a68a08692b2bbb40a6z.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sd4129dda76f04f6491f9744930ef8ae1Z.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S7fca89af94484969839eef353a2563dcf.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sb3bf434503d540c29e84446167b3dab3s.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S94449002d8a341908a8f5e0d835b14019.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S79f292194b4241a7836ebcb860187b48y.jpg"
+            ],
+            "category_id": "18"
+          },
+          {
+            "product_id": "1005010606760672",
+            "title_he": "סוללת גיבוי Vention 10000mAh עם כבל USB-C מובנה",
+            "title_en": "Vention 10000mAh Mini Power Bank 22.5w Portable Charger Built-in USB C Cable PD 3.0 Fast Charging for iPhone 17 18 Samsung S26",
+            "why_he": "סוללת גיבוי בנפח 10000mAh עם כבל USB-C מובנה ותמיכת טעינה מהירה, 97.5% משוב חיובי ו־7442 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 92.27,
+            "original_price_ils": 189.21,
+            "price_is_approx": false,
+            "discount_pct": 51,
+            "positive_feedback_pct": 97.5,
+            "units_sold": 7442,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sa259657e87d4403fb8a0a9de8d3ec0de4.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sfaab9de29aff4184aa26b2faff07f11f2.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S6858d22bcc204a949fecfaca78982d61d.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S42292763ab524c6680aa69e14b45bff1K.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S113ec2d47d834afc9a335b29d61cb454k.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sea1b89a3a38849ff97b49bb69f8d02dbH.jpg"
+            ],
+            "category_id": "202192403"
+          }
+        ],
+        "more_available": true,
+        "filters_key": "0038349a1f61323797f9dfee8e61083b7e5c2877e465ce1ec50cc473702b965a",
+        "cached": false
+      }
+    },
+    {
+      "id": "ho-slippers",
+      "topic": "held-out",
+      "query": "נעלי בית חמות לחורף",
+      "ms": 11433,
+      "parsed": {
+        "keywords_en": "warm house slippers winter",
+        "product_terms": [
+          "house slippers",
+          "home slippers",
+          "indoor slippers"
+        ],
+        "requirements": [
+          {
+            "en": "warm",
+            "alt": [
+              "heated",
+              "thermal"
+            ],
+            "he": "חמות"
+          }
+        ],
+        "sort_preference": "best_value",
+        "product_he": "נעלי בית חמות",
+        "category_hint": "winter slippers"
+      },
+      "meta": {
+        "cache": "none",
+        "llmUsage": [
+          {
+            "kind": "parse",
+            "usage": {
+              "inputTokens": 2501,
+              "outputTokens": 102,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          },
+          {
+            "kind": "explain",
+            "usage": {
+              "inputTokens": 2070,
+              "outputTokens": 323,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          }
+        ],
+        "aliCalls": 2,
+        "rejected": {
+          "feedback": 8,
+          "volume": 14,
+          "currency": 0,
+          "price": 0,
+          "type": 63,
+          "requirement": 0
+        },
+        "keywordsTried": [
+          "warm house slippers winter",
+          "warm house slippers winter (p2)"
+        ],
+        "explainRejected": []
+      },
+      "response": {
+        "query": "נעלי בית חמות לחורף",
+        "chips": [
+          {
+            "id": "product",
+            "kind": "keywords",
+            "label_he": "נעלי בית חמות",
+            "removable": false
+          },
+          {
+            "id": "req:warm",
+            "kind": "must_have",
+            "label_he": "חמות",
+            "removable": true
+          }
+        ],
+        "sort": "best_value",
+        "checked_count": 100,
+        "passed_count": 12,
+        "results": [
+          {
+            "product_id": "1005010487474040",
+            "title_he": "נעלי בית חמות לנשים Chainsaw עם בטנה פרוותית",
+            "title_en": "Chainsaw Home Slipper Womens Winter Warm Fuzzy Furry cartoon Plush Grip Sole Indoor Female Fluffy funny cute House Shoes Ladies",
+            "why_he": "נעלי בית חמות עם בטנה פרוותית ונעל אחיזה, 98% משוב חיובי ו־961 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 33.67,
+            "original_price_ils": 67.33,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 961,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S70b8ecd9d798460483285773ed76d216t.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S809fd2ec28cd46ddb5b530fed373bdb5x.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S34a31a890afc4ce78d1e9920173b4a82A.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S48c2c838b53840559edc38e8a95f3438w.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S6056c2fd051b4796a3ca72f6ac7875126.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S641d40e5acb6461fa2bc8ed5cdc1d878r.jpg"
+            ],
+            "category_id": "322"
+          },
+          {
+            "product_id": "1005012061454873",
+            "title_he": "נעלי בית חמות לגברים עם ריפוד אולטרה חם",
+            "title_en": "Winter Men Felt Platform  House Slippers Ultra Warm Cushion   Cozy Living Non-Slip TPR Outdoor Indoor House",
+            "why_he": "נעלי בית חמות עם ריפוד כרית נוח וסוליה נגד החלקה, 98% משוב חיובי ו־993 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 36.77,
+            "original_price_ils": 73.55,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 993,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S5ba66fd336f2418387fae034e58d446bt.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S0b14e271526045cc92fc97f66452820ck.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sc55d9d0d374443df8f7f21c5fa1f09e3I.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S84136d7d32784ca59b8c016db206ef98T.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S084f9bd1d0494a49b0310cc8d030a0f0f.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S250794998d444381ba6cd63b201bb446H.jpg"
+            ],
+            "category_id": "322"
+          },
+          {
+            "product_id": "1005010228801688",
+            "title_he": "נעלי בית חמות לגברים Pmoiste עם זיכרון קצף",
+            "title_en": "Pmoiste Soft Flannel Flu Plaid House Slippers Men Comfortable Memory Foam Cushion Warm Living Room Shoes Slip-on Winter Indoor",
+            "why_he": "נעלי בית חמות עם ריפוד זיכרון קצף ובטנה פלנל, 98% משוב חיובי והזולה מבין השלושה.",
+            "price_ils": 31.65,
+            "original_price_ils": 65.94,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 141,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S7a52dea26f9e4ae496495aaf96b57cafR.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S1ae051e7d26445bd9e84d232990ffba0b.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S570e6338d6d14c9aadf307d2ee0dfe6cV.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S30a83b8ce626440ba500e781f95213053.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S469114704d614000a04a19ac7b889634X.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sa02341b4deee42fb812affb598d3b7647.jpg"
+            ],
+            "category_id": "322"
+          }
+        ],
+        "more_available": true,
+        "filters_key": "33f057226a511cd5c128c1c1eb2d219a51ccc90a645c72db1f1dd80f0a0ba123",
+        "cached": false
+      }
+    },
+    {
+      "id": "ho-speaker",
+      "topic": "held-out",
+      "query": "רמקול בלוטוס עמיד למים לים בין 50 ל־150 שקל",
+      "ms": 9040,
+      "parsed": {
+        "keywords_en": "waterproof bluetooth speaker",
+        "product_terms": [
+          "bluetooth speaker",
+          "wireless speaker"
+        ],
+        "requirements": [
+          {
+            "en": "waterproof",
+            "alt": [
+              "water resistant",
+              "ipx7"
+            ],
+            "he": "עמיד למים"
+          }
+        ],
+        "min_price_ils": 50,
+        "max_price_ils": 150,
+        "sort_preference": "best_value",
+        "product_he": "רמקול בלוטוס עמיד למים",
+        "category_hint": "portable speakers"
+      },
+      "meta": {
+        "cache": "none",
+        "llmUsage": [
+          {
+            "kind": "parse",
+            "usage": {
+              "inputTokens": 2519,
+              "outputTokens": 110,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          },
+          {
+            "kind": "explain",
+            "usage": {
+              "inputTokens": 2108,
+              "outputTokens": 362,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          }
+        ],
+        "aliCalls": 1,
+        "rejected": {
+          "feedback": 6,
+          "volume": 0,
+          "currency": 0,
+          "price": 1,
+          "type": 11,
+          "requirement": 3
+        },
+        "keywordsTried": [
+          "waterproof bluetooth speaker"
+        ],
+        "explainRejected": []
+      },
+      "response": {
+        "query": "רמקול בלוטוס עמיד למים לים בין 50 ל־150 שקל",
+        "chips": [
+          {
+            "id": "product",
+            "kind": "keywords",
+            "label_he": "רמקול בלוטוס עמיד למים",
+            "removable": false
+          },
+          {
+            "id": "req:waterproof",
+            "kind": "must_have",
+            "label_he": "עמיד למים",
+            "removable": true
+          },
+          {
+            "id": "min",
+            "kind": "min_price",
+            "label_he": "מ־₪50",
+            "removable": true
+          },
+          {
+            "id": "max",
+            "kind": "max_price",
+            "label_he": "עד ₪150",
+            "removable": true
+          }
+        ],
+        "sort": "best_value",
+        "checked_count": 49,
+        "passed_count": 12,
+        "results": [
+          {
+            "product_id": "1005006677962779",
+            "title_he": "רמקול Zealot-S32 בלוטוס עמיד למים IPX 6",
+            "title_en": "Zealot-S32 Wireless Speaker Outdoor Portable Subwoofer Speaker, Waterproof IPX 6, Dual Pairing,1800mAh Battery",
+            "why_he": "רמקול נייד עמיד למים IPX 6 עם סוללה 1800mAh, מתחת לתקציב שלכם, 98% משוב חיובי ו־4174 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 64.23,
+            "original_price_ils": 133.8,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 4174,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S834f12d4bcb84e2b8c96b9a81f728a0dj.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S0ade01339fea4faebd5b426047b5ef79p.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S8d5c809a43eb457aa6067c77ca2210f1x.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sc2ff82e998f44583812a55dfef05f4c3t.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S7a1f5b9ddd7646e9bb805d1af4b5184bT.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S6914c11363394051a9ddd55aedf3d9a5o.jpg"
+            ],
+            "category_id": "44"
+          },
+          {
+            "product_id": "1005007038567261",
+            "title_he": "רמקול Zealot-S32Pro בלוטוס עמיד למים עם לד",
+            "title_en": "ZEALOT-S32PRO Powerful Bluetooth Speaker, Bass Wireless, LED Light, Outdoor Speakers, Subwoofer, Waterproof Sound Box Support",
+            "why_he": "רמקול עמיד למים עם תאורת לד וסאב וופר, מתחת לתקציב שלכם, 98% משוב חיובי ו־4174 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 88.96,
+            "original_price_ils": 185.34,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 4174,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S92b35c79db374bd8af678f246bea797en.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S07374defa2e9439dba9c05f49ccbad25t.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sbd030ca8b450466caa8272259571af3ab.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S994031cd893b4ce8942a70590fbb766b3.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sdd7c260e204442e78d55098a099f7131l.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S0b7aaf6489e24552afd6b72d201e675e8.png"
+            ],
+            "category_id": "44"
+          },
+          {
+            "product_id": "1005009582248966",
+            "title_he": "מחזיק טלפון למקלחת עם רמקול בלוטוס",
+            "title_en": "Shower Phone Holder with Bluetooth Speaker 360 Rotation Wall Phone Mount for Shower Waterproof Anti Fog for 4-6.9\" Phones",
+            "why_he": "אביזר משלים, לא רמקול בלבד: מחזיק טלפון עמיד למים עם רמקול בלוטוס לטלפונים 4-6.9\", מתחת לתקציב שלכם.",
+            "price_ils": 53.64,
+            "original_price_ils": 111.75,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 1190,
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S42d11192f23d458187aa633f6ba40963f.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S2ec35540028b485588eea855a7b75f48b.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S4184eaf0d03e4498b25664dd274e0221O.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S398db712603647b29cd31ae699b2a726e.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S112680c577c7498f953aaf9c1528852bm.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S6a80fc63e4174e259b522e73329131ffD.jpg"
+            ],
+            "category_id": "202192403"
+          }
+        ],
+        "more_available": true,
+        "filters_key": "606b373bfd172621b86f4b6720deee8f32f77031326e2bb0f0032720055e4195",
+        "cached": false
+      }
+    }
+  ]
+}

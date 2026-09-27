@@ -1,0 +1,1088 @@
+{
+  "summary": {
+    "model": "claude-haiku-4-5-20251001",
+    "llmCalls": 24,
+    "aliexpressCalls": 14,
+    "totalUsd": 0.04037,
+    "totalIls": 0.1224,
+    "usdIls": 3.033,
+    "avgTokens": {
+      "parse": {
+        "input": 907,
+        "output": 85
+      },
+      "explain": {
+        "input": 896,
+        "output": 273
+      }
+    }
+  },
+  "records": [
+    {
+      "id": "gift-cook",
+      "topic": "gifts",
+      "query": "מתנה לאבא שאוהב לבשל עד 200 ש״ח",
+      "parse": {
+        "parsed": {
+          "keywords_en": "cooking gift dad kitchen",
+          "category_hint": "kitchen gadgets",
+          "max_price_ils": 200,
+          "must_have": [],
+          "chips_he": [
+            "מתנה לאבא",
+            "שאוהב לבשל",
+            "עד ₪200"
+          ],
+          "sort_preference": "best_value"
+        },
+        "attempts": 1,
+        "ms": 2623
+      },
+      "cache": {
+        "hit": "none"
+      },
+      "search": {
+        "checked": 47,
+        "passed": 0,
+        "skipped": 0,
+        "rejected": {
+          "feedback": 42,
+          "volume": 5,
+          "currency": 0,
+          "price": 0,
+          "must_have": 0
+        }
+      },
+      "top": [],
+      "explain": null
+    },
+    {
+      "id": "kids-toy",
+      "topic": "kids",
+      "query": "צעצוע לילד בן 3 שמלמד צבעים",
+      "parse": {
+        "parsed": {
+          "keywords_en": "toy learning colors toddler",
+          "category_hint": "children's toys",
+          "must_have": [
+            "learning",
+            "colors"
+          ],
+          "chips_he": [
+            "צעצוע לילד בן 3",
+            "שיעור צבעים"
+          ],
+          "sort_preference": "best_value"
+        },
+        "attempts": 1,
+        "ms": 1461
+      },
+      "cache": {
+        "hit": "none"
+      },
+      "search": {
+        "checked": 39,
+        "passed": 0,
+        "skipped": 0,
+        "rejected": {
+          "feedback": 38,
+          "volume": 1,
+          "currency": 0,
+          "price": 0,
+          "must_have": 0
+        }
+      },
+      "top": [],
+      "explain": null
+    },
+    {
+      "id": "car-holder",
+      "topic": "car",
+      "query": "מחזיק טלפון לרכב עם טעינה אלחוטית",
+      "parse": {
+        "parsed": {
+          "keywords_en": "phone holder car wireless charging",
+          "category_hint": "car phone holder",
+          "must_have": [
+            "wireless",
+            "charging"
+          ],
+          "chips_he": [
+            "מחזיק טלפון לרכב",
+            "טעינה אלחוטית"
+          ],
+          "sort_preference": "best_value"
+        },
+        "attempts": 1,
+        "ms": 2152
+      },
+      "cache": {
+        "hit": "none"
+      },
+      "search": {
+        "checked": 50,
+        "passed": 41,
+        "skipped": 0,
+        "rejected": {
+          "feedback": 7,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "must_have": 2
+        }
+      },
+      "top": [
+        {
+          "product_id": "1005010487359429",
+          "title_en": "Magnetic Car Wireless Charger Mount 15W Fast Charging For iPhone 12 13 14 15 16 Samsung Qi Phone 360 Rotation Vent Clip No Cable",
+          "price_ils": 13.88,
+          "original_price_ils": 27.75,
+          "discount_pct": 50,
+          "positive_feedback_pct": 98,
+          "units_sold_30d": 5089
+        },
+        {
+          "product_id": "1005013255553564",
+          "title_en": "10-1pcs Q Type Self Adhesive Metal Ring Iron Sheet Stickers for Samsung Mi Huawei iPhone Magsafe Magnetic Wireless Charging Ring",
+          "price_ils": 2.9,
+          "original_price_ils": 5.8,
+          "discount_pct": 50,
+          "positive_feedback_pct": 98,
+          "units_sold_30d": 3126
+        },
+        {
+          "product_id": "1005011822823662",
+          "title_en": "Car For Magsafe Wireless Charger Pad Air Vent Phone Holder Stand For iPhone 17~12 Samsung Xiaomi Fast Charging Cellphone Bracket",
+          "price_ils": 15.43,
+          "original_price_ils": 30.87,
+          "discount_pct": 50,
+          "positive_feedback_pct": 98,
+          "units_sold_30d": 2726
+        }
+      ],
+      "explain": {
+        "items": [
+          {
+            "product_id": "1005010487359429",
+            "title_he": "מחזיק טלפון מגנטי לרכב 15W",
+            "why_he": "מחזיק טלפון עם טעינה אלחוטית בעוצמה 15W, תאימות לכל הסמארטפונים ותמיכה בסיבוב 360 מעלות לנוחות שלכם.",
+            "why_from_model": true
+          },
+          {
+            "product_id": "1005013255553564",
+            "title_he": "טבעות מתכת דבקות למגנט אלחוט",
+            "why_he": "טבעות מתכת דבקות שמאפשרות טעינה אלחוטית Magsafe לטלפונים שלכם ללא Magsafe מובנה.",
+            "why_from_model": true
+          },
+          {
+            "product_id": "1005011822823662",
+            "title_he": "מחזיק Magsafe לרכב עם טעינה",
+            "why_he": "מחזיק טלפון לרכב עם טעינה אלחוטית מהירה של Magsafe, תאימות רחבה לסמארטפונים שלכם וקיבוע לפתח האוורור.",
+            "why_from_model": true
+          }
+        ],
+        "ms": 5132
+      }
+    },
+    {
+      "id": "home-drawer",
+      "topic": "home",
+      "query": "מארגן מגירות למטבח",
+      "parse": {
+        "parsed": {
+          "keywords_en": "drawer organizer kitchen",
+          "category_hint": "kitchen storage",
+          "must_have": [],
+          "chips_he": [
+            "מארגן מגירות",
+            "למטבח"
+          ],
+          "sort_preference": "best_value"
+        },
+        "attempts": 1,
+        "ms": 1868
+      },
+      "cache": {
+        "hit": "none"
+      },
+      "search": {
+        "checked": 49,
+        "passed": 42,
+        "skipped": 0,
+        "rejected": {
+          "feedback": 7,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "must_have": 0
+        }
+      },
+      "top": [
+        {
+          "product_id": "1005013004164872",
+          "title_en": "UpgradedAdjustable Plastic Cutlery Drawer Organizer Divided Storage Tray Space Saving Holder for Kitchen Knives Spoons Tableware",
+          "price_ils": 16.91,
+          "original_price_ils": 35.22,
+          "discount_pct": 52,
+          "positive_feedback_pct": 100,
+          "units_sold_30d": 331
+        },
+        {
+          "product_id": "1005008248056658",
+          "title_en": "1pc Kitchen Egg Storage Box Refrigerator Fresh Plastic 2-Layer Drawer Type Large Capacity Storage Home Kitchen Organizer Rack",
+          "price_ils": 50.59,
+          "original_price_ils": 105.4,
+          "discount_pct": 52,
+          "positive_feedback_pct": 98,
+          "units_sold_30d": 4039
+        },
+        {
+          "product_id": "1005007170336837",
+          "title_en": "Expandable Kitchen Cabinet Drawer Organizer Rack, Multi‑Purpose Storage Shelf for Pots, Pans, Pot Lids, Cutting Boards Cookware",
+          "price_ils": 43.2,
+          "original_price_ils": 90.01,
+          "discount_pct": 52,
+          "positive_feedback_pct": 98,
+          "units_sold_30d": 3098
+        }
+      ],
+      "explain": {
+        "items": [
+          {
+            "product_id": "1005013004164872",
+            "title_he": "מארגן סכו",
+            "why_he": "מארגן פלסטיק לסכו",
+            "why_from_model": true
+          },
+          {
+            "product_id": "1005008248056658",
+            "title_he": "תא אחסון ביצים למקרר",
+            "why_he": "תא אחסון דו-שכבתי בגודל גדול לארגון מטבח עם 4039 מכירות בחודש האחרון.",
+            "why_from_model": true
+          },
+          {
+            "product_id": "1005007170336837",
+            "title_he": "מארגן מגירות ניתן להרחבה",
+            "why_he": "מארגן רב-תכליתי לסירים, מחבתות וקרשי חיתוך עם 3098 מכירות בחודש האחרון.",
+            "why_from_model": true
+          }
+        ],
+        "ms": 3760
+      }
+    },
+    {
+      "id": "tech-charger",
+      "topic": "tech",
+      "query": "מטען מהיר 65W לטלפון ולמחשב נייד",
+      "parse": {
+        "parsed": {
+          "keywords_en": "fast charger 65W phone laptop",
+          "category_hint": "charger",
+          "must_have": [
+            "65w",
+            "fast"
+          ],
+          "chips_he": [
+            "מטען מהיר 65W",
+            "טלפון ולמחשב נייד"
+          ],
+          "sort_preference": "best_value"
+        },
+        "attempts": 1,
+        "ms": 1540
+      },
+      "cache": {
+        "hit": "none"
+      },
+      "search": {
+        "checked": 50,
+        "passed": 32,
+        "skipped": 0,
+        "rejected": {
+          "feedback": 5,
+          "volume": 13,
+          "currency": 0,
+          "price": 0,
+          "must_have": 0
+        }
+      },
+      "top": [
+        {
+          "product_id": "1005006995547868",
+          "title_en": "Essager 67W GaN USB Type C Charger For Laptop 45W 25W PD QC 3.0 Fast Charge For Macbook Xiaomi Samsung Iphone14 13 Phone Chagers",
+          "price_ils": 48.4,
+          "original_price_ils": 100.83,
+          "discount_pct": 52,
+          "positive_feedback_pct": 98.7,
+          "units_sold_30d": 1928
+        },
+        {
+          "product_id": "1005012218235654",
+          "title_en": "100W GaN PD Type C Charger USB QC 3.0 For Laptop Ipad PPS Fast Charge EU UK For Samsung Xiaomi iPhone 15 16 Pro Max Mobile Phone",
+          "price_ils": 38.74,
+          "original_price_ils": 77.48,
+          "discount_pct": 50,
+          "positive_feedback_pct": 98,
+          "units_sold_30d": 3152
+        },
+        {
+          "product_id": "1005012221738703",
+          "title_en": "Real 85W GaN Type C Charger USB QC3.0 For Laptop Ipad PPS PD 65W Fast Charge For Samsung Xiaomi iPhone 6-16 Pro Max Mobile Phone",
+          "price_ils": 27.31,
+          "original_price_ils": 54.61,
+          "discount_pct": 50,
+          "positive_feedback_pct": 98,
+          "units_sold_30d": 1484
+        }
+      ],
+      "explain": {
+        "items": [
+          {
+            "product_id": "1005006995547868",
+            "title_he": "מטען Essager 67W GaN USB Type C",
+            "why_he": "מטען מהיר עם תמיכה ב-PD ו-QC 3.0 לטלפון ומחשב נייד, בעל דירוג חיובי של 98.7% ומכר 1928 יחידות בחודש האחרון.",
+            "why_from_model": true
+          },
+          {
+            "product_id": "1005012218235654",
+            "title_he": "מטען GaN 100W USB Type C",
+            "why_he": "עבר את הסינון: משוב חיובי ומכירות מעל הסף שלנו.",
+            "why_from_model": false
+          },
+          {
+            "product_id": "1005012221738703",
+            "title_he": "מטען GaN 85W USB Type C",
+            "why_he": "מטען 85W בעל PD 65W וQC3.0 לטלפון ומחשב נייד בצמוד ביותר לדרישתכם, במחיר הנמוך ביותר של 27.31₪.",
+            "why_from_model": true
+          }
+        ],
+        "ms": 3870
+      }
+    },
+    {
+      "id": "price-watch",
+      "topic": "price",
+      "query": "שעון חכם עם דופק בפחות מ־150 שקל",
+      "parse": {
+        "parsed": {
+          "keywords_en": "smart watch heart rate monitor",
+          "category_hint": "smartwatch",
+          "max_price_ils": 150,
+          "must_have": [
+            "smart",
+            "watch"
+          ],
+          "chips_he": [
+            "שעון חכם",
+            "מדידת דופק",
+            "עד ₪150"
+          ],
+          "sort_preference": "best_value"
+        },
+        "attempts": 1,
+        "ms": 1563
+      },
+      "cache": {
+        "hit": "none"
+      },
+      "search": {
+        "checked": 49,
+        "passed": 32,
+        "skipped": 0,
+        "rejected": {
+          "feedback": 17,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "must_have": 0
+        }
+      },
+      "top": [
+        {
+          "product_id": "1005008830601930",
+          "title_en": "LAXASFIT Smartwatch Bluetooth Talk Smartwatch Message Alert Heart Rate Monitor Sports Watch for Android IOS Men Women",
+          "price_ils": 14.48,
+          "original_price_ils": 28.96,
+          "discount_pct": 50,
+          "positive_feedback_pct": 98,
+          "units_sold_30d": 6131
+        },
+        {
+          "product_id": "1005008908936664",
+          "title_en": "LAXASFIT 2025 New Smart Watch for Men Women Gift Full Touch Screen Sports Fitness Watch Bluetooth Call Digital Smartwatch",
+          "price_ils": 23.25,
+          "original_price_ils": 48.43,
+          "discount_pct": 52,
+          "positive_feedback_pct": 98,
+          "units_sold_30d": 6013
+        },
+        {
+          "product_id": "1005009234715670",
+          "title_en": "2026 Smart Watch Android IOS Phone 2.01Inch Color Screen Bluetooth Answer Call Fitness Watches Tracker Smartwatch Women Men Ht22",
+          "price_ils": 23.08,
+          "original_price_ils": 48.09,
+          "discount_pct": 52,
+          "positive_feedback_pct": 98,
+          "units_sold_30d": 4504
+        }
+      ],
+      "explain": {
+        "items": [
+          {
+            "product_id": "1005008830601930",
+            "title_he": "LAXASFIT שעון חכם עם מד דופק",
+            "why_he": "שעון חכם עם מדידת דופק במחיר של ₪14.48, הרבה יותר זול מתקציב שלכם.",
+            "why_from_model": true
+          },
+          {
+            "product_id": "1005008908936664",
+            "title_he": "LAXASFIT 2025 שעון חכם עם מד דופק",
+            "why_he": "שעון חכם בעל מסך מגע מלא ומדידת דופק במחיר ₪23.25, הרבה יותר זול מ־₪150.",
+            "why_from_model": true
+          },
+          {
+            "product_id": "1005009234715670",
+            "title_he": "שעון חכם HT22 מסך צבע 2.01 אינץ'",
+            "why_he": "שעון חכם עם מסך צבע וקשר בלוטוס בעיר ₪23.08, הרבה יותר זול מתקציב שלכם.",
+            "why_from_model": true
+          }
+        ],
+        "ms": 3332
+      }
+    },
+    {
+      "id": "typo-earbuds",
+      "topic": "typos",
+      "query": "אוזניות בלוטות לריצה עמידות למיים",
+      "parse": {
+        "parsed": {
+          "keywords_en": "wireless earphones running waterproof",
+          "category_hint": "earphones",
+          "must_have": [
+            "wireless",
+            "waterproof"
+          ],
+          "chips_he": [
+            "אוזניות בלוטוס",
+            "לריצה",
+            "עמידות למים"
+          ],
+          "sort_preference": "best_value"
+        },
+        "attempts": 1,
+        "ms": 1669
+      },
+      "cache": {
+        "hit": "none"
+      },
+      "search": {
+        "checked": 50,
+        "passed": 38,
+        "skipped": 0,
+        "rejected": {
+          "feedback": 10,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "must_have": 2
+        }
+      },
+      "top": [
+        {
+          "product_id": "1005010155302507",
+          "title_en": "Original SP16 Sports Wireless Earphones over Ear Buds with Earhooks True Wireless Running In-Ear Headphones With Mic Otemkay",
+          "price_ils": 19.4,
+          "original_price_ils": 40.41,
+          "discount_pct": 52,
+          "positive_feedback_pct": 98,
+          "units_sold_30d": 6988
+        },
+        {
+          "product_id": "1005008500784169",
+          "title_en": "2024 Sports Neckband Wireless Running Universal Earphone Ear-hook Headphone Earplugs Super Stereo Headset Bluetooth Waterproof",
+          "price_ils": 18.43,
+          "original_price_ils": 38.39,
+          "discount_pct": 52,
+          "positive_feedback_pct": 98,
+          "units_sold_30d": 405
+        },
+        {
+          "product_id": "1005013100925225",
+          "title_en": "Wireless Bluetooth 4.2 Earphone Sports Running Headset Waterproof Earbuds Music Magnetic Headphone With HD Mic For Xiaomi Huawei",
+          "price_ils": 7.76,
+          "original_price_ils": 15.52,
+          "discount_pct": 50,
+          "positive_feedback_pct": 98,
+          "units_sold_30d": 244
+        }
+      ],
+      "explain": {
+        "items": [
+          {
+            "product_id": "1005010155302507",
+            "title_he": "אוזניות ספורט SP16 אלחוטיות עם ווים",
+            "why_he": "אוזניות בלוטוס לריצה עם מיקרופון, עמידות למים וביקורות חיוביות של 98% עם מכירות של 6988 ביחידות בחודש.",
+            "why_from_model": true
+          },
+          {
+            "product_id": "1005008500784169",
+            "title_he": "אוזניות ספורט אלחוטיות עמידות למים",
+            "why_he": "אוזניות בלוטוס לריצה עם בנד צווארוני וווי אוזן, אטומות למים ועם 98% משוב חיובי.",
+            "why_from_model": true
+          },
+          {
+            "product_id": "1005013100925225",
+            "title_he": "אוזניות בלוטוס 4.2 ספורט עמידות למים",
+            "why_he": "אוזניות בלוטוס לריצה עמידות למים עם מיקרופון HD וחיבור מגנטי, במחיר הנמוך ביותר בעל 98% ביקורות חיוביות.",
+            "why_from_model": true
+          }
+        ],
+        "ms": 4409
+      }
+    },
+    {
+      "id": "slang-mouse",
+      "topic": "slang",
+      "query": "משהו שווה לגיימינג, עכבר שקט שלא מרעיש",
+      "parse": {
+        "parsed": {
+          "keywords_en": "gaming mouse silent quiet",
+          "category_hint": "gaming mouse",
+          "must_have": [
+            "quiet",
+            "silent"
+          ],
+          "chips_he": [
+            "גיימינג",
+            "עכבר שקט"
+          ],
+          "sort_preference": "best_value"
+        },
+        "attempts": 1,
+        "ms": 1459
+      },
+      "cache": {
+        "hit": "none"
+      },
+      "search": {
+        "checked": 16,
+        "passed": 0,
+        "skipped": 0,
+        "rejected": {
+          "feedback": 13,
+          "volume": 3,
+          "currency": 0,
+          "price": 0,
+          "must_have": 0
+        }
+      },
+      "top": [],
+      "explain": null
+    },
+    {
+      "id": "kids-bottle",
+      "topic": "kids",
+      "query": "בקבוק מים לגן שלא נוזל",
+      "parse": {
+        "parsed": {
+          "keywords_en": "water bottle kids non spill",
+          "category_hint": "water bottles",
+          "must_have": [
+            "non",
+            "spill"
+          ],
+          "chips_he": [
+            "בקבוק מים לילדים",
+            "אטום לדליפה"
+          ],
+          "sort_preference": "best_value"
+        },
+        "attempts": 1,
+        "ms": 1592
+      },
+      "cache": {
+        "hit": "none"
+      },
+      "search": {
+        "checked": 0,
+        "passed": 0,
+        "skipped": 0,
+        "rejected": {
+          "feedback": 0,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "must_have": 0
+        }
+      },
+      "top": [],
+      "explain": null
+    },
+    {
+      "id": "home-nightlight",
+      "topic": "home",
+      "query": "מנורת לילה לחדר ילדים עם חיישן תנועה",
+      "parse": {
+        "parsed": {
+          "keywords_en": "night light children motion sensor",
+          "category_hint": "lighting",
+          "must_have": [
+            "motion sensor"
+          ],
+          "chips_he": [
+            "מנורת לילה",
+            "חדר ילדים",
+            "חיישן תנועה"
+          ],
+          "sort_preference": "best_value"
+        },
+        "attempts": 1,
+        "ms": 1417
+      },
+      "cache": {
+        "hit": "none"
+      },
+      "search": {
+        "checked": 50,
+        "passed": 2,
+        "skipped": 0,
+        "rejected": {
+          "feedback": 30,
+          "volume": 16,
+          "currency": 0,
+          "price": 0,
+          "must_have": 2
+        }
+      },
+      "top": [
+        {
+          "product_id": "1005006872041175",
+          "title_en": "LED Night Light With Motion Sensor Light EU US Plug Socket Lamps Children Night Lights Wireless Wall Bedside Bedroom Night Lamp",
+          "price_ils": 10.77,
+          "original_price_ils": 23.56,
+          "discount_pct": 54,
+          "positive_feedback_pct": 96.6,
+          "units_sold_30d": 2447
+        },
+        {
+          "product_id": "1005006871905731",
+          "title_en": "LED Night Light With Motion Sensor Light EU US Plug Socket Lamps Children Night Lights Wireless Wall Bedside Bedroom Night Lamp",
+          "price_ils": 14.7,
+          "original_price_ils": 30.63,
+          "discount_pct": 52,
+          "positive_feedback_pct": 96.1,
+          "units_sold_30d": 2122
+        }
+      ],
+      "explain": {
+        "items": [
+          {
+            "product_id": "1005006872041175",
+            "title_he": "מנורת לילה LED עם חיישן תנועה",
+            "why_he": "מנורת לילה אלחוטית לחדר ילדים עם חיישן תנועה, במחיר הנמוך ביותר ובהערכה גבוהה של 96.6%.",
+            "why_from_model": true
+          },
+          {
+            "product_id": "1005006871905731",
+            "title_he": "מנורת לילה LED עם חיישן תנועה",
+            "why_he": "מנורת לילה אלחוטית לחדר ילדים עם חיישן תנועה, במחיר משתלם והערכה גבוהה של 96.1%.",
+            "why_from_model": true
+          }
+        ],
+        "ms": 2307
+      }
+    },
+    {
+      "id": "price-range-bag",
+      "topic": "price",
+      "query": "תיק גב לטיולים בין 80 ל־200 ש״ח עמיד למים",
+      "parse": {
+        "parsed": {
+          "keywords_en": "backpack hiking waterproof durable",
+          "category_hint": "backpack",
+          "min_price_ils": 80,
+          "max_price_ils": 200,
+          "must_have": [
+            "waterproof"
+          ],
+          "chips_he": [
+            "תיק גב לטיולים",
+            "עמיד למים",
+            "₪80-200"
+          ],
+          "sort_preference": "best_value"
+        },
+        "attempts": 1,
+        "ms": 1531
+      },
+      "cache": {
+        "hit": "none"
+      },
+      "search": {
+        "checked": 50,
+        "passed": 0,
+        "skipped": 0,
+        "rejected": {
+          "feedback": 30,
+          "volume": 20,
+          "currency": 0,
+          "price": 0,
+          "must_have": 0
+        }
+      },
+      "top": [],
+      "explain": null
+    },
+    {
+      "id": "cheapest-cable",
+      "topic": "price",
+      "query": "הכי זול: כבל USB-C לאייפון 15",
+      "parse": {
+        "parsed": {
+          "keywords_en": "USB-C cable iPhone 15",
+          "category_hint": "cables",
+          "must_have": [
+            "usb-c",
+            "iphone"
+          ],
+          "chips_he": [
+            "כבל USB-C",
+            "אייפון 15",
+            "הכי זול"
+          ],
+          "sort_preference": "cheapest"
+        },
+        "attempts": 1,
+        "ms": 1516
+      },
+      "cache": {
+        "hit": "none"
+      },
+      "search": {
+        "checked": 50,
+        "passed": 11,
+        "skipped": 0,
+        "rejected": {
+          "feedback": 22,
+          "volume": 17,
+          "currency": 0,
+          "price": 0,
+          "must_have": 0
+        }
+      },
+      "top": [
+        {
+          "product_id": "1005006863719796",
+          "title_en": "USB-C to USB Adapter, USB-C Male to USB Female OTG Data Cable, Suitable for MacBook Pro/Air, iPhone 16 Pro Max/16 Plus/16e/15",
+          "price_ils": 3.67,
+          "original_price_ils": 7.65,
+          "discount_pct": 52,
+          "positive_feedback_pct": 98,
+          "units_sold_30d": 5961
+        },
+        {
+          "product_id": "1005009812482886",
+          "title_en": "PD 60W USB-C to USB-C Fast Charging PD Cable For iPhone 16 15 Series Macbook Huawei Samsung Xiaomi Type C to Type C Cord Cable",
+          "price_ils": 2.4,
+          "original_price_ils": 3.7,
+          "discount_pct": 35,
+          "positive_feedback_pct": 94.8,
+          "units_sold_30d": 459
+        },
+        {
+          "product_id": "1005008932780701",
+          "title_en": "0.28M Short USB Type C Cable PD60W Fast Charging Power Bank Data Cord For iphone 15 Samsung Xiaomi Huawei Phone USB C Cable",
+          "price_ils": 3.82,
+          "original_price_ils": 7.95,
+          "discount_pct": 52,
+          "positive_feedback_pct": 98,
+          "units_sold_30d": 2166
+        }
+      ],
+      "explain": {
+        "items": [
+          {
+            "product_id": "1005006863719796",
+            "title_he": null,
+            "why_he": "עבר את הסינון: משוב חיובי ומכירות מעל הסף שלנו.",
+            "why_from_model": false
+          },
+          {
+            "product_id": "1005009812482886",
+            "title_he": "כבל USB-C ל-USB-C PD 60W",
+            "why_he": "הכבל הזול ביותר ברשימה במחיר 2.4 שקלים, עם טעינה מהירה PD60W לאייפון 15 שלכם.",
+            "why_from_model": true
+          },
+          {
+            "product_id": "1005008932780701",
+            "title_he": null,
+            "why_he": "עבר את הסינון: משוב חיובי ומכירות מעל הסף שלנו.",
+            "why_from_model": false
+          }
+        ],
+        "ms": 2107
+      }
+    },
+    {
+      "id": "pair-a",
+      "topic": "paraphrase",
+      "query": "אוזניות לריצה, עמידות למים, עד 100 ש״ח",
+      "parse": {
+        "parsed": {
+          "keywords_en": "running earphones waterproof",
+          "category_hint": "earphones",
+          "max_price_ils": 100,
+          "must_have": [
+            "waterproof"
+          ],
+          "chips_he": [
+            "אוזניות לריצה",
+            "עמידות למים",
+            "עד ₪100"
+          ],
+          "sort_preference": "best_value"
+        },
+        "attempts": 1,
+        "ms": 1936
+      },
+      "cache": {
+        "hit": "none"
+      },
+      "search": {
+        "checked": 46,
+        "passed": 13,
+        "skipped": 0,
+        "rejected": {
+          "feedback": 13,
+          "volume": 0,
+          "currency": 0,
+          "price": 1,
+          "must_have": 19
+        }
+      },
+      "top": [
+        {
+          "product_id": "1005010487367374",
+          "title_en": "POLVCDG X9 Bone Conduction Swimming Earphones 32G IPX8 Waterproof Open Swimming Running Bicycle Earphones Ear Hanging Earphones",
+          "price_ils": 94.31,
+          "original_price_ils": 188.62,
+          "discount_pct": 50,
+          "positive_feedback_pct": 98,
+          "units_sold_30d": 727
+        },
+        {
+          "product_id": "1005007678232042",
+          "title_en": "Original GDLYL HD65 TWS Bluetooth V5.4 Headphones Wireless LED Digital Display Earphones Noise Reduction Waterproof Headset New",
+          "price_ils": 80.1,
+          "original_price_ils": 137.55,
+          "discount_pct": 41,
+          "positive_feedback_pct": 96.2,
+          "units_sold_30d": 1889
+        },
+        {
+          "product_id": "1005009706727798",
+          "title_en": "POLVCDG X9 Bone Conduction Earphones 32G IPX8 Waterproof Open Design for Swimming Running Cycling Hanging Earphones",
+          "price_ils": 97.48,
+          "original_price_ils": null,
+          "discount_pct": 0,
+          "positive_feedback_pct": 95.5,
+          "units_sold_30d": 4618
+        }
+      ],
+      "explain": {
+        "items": [
+          {
+            "product_id": "1005010487367374",
+            "title_he": "POLVCDG X9 אוזניות הולכת עצם IPX8",
+            "why_he": "אוזניות לריצה ובריכה עמידות למים IPX8, במחיר 94.31 ש״ח, עם דירוג חיובי של 98%.",
+            "why_from_model": true
+          },
+          {
+            "product_id": "1005007678232042",
+            "title_he": "GDLYL HD65 אוזניות TWS Bluetooth V5.4",
+            "why_he": "אוזניות אלחוטיות עמידות למים בצפיפות מפחתת רעשים, במחיר 80.1 ש״ח, הזולות ביותר ברשימה.",
+            "why_from_model": true
+          },
+          {
+            "product_id": "1005009706727798",
+            "title_he": "POLVCDG X9 אוזניות הולכת עצם IPX8",
+            "why_he": "אוזניות לריצה עמידות למים IPX8 בעיצוב פתוח, במחיר 97.48 ש״ח, עם המכירות הגבוהות ביותר.",
+            "why_from_model": true
+          }
+        ],
+        "ms": 3925
+      }
+    },
+    {
+      "id": "pair-a2",
+      "topic": "paraphrase",
+      "query": "אוזניות ריצה עמידות במים עד 100 שקל",
+      "parse": {
+        "parsed": {
+          "keywords_en": "running earphones waterproof",
+          "category_hint": "earphones",
+          "max_price_ils": 100,
+          "must_have": [
+            "waterproof"
+          ],
+          "chips_he": [
+            "אוזניות ריצה",
+            "עמידות במים",
+            "עד ₪100"
+          ],
+          "sort_preference": "best_value"
+        },
+        "attempts": 1,
+        "ms": 1397
+      },
+      "cache": {
+        "hit": "results",
+        "sameAs": "pair-a"
+      },
+      "search": {
+        "checked": 46,
+        "passed": 13
+      },
+      "top": [
+        {
+          "product_id": "1005010487367374",
+          "title_en": "POLVCDG X9 Bone Conduction Swimming Earphones 32G IPX8 Waterproof Open Swimming Running Bicycle Earphones Ear Hanging Earphones",
+          "price_ils": 94.31,
+          "original_price_ils": 188.62,
+          "discount_pct": 50,
+          "positive_feedback_pct": 98,
+          "units_sold_30d": 727
+        },
+        {
+          "product_id": "1005007678232042",
+          "title_en": "Original GDLYL HD65 TWS Bluetooth V5.4 Headphones Wireless LED Digital Display Earphones Noise Reduction Waterproof Headset New",
+          "price_ils": 80.1,
+          "original_price_ils": 137.55,
+          "discount_pct": 41,
+          "positive_feedback_pct": 96.2,
+          "units_sold_30d": 1889
+        },
+        {
+          "product_id": "1005009706727798",
+          "title_en": "POLVCDG X9 Bone Conduction Earphones 32G IPX8 Waterproof Open Design for Swimming Running Cycling Hanging Earphones",
+          "price_ils": 97.48,
+          "original_price_ils": null,
+          "discount_pct": 0,
+          "positive_feedback_pct": 95.5,
+          "units_sold_30d": 4618
+        }
+      ],
+      "explain": {
+        "items": [
+          {
+            "product_id": "1005010487367374",
+            "title_he": "POLVCDG X9 אוזניות הולכת עצם IPX8",
+            "why_he": "אוזניות לריצה ובריכה עמידות למים IPX8, במחיר 94.31 ש״ח, עם דירוג חיובי של 98%.",
+            "why_from_model": true
+          },
+          {
+            "product_id": "1005007678232042",
+            "title_he": "GDLYL HD65 אוזניות TWS Bluetooth V5.4",
+            "why_he": "אוזניות אלחוטיות עמידות למים בצפיפות מפחתת רעשים, במחיר 80.1 ש״ח, הזולות ביותר ברשימה.",
+            "why_from_model": true
+          },
+          {
+            "product_id": "1005009706727798",
+            "title_he": "POLVCDG X9 אוזניות הולכת עצם IPX8",
+            "why_he": "אוזניות לריצה עמידות למים IPX8 בעיצוב פתוח, במחיר 97.48 ש״ח, עם המכירות הגבוהות ביותר.",
+            "why_from_model": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "pair-b2",
+      "topic": "paraphrase",
+      "query": "מעמד לפלאפון לאוטו עם טעינה אלחוטית",
+      "parse": {
+        "parsed": {
+          "keywords_en": "phone mount car wireless charging",
+          "category_hint": "car phone holder",
+          "must_have": [
+            "wireless charging"
+          ],
+          "chips_he": [
+            "מעמד לפלאפון",
+            "לרכב",
+            "טעינה אלחוטית"
+          ],
+          "sort_preference": "best_value"
+        },
+        "attempts": 1,
+        "ms": 1535
+      },
+      "cache": {
+        "hit": "none"
+      },
+      "search": {
+        "checked": 49,
+        "passed": 8,
+        "skipped": 0,
+        "rejected": {
+          "feedback": 4,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "must_have": 37
+        }
+      },
+      "top": [
+        {
+          "product_id": "1005009045165676",
+          "title_en": "1/2/6Pcs Magnetic Metal Ring Sticker for Wireless Charging – Universal Metal Plate for Phone Cases, Compatible with Car Mounts &",
+          "price_ils": 4.06,
+          "original_price_ils": 8.45,
+          "discount_pct": 52,
+          "positive_feedback_pct": 98,
+          "units_sold_30d": 1142
+        },
+        {
+          "product_id": "1005008077631444",
+          "title_en": "Car Wireless Charging Pad For New Tesla Model 3/Y 2024 2023 2022 Center Console Charger Mat Phone Mount Silicone Non-slip Pads",
+          "price_ils": 9.69,
+          "original_price_ils": 20.18,
+          "discount_pct": 52,
+          "positive_feedback_pct": 98,
+          "units_sold_30d": 973
+        },
+        {
+          "product_id": "1005007038144646",
+          "title_en": "Wireless Charger Car Mount for Air Vent Mount Car Phone Holder Rotating Intelligent Infrared Fast Wireless Charging Charger",
+          "price_ils": 34.68,
+          "original_price_ils": 69.36,
+          "discount_pct": 50,
+          "positive_feedback_pct": 98,
+          "units_sold_30d": 1255
+        }
+      ],
+      "explain": {
+        "items": [
+          {
+            "product_id": "1005009045165676",
+            "title_he": "טבעות מגנטיות למעמד טלפון",
+            "why_he": "רצועות מגנטיות אוניברסליות לחיבור עם כל מעמד לרכב, מחיר הכי נמוך בקבוצה.",
+            "why_from_model": true
+          },
+          {
+            "product_id": "1005008077631444",
+            "title_he": "מטען אלחוטי לטסלה מודל 3/Y",
+            "why_he": "מטען אלחוטי מיוחד לטסלה 2022-2024 עם רשult לא החלקה בקונסולה המרכזית.",
+            "why_from_model": true
+          },
+          {
+            "product_id": "1005007038144646",
+            "title_he": "מעמד אוויר עם טעינה אלחוטית",
+            "why_he": "מעמד לאוויר עם טעינה אלחוטית מהירה וסיבוב אוטומטי בגלאי אינפרא-אדום.",
+            "why_from_model": true
+          }
+        ],
+        "ms": 4618
+      }
+    }
+  ]
+}

@@ -37,6 +37,34 @@ export function aliexpressConfig(source: NodeJS.ProcessEnv = process.env): AliEx
   };
 }
 
+const llmSchema = z
+  .object({
+    LLM_PROVIDER: z.enum(["anthropic", "openai"]).default("anthropic"),
+    LLM_MODEL: z.string().trim().min(1).default("claude-haiku-4-5-20251001"),
+    ANTHROPIC_API_KEY: z.string().trim().optional(),
+    OPENAI_API_KEY: z.string().trim().optional(),
+  })
+  .refine((e) => (e.LLM_PROVIDER === "anthropic" ? !!e.ANTHROPIC_API_KEY : !!e.OPENAI_API_KEY), {
+    path: ["API_KEY"],
+    message: "API key for the selected LLM_PROVIDER is missing",
+  });
+
+export interface LlmConfig {
+  provider: "anthropic" | "openai";
+  model: string;
+  apiKey: string;
+}
+
+export function llmConfig(source: NodeJS.ProcessEnv = process.env): LlmConfig {
+  const parsed = llmSchema.safeParse(source);
+  if (!parsed.success) {
+    throw new ConfigError([...new Set(parsed.error.issues.map((i) => String(i.path[0])))]);
+  }
+  const e = parsed.data;
+  const apiKey = (e.LLM_PROVIDER === "anthropic" ? e.ANTHROPIC_API_KEY : e.OPENAI_API_KEY) ?? "";
+  return { provider: e.LLM_PROVIDER, model: e.LLM_MODEL, apiKey };
+}
+
 const fxSchema = z.object({
   USD_ILS_FALLBACK: z.coerce.number().positive().default(3.05),
 });

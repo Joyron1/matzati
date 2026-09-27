@@ -31,7 +31,7 @@ Core product promises (never break these):
 - **Supabase (Postgres)** for cache, logs, deals, price history, admin auth.
 - **LLM**: provider-agnostic interface in `lib/llm/` with two adapters:
   - Anthropic (default): official `@anthropic-ai/sdk`, model from env `LLM_MODEL` (default `claude-haiku-4-5-20251001`, a small fast model is enough for parsing).
-  - OpenAI: official `openai` SDK, model from env.
+  - OpenAI: **deferred (owner decision 2026-09-27)**. We run on Anthropic only; the interface in `lib/llm/provider.ts` stays provider-agnostic so an adapter can be added later without touching callers. Do not install `openai` until the owner asks.
   - Selected by env `LLM_PROVIDER=anthropic|openai`. Check the provider's current docs for model names instead of guessing.
 - **Validation**: `zod` for every external input and every LLM output.
 - **Tests**: `vitest`. **Lint/format**: ESLint + Prettier.
@@ -107,35 +107,39 @@ Common params: `keywords`, `page_no`, `page_size` (50), `sort` (e.g. `LAST_VOLUM
 Input: `{ q: string }` (1–200 chars, trimmed).
 
 1. **Guard**: validate, rate-limit per hashed IP (sha256 of IP + `IP_HASH_SALT`): 20 searches/hour, 100/day. Global kill switch: refuse new LLM work after `DAILY_SEARCH_CAP` searches/day and return a clear Hebrew message.
-2. **Cache**: key = hash of normalized query. If a result < 24h old exists in `search_cache`, return it.
-3. **Parse (LLM)** → zod-validated JSON:
+2. **Cache (two levels, 48h; owner decision 2026-09-27)** — never trade accuracy for a hit (`lib/search/cache-key.ts`):
+   - `parse_cache`: key = hash of the normalized query (spacing, niqqud, quotes, ש״ח/שקל/₪ unified). A hit skips the parse call.
+   - `search_cache`: key = hash of the canonical parsed filters (sorted keywords, must_have, rounded price bounds, sort, `RANKING_VERSION`). A different phrasing that parses to identical filters reuses the results and explanations; only the parse call is paid.
+   - No fuzzy or semantic text matching: reuse only when the filters that determine the results are identical.
+3. **Parse (LLM)** → zod-validated JSON, schema in `lib/llm/parse.ts`, contract in `lib/search/filters.ts` (revised with the owner 2026-09-27):
    ```ts
    {
-     keywords_en: string;          // 2–6 English search words
-     category_hint?: string;
+     keywords_en: string;          // 2–4 words the way sellers title the product (no gift/audience/praise words)
+     product_terms: string[];      // 1–4 phrases naming the product itself: ["phone holder", "phone mount"]
+     product_he: string;           // Hebrew product chip: "מחזיק טלפון לרכב"
+     requirements: { en: string; alt: string[]; he: string }[]; // 0–3 stated hard requirements, ALL must match
      min_price_ils?: number;
      max_price_ils?: number;
-     must_have: string[];          // e.g. ["waterproof"]
-     chips_he: string[];           // Hebrew labels shown to the user, e.g. ["אוזניות לריצה","עמידות למים","עד ₪100"]
      sort_preference: "best_value" | "cheapest" | "most_popular";
+     category_hint?: string;       // used by the keyword fallback ladder
    }
    ```
-   One retry on invalid JSON; on second failure fall back to `keywords_en` = LLM-free transliteration/translation attempt and no price filters.
-4. **Fetch**: `product.query` (up to 2 pages of 50) with keywords, price bounds, `ship_to_country=IL`.
-5. **Filter** (config in `lib/ranking/config.ts`, defaults to be tuned):
-   - `evaluate_rate` ≥ 90%
-   - `lastest_volume` ≥ 100
-   - within price bounds after currency conversion
-   - title matches at least one `must_have` term (simple keyword check in English title)
-6. **Rank**: score = weighted positive-feedback + log(volume) + price fit (+ discount small weight).
+   Temperature 0. One retry on invalid output; on second failure the search fails with a clear Hebrew message. Price chips are rendered by code from the numbers (`lib/search/chips.ts`), never by the LLM. `PARSE_VERSION` is part of the parse cache key.
+4. **Fetch** (`lib/search/pipeline.ts`): `product.query` sorted by `LAST_VOLUME_DESC`, `ship_to_country=IL`, target ILS, price bounds in agorot. Page 2 only when page 1 was full and relevance (not trust) limited the results; then a keyword ladder (without requirement/filler words, then `category_hint`). At most 3 AliExpress calls per search, spaced ~1.1 s (their frequency ban).
+5. **Filter** (`lib/ranking/`, config in `lib/ranking/config.ts`, defaults to be tuned):
+   - `evaluate_rate` ≥ 90% and `lastest_volume` (30-day sales) ≥ 100; missing values fail
+   - within price bounds (ILS only; prices are never compared across currencies)
+   - type gate: a `product_terms` phrase early in the title, and not an accessory of it
+   - every requirement matches the title (its `en`, any `alt`, or a code synonym; numeric specs like "65w" mean at least 65W)
+6. **Rank**: score = weighted positive-feedback (shrunk toward 98% for small samples) + log(volume) + price fit (+ discount small weight); "cheapest" orders by price. Near-duplicate listings are removed.
    **Commission rate may only break exact ties. Never rank a worse product higher because it pays more.**
-7. **Links**: use `promotion_link` if present; otherwise batch `link.generate`.
-8. **Explain (LLM)**: for the top 3 only, input = the JSON fields we display. Output per product: `title_he` (clean, short, no new claims) and `why_he` (max 120 chars).
-   Post-check: every digit sequence in `why_he` must appear in the input data; otherwise drop the line and use a template ("הכי הרבה מכירות מבין האפשרויות בתקציב").
+7. **Links**: use `promotion_link` if present; otherwise batch `link.generate`. A product we cannot link is not shown.
+8. **Explain (LLM)** (`lib/llm/explain.ts`): for the 3 shown products, input = the displayed fields plus the search filters and their Hebrew labels. **Never the raw query**: explanations are cached 48h by filters and reused for other users. Output per product: `title_he` and `why_he` (25–120 chars).
+   Post-checks reject a line with an ungrounded number, a written price, a false or unverifiable superlative, singular address, foreign or mixed script, or truncation; a rejected `why_he` falls back to a sentence built from the data ("<pct>% משוב חיובי ו־<n> נמכרו ב־30 הימים האחרונים."). `EXPLAIN_VERSION` is part of the results cache key.
 9. **Store**: `search_cache`, `search_log` (query, parsed filters, result ids, no IP, no user data), upsert `products` + a `price_history` row.
-10. **Respond**: `{ chips_he, checked_count, passed_count, results: [...3], more_available }`.
+10. **Respond**: `{ query, chips, sort, checked_count, passed_count, results: [...3], more_available, filters_key, cached }`. "עוד 3 אפשרויות" explains the next 3 on demand (`loadMore`).
 
-"Remove a chip" = client re-runs the search with that filter removed (send `{ q, overrides }`; overrides skip the parse step).
+"Remove a chip" = re-run the search with that chip id in `without`; the cached parse is reused, so there is no LLM parse call.
 
 ## 7. Pages and routes
 
@@ -227,6 +231,7 @@ Map these into Tailwind (`theme.extend.colors` using `var(--…)`), never hard-c
 - **M1 – Skeleton & design**: Next.js + Tailwind + fonts + tokens + RTL + theme toggle. Static pages `/`, `/search`, `/p/[id]`, `/deals` with mock data from `lib/mock/` that visually match the mockup in both themes. Acceptance: Lighthouse accessibility ≥ 95 on mobile.
 - **M2 – AliExpress client**: signer + tests, typed client, `npm run check:ali` passes with the owner's credentials, fixtures saved, zod schemas from real responses, currency handling decided.
 - **M3 – LLM layer**: provider interface, parse + explain prompts, zod validation, number post-check, tests with 15 real Hebrew fixture queries (gifts, kids, car, home, tech, price limits, typos, slang).
+  Status 2026-09-27: done. Eval of 20 real queries (15 + 5 held out) recorded in `fixtures/llm/`; see `docs/eval-m3.md`.
 - **M4 – Search end-to-end**: `/api/search` pipeline, cache, rate limit, kill switch, `/go` click-out, real results on `/search`.
 - **M5 – Product page, deals, admin**: product refresh, category tips cache, deals CRUD in `/admin`, public `/deals`.
 - **M6 – Deploy**: Supabase migrations applied, Vercel env vars set by the owner, production deploy after the owner approves.

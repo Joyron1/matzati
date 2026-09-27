@@ -26,8 +26,11 @@ export class AliExpressError extends Error {
     this.name = "AliExpressError";
   }
 
-  /** Worth retrying: transient transport or server problems only. */
+  /**
+   * Worth retrying: transient transport or server problems, and frequency limits. AliExpress
+   * answers bursts with ApiCallLimit "this ban will last 1 seconds" (seen 2026-09-27).
+   */
   get retryable(): boolean {
-    return this.kind === "network" || this.kind === "server";
+    return this.kind === "network" || this.kind === "server" || this.kind === "rate_limit";
   }
 }

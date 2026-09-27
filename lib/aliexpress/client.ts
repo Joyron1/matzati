@@ -26,6 +26,7 @@ export interface CallResult {
 const DEFAULT_TIMEOUT_MS = 8_000;
 const DEFAULT_RETRIES = 2;
 const BACKOFF_MS = [400, 1_200];
+const RATE_LIMIT_WAIT_MS = 1_200;
 
 /** Signed form fields for one call. Empty values are dropped so what we sign is what we send. */
 export function buildParams(
@@ -159,7 +160,13 @@ export class AliExpressClient {
   async call(method: string, params: Record<string, ParamValue> = {}): Promise<CallResult> {
     let lastError: AliExpressError | undefined;
     for (let attempt = 0; attempt <= this.retries; attempt++) {
-      if (attempt > 0) await this.sleep(BACKOFF_MS[attempt - 1] ?? BACKOFF_MS.at(-1)!);
+      if (attempt > 0) {
+        const backoff = BACKOFF_MS[attempt - 1] ?? BACKOFF_MS.at(-1)!;
+        // A frequency ban lasts about a second, so wait it out before retrying.
+        await this.sleep(
+          lastError?.kind === "rate_limit" ? Math.max(backoff, RATE_LIMIT_WAIT_MS) : backoff,
+        );
+      }
       try {
         return parseEnvelope(method, await this.send(method, params));
       } catch (err) {

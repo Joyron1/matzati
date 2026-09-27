@@ -1,0 +1,404 @@
+import { describe, expect, it } from "vitest";
+import type { ParsedQuery } from "@/lib/search/filters";
+import {
+  checkExplanation,
+  EXPLAIN_SYSTEM,
+  explainContextFrom,
+  explainProducts,
+  whyFromData,
+  WHY_TEMPLATE,
+  type ExplainContext,
+  type ExplainInput,
+} from "./explain";
+import type { LlmProvider, LlmUsage } from "./provider";
+
+// Real products and Haiku 4.5 outputs from scripts/search-smoke.ts and
+// fixtures/llm/eval-2026-09-27.json.
+const input: ExplainInput = {
+  product_id: "1005008500784169",
+  title_en: "2024 Sports Neckband Wireless Running Universal Earphone Ear-hook Headphone Earplugs",
+  price_ils: 18.43,
+  original_price_ils: 38.4,
+  discount_pct: 52,
+  positive_feedback_pct: 98,
+  units_sold_30d: 405,
+};
+const context: ExplainContext = {
+  product_he: "אוזניות לריצה",
+  requirements_he: ["עמידות למים"],
+  max_price_ils: 100,
+  sort_preference: "best_value",
+};
+
+const chargers: ExplainInput[] = [
+  {
+    product_id: "1005006995547868",
+    title_en:
+      "Essager 67W GaN USB Type C Charger For Laptop 45W 25W PD QC 3.0 Fast Charge For Macbook Xiaomi Samsung Iphone14 13 Phone Chagers",
+    price_ils: 48.4,
+    original_price_ils: 100.83,
+    discount_pct: 52,
+    positive_feedback_pct: 98.7,
+    units_sold_30d: 1928,
+  },
+  {
+    product_id: "1005012218235654",
+    title_en:
+      "100W GaN PD Type C Charger USB QC 3.0 For Laptop Ipad PPS Fast Charge EU UK For Samsung Xiaomi iPhone 15 16 Pro Max Mobile Phone",
+    price_ils: 38.74,
+    original_price_ils: 77.48,
+    discount_pct: 50,
+    positive_feedback_pct: 98,
+    units_sold_30d: 3152,
+  },
+  {
+    product_id: "1005012221738703",
+    title_en:
+      "Real 85W GaN Type C Charger USB QC3.0 For Laptop Ipad PPS PD 65W Fast Charge For Samsung Xiaomi iPhone 6-16 Pro Max Mobile Phone",
+    price_ils: 27.31,
+    original_price_ils: 54.61,
+    discount_pct: 50,
+    positive_feedback_pct: 98,
+    units_sold_30d: 1484,
+  },
+];
+const chargerContext: ExplainContext = {
+  product_he: "מטען מהיר",
+  requirements_he: ["65W"],
+  sort_preference: "best_value",
+};
+const TITLE = "מטען GaN מהיר";
+
+describe("checkExplanation", () => {
+  it("keeps a grounded, plural line", () => {
+    const why = "אוזניות צוואר אלחוטיות לריצה עם 98% משוב חיובי ו־405 נמכרו ב־30 הימים האחרונים.";
+    const out = checkExplanation(
+      { title_he: "אוזניות ספורט עם צוואר", why_he: why },
+      input,
+      [input],
+      context,
+    );
+    expect(out).toEqual({
+      title_problem: null,
+      why_problem: null,
+      title_he: "אוזניות ספורט עם צוואר",
+      why_he: why,
+    });
+  });
+
+  it("rejects the Arabic-letter title Haiku produced", () => {
+    const why = "אוזניות ספורט אלחוטיות עם הנחה של 52% ו־98% משוב חיובי.";
+    const out = checkExplanation(
+      { title_he: "אוזניות ספורט אלחוטיות עם חיבור לרقبה", why_he: why },
+      input,
+      [input],
+      context,
+    );
+    expect(out.title_he).toBeNull();
+    expect(out.why_he).toBe(why);
+    expect(out.title_problem).toBe("foreign_script");
+  });
+
+  it("rejects the singular-address line Haiku produced", () => {
+    const out = checkExplanation(
+      { title_he: "אוזניות ספורט", why_he: "במחיר של ₪18.43 המתאים לתקציב שלך." },
+      input,
+      [input],
+      context,
+    );
+    expect(out.why_he).toBeNull();
+    expect(out.why_problem).toBe("singular_address");
+  });
+
+  it("rejects numbers that are not in the data", () => {
+    const out = checkExplanation(
+      { title_he: "אוזניות ספורט 2025", why_he: "98% משוב חיובי ויותר מ־400 מכירות." },
+      input,
+      [input],
+      context,
+    );
+    expect(out.title_he).toBeNull(); // 2025 is not in the original title
+    expect(out.why_he).toBeNull(); // 400 is not in the data (405 is)
+    expect(out.why_problem).toBe("ungrounded_number");
+  });
+
+  it("rejects request details the model never saw and numbers from another product", () => {
+    const age = checkExplanation(
+      { title_he: TITLE, why_he: "מתאים לילדים בני 3, עם 98% משוב חיובי מהקונים." },
+      input,
+      [input],
+      context,
+    );
+    expect(age.why_problem).toBe("ungrounded_number");
+    const other = checkExplanation(
+      { title_he: TITLE, why_he: "מטען 67W לטלפון ולמחשב נייד, 3152 נמכרו ב־30 הימים האחרונים." },
+      chargers[0],
+      chargers,
+      chargerContext,
+    );
+    expect(other.why_problem).toBe("ungrounded_number");
+  });
+
+  it("rejects a truncated line and drops the title cut by the same quote", () => {
+    const cutlery: ExplainInput = {
+      product_id: "1005013004164872",
+      title_en:
+        "UpgradedAdjustable Plastic Cutlery Drawer Organizer Divided Storage Tray Space Saving Holder for Kitchen Knives Spoons Tableware",
+      price_ils: 16.91,
+      original_price_ils: 35.22,
+      discount_pct: 52,
+      positive_feedback_pct: 100,
+      units_sold_30d: 331,
+    };
+    const out = checkExplanation(
+      { title_he: "מארגן סכו", why_he: "מארגן פלסטיק לסכו" },
+      cutlery,
+      [cutlery],
+      context,
+    );
+    expect(out).toEqual({
+      title_he: null,
+      why_he: null,
+      title_problem: "truncated",
+      why_problem: "truncated",
+    });
+  });
+
+  it("rejects Latin letters inside a Hebrew word (the 'רשult' Haiku produced)", () => {
+    const pad: ExplainInput = {
+      product_id: "1005008077631444",
+      title_en:
+        "Car Wireless Charging Pad For New Tesla Model 3/Y 2024 2023 2022 Center Console Charger Mat Phone Mount Silicone Non-slip Pads",
+      price_ils: 9.69,
+      original_price_ils: 20.18,
+      discount_pct: 52,
+      positive_feedback_pct: 98,
+      units_sold_30d: 973,
+    };
+    const out = checkExplanation(
+      {
+        title_he: "משטח סיליקון לטסלה 3/Y",
+        why_he: "מטען אלחוטי מיוחד לטסלה 2022-2024 עם רשult לא החלקה בקונסולה המרכזית.",
+      },
+      pad,
+      [pad],
+      context,
+    );
+    expect(out.why_he).toBeNull();
+    expect(out.why_problem).toBe("mixed_script");
+    expect(out.title_he).toBe("משטח סיליקון לטסלה 3/Y");
+  });
+
+  it("adds the missing maqaf after a one-letter prefix instead of rejecting", () => {
+    const out = checkExplanation(
+      {
+        title_he: "מטען GaN 85W",
+        why_he: "מטען GaN בעוצמת 85W עם PD 65W וQC3.0 לטלפון ולמחשב נייד.",
+      },
+      chargers[2],
+      chargers,
+      chargerContext,
+    );
+    expect(out.why_problem).toBeNull();
+    expect(out.why_he).toBe("מטען GaN בעוצמת 85W עם PD 65W ו־QC3.0 לטלפון ולמחשב נייד.");
+  });
+
+  it("rejects a written price, which would disagree with the rounded card price", () => {
+    const out = checkExplanation(
+      { title_he: TITLE, why_he: "מטען מהיר לטלפון ולמחשב נייד במחיר 27.31 ש״ח." },
+      chargers[2],
+      chargers,
+      chargerContext,
+    );
+    expect(out.why_problem).toBe("price_written");
+    const bare = checkExplanation(
+      { title_he: TITLE, why_he: "מטען מהיר לטלפון ולמחשב נייד שעולה רק 27.31." },
+      chargers[2],
+      chargers,
+      chargerContext,
+    );
+    expect(bare.why_problem).toBe("ungrounded_number");
+  });
+
+  describe("superlatives are checked against the products shown together", () => {
+    const check = (why: string, p: ExplainInput, batch = chargers) =>
+      checkExplanation({ title_he: TITLE, why_he: why }, p, batch, chargerContext).why_problem;
+    const cheapest = "מטען GaN מהיר לטלפון ולמחשב נייד, הזול מבין השלושה.";
+    const mostSold = "מטען GaN מהיר לטלפון ולמחשב נייד, הנמכר ביותר מבין השלושה.";
+
+    it("keeps true claims", () => {
+      expect(check(cheapest, chargers[2])).toBeNull();
+      expect(check(mostSold, chargers[1])).toBeNull();
+      expect(check("מטען GaN עם המשוב החיובי הגבוה ביותר מבין השלושה.", chargers[0])).toBeNull();
+    });
+
+    it("rejects false claims", () => {
+      expect(check(cheapest, chargers[0])).toBe("false_superlative");
+      expect(check(mostSold, chargers[2])).toBe("false_superlative");
+      expect(check("מחיר הכי נמוך בקבוצה, מטען מהיר לטלפון.", chargers[1])).toBe(
+        "false_superlative",
+      );
+    });
+
+    it("rejects claims nothing can prove, and any comparison with a single product", () => {
+      expect(check("המטען הכי טוב לטלפון ולמחשב נייד.", chargers[2])).toBe("false_superlative");
+      expect(check("מטען GaN מהיר לטלפון, המשתלם מבין השלושה.", chargers[2])).toBe(
+        "false_superlative",
+      );
+      expect(check(cheapest, chargers[2], [chargers[2]])).toBe("false_superlative");
+    });
+
+    it("rejects a comparison over a different number of products than were shown", () => {
+      const ofTwo = "מטען GaN מהיר לטלפון ולמחשב נייד, הזול מבין השניים.";
+      expect(check(ofTwo, chargers[2])).toBe("false_superlative");
+      expect(check(cheapest, chargers[2], chargers.slice(1))).toBe("false_superlative");
+      expect(check(ofTwo, chargers[2], chargers.slice(1))).toBeNull();
+    });
+  });
+});
+
+describe("whyFromData", () => {
+  it("builds a true sentence from the trust data", () => {
+    expect(whyFromData(chargers[0])).toBe("98.7% משוב חיובי ו־1,928 נמכרו ב־30 הימים האחרונים.");
+  });
+
+  it("skips a missing metric", () => {
+    expect(whyFromData({ ...chargers[1], units_sold_30d: null })).toBe("98% משוב חיובי.");
+    expect(whyFromData({ ...chargers[1], positive_feedback_pct: null })).toBe(
+      "3,152 נמכרו ב־30 הימים האחרונים.",
+    );
+    expect(whyFromData({ ...chargers[1], positive_feedback_pct: null, units_sold_30d: null })).toBe(
+      WHY_TEMPLATE,
+    );
+  });
+
+  it("passes our own checks", () => {
+    for (const p of chargers) {
+      const out = checkExplanation(
+        { title_he: TITLE, why_he: whyFromData(p) },
+        p,
+        chargers,
+        chargerContext,
+      );
+      expect(out.why_problem).toBeNull();
+    }
+  });
+});
+
+describe("explainContextFrom", () => {
+  it("keeps only the filters and labels, never the raw query", () => {
+    const parsed: ParsedQuery = {
+      keywords_en: "running earphones waterproof",
+      product_terms: ["earphones", "headphones"],
+      requirements: [{ en: "waterproof", alt: ["water resistant"], he: "עמידות למים" }],
+      max_price_ils: 99.6,
+      sort_preference: "cheapest",
+      product_he: "אוזניות לריצה",
+      category_hint: "sports earphones",
+    };
+    expect(explainContextFrom(parsed)).toEqual({
+      product_he: "אוזניות לריצה",
+      requirements_he: ["עמידות למים"],
+      max_price_ils: 100,
+      sort_preference: "cheapest",
+    });
+  });
+});
+
+describe("explainProducts", () => {
+  const USAGE: LlmUsage = {
+    inputTokens: 900,
+    outputTokens: 270,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+  };
+
+  function fakeLlm(data: unknown) {
+    const requests: { system: string; user: string }[] = [];
+    const llm: LlmProvider = {
+      name: "anthropic",
+      model: "fake-model",
+      async generateStructured(req) {
+        requests.push({ system: req.system, user: req.user });
+        return {
+          data: data === null ? null : req.schema.parse(data),
+          usage: USAGE,
+          model: "fake-1",
+        };
+      },
+    };
+    return { llm, requests };
+  }
+
+  const WHY_1 = "מטען GaN מהיר לטלפון ולמחשב נייד עם תמיכה ב־PD.";
+  const WHY_2 = "מטען GaN חזק לטלפון, לטאבלט ולמחשב נייד.";
+
+  it("sends short ids and the filters only, then maps the answers back", async () => {
+    const { llm, requests } = fakeLlm({
+      items: [
+        { id: "2", title_he: "מטען GaN 100W", why_he: WHY_2 },
+        { id: " 1 ", title_he: "מטען Essager 67W", why_he: WHY_1 },
+        { id: "1", title_he: "כפול", why_he: "תשובה כפולה שלא אמורה להיבחר בכלל." },
+      ],
+    });
+    const res = await explainProducts(llm, chargerContext, chargers);
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0].system).toBe(EXPLAIN_SYSTEM);
+    const sent = JSON.parse(requests[0].user);
+    expect(sent.search).toEqual(chargerContext);
+    expect(sent.products.map((p: { id: string }) => p.id)).toEqual(["1", "2", "3"]);
+    expect(requests[0].user).not.toContain("product_id");
+    expect(requests[0].user).not.toContain(chargers[0].product_id);
+
+    expect(res.model).toBe("fake-1");
+    expect(res.usage).toEqual(USAGE);
+    expect(res.items.map((i) => i.product_id)).toEqual(chargers.map((c) => c.product_id));
+    expect(res.items[0]).toEqual({
+      product_id: chargers[0].product_id,
+      title_he: "מטען Essager 67W",
+      why_he: WHY_1,
+      why_from_model: true,
+    });
+    expect(res.items[1].title_he).toBe("מטען GaN 100W");
+    // The model skipped id "3": the line is built from data.
+    expect(res.items[2]).toEqual({
+      product_id: chargers[2].product_id,
+      title_he: null,
+      why_he: "98% משוב חיובי ו־1,484 נמכרו ב־30 הימים האחרונים.",
+      why_from_model: false,
+      rejected: { title_problem: "missing", why_problem: "missing" },
+    });
+  });
+
+  it("records what a check rejected and falls back to data", async () => {
+    const { llm } = fakeLlm({
+      items: [
+        { id: "1", title_he: "מטען Essager 67W", why_he: "הזול מבין השלושה, מטען מהיר לטלפון." },
+      ],
+    });
+    const [first] = (await explainProducts(llm, chargerContext, chargers)).items;
+    expect(first).toEqual({
+      product_id: chargers[0].product_id,
+      title_he: "מטען Essager 67W",
+      why_he: "98.7% משוב חיובי ו־1,928 נמכרו ב־30 הימים האחרונים.",
+      why_from_model: false,
+      rejected: { why_he: "הזול מבין השלושה, מטען מהיר לטלפון.", why_problem: "false_superlative" },
+    });
+  });
+
+  it("falls back for every product when the output did not match the schema", async () => {
+    const { llm } = fakeLlm(null);
+    const res = await explainProducts(llm, chargerContext, chargers);
+    expect(res.items.every((i) => !i.why_from_model && i.rejected?.why_problem === "missing")).toBe(
+      true,
+    );
+  });
+
+  it("does not call the model without products", async () => {
+    const { llm, requests } = fakeLlm({ items: [] });
+    const res = await explainProducts(llm, chargerContext, []);
+    expect(res.items).toEqual([]);
+    expect(requests).toHaveLength(0);
+  });
+});

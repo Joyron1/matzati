@@ -24,7 +24,7 @@ export interface ResultProduct {
   discount_pct: number | null;
   /** From `evaluate_rate`. Null when AliExpress did not return it. */
   positive_feedback_pct: number | null;
-  /** From `lastest_volume`. */
+  /** From `lastest_volume`: sales in the last 30 days (AliExpress docs), not lifetime. */
   units_sold: number | null;
   image_urls: string[];
   category_id: string | null;
@@ -38,6 +38,10 @@ export interface SearchResponse {
   passed_count: number;
   results: ResultProduct[];
   more_available: boolean;
+  /** Handle for "show 3 more" (results cache key). Absent on mock data. */
+  filters_key?: string;
+  /** True when served from the 48h cache without new AliExpress or explain calls. */
+  cached?: boolean;
 }
 
 export type DealType = "deal" | "holiday" | "dont_buy";
