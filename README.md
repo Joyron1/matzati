@@ -4,6 +4,8 @@ Hebrew, RTL, mobile-first shopping assistant for AliExpress. Users describe what
 free Hebrew and get 3 vetted products with affiliate links. The full spec and working rules are in
 [CLAUDE.md](CLAUDE.md).
 
+Production: https://matzati-il.vercel.app (Vercel project `matzati-il`).
+
 ## Status
 
 - **M1 – Skeleton & design: done.**
