@@ -1,25 +1,26 @@
 import Link from "next/link";
 import { connection } from "next/server";
 import { ChevronLeft } from "lucide-react";
+import { uniqueByProduct } from "@/lib/recent/display";
 import { latestRecentSearches } from "@/lib/recent/queries";
+import { RECENT_PAGE_SIZE } from "@/lib/recent/types";
 import { RecentSearchCard } from "./recent-search-card";
 
 const STRIP_SIZE = 6;
 
-/** Home page "חיפשו לאחרונה": the newest listed searches; hidden when there are none. */
+/**
+ * Home page "חיפשו לאחרונה": the products of the newest listed searches, one card per product;
+ * hidden when there are none. The home page is indexed, so it shows the product we understood,
+ * never the visitor's own words (owner decision 2026-09-27; /searches shows the queries, noindex).
+ */
 export async function RecentSearchesStrip() {
-  await connection(); // "לפני 5 דקות" depends on the time of the visit
-  const searches = await latestRecentSearches(STRIP_SIZE);
+  await connection(); // "לפני שעה" depends on the time of the visit
+  // A full page, so products searched twice ("בובת סוניק", "בובת סוניק לילד") still fill 6 cards.
+  const searches = uniqueByProduct(await latestRecentSearches(RECENT_PAGE_SIZE), STRIP_SIZE);
   if (searches.length === 0) return null;
   const now = new Date();
   return (
-    // The home page is indexed and these are visitors' own words: keep them out of search
-    // snippets (/searches itself is noindex).
-    <section
-      aria-labelledby="recent-title"
-      data-nosnippet
-      className="mx-auto mt-16 max-w-6xl px-4 sm:px-6"
-    >
+    <section aria-labelledby="recent-title" className="mx-auto mt-16 max-w-6xl px-4 sm:px-6">
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
         <h2 id="recent-title" className="font-display text-3xl">
           חיפשו לאחרונה

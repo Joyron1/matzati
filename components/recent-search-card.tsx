@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ChevronLeft, Clock, Search, Tag } from "lucide-react";
 import { formatHourAgo } from "@/lib/format";
+import { productLabelOf } from "@/lib/recent/display";
 import type { RecentSearch } from "@/lib/recent/types";
 import { searchHref } from "@/lib/search-url";
 import type { FilterChip } from "@/lib/types";
@@ -32,7 +33,11 @@ interface RecentSearchCardProps {
   search: RecentSearch;
   /** Time of the render, for "לפני 5 דקות". Server-only: the text is never hydrated. */
   now: Date;
-  /** Home page strip: one photo beside the text, no chips. */
+  /**
+   * Home page strip: one photo beside the text, no chips, and the product we understood as the
+   * title instead of the visitor's query (owner decision 2026-09-27). Renders nothing for a
+   * search without a product label.
+   */
   compact?: boolean;
   headingLevel?: 2 | 3;
 }
@@ -47,12 +52,18 @@ export function RecentSearchCard({
   compact = false,
   headingLevel = 2,
 }: RecentSearchCardProps) {
+  const product = compact ? productLabelOf(search) : null;
+  if (compact && !product) return null;
   const Heading = headingLevel === 3 ? "h3" : "h2";
   const title = (
     <Heading
       className={`line-clamp-2 leading-snug ${compact ? "font-semibold" : "text-lg font-bold"}`}
     >
-      ״<bdi>{search.query}</bdi>״
+      {product ?? (
+        <>
+          ״<bdi>{search.query}</bdi>״
+        </>
+      )}
     </Heading>
   );
   const footer = (
@@ -81,7 +92,9 @@ export function RecentSearchCard({
         className="inline-flex shrink-0 items-center gap-0.5 font-semibold text-accent-ink after:absolute after:inset-0 after:rounded-card focus-visible:outline-none focus-visible:after:outline-3 focus-visible:after:outline-offset-2 focus-visible:after:outline-accent"
       >
         לתוצאות
-        <span className="sr-only"> של החיפוש ״{search.query}״</span>
+        <span className="sr-only">
+          {product ? ` של ${product}` : ` של החיפוש ״${search.query}״`}
+        </span>
         <ChevronLeft aria-hidden className="size-4" />
       </Link>
     </div>

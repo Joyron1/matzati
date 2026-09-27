@@ -145,7 +145,7 @@ Input: `{ q: string }` (1–200 chars, trimmed).
 
 | Route | Purpose |
 |---|---|
-| `/` | Home: hero, search composer with live "הבנתי ככה" chips after submit, example query buttons, next-sale countdown card |
+| `/` | Home: hero, search composer with live "הבנתי ככה" chips after submit, example query buttons, next-sale countdown card, "חיפשו לאחרונה" strip (the understood product label of recent searches, one card per product, never the visitor's query; owner decision 2026-09-27) |
 | `/search?q=` | Results: query bar, removable chips, "בדקנו X מוצרים. Y עברו" (plus when prices were checked, for results older than 24h), 1 featured result + 2 compact, refine buttons, "עוד 3 אפשרויות" |
 | `/searches` | "חיפושים אחרונים": one card per normalized query of listable visitor searches (query, understood chips, up to 3 result photos, category, time), category and free-text filters; not hidden by an admin (`hidden_searches`). `noindex, follow`. |
 | `/p/[productId]` | Product: images, approx ILS price, optional community coupon, "למה זה עבר את הסינון" (thresholds shown), category tips (labelled generic), buy CTA, disclosure |
