@@ -1,0 +1,86 @@
+{
+  "probed_at": "2026-09-27T21:09:19.463Z",
+  "hops": [
+    {
+      "status": 302,
+      "host": "s.click.aliexpress.com",
+      "path_shape": "/e/_c4NPFqKp",
+      "query_param_names": [],
+      "any_param_value_equals_tracking_id": false,
+      "url_contains_tracking_id": false,
+      "set_cookie_names": [
+        "xman_us_f",
+        "acs_usuc_t",
+        "aeu_cid",
+        "xman_t",
+        "xman_f",
+        "af_ss_a",
+        "af_ss_b"
+      ],
+      "content_type": null
+    },
+    {
+      "status": 302,
+      "host": "www.aliexpress.com",
+      "path_shape": "/item/<21 chars>",
+      "query_param_names": [
+        "aff_fcid",
+        "aff_fsk",
+        "aff_platform",
+        "sk",
+        "aff_trace_key",
+        "terminal_id",
+        "afSmartRedirect"
+      ],
+      "any_param_value_equals_tracking_id": false,
+      "url_contains_tracking_id": false,
+      "aff_platform": "api-new-link-generate",
+      "set_cookie_names": [
+        "ali_apache_id",
+        "xman_us_f",
+        "XSRF-TOKEN",
+        "JSESSIONID",
+        "intl_common_forever",
+        "intl_locale",
+        "xman_f",
+        "acs_usuc_t",
+        "xman_t",
+        "aep_usuc_f"
+      ],
+      "content_type": null
+    },
+    {
+      "status": 200,
+      "host": "he.aliexpress.com",
+      "path_shape": "/item/<21 chars>",
+      "query_param_names": [
+        "aff_fcid",
+        "aff_fsk",
+        "aff_platform",
+        "sk",
+        "aff_trace_key",
+        "terminal_id",
+        "afSmartRedirect",
+        "gatewayAdapt"
+      ],
+      "any_param_value_equals_tracking_id": false,
+      "url_contains_tracking_id": false,
+      "aff_platform": "api-new-link-generate",
+      "set_cookie_names": [
+        "ali_apache_id",
+        "xman_us_f",
+        "XSRF-TOKEN",
+        "JSESSIONID",
+        "intl_common_forever",
+        "intl_locale",
+        "xman_f",
+        "acs_usuc_t",
+        "xman_t",
+        "aep_usuc_f"
+      ],
+      "content_type": "text/html;charset=UTF-8"
+    }
+  ],
+  "stopReason": "status 200",
+  "jsTarget": null
+}

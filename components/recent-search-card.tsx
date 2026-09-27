@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { ChevronLeft, Clock, Search, Tag } from "lucide-react";
 import { formatHourAgo } from "@/lib/format";
-import { productLabelOf } from "@/lib/recent/display";
 import type { RecentSearch } from "@/lib/recent/types";
 import { searchHref } from "@/lib/search-url";
 import type { FilterChip } from "@/lib/types";
@@ -33,38 +32,18 @@ interface RecentSearchCardProps {
   search: RecentSearch;
   /** Time of the render, for "לפני 5 דקות". Server-only: the text is never hydrated. */
   now: Date;
-  /**
-   * Home page strip: one photo beside the text, no chips, and the product we understood as the
-   * title instead of the visitor's query (owner decision 2026-09-27). Renders nothing for a
-   * search without a product label.
-   */
-  compact?: boolean;
-  headingLevel?: 2 | 3;
 }
 
 /**
- * One listed search. The whole card is a single link to the search's results (the "לתוצאות" link
- * is stretched over the card), so there is nothing else interactive inside it.
+ * One listed search on /searches. The whole card is a single link to the search's results (the
+ * "לתוצאות" link is stretched over the card), so there is nothing else interactive inside it.
+ * (The home page shows recent searches as product pills: components/recent-searches-strip.tsx.)
  */
-export function RecentSearchCard({
-  search,
-  now,
-  compact = false,
-  headingLevel = 2,
-}: RecentSearchCardProps) {
-  const product = compact ? productLabelOf(search) : null;
-  if (compact && !product) return null;
-  const Heading = headingLevel === 3 ? "h3" : "h2";
+export function RecentSearchCard({ search, now }: RecentSearchCardProps) {
   const title = (
-    <Heading
-      className={`line-clamp-2 leading-snug ${compact ? "font-semibold" : "text-lg font-bold"}`}
-    >
-      {product ?? (
-        <>
-          ״<bdi>{search.query}</bdi>״
-        </>
-      )}
-    </Heading>
+    <h2 className="line-clamp-2 text-lg leading-snug font-bold">
+      ״<bdi>{search.query}</bdi>״
+    </h2>
   );
   const footer = (
     <div className="mt-auto flex items-end justify-between gap-3 text-sm">
@@ -92,38 +71,11 @@ export function RecentSearchCard({
         className="inline-flex shrink-0 items-center gap-0.5 font-semibold text-accent-ink after:absolute after:inset-0 after:rounded-card focus-visible:outline-none focus-visible:after:outline-3 focus-visible:after:outline-offset-2 focus-visible:after:outline-accent"
       >
         לתוצאות
-        <span className="sr-only">
-          {product ? ` של ${product}` : ` של החיפוש ״${search.query}״`}
-        </span>
+        <span className="sr-only"> של החיפוש ״{search.query}״</span>
         <ChevronLeft aria-hidden className="size-4" />
       </Link>
     </div>
   );
-
-  if (compact) {
-    const [photo] = search.images;
-    return (
-      <article
-        className={`${card} relative flex h-full items-center gap-3 p-3 hover:border-accent`}
-      >
-        {photo ? (
-          <ProductImage
-            src={photo.src}
-            alt={photo.alt}
-            className="size-20 shrink-0 rounded-tile"
-            iconClassName="size-8"
-            sizes="80px"
-          />
-        ) : (
-          <NoPhoto className="size-20 shrink-0" />
-        )}
-        <div className="flex min-h-20 min-w-0 flex-1 flex-col gap-2">
-          {title}
-          {footer}
-        </div>
-      </article>
-    );
-  }
 
   const photos = search.images.slice(0, PHOTO_SLOTS);
   return (

@@ -145,7 +145,7 @@ Input: `{ q: string }` (1–200 chars, trimmed).
 
 | Route | Purpose |
 |---|---|
-| `/` | Home: hero, search composer with live "הבנתי ככה" chips after submit, example query buttons, next-sale countdown card, "חיפשו לאחרונה" strip (the understood product label of recent searches, one card per product, never the visitor's query; owner decision 2026-09-27) |
+| `/` | Home (redesigned with the owner 2026-09-28): one centered hero column (tagline, H1, subline) with the search composer as the focal point; right under it "חיפושים חמים" (pills of the understood product label of recent searches, one per product, never the visitor's query; owner decision 2026-09-27; link to `/searches`); then "איך לחפש" (4 tips whose example buttons add their text to the composer without searching, plus one full example) beside "רעיונות לחיפוש" (8 example queries by topic, `from=example`); then "איך זה עובד", next-sale countdown card, "איך אנחנו מרוויחים", popular SEO searches. No live example preview: the home page reads the database only and never starts a search. |
 | `/search?q=` | Results: query bar, removable chips, "בדקנו X מוצרים. Y עברו" (plus when prices were checked, for results older than 24h), 1 featured result + 2 compact, refine buttons, "עוד 3 אפשרויות" |
 | `/searches` | "חיפושים אחרונים": one card per normalized query of listable visitor searches (query, understood chips, up to 3 result photos, category, time), category and free-text filters; not hidden by an admin (`hidden_searches`). `noindex, follow`. |
 | `/p/[productId]` | Product: images, approx ILS price, optional community coupon, "למה זה עבר את הסינון" (thresholds shown), category tips (labelled generic), buy CTA, disclosure |
@@ -206,7 +206,7 @@ Map these into Tailwind (`theme.extend.colors` using `var(--…)`), never hard-c
 ### Radii and sizing
 - Composer / featured card: 26–30px. Regular cards: 20–22px. Chips and buttons: fully rounded (999px). Small tags: pill.
 - Touch targets ≥ 44px. Primary buttons 48–58px tall.
-- Mobile first: design at 390px, then desktop at 1280–1440px (two-column hero: composer on the start side, live results preview on the end side).
+- Mobile first: design at 390px (and no horizontal scroll at 320px), then desktop at 1280–1440px (centered one-column hero, max-w-3xl: the composer is the focal point and the only element with the composer shadow in the hero; hot searches under it; tips and ideas as two cards below).
 
 ### Light / dark mode
 - `next-themes` with `attribute="data-theme"`, `defaultTheme="system"`, `enableSystem`. No flash on load.

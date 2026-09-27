@@ -10,8 +10,8 @@ export type CacheLevel = "none" | "parse" | "results";
 
 /**
  * Who asked: a visitor's search (including chip removals and sort changes), examplePreview (the
- * home page example and the SEO landing pages), or "עוד 3 אפשרויות". Only "search" rows count as
- * searches in the stats.
+ * SEO landing pages; older rows also the home page example), or "עוד 3 אפשרויות". Only "search"
+ * rows count as searches in the stats.
  */
 export type SearchSource = "search" | "preview" | "more";
 

@@ -13,7 +13,7 @@ export interface DailyStats {
   /** Served entirely from the results cache (14 days; 48h before 2026-09-27). */
   cached: number;
   zeroResults: number;
-  /** examplePreview runs (home page example, SEO landing pages); not searches. */
+  /** examplePreview runs (SEO pages; older rows also the home page example); not searches. */
   previews: number;
   /** "עוד 3 אפשרויות" pages served. */
   moreLoads: number;

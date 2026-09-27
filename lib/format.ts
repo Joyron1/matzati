@@ -134,6 +134,18 @@ export function formatHourAgo(iso: string, now: Date): string {
   return now.getTime() - at < 3_600_000 ? "בשעה האחרונה" : formatTimeAgo(iso, now);
 }
 
+/**
+ * Display text only, never a query or a URL: keeps a price in one piece when Hebrew text wraps, so
+ * "עד 100 ש״ח" and "בין 50 ל־150 ש״ח" never leave a number or ש״ח alone on a line. A no-break
+ * space glues the number to ש״ח and to עד/בין; a word joiner stops a break after the maqaf.
+ */
+export function keepPricesTogether(text: string): string {
+  return text
+    .replace(/(\d) (?=ש״ח)/g, "$1 ")
+    .replace(/(^|\s)(עד|בין) (?=\d)/g, "$1$2 ")
+    .replace(/־(?=\d)/g, "־⁠");
+}
+
 /** Shares our own page URL, never the raw affiliate link. */
 export function whatsappShareUrl(text: string, pageUrl: string): string {
   return `https://wa.me/?text=${encodeURIComponent(`${text}\n${pageUrl}`)}`;

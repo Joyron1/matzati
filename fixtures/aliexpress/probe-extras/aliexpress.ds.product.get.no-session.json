@@ -1,0 +1,9 @@
+{
+  "error_response": {
+    "type": "ISV",
+    "code": "MissingParameter",
+    "msg": "The input parameter “access_token” that is mandatory for processing this request is not supplied",
+    "request_id": "212e59e617905433438181589",
+    "_trace_id_": "2102f1cd17905433438171711e0db2"
+  }
+}

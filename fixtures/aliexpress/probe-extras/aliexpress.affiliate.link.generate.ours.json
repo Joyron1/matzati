@@ -1,0 +1,22 @@
+{
+  "aliexpress_affiliate_link_generate_response": {
+    "resp_result": {
+      "result": {
+        "total_result_count": 1,
+        "promotion_links": {
+          "promotion_link": [
+            {
+              "promotion_link": "https://s.click.aliexpress.com/e/_c4NPFqKp",
+              "source_value": "https://www.aliexpress.com/item/1005006338829917.html"
+            }
+          ]
+        },
+        "tracking_id": "<masked:ALIEXPRESS_TRACKING_ID>"
+      },
+      "resp_code": 200,
+      "resp_msg": "Call succeeds"
+    },
+    "request_id": "212a715417905433544624393",
+    "_trace_id_": "2102f1cd17905433544603240e0db2"
+  }
+}

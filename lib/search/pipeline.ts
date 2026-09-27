@@ -74,7 +74,7 @@ export interface SearchInput {
   without?: string[];
   /** Sort chosen with the refine buttons; overrides the parsed preference without a new parse. */
   sort?: SortPreference;
-  /** Written to search_log (default "search"); "preview" is examplePreview (home page, SEO pages). */
+  /** Written to search_log (default "search"); "preview" is examplePreview (SEO landing pages). */
   source?: Exclude<SearchSource, "more">;
   /**
    * The visitor typed the query (default). False when it came from one of our own links (a

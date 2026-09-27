@@ -425,16 +425,17 @@ async function runPreview(q: string): Promise<SearchOutcome | null> {
 }
 
 /**
- * Real results for the home page example. Not counted against the visitor's rate limit (it is
- * not their search), still subject to the daily LLM budget, and served from the 14-day cache
- * after the first run. Null on any failure, so the home page simply hides the preview.
- * Logged with source "preview", so home page views and SEO landing page renders
- * (lib/seo/page-view.ts) never count as searches in the stats.
+ * Real results for a query we chose: the SEO landing pages (lib/seo/page-view.ts). Not counted
+ * against the visitor's rate limit (it is not their search), still subject to the daily LLM
+ * budget, and served from the 14-day cache after the first run. Null on any failure, so the page
+ * shows its fallback instead. Logged with source "preview", so landing page renders never count
+ * as searches in the stats. (The home page used to show an example from it; older "preview" rows
+ * include those views.)
  */
 export async function examplePreview(q: string): Promise<SearchResponse | null> {
-  // Visitors arriving together while the cache is cold share one paid run per instance. A failure
-  // is remembered for a while: during an outage every home page view would otherwise start a new
-  // paid run and use up the daily LLM budget that real searches need.
+  // Renders arriving together while the cache is cold share one paid run per instance. A failure
+  // is remembered for a while: during an outage every landing page render would otherwise start a
+  // new paid run and use up the daily LLM budget that real searches need.
   const key = q.trim();
   const entry = previews.get(key);
   const retry = entry?.failedAt !== undefined && Date.now() - entry.failedAt >= PREVIEW_RETRY_MS;

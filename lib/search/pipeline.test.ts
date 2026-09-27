@@ -307,7 +307,7 @@ describe("search_log (stats)", () => {
     expect(top).toEqual(expect.any(String));
     expect(fresh.log).toMatchObject({ categoryId: top, listable: true });
     expect(cached.log).toMatchObject({ categoryId: top, listable: true });
-    // A chip removal, a query with a phone number, the home page example, a sort change and a
+    // A chip removal, a query with a phone number, an example preview, a sort change and a
     // click on a recent-search card are never listed.
     expect(refined.log).toMatchObject({
       categoryId: refined.response.results[0].category_id,
@@ -342,7 +342,7 @@ describe("search_log (stats)", () => {
     expect(store.logs[0]).toMatchObject({ resultsCount: 0, resultIds: [], cache: "none" });
   });
 
-  it("marks the home page example as a preview", async () => {
+  it("marks an example preview (SEO landing page) as a preview", async () => {
     const { deps, store } = setup();
     await runSearch({ q: Q, source: "preview" }, deps);
     await runSearch({ q: Q, source: "preview" }, deps);

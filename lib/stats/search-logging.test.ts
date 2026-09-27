@@ -1,6 +1,6 @@
 // search_log wiring in lib/search/server.ts for requests that share a run already in flight:
-// a visitor's search that joins an identical running search, and a home page view that joins a
-// running example preview. Each is its own request, so each writes its own row, as a cache hit.
+// a visitor's search that joins an identical running search, and a landing page render that joins
+// a running example preview. Each is its own request, so each writes its own row, as a cache hit.
 // The pipeline itself is faked; nothing here reaches Supabase, AliExpress or an LLM.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SearchOutcome } from "@/lib/search/pipeline";

@@ -166,9 +166,9 @@ export function DailyTable({
       id={id}
       title={title}
       description={
-        // "preview" rows come from examplePreview: the home page example and the SEO landing
-        // pages (lib/seo/page-view.ts). Neither is a visitor's search.
-        `חיפושים של מבקרים, כולל הסרת סינון ושינוי מיון. לא נספרו כחיפושים: תוצאות הדוגמה בדף הבית ובעמודי SEO (${formatCount(t.previews)}) וטעינות של ״עוד 3 אפשרויות״ (${formatCount(t.moreLoads)}). קליקים נספרים מכל העמודים, ולכן אחוז ההקלקה יכול לעבור את 100%.`
+        // "preview" rows come from examplePreview: the SEO landing pages (lib/seo/page-view.ts)
+        // and, in older rows, the home page example it no longer shows. Not a visitor's search.
+        `חיפושים של מבקרים, כולל הסרת סינון ושינוי מיון. לא נספרו כחיפושים: תוצאות בעמודי SEO, וגם הדוגמה שהייתה בעבר בדף הבית (${formatCount(t.previews)}) וטעינות של ״עוד 3 אפשרויות״ (${formatCount(t.moreLoads)}). קליקים נספרים מכל העמודים, ולכן אחוז ההקלקה יכול לעבור את 100%.`
       }
     >
       <DataTable

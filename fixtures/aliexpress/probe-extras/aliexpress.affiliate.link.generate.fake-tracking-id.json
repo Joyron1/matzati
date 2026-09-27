@@ -1,0 +1,10 @@
+{
+  "aliexpress_affiliate_link_generate_response": {
+    "resp_result": {
+      "resp_code": 402,
+      "resp_msg": "TrackingId input parameter error"
+    },
+    "request_id": "212a6b7f17905433563425311",
+    "_trace_id_": "2102f1cd17905433563413483e0db2"
+  }
+}

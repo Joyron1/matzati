@@ -8,6 +8,7 @@ import {
   formatShortDate,
   formatTimeAgo,
   formatWait,
+  keepPricesTogether,
   timeUntil,
   whatsappShareUrl,
 } from "./format";
@@ -138,6 +139,18 @@ describe("formatHourAgo", () => {
   });
   it("returns an empty string for an invalid time", () => {
     expect(formatHourAgo("not a date", now)).toBe("");
+  });
+});
+
+describe("keepPricesTogether", () => {
+  it("glues a price to ש״ח and to עד/בין", () => {
+    expect(keepPricesTogether("שעון חכם עד 150 ש״ח")).toBe("שעון חכם עד 150 ש״ח");
+    expect(keepPricesTogether("בין 50 ל־150 ש״ח")).toBe("בין 50 ל־⁠150 ש״ח");
+  });
+  it("leaves text without a price, and עד inside a word, alone", () => {
+    expect(keepPricesTogether("מארגנים למגירות במטבח")).toBe("מארגנים למגירות במטבח");
+    expect(keepPricesTogether("מתנה לילדה בת 8")).toBe("מתנה לילדה בת 8");
+    expect(keepPricesTogether("לעד 5")).toBe("לעד 5");
   });
 });
 
