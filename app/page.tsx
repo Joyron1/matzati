@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { connection } from "next/server";
+import { Suspense } from "react";
 import {
   ListChecks,
   MessageSquareText,
@@ -9,12 +11,13 @@ import {
 import { ResultsPreview } from "@/components/results-preview";
 import { SaleCountdown } from "@/components/sale-countdown";
 import { SearchComposer } from "@/components/search-composer";
-import { card } from "@/components/styles";
+import { card, featured } from "@/components/styles";
 import { BRAND } from "@/lib/config/brand";
+import { EXAMPLE_QUERY } from "@/lib/config/site";
 import { NEXT_SALE } from "@/lib/mock/deals";
-import { EXAMPLE_QUERY, getMockSearch } from "@/lib/mock/search";
 import { FILTERS } from "@/lib/ranking/config";
 import { searchHref } from "@/lib/search-url";
+import { examplePreview } from "@/lib/search/server";
 
 const EXAMPLES = [
   "מתנה לילדה בת 8 עד 150 ש״ח",
@@ -33,7 +36,7 @@ const STEPS = [
   {
     Icon: SlidersHorizontal,
     title: "אנחנו מסננים",
-    body: `רק מוצרים עם ${FILTERS.minPositiveFeedbackPct}% משוב חיובי ומעלה ולפחות ${FILTERS.minUnitsSold} מכירות. כל המספרים מגיעים מאלי אקספרס.`,
+    body: `רק מוצרים עם ${FILTERS.minPositiveFeedbackPct}% משוב חיובי ומעלה ולפחות ${FILTERS.minUnitsSold} מכירות ב־30 הימים האחרונים. כל המספרים מגיעים מאלי אקספרס.`,
   },
   {
     Icon: ListChecks,
@@ -42,9 +45,18 @@ const STEPS = [
   },
 ];
 
-export default function HomePage() {
-  const example = getMockSearch({ q: EXAMPLE_QUERY, without: [], sort: "best_value" }).response;
+/** Real results for the example query; hidden when there are none or anything fails. */
+async function ExamplePreview() {
+  await connection(); // never at build time: the first run may call AliExpress and the LLM
+  const response = await examplePreview(EXAMPLE_QUERY).catch(() => null);
+  return response?.results.length ? <ResultsPreview response={response} /> : null;
+}
 
+function PreviewPlaceholder() {
+  return <div aria-hidden className={`${featured} h-[440px] animate-pulse`} />;
+}
+
+export default function HomePage() {
   return (
     <>
       <section className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-4 pt-8 sm:px-6 sm:pt-14 lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)] lg:items-start lg:gap-14">
@@ -59,8 +71,8 @@ export default function HomePage() {
               <span className="block text-balance text-accent">קבלו 3 מוצרים שעברו סינון.</span>
             </h1>
             <p className="max-w-xl text-lg leading-relaxed text-muted">
-              אנחנו בודקים עד 100 מוצרים באלי אקספרס, מסננים לפי משוב של קונים ומספר מכירות, ומראים
-              רק את מה שעבר.
+              אנחנו בודקים את המוצרים שאלי אקספרס מחזירה לחיפוש, מסננים לפי משוב של קונים ומספר
+              מכירות, ומראים רק את מה שעבר.
             </p>
           </div>
 
@@ -83,7 +95,9 @@ export default function HomePage() {
           </div>
         </div>
 
-        <ResultsPreview response={example} />
+        <Suspense fallback={<PreviewPlaceholder />}>
+          <ExamplePreview />
+        </Suspense>
       </section>
 
       <section aria-labelledby="how-title" className="mx-auto mt-20 max-w-6xl px-4 sm:px-6">

@@ -133,6 +133,105 @@ describe("loadMore", () => {
   });
 });
 
+const Q = "כבל USB עד 40 ש״ח";
+const refuse = () =>
+  vi.fn(async () => {
+    throw new SearchError("capacity", "daily LLM budget is used up");
+  });
+
+describe("daily LLM budget (beforeLlmWork)", () => {
+  it("is charged exactly once per paid search and never on a full cache hit", async () => {
+    const { deps, llm } = setup();
+    const beforeLlmWork = vi.fn(async () => {});
+    await runSearch({ q: Q }, { ...deps, beforeLlmWork });
+    expect(llm.calls).toEqual(["parse", "explain"]);
+    expect(beforeLlmWork).toHaveBeenCalledTimes(1);
+    const again = await runSearch({ q: Q }, { ...deps, beforeLlmWork });
+    expect(again.meta.cache).toBe("results");
+    expect(beforeLlmWork).toHaveBeenCalledTimes(1);
+  });
+
+  it("charges a cached parse that still needs fresh results", async () => {
+    const { deps } = setup();
+    const beforeLlmWork = vi.fn(async () => {});
+    await runSearch({ q: Q }, { ...deps, beforeLlmWork });
+    const { meta } = await runSearch({ q: Q, without: ["max"] }, { ...deps, beforeLlmWork });
+    expect(meta.cache).toBe("parse");
+    expect(beforeLlmWork).toHaveBeenCalledTimes(2);
+  });
+
+  it("propagates a capacity refusal before any LLM or AliExpress call", async () => {
+    const { deps, llm, fetchMock, store } = setup();
+    const beforeLlmWork = refuse();
+    await expect(runSearch({ q: Q }, { ...deps, beforeLlmWork })).rejects.toMatchObject({
+      code: "capacity",
+    });
+    expect(llm.calls).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(store.parses.size).toBe(0);
+  });
+
+  it("refuses after a cached parse without fetching, but keeps serving cached results", async () => {
+    const { deps, llm, fetchMock } = setup();
+    await runSearch({ q: Q }, deps);
+    const fetches = fetchMock.mock.calls.length;
+    const beforeLlmWork = refuse();
+
+    const cached = await runSearch({ q: Q }, { ...deps, beforeLlmWork });
+    expect(cached.response.cached).toBe(true);
+    expect(beforeLlmWork).not.toHaveBeenCalled();
+
+    await expect(
+      runSearch({ q: Q, without: ["max"] }, { ...deps, beforeLlmWork }),
+    ).rejects.toMatchObject({ code: "capacity" });
+    expect(fetchMock.mock.calls.length).toBe(fetches);
+    expect(llm.calls).toEqual(["parse", "explain"]);
+  });
+});
+
+describe("sort override", () => {
+  it("changes the filters key and reuses the parse", async () => {
+    const { deps, llm } = setup();
+    const first = await runSearch({ q: Q }, deps);
+    const cheapest = await runSearch({ q: Q, sort: "cheapest" }, deps);
+    expect(cheapest.meta.cache).toBe("parse");
+    expect(llm.calls).toEqual(["parse", "explain", "explain"]);
+    expect(first.response.sort).toBe("best_value");
+    expect(cheapest.response.sort).toBe("cheapest");
+    expect(cheapest.response.filters_key).not.toBe(first.response.filters_key);
+  });
+});
+
+describe("loadMore budget", () => {
+  async function searched() {
+    const s = setup({ ...PARSE, max_price_ils: null });
+    const { response } = await runSearch({ q: "כבל USB" }, s.deps);
+    expect(response.more_available).toBe(true);
+    return { ...s, fk: response.filters_key! };
+  }
+
+  it("charges only when it has to explain", async () => {
+    const { deps, fk } = await searched();
+    const beforeLlmWork = vi.fn(async () => {});
+    await loadMore(fk, 1, { ...deps, beforeLlmWork });
+    expect(beforeLlmWork).toHaveBeenCalledTimes(1);
+    await loadMore(fk, 1, { ...deps, beforeLlmWork }); // now explained and cached
+    await loadMore(fk, 0, { ...deps, beforeLlmWork }); // explained by the search itself
+    await loadMore(fk, 99, { ...deps, beforeLlmWork }); // past the end: nothing to explain
+    expect(beforeLlmWork).toHaveBeenCalledTimes(1);
+  });
+
+  it("propagates a capacity refusal without explaining or touching the cache", async () => {
+    const { deps, llm, store, fk } = await searched();
+    const before = structuredClone(store.results.get(fk));
+    await expect(loadMore(fk, 1, { ...deps, beforeLlmWork: refuse() })).rejects.toMatchObject({
+      code: "capacity",
+    });
+    expect(llm.calls.filter((c) => c === "explain")).toHaveLength(1);
+    expect(store.results.get(fk)).toEqual(before);
+  });
+});
+
 describe("keywordLadder", () => {
   it("falls back to shorter keywords without requirement or filler words", () => {
     expect(

@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { ChevronLeft, ThumbsUp } from "lucide-react";
+import { APPROX_PRICE_NOTE } from "@/lib/copy";
 import { formatCount, formatIls, formatPct } from "@/lib/format";
-import { mockIconFor } from "@/lib/mock/icons";
 import { searchHref } from "@/lib/search-url";
 import type { SearchResponse } from "@/lib/types";
 import { ProductImage } from "./product-image";
 import { featured } from "./styles";
 
-/** Hero preview of what a search returns. Static example in M1, live after M4. */
+/** Hero preview of what a search returns, from a real (cached) run of the example query. */
 export function ResultsPreview({ response }: { response: SearchResponse }) {
   return (
     <section aria-labelledby="preview-title" className={`${featured} space-y-5 p-5 sm:p-6`}>
@@ -42,8 +42,7 @@ export function ResultsPreview({ response }: { response: SearchResponse }) {
           <li key={p.product_id} className="flex items-center gap-3 p-3">
             <ProductImage
               src={p.image_urls[0]}
-              alt={p.title_he}
-              fallbackIcon={mockIconFor(p.product_id)}
+              alt=""
               className="size-14 shrink-0 rounded-xl"
               iconClassName="size-6"
               sizes="56px"
@@ -61,6 +60,7 @@ export function ResultsPreview({ response }: { response: SearchResponse }) {
                   <span className="flex items-center gap-1">
                     <ThumbsUp aria-hidden className="size-3.5 text-accent" />
                     <bdi dir="ltr">{formatPct(p.positive_feedback_pct)}</bdi>
+                    <span className="sr-only">משוב חיובי</span>
                   </span>
                 )}
               </p>
@@ -68,6 +68,9 @@ export function ResultsPreview({ response }: { response: SearchResponse }) {
           </li>
         ))}
       </ol>
+      {response.results.some((p) => p.price_is_approx) && (
+        <p className="text-xs text-muted">{APPROX_PRICE_NOTE}</p>
+      )}
 
       <Link
         href={searchHref({ q: response.query })}

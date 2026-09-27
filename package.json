@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "NODE_OPTIONS=--experimental-websocket next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "NODE_OPTIONS=--experimental-websocket next start",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
@@ -15,11 +15,13 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",
+    "@supabase/supabase-js": "^2.109.0",
     "lucide-react": "^1.48.0",
     "next": "16.3.6",
     "next-themes": "^0.4.6",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "server-only": "^0.0.1",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -35,5 +37,8 @@
     "tsx": "^4.23.15",
     "typescript": "^5",
     "vitest": "^4.1.11"
+  },
+  "engines": {
+    "node": ">=20.10"
   }
 }

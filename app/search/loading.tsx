@@ -1,9 +1,12 @@
 export default function SearchLoading() {
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-4 pt-6 sm:px-6 sm:pt-10" aria-busy="true">
-      <p role="status" className="text-lg font-semibold">
-        מחפשים ומסננים בשבילכם...
-      </p>
+      <div role="status" className="space-y-1">
+        <p className="text-lg font-semibold">מחפשים ומסננים בשבילכם...</p>
+        <p className="text-sm text-muted">
+          אנחנו בודקים מוצרים באלי אקספרס לפי משוב של קונים ומספר מכירות. זה יכול לקחת כמה שניות.
+        </p>
+      </div>
       <div className="h-[60px] animate-pulse rounded-full bg-surface-2" />
       <div className="flex gap-2">
         {[120, 100, 90].map((w) => (

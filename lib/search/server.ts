@@ -1,0 +1,363 @@
+// Server-only entry points used by pages and route handlers. Builds the pipeline deps from env on
+// every call (LLM provider, AliExpress client, SupabaseStore) and applies the guards: the per-IP
+// rate limit and the daily LLM budget (DAILY_SEARCH_CAP). Failures come back as codes; stack
+// traces and error messages never reach the caller.
+import "server-only";
+import { APIError as LlmApiError } from "@anthropic-ai/sdk";
+import { cache } from "react";
+import { z } from "zod";
+import { generateLinks, getProductDetails } from "@/lib/aliexpress/affiliate";
+import { AliExpressClient } from "@/lib/aliexpress/client";
+import { AliExpressError } from "@/lib/aliexpress/errors";
+import type { AliProduct } from "@/lib/aliexpress/schemas";
+import { RESULTS_PER_PAGE } from "@/lib/config/site";
+import { aliexpressConfig, ConfigError, llmConfig } from "@/lib/env";
+import { checkSearchRate, clientIp, consumeDailyLlmBudget, hashIp } from "@/lib/guard/rate-limit";
+import { AnthropicProvider } from "@/lib/llm/anthropic";
+import type { LlmProvider } from "@/lib/llm/provider";
+import { serviceClient } from "@/lib/supabase/server";
+import type { ResultProduct, SearchResponse } from "@/lib/types";
+import type { SortPreference } from "./filters";
+import {
+  loadMore,
+  MAX_QUERY_LENGTH,
+  RESULTS_KEPT,
+  runSearch,
+  SearchError,
+  toResultProduct,
+  type SearchDeps,
+  type SearchOutcome,
+} from "./pipeline";
+import { normalizeQuery } from "./cache-key";
+import { SupabaseStore, type StoredProduct } from "./supabase-store";
+
+export type SearchFailure =
+  "invalid_query" | "rate_limited" | "capacity" | "parse_failed" | "upstream" | "unavailable";
+
+export type SearchPageResult =
+  | { ok: true; response: SearchResponse }
+  | { ok: false; error: SearchFailure; retryAfterSec?: number };
+
+const PRODUCT_ID = /^\d{1,20}$/;
+const FILTERS_KEY = /^[0-9a-f]{64}$/;
+const CLICK_SRC = /^[a-z0-9_-]{1,32}$/i;
+const PRODUCT_TTL_MS = 24 * 3_600_000;
+const LAST_PAGE = Math.ceil(RESULTS_KEPT / RESULTS_PER_PAGE) - 1;
+
+const guardEnvSchema = z.object({
+  IP_HASH_SALT: z.string().trim().optional(),
+  // 0 is the kill switch: no new LLM work at all, cached results are still served.
+  DAILY_SEARCH_CAP: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+    z.coerce.number().int().min(0).default(2000),
+  ),
+});
+
+function guardEnv() {
+  const parsed = guardEnvSchema.safeParse(process.env);
+  if (!parsed.success) {
+    throw new ConfigError([...new Set(parsed.error.issues.map((i) => String(i.path[0])))]);
+  }
+  return { ipHashSalt: parsed.data.IP_HASH_SALT ?? "", dailyCap: parsed.data.DAILY_SEARCH_CAP };
+}
+
+function llmProvider(): LlmProvider {
+  const cfg = llmConfig();
+  // The OpenAI adapter is deferred (owner decision 2026-09-27), so selecting it is a config error.
+  if (cfg.provider !== "anthropic") throw new ConfigError(["LLM_PROVIDER"]);
+  return new AnthropicProvider(cfg.apiKey, cfg.model);
+}
+
+const aliClient = () => new AliExpressClient(aliexpressConfig());
+
+function searchDeps(dailyCap: number) {
+  const db = serviceClient();
+  const deps: SearchDeps = {
+    llm: llmProvider(),
+    ali: aliClient(),
+    store: new SupabaseStore(db),
+    beforeLlmWork: async () => {
+      if (!(await consumeDailyLlmBudget(db, new Date(), dailyCap))) {
+        throw new SearchError("capacity", "daily LLM budget is used up");
+      }
+    },
+  };
+  return { db, deps };
+}
+
+function logError(where: string, err: unknown) {
+  // Name and message only: no stack traces. Our errors name missing keys, never their values.
+  const text =
+    err instanceof Error
+      ? `${err.name}: ${err.message}`
+      : typeof err === "object" && err && "message" in err
+        ? String(err.message)
+        : String(err);
+  console.error(`[${where}] ${text.slice(0, 500)}`);
+}
+
+function toFailure(err: unknown, where: string): SearchFailure {
+  if (err instanceof SearchError) {
+    if (err.code === "upstream") logError(where, err);
+    return err.code;
+  }
+  logError(where, err);
+  if (err instanceof AliExpressError || err instanceof LlmApiError) return "upstream";
+  return "unavailable"; // config, database and anything unexpected
+}
+
+/** Runs a search for a request. `headers` are the incoming request headers (for the IP). */
+// Identical searches that arrive while one is still running share its result instead of paying
+// for a second parse, fetch and explain (seen in testing: a refresh during a 10 s search ran it
+// twice). Per server instance; the 48h cache covers everything after the first run completes.
+const inFlight = new Map<string, Promise<SearchOutcome>>();
+
+function sharedRun(
+  q: string,
+  without: string[],
+  sort: SortPreference | undefined,
+  deps: SearchDeps,
+): Promise<SearchOutcome> {
+  const key = JSON.stringify([normalizeQuery(q), [...without].sort(), sort ?? null]);
+  const running = inFlight.get(key);
+  if (running) return running;
+  const run = runSearch({ q, without, sort }, deps).finally(() => inFlight.delete(key));
+  inFlight.set(key, run);
+  return run;
+}
+
+export async function searchForRequest(
+  input: { q: string; without?: string[]; sort?: SortPreference },
+  headers: Headers,
+): Promise<SearchPageResult> {
+  const q = input.q.trim();
+  if (!q || q.length > MAX_QUERY_LENGTH) return { ok: false, error: "invalid_query" };
+  try {
+    const env = guardEnv();
+    if (!env.ipHashSalt) throw new ConfigError(["IP_HASH_SALT"]);
+    const { db, deps } = searchDeps(env.dailyCap);
+    // Every request counts, cached ones included: a cached search costs no LLM or AliExpress
+    // call, but the limit is against scripted abuse, which can hammer cached queries just as
+    // well (each still costs DB reads). Chip removals and sort changes count too; 20/hour
+    // leaves room for refining.
+    const rate = await checkSearchRate(db, hashIp(clientIp(headers), env.ipHashSalt), new Date());
+    if (!rate.ok) return { ok: false, error: "rate_limited", retryAfterSec: rate.retryAfterSec };
+    const { response } = await sharedRun(q, input.without ?? [], input.sort, deps);
+    return { ok: true, response };
+  } catch (err) {
+    return { ok: false, error: toFailure(err, "search") };
+  }
+}
+
+export type MoreResult =
+  | { ok: true; results: ResultProduct[]; more_available: boolean }
+  | {
+      ok: false;
+      error: "not_found" | "capacity" | "rate_limited" | "unavailable";
+      retryAfterSec?: number;
+    };
+
+class RateLimitedError extends Error {
+  constructor(readonly retryAfterSec: number) {
+    super("per-IP search limit reached");
+    this.name = "RateLimitedError";
+  }
+}
+
+/**
+ * "עוד 3 אפשרויות" for a cached result set. `page` is 1 for results 4-6. A page that still needs an
+ * explain call counts against the visitor's per-IP limit (when `headers` are given) before the
+ * daily LLM budget, so one client cannot drain the budget with parallel requests. Pages that are
+ * already explained are free.
+ */
+export async function moreForRequest(
+  filtersKey: string,
+  page: number,
+  headers?: Headers,
+): Promise<MoreResult> {
+  if (!FILTERS_KEY.test(filtersKey) || !Number.isInteger(page) || page < 1 || page > LAST_PAGE) {
+    return { ok: false, error: "not_found" };
+  }
+  try {
+    const env = guardEnv();
+    const { db, deps } = searchDeps(env.dailyCap);
+    const chargeBudget = deps.beforeLlmWork;
+    const beforeLlmWork = async () => {
+      if (headers) {
+        if (!env.ipHashSalt) throw new ConfigError(["IP_HASH_SALT"]);
+        const ipHash = hashIp(clientIp(headers), env.ipHashSalt);
+        const rate = await checkSearchRate(db, ipHash, new Date());
+        if (!rate.ok) throw new RateLimitedError(rate.retryAfterSec);
+      }
+      await chargeBudget?.();
+    };
+    const out = await loadMore(filtersKey, page, { ...deps, beforeLlmWork });
+    if (!out) return { ok: false, error: "not_found" };
+    return { ok: true, results: out.results, more_available: out.more_available };
+  } catch (err) {
+    if (err instanceof RateLimitedError) {
+      return { ok: false, error: "rate_limited", retryAfterSec: err.retryAfterSec };
+    }
+    return { ok: false, error: toFailure(err, "more") === "capacity" ? "capacity" : "unavailable" };
+  }
+}
+
+export interface ProductPageData {
+  product: ResultProduct;
+  /** Original AliExpress page (not the affiliate link), for reference only. */
+  detailUrl: string;
+  shopName: string | null;
+  updatedAt: string;
+}
+
+const itemUrl = (productId: string) => `https://www.aliexpress.com/item/${productId}.html`;
+
+async function generateLink(ali: AliExpressClient, productId: string): Promise<string | null> {
+  const links = await generateLinks(ali, [itemUrl(productId)]);
+  return links.find((l) => l.promotionLink)?.promotionLink ?? null;
+}
+
+/** Fresh details with an affiliate link, or null when AliExpress no longer returns the product. */
+async function refreshProduct(productId: string, knownLink: string | null) {
+  const ali = aliClient();
+  const page = await getProductDetails(ali, [productId]);
+  const product = page.products.find((p) => p.productId === productId);
+  if (!product) return null;
+  if (product.promotionLink) return product;
+  const promotionLink = knownLink ?? (await generateLink(ali, productId));
+  return promotionLink ? { ...product, promotionLink } : null; // never show what we cannot link
+}
+
+function pageData(p: AliProduct, titleHe: string | null, updatedAt: string): ProductPageData {
+  return {
+    product: toResultProduct(p, titleHe ? { title_he: titleHe, why_he: "" } : undefined),
+    detailUrl: p.detailUrl,
+    shopName: p.shop.name,
+    updatedAt,
+  };
+}
+
+/**
+ * Product saved by one of our searches; refreshed from productdetail.get when older than 24h.
+ * Unknown ids return null (404): only products that went through our filters get a page, and a
+ * crawler requesting random ids cannot spend AliExpress quota.
+ * Wrapped in cache() so generateMetadata and the page share one lookup (and refresh) per request.
+ */
+export const productForPage = cache(async (productId: string): Promise<ProductPageData | null> => {
+  if (!PRODUCT_ID.test(productId)) return null;
+  try {
+    const store = new SupabaseStore(serviceClient());
+    const stored = await store.getProduct(productId);
+    if (!stored) return null;
+    const now = new Date();
+    if (
+      stored.product.promotionLink &&
+      now.getTime() - Date.parse(stored.updatedAt) < PRODUCT_TTL_MS
+    ) {
+      return pageData(stored.product, stored.titleHe, stored.updatedAt);
+    }
+    let fresh: AliProduct | null;
+    try {
+      fresh = await refreshProduct(productId, stored.product.promotionLink);
+    } catch (err) {
+      logError("product", err);
+      // Real data from the last refresh (with its date) beats a 404 while AliExpress is down.
+      return pageData(stored.product, stored.titleHe, stored.updatedAt);
+    }
+    if (!fresh) return null;
+    const titleHe = stored.titleHe;
+    await store
+      .saveProducts([fresh], { [productId]: titleHe })
+      .catch((err) => logError("product", err));
+    return pageData(fresh, titleHe, now.toISOString());
+  } catch (err) {
+    logError("product", err);
+    return null;
+  }
+});
+
+const PREVIEW_RETRY_MS = 10 * 60_000;
+const previews = new Map<string, { run: Promise<SearchResponse | null>; failedAt?: number }>();
+
+async function runPreview(q: string): Promise<SearchResponse | null> {
+  try {
+    return (await runSearch({ q }, searchDeps(guardEnv().dailyCap).deps)).response;
+  } catch (err) {
+    toFailure(err, "preview");
+    return null;
+  }
+}
+
+/**
+ * Real results for the home page example. Not counted against the visitor's rate limit (it is
+ * not their search), still subject to the daily LLM budget, and served from the 48h cache after
+ * the first run. Null on any failure, so the home page simply hides the preview.
+ */
+export async function examplePreview(q: string): Promise<SearchResponse | null> {
+  // Visitors arriving together while the cache is cold share one paid run per instance. A failure
+  // is remembered for a while: during an outage every home page view would otherwise start a new
+  // paid run and use up the daily LLM budget that real searches need.
+  const key = q.trim();
+  const entry = previews.get(key);
+  const retry = entry?.failedAt !== undefined && Date.now() - entry.failedAt >= PREVIEW_RETRY_MS;
+  if (entry && !retry) return entry.run;
+  const run: Promise<SearchResponse | null> = runPreview(key).then((response) => {
+    if (response) previews.delete(key);
+    else previews.set(key, { run, failedAt: Date.now() });
+    return response;
+  });
+  previews.set(key, { run });
+  return run;
+}
+
+/**
+ * Only AliExpress hosts over https, so a bad row can never turn /go into an open redirect. Returns
+ * the serialized URL: a raw value with a newline or non-Latin-1 character would pass the host
+ * check and then make the Location header throw.
+ */
+function safeAliExpressUrl(link: string): string | null {
+  try {
+    const url = new URL(link);
+    const ok =
+      url.protocol === "https:" &&
+      (url.hostname === "aliexpress.com" || url.hostname.endsWith(".aliexpress.com"));
+    return ok ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
+async function affiliateLink(store: SupabaseStore, stored: StoredProduct): Promise<string | null> {
+  if (stored.product.promotionLink) return stored.product.promotionLink;
+  const { productId } = stored.product;
+  const link = await generateLink(aliClient(), productId);
+  if (link) {
+    await store
+      .saveProducts([{ ...stored.product, promotionLink: link }], { [productId]: stored.titleHe })
+      .catch((err) => logError("go", err));
+  }
+  return link;
+}
+
+/** Logs a click and returns the affiliate link to redirect to, or null when there is none. */
+export async function clickOut(productId: string, src: string): Promise<string | null> {
+  if (!PRODUCT_ID.test(productId)) return null;
+  try {
+    const store = new SupabaseStore(serviceClient());
+    const stored = await store.getProduct(productId);
+    if (!stored) return null;
+    const [link] = await Promise.all([
+      affiliateLink(store, stored),
+      store
+        .logClick(productId, CLICK_SRC.test(src) ? src : "other")
+        .catch((err) => logError("go", err)),
+    ]);
+    if (!link) return null;
+    const safe = safeAliExpressUrl(link);
+    if (!safe) logError("go", new Error(`refusing a non-AliExpress link for product ${productId}`));
+    return safe;
+  } catch (err) {
+    logError("go", err);
+    return null;
+  }
+}

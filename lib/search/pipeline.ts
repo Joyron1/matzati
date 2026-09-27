@@ -12,7 +12,7 @@ import { RESULTS_PER_PAGE } from "@/lib/config/site";
 import type { ResultProduct, SearchResponse } from "@/lib/types";
 import { filtersKey, normalizeQuery, queryKey } from "./cache-key";
 import { applyOverrides, buildChips } from "./chips";
-import type { ParsedQuery } from "./filters";
+import type { ParsedQuery, SortPreference } from "./filters";
 import type { CachedResults, Explanation, SearchStore } from "./store";
 
 export const MAX_QUERY_LENGTH = 200;
@@ -21,7 +21,12 @@ export const RESULTS_KEPT = 12;
 const MAX_ALI_CALLS = 3;
 const FILLER = new Set(["durable", "quality", "best", "good", "new", "premium", "hot", "cheap"]);
 
-export type SearchErrorCode = "invalid_query" | "parse_failed" | "upstream";
+export type SearchErrorCode =
+  | "invalid_query"
+  | "parse_failed"
+  | "upstream"
+  /** The daily LLM budget (DAILY_SEARCH_CAP) is used up; cached results are still served. */
+  | "capacity";
 
 export class SearchError extends Error {
   constructor(
@@ -41,12 +46,19 @@ export interface SearchDeps {
   /** Spacing between AliExpress calls inside one search (their frequency ban lasts ~1 s). */
   sleep?: (ms: number) => Promise<void>;
   aliSpacingMs?: number;
+  /**
+   * Called once, right before the first paid step of a search (a parse or a fresh fetch+explain).
+   * Throw SearchError("capacity") to refuse new LLM work. Fully cached searches never call it.
+   */
+  beforeLlmWork?: () => Promise<void>;
 }
 
 export interface SearchInput {
   q: string;
   /** Chip ids the user removed; the cached parse is reused, so no LLM call. */
   without?: string[];
+  /** Sort chosen with the refine buttons; overrides the parsed preference without a new parse. */
+  sort?: SortPreference;
 }
 
 export interface SearchMeta {
@@ -119,7 +131,7 @@ async function fetchAndRank(
   parsed: ParsedQuery,
   deps: Required<Pick<SearchDeps, "ali" | "sleep" | "aliSpacingMs">>,
   meta: SearchMeta,
-): Promise<{ ranked: AliProduct[]; checked: number }> {
+): Promise<{ ranked: AliProduct[]; passed: number; checked: number }> {
   const seen = new Map<string, AliProduct>();
   let ranked: AliProduct[] = [];
   const call = async (keywords: string, pageNo: number) => {
@@ -157,7 +169,8 @@ async function fetchAndRank(
     await call(keywords, 1);
   }
   meta.rejected = rejectionCounts([...seen.values()], parsed);
-  return { ranked: ranked.slice(0, RESULTS_KEPT), checked: seen.size };
+  // passed counts every distinct product that met the filters, not just the ones we keep.
+  return { ranked: ranked.slice(0, RESULTS_KEPT), passed: ranked.length, checked: seen.size };
 }
 
 /** Makes sure every product we may show has an affiliate link (§6.7). */
@@ -223,6 +236,12 @@ export async function runSearch(input: SearchInput, deps: SearchDeps): Promise<S
   if (!q || q.length > MAX_QUERY_LENGTH) {
     throw new SearchError("invalid_query", `query must be 1-${MAX_QUERY_LENGTH} characters`);
   }
+  let charged = false;
+  const chargeOnce = async () => {
+    if (charged) return;
+    charged = true;
+    await deps.beforeLlmWork?.();
+  };
   const meta: SearchMeta = {
     cache: "none",
     llmUsage: [],
@@ -238,13 +257,17 @@ export async function runSearch(input: SearchInput, deps: SearchDeps): Promise<S
   if (parsed) {
     meta.cache = "parse";
   } else {
+    await chargeOnce();
     const res = await parseQuery(deps.llm, q);
     res.usage.forEach((u) => meta.llmUsage.push({ kind: "parse", usage: u, model: res.model }));
     if (!res.parsed) throw new SearchError("parse_failed", "could not understand the query");
     parsed = res.parsed;
     await deps.store.putParse(qk, normalizeQuery(q), parsed);
   }
-  const filters = applyOverrides(parsed, input.without ?? []);
+  const filters: ParsedQuery = {
+    ...applyOverrides(parsed, input.without ?? []),
+    ...(input.sort ? { sort_preference: input.sort } : {}),
+  };
 
   // 2. Results, from the 48h filters cache when possible.
   const fk = filtersKey(filters);
@@ -255,10 +278,12 @@ export async function runSearch(input: SearchInput, deps: SearchDeps): Promise<S
   }
 
   // 3. Fetch, filter, rank, link, explain the first page.
+  await chargeOnce();
   let ranked: AliProduct[];
   let checked: number;
+  let passed: number;
   try {
-    ({ ranked, checked } = await fetchAndRank(
+    ({ ranked, passed, checked } = await fetchAndRank(
       filters,
       { ali: deps.ali, sleep, aliSpacingMs: deps.aliSpacingMs ?? 1_100 },
       meta,
@@ -278,7 +303,7 @@ export async function runSearch(input: SearchInput, deps: SearchDeps): Promise<S
   const results: CachedResults = {
     filters,
     checked,
-    passed: ranked.length,
+    passed,
     products: ranked,
     explanations,
     createdAt: now().toISOString(),
@@ -298,7 +323,7 @@ export async function runSearch(input: SearchInput, deps: SearchDeps): Promise<S
 export async function loadMore(
   fk: string,
   page: number,
-  deps: Pick<SearchDeps, "llm" | "store" | "now">,
+  deps: Pick<SearchDeps, "llm" | "store" | "now" | "beforeLlmWork">,
 ): Promise<{ results: ResultProduct[]; more_available: boolean; meta: SearchMeta } | null> {
   const now = deps.now ?? (() => new Date());
   const cached = await deps.store.getResults(fk, now());
@@ -315,6 +340,7 @@ export async function loadMore(
   const slice = cached.products.slice(start, start + RESULTS_PER_PAGE);
   const missing = slice.filter((p) => !cached.explanations[p.productId]);
   if (missing.length) {
+    await deps.beforeLlmWork?.();
     const added = await explainRange(deps.llm, cached.filters, missing, meta);
     Object.assign(cached.explanations, added);
     await deps.store.updateResults(fk, cached);

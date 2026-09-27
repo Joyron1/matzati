@@ -157,14 +157,15 @@ Share buttons share **our** page URL (e.g. via `https://wa.me/?text=`), never th
 
 ## 8. Data model (Supabase migrations in `supabase/migrations/`)
 
-- `search_cache(query_hash text pk, query text, parsed jsonb, response jsonb, created_at timestamptz)`
+- `parse_cache(query_key text pk, query_norm text, parsed jsonb, hits int, created_at)` (48h)
+- `search_cache(filters_key text pk, query text, parsed jsonb, response jsonb, hits int, created_at timestamptz)` (48h)
 - `search_log(id bigserial pk, query text, parsed jsonb, result_ids text[], created_at)`
 - `products(product_id text pk, data jsonb, title_he text, updated_at)`
 - `price_history(product_id text, price_ils numeric, price_usd numeric, captured_at timestamptz)`
 - `clicks(id bigserial pk, product_id text, src text, created_at)`
 - `deals(id uuid pk, type text check in ('deal','holiday','dont_buy'), title text, body text, product_id text null, coupon_code text null, starts_at, ends_at, published bool default false, created_at)`
 - `category_tips(category_id text pk, tips_he jsonb, updated_at)`
-- `rate_limits(ip_hash text, window_start timestamptz, count int, primary key(ip_hash, window_start))`
+- `rate_limits(ip_hash text, window_start timestamptz, count int, primary key(ip_hash, window_start))`, incremented atomically by `bump_counter()`; keys `h:<hash>`, `d:<hash>`, `llm:day`
 - `fx_rates(date date pk, usd_ils numeric)`
 
 RLS on everything. Public (anon) may only `select` from `deals where published = true`. Everything else is server-side with the service role key.

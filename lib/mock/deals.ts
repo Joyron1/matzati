@@ -1,5 +1,5 @@
 // M1 mock of the `deals` table and related content. Admin-managed from M5.
-import type { CategoryTips, Coupon, Deal } from "@/lib/types";
+import type { Deal } from "@/lib/types";
 
 export const NEXT_SALE = {
   name: "11.11",
@@ -23,8 +23,8 @@ export const MOCK_DEALS: Deal[] = [
     type: "deal",
     title: "הנחה של 45% על אוזניות ספורט IPX5",
     body: "אוזניות ריצה עם וו אוזן, 96.8% משוב חיובי ו־3,412 מכירות.",
-    product_id: "1005006123450001",
-    coupon_code: "IL5OFF",
+    product_id: null,
+    coupon_code: null,
     starts_at: null,
     ends_at: "2026-10-05T23:59:00+03:00",
   },
@@ -43,7 +43,7 @@ export const MOCK_DEALS: Deal[] = [
     type: "deal",
     title: "אוזניות צוואר מגנטיות בפחות מ־50 ש״ח",
     body: "אפשרות זולה לספורט עם 93.1% משוב חיובי ויותר מ־2,000 מכירות.",
-    product_id: "1005006123450004",
+    product_id: null,
     coupon_code: null,
     starts_at: null,
     ends_at: null,
@@ -69,24 +69,3 @@ export const MOCK_DEALS: Deal[] = [
     ends_at: "2026-11-30T23:59:00+02:00",
   },
 ];
-
-export const MOCK_COUPONS: Record<string, Coupon> = {
-  "1005006123450001": {
-    code: "IL5OFF",
-    description_he: "₪18 הנחה בקנייה מעל ₪140",
-    valid_until: "2026-10-05",
-  },
-};
-
-export const MOCK_TIPS: Record<string, CategoryTips> = {
-  headphones: {
-    category_id: "headphones",
-    category_name_he: "אוזניות",
-    tips_he: [
-      "IPX4 מתאים לזיעה ולהתזות. מ־IPX7 ומעלה האוזניות מחזיקות גם טבילה במים.",
-      "לריצה, וו אוזן או הולכת עצם נשארים יציבים יותר מאוזניות קטנות בלי תפס.",
-      "זמן הסוללה בכותרת נמדד בדרך כלל בתנאים אידיאליים. בשימוש רגיל הוא קצר יותר.",
-      "Bluetooth 5.0 ומעלה נותן חיבור יציב יותר וצריכת סוללה נמוכה יותר.",
-    ],
-  },
-};

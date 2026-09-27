@@ -6,10 +6,14 @@ free Hebrew and get 3 vetted products with affiliate links. The full spec and wo
 
 ## Status
 
-- **M1 – Skeleton & design: done.** All pages render mock data from `lib/mock/` (a banner says so).
-- **M2 – AliExpress client: done.** Signer, typed client, zod schemas from real responses, `npm run check:ali` passes. Verified API behavior: [docs/aliexpress-api.md](docs/aliexpress-api.md).
-- Supabase project `matzati` (eu-central-1) has the §8 schema applied (`supabase/migrations/`).
-- M3–M6: see the milestones in CLAUDE.md.
+- **M1 – Skeleton & design: done.**
+- **M2 – AliExpress client: done.** Verified API behavior: [docs/aliexpress-api.md](docs/aliexpress-api.md).
+- **M3 – LLM layer: done.** Eval: [docs/eval-m3.md](docs/eval-m3.md).
+- **M4 – Search end to end: done.** Real results on `/search`, `/p/[id]`, the home preview and `/go` click-out; 48h two-level cache, per-IP rate limits and a daily LLM budget in Supabase.
+- **Still mock:** `/deals` (M5, with the admin).
+- M5–M6: see the milestones in CLAUDE.md.
+
+Local dev needs Node 22+, or Node 20.10+ with `--experimental-websocket` (set in the `dev` and `start` scripts) because supabase-js needs a WebSocket global.
 
 ## Setup
 
@@ -42,5 +46,3 @@ npm run check:ali    # AliExpress credential & API check (3 calls; add -- --save
 | `lib/ranking/config.ts` | Filter thresholds, also shown in the UI                                             |
 | `lib/mock/`             | M1 sample data, replaced by the real pipeline in M4                                 |
 | `lib/types.ts`          | Wire types shared by the API and the UI                                             |
-
-Useful demo URLs while on mock data: `/search?q=...&demo=empty` shows the no-results state.

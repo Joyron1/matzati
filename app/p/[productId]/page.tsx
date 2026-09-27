@@ -1,48 +1,55 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CircleCheck, ChevronRight, Info, Lightbulb, TicketPercent } from "lucide-react";
+import { ChevronRight, CircleCheck, CircleMinus } from "lucide-react";
 import { BuyButton } from "@/components/buy-button";
-import { CopyButton } from "@/components/copy-button";
 import { Price } from "@/components/price";
-import { ProductImage } from "@/components/product-image";
+import { ProductGallery } from "@/components/product-gallery";
 import { ShareLink } from "@/components/share-link";
 import { card, featured } from "@/components/styles";
+import { SOLD_30D_LABEL } from "@/components/trust-metrics";
 import { APPROX_PRICE_NOTE } from "@/lib/copy";
-import { formatCount, formatPct, formatShortDate } from "@/lib/format";
-import { MOCK_COUPONS, MOCK_TIPS } from "@/lib/mock/deals";
-import { mockIconFor } from "@/lib/mock/icons";
-import { getMockProduct } from "@/lib/mock/products";
+import { formatCount, formatDateTime, formatPct } from "@/lib/format";
 import { FILTERS } from "@/lib/ranking/config";
 import { firstParam, searchHref } from "@/lib/search-url";
+import { productForPage } from "@/lib/search/server";
 
+// productForPage is request-cached, so the metadata and the page share one lookup.
 export async function generateMetadata({ params }: PageProps<"/p/[productId]">): Promise<Metadata> {
-  const product = getMockProduct((await params).productId);
-  return { title: product?.title_he ?? "מוצר לא נמצא" };
+  const data = await productForPage((await params).productId);
+  return { title: data?.product.title_he ?? "מוצר לא נמצא" };
 }
 
 export default async function ProductPage({ params, searchParams }: PageProps<"/p/[productId]">) {
   const { productId } = await params;
-  const q = firstParam((await searchParams).q).trim();
-  const product = getMockProduct(productId);
-  if (!product) notFound();
+  const q = firstParam((await searchParams).q)
+    .trim()
+    .slice(0, 200);
+  const data = await productForPage(productId);
+  if (!data) notFound();
 
-  const coupon = MOCK_COUPONS[product.product_id];
-  const tips = product.category_id ? MOCK_TIPS[product.category_id] : undefined;
-  const Icon = mockIconFor(product.product_id);
-
+  const { product, shopName, updatedAt } = data;
+  const pct = product.positive_feedback_pct;
+  const sold = product.units_sold;
+  // Re-evaluated on current data: values change after a search, and /p can also be opened for a
+  // product no search showed. A missing value fails, as it does in the ranking filter.
   const checks = [
-    product.positive_feedback_pct !== null && {
+    {
       label: "משוב חיובי",
-      value: formatPct(product.positive_feedback_pct),
+      value: pct === null ? null : formatPct(pct),
       threshold: `${FILTERS.minPositiveFeedbackPct}%`,
+      passes: pct !== null && pct >= FILTERS.minPositiveFeedbackPct,
     },
-    product.units_sold !== null && {
-      label: "מכירות",
-      value: formatCount(product.units_sold),
+    {
+      label: SOLD_30D_LABEL,
+      value: sold === null ? null : formatCount(sold),
       threshold: formatCount(FILTERS.minUnitsSold),
+      passes: sold !== null && sold >= FILTERS.minUnitsSold,
     },
-  ].filter((c) => c !== false);
+  ];
+  const allPass = checks.every((c) => c.passes);
+  // Without a Hebrew title the page falls back to the English one.
+  const englishOnly = product.title_he === product.title_en;
 
   return (
     <div className="mx-auto max-w-6xl px-4 pt-4 sm:px-6 sm:pt-8">
@@ -55,31 +62,41 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
       </Link>
 
       <div className="mt-3 grid gap-8 lg:grid-cols-2 lg:gap-12">
-        <div className="space-y-3">
-          <ProductImage
-            src={product.image_urls[0]}
-            alt={product.title_he}
-            fallbackIcon={Icon}
-            className="aspect-square w-full rounded-composer"
-            iconClassName="size-32"
-            priority
-          />
-        </div>
+        <ProductGallery images={product.image_urls} alt={product.title_he} />
 
         <div className="space-y-6">
           <div className="space-y-2">
-            <h1 className="text-2xl leading-snug font-bold sm:text-3xl">{product.title_he}</h1>
-            <p className="text-sm text-muted">
-              השם באלי אקספרס:{" "}
-              <bdi dir="ltr" className="text-ink/80">
-                {product.title_en}
-              </bdi>
-            </p>
+            <h1 className="text-2xl leading-snug font-bold sm:text-3xl">
+              {englishOnly ? <bdi dir="ltr">{product.title_en}</bdi> : product.title_he}
+            </h1>
+            {!englishOnly && (
+              <p className="text-sm text-muted">
+                השם באלי אקספרס:{" "}
+                <bdi dir="ltr" className="text-ink/80">
+                  {product.title_en}
+                </bdi>
+              </p>
+            )}
+            {shopName && (
+              <p className="text-sm text-muted">
+                החנות: <bdi className="text-ink/80">{shopName}</bdi>
+              </p>
+            )}
           </div>
+
+          {product.why_he && (
+            <p className="rounded-2xl bg-accent-soft px-4 py-3 text-[15px] leading-relaxed text-accent-ink">
+              <span className="font-bold">למה בחרנו: </span>
+              {product.why_he}
+            </p>
+          )}
 
           <div className="space-y-2">
             <Price product={product} size="lg" />
-            {product.price_is_approx && <p className="text-sm text-muted">{APPROX_PRICE_NOTE}</p>}
+            <p className="text-sm text-muted">
+              {product.price_is_approx && <>{APPROX_PRICE_NOTE} </>}
+              המחיר נבדק באלי אקספרס ב־<bdi dir="ltr">{formatDateTime(updatedAt)}</bdi>.
+            </p>
           </div>
 
           <dl className="grid grid-cols-2 gap-3">
@@ -93,7 +110,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
             )}
             {product.units_sold !== null && (
               <div className={`${card} flex flex-col-reverse gap-1 p-4`}>
-                <dt className="text-sm text-muted">נמכרו</dt>
+                <dt className="text-sm text-muted">{SOLD_30D_LABEL}</dt>
                 <dd className="text-2xl font-bold">
                   <bdi dir="ltr">{formatCount(product.units_sold)}</bdi>
                 </dd>
@@ -101,93 +118,44 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
             )}
           </dl>
 
-          {coupon && (
-            <section
-              aria-labelledby="coupon-title"
-              className="space-y-3 rounded-card bg-gold-soft p-4 sm:p-5"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h2 id="coupon-title" className="flex items-center gap-2 font-bold">
-                    <TicketPercent aria-hidden className="size-5" />
-                    קופון מהקהילה
-                  </h2>
-                  <p className="text-sm">
-                    <bdi dir="ltr" className="font-bold tracking-wider">
-                      {coupon.code}
-                    </bdi>{" "}
-                    · {coupon.description_he}
-                    {coupon.valid_until && (
-                      <>
-                        {" "}
-                        · בתוקף עד <bdi dir="ltr">{formatShortDate(coupon.valid_until)}</bdi>
-                      </>
-                    )}
-                  </p>
-                </div>
-                <CopyButton value={coupon.code} />
-              </div>
-              <p className="text-xs text-muted">
-                קופון שמשתמשים שיתפו. לא תמיד עובד לכולם, כדאי לבדוק בקופה.
-              </p>
-            </section>
-          )}
-
           <BuyButton productId={product.product_id} src="product" />
           <ShareLink text={product.title_he} />
         </div>
       </div>
 
-      <div className="mt-12 grid gap-4 lg:grid-cols-2">
-        <section aria-labelledby="why-title" className={`${featured} space-y-4 p-6`}>
-          <h2 id="why-title" className="font-display text-2xl">
-            למה זה עבר את הסינון
-          </h2>
-          <ul className="space-y-3">
-            {checks.map((c) => (
-              <li key={c.label} className="flex items-start gap-3">
+      <section aria-labelledby="why-title" className={`${featured} mt-12 max-w-3xl space-y-4 p-6`}>
+        <h2 id="why-title" className="font-display text-2xl">
+          {allPass ? "למה זה עבר את הסינון" : "איך המוצר עומד בסינון שלנו"}
+        </h2>
+        <ul className="space-y-3">
+          {checks.map((c) => (
+            <li key={c.label} className="flex items-start gap-3">
+              {c.passes ? (
                 <CircleCheck aria-hidden className="mt-0.5 size-5 shrink-0 text-accent" />
-                <p>
-                  <span className="font-semibold">
-                    {c.label}: <bdi dir="ltr">{c.value}</bdi>
-                  </span>
-                  <span className="text-muted">
-                    {" "}
-                    (הסף שלנו: <bdi dir="ltr">{c.threshold}</bdi> ומעלה)
-                  </span>
-                </p>
-              </li>
-            ))}
-          </ul>
-          <p className="text-sm leading-relaxed text-muted">
-            בחיפוש עצמו בדקנו גם שהמחיר בתוך התקציב שכתבתם ושהמוצר מתאים למה שביקשתם. כל המספרים כאן
-            הגיעו מאלי אקספרס.
-          </p>
-        </section>
-
-        {tips && (
-          <section aria-labelledby="tips-title" className={`${card} space-y-4 p-6`}>
-            <div className="space-y-1">
-              <h2 id="tips-title" className="flex items-center gap-2 font-display text-2xl">
-                <Lightbulb aria-hidden className="size-6 text-accent" />
-                טיפים לקניית {tips.category_name_he}
-              </h2>
-              <p className="flex items-center gap-1.5 text-sm text-muted">
-                <Info aria-hidden className="size-4 shrink-0" />
-                טיפים כלליים לקטגוריה, לא בדיקה של המוצר הזה.
+              ) : (
+                <CircleMinus aria-hidden className="mt-0.5 size-5 shrink-0 text-muted" />
+              )}
+              <p>
+                <span className="sr-only">{c.passes ? "עומד בסף. " : "לא עומד בסף. "}</span>
+                <span className="font-semibold">
+                  {c.label}:{" "}
+                  {c.value === null ? "אלי אקספרס לא החזירה נתון" : <bdi dir="ltr">{c.value}</bdi>}
+                </span>
+                <span className="text-muted">
+                  {" "}
+                  (הסף שלנו: <bdi dir="ltr">{c.threshold}</bdi> ומעלה)
+                </span>
               </p>
-            </div>
-            <ul className="space-y-3">
-              {tips.tips_he.map((tip) => (
-                <li key={tip} className="flex gap-3 leading-relaxed">
-                  <span aria-hidden className="mt-2.5 size-1.5 shrink-0 rounded-full bg-accent" />
-                  {tip}
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-      </div>
+            </li>
+          ))}
+        </ul>
+        <p className="text-sm leading-relaxed text-muted">
+          {allPass
+            ? "בחיפוש אנחנו בודקים גם שהמוצר מתאים למה שביקשתם ושהמחיר בתוך התקציב שכתבתם."
+            : "לפי הנתונים העדכניים מאלי אקספרס, המוצר לא עומד כרגע בכל הספים שלנו."}{" "}
+          כל המספרים כאן הגיעו מאלי אקספרס.
+        </p>
+      </section>
     </div>
   );
 }

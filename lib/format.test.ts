@@ -1,22 +1,28 @@
 import { describe, expect, it } from "vitest";
 import {
   formatCount,
+  formatDateTime,
   formatIls,
   formatPct,
   formatShortDate,
+  formatWait,
   timeUntil,
   whatsappShareUrl,
 } from "./format";
 
 describe("formatIls", () => {
-  it("marks converted prices as approximate", () => {
+  it("marks converted prices as approximate, in whole shekels", () => {
     expect(formatIls(78.4, true)).toBe("≈₪78");
+    expect(formatIls(1249.5, true)).toBe("≈₪1,250");
   });
-  it("leaves native ILS prices exact", () => {
-    expect(formatIls(78.6, false)).toBe("₪79");
+  it("keeps agorot on exact ILS prices", () => {
+    expect(formatIls(13.37, false)).toBe("₪13.37");
+    expect(formatIls(78.6, false)).toBe("₪78.60");
+    expect(formatIls(1249.5, false)).toBe("₪1,249.50");
   });
-  it("groups thousands", () => {
-    expect(formatIls(1249, true)).toBe("≈₪1,249");
+  it("drops the decimals when an exact price is whole", () => {
+    expect(formatIls(100, false)).toBe("₪100");
+    expect(formatIls(99.999, false)).toBe("₪100");
   });
 });
 
@@ -32,6 +38,20 @@ describe("formatPct", () => {
     expect(formatPct(96.8)).toBe("96.8%");
     expect(formatPct(97)).toBe("97%");
     expect(formatPct(92.46)).toBe("92.5%");
+  });
+});
+
+describe("formatWait", () => {
+  it("rounds up to whole minutes, at least one", () => {
+    expect(formatWait(0)).toBe("דקה");
+    expect(formatWait(60)).toBe("דקה");
+    expect(formatWait(61)).toBe("2 דקות");
+    expect(formatWait(59 * 60)).toBe("59 דקות");
+  });
+  it("switches to hours past an hour", () => {
+    expect(formatWait(3600)).toBe("שעה");
+    expect(formatWait(3601)).toBe("שעתיים");
+    expect(formatWait(5 * 3600)).toBe("5 שעות");
   });
 });
 
@@ -55,6 +75,13 @@ describe("formatShortDate", () => {
     expect(formatShortDate("2026-11-11T00:00:00+02:00")).toBe("11.11");
     // 23:30 UTC on Oct 5 is already Oct 6 in Israel.
     expect(formatShortDate("2026-10-05T23:30:00Z")).toBe("6.10");
+  });
+});
+
+describe("formatDateTime", () => {
+  it("formats date and 24h time in Israel time", () => {
+    expect(formatDateTime("2026-09-27T11:05:00Z")).toBe("27.9 בשעה 14:05");
+    expect(formatDateTime("2026-10-05T23:30:00Z")).toBe("6.10 בשעה 02:30");
   });
 });
 

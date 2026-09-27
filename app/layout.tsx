@@ -1,11 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans_Hebrew, Secular_One } from "next/font/google";
-import { Info } from "lucide-react";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { ThemeProvider } from "@/components/theme-provider";
 import { BRAND } from "@/lib/config/brand";
-import { USING_MOCK_DATA } from "@/lib/config/site";
 import "./globals.css";
 
 const plex = IBM_Plex_Sans_Hebrew({
@@ -50,14 +48,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           >
             דלגו לתוכן
           </a>
-          {USING_MOCK_DATA && (
-            <div className="bg-invert-bg text-invert-ink">
-              <p className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-2 text-sm sm:px-6">
-                <Info aria-hidden className="size-4 shrink-0" />
-                גרסת עיצוב: המוצרים והמספרים בעמודים הם נתוני דוגמה.
-              </p>
-            </div>
-          )}
           <SiteHeader />
           <main id="main" className="flex-1">
             {children}

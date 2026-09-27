@@ -6,21 +6,23 @@ import type { FilterChip, SortPreference } from "@/lib/types";
 interface FilterChipsProps {
   chips: FilterChip[];
   q: string;
-  sort: SortPreference;
+  /** Sort override from the URL, kept when a chip is removed. */
+  sort?: SortPreference;
   without: string[];
-  /** Chip to draw attention to, e.g. the price filter when nothing passed. */
-  highlightId?: string;
+  /** Chips to draw attention to, e.g. the price filter when nothing passed. */
+  highlightIds?: string[];
 }
 
 /** "הבנתי ככה" row. Removing a chip re-runs the search without that filter. */
-export function FilterChips({ chips, q, sort, without, highlightId }: FilterChipsProps) {
+export function FilterChips({ chips, q, sort, without, highlightIds = [] }: FilterChipsProps) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
       <span className="text-sm font-semibold text-muted">הבנתי ככה:</span>
       <ul className="flex flex-wrap gap-2">
         {chips.map((chip) => {
-          const ring =
-            chip.id === highlightId ? "ring-2 ring-gold ring-offset-2 ring-offset-bg" : "";
+          const ring = highlightIds.includes(chip.id)
+            ? "ring-2 ring-gold ring-offset-2 ring-offset-bg"
+            : "";
           return (
             <li key={chip.id}>
               {chip.removable ? (
