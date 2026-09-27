@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { BRAND } from "@/lib/config/brand";
+import { DEALS_ENABLED } from "@/lib/config/site";
 import { LogoMark } from "./logo";
 
 const LINKS = [
-  { href: "/deals", label: "דילים" },
+  ...(DEALS_ENABLED ? [{ href: "/deals", label: "דילים" }] : []),
   { href: "/disclosure", label: "גילוי נאות" },
   { href: "/privacy", label: "מדיניות פרטיות" },
   { href: "/terms", label: "תנאי שימוש" },

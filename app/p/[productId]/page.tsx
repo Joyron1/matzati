@@ -14,6 +14,9 @@ import { FILL_TIER, FILTERS } from "@/lib/ranking/config";
 import { firstParam, searchHref } from "@/lib/search-url";
 import { productForPage } from "@/lib/search/server";
 
+// A fresh search (parse, up to 3 AliExpress calls, explain) takes 7-15 s; give it room.
+export const maxDuration = 60;
+
 // productForPage is request-cached, so the metadata and the page share one lookup.
 export async function generateMetadata({ params }: PageProps<"/p/[productId]">): Promise<Metadata> {
   const data = await productForPage((await params).productId);

@@ -19,6 +19,9 @@ import { FILTERS } from "@/lib/ranking/config";
 import { searchHref } from "@/lib/search-url";
 import { examplePreview } from "@/lib/search/server";
 
+// A fresh search (parse, up to 3 AliExpress calls, explain) takes 7-15 s; give it room.
+export const maxDuration = 60;
+
 const EXAMPLES = [
   "מתנה לילדה בת 8 עד 150 ש״ח",
   "מחזיק טלפון לרכב עם טעינה אלחוטית",

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Bell, CalendarClock } from "lucide-react";
 import { useSyncExternalStore } from "react";
 import { formatShortDate, timeUntil } from "@/lib/format";
+import { DEALS_ENABLED } from "@/lib/config/site";
 import { btnMd, btnPrimary } from "./styles";
 
 // Ticks once per minute; the snapshot is the current minute so renders stay cheap.
@@ -66,10 +67,13 @@ export function SaleCountdown({ title, startsAt }: SaleCountdownProps) {
         </dl>
       )}
 
-      <Link href="/deals#whatsapp" className={`${btnPrimary} ${btnMd} self-start`}>
-        <Bell aria-hidden className="size-[18px]" />
-        הזכירו לי
-      </Link>
+      {/* The reminder goes through the WhatsApp channel on /deals, hidden until M5. */}
+      {DEALS_ENABLED && (
+        <Link href="/deals#whatsapp" className={`${btnPrimary} ${btnMd} self-start`}>
+          <Bell aria-hidden className="size-[18px]" />
+          הזכירו לי
+        </Link>
+      )}
     </section>
   );
 }

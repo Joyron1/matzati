@@ -1,0 +1,3 @@
+# Never upload local secrets (Vercel also skips .env.local by default).
+.env*
+!.env.example

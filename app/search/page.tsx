@@ -27,6 +27,9 @@ import { MAX_QUERY_LENGTH } from "@/lib/search/pipeline";
 import { searchForRequest, type SearchFailure } from "@/lib/search/server";
 import type { SearchResponse, SortPreference } from "@/lib/types";
 
+// A fresh search (parse, up to 3 AliExpress calls, explain) takes 7-15 s; give it room.
+export const maxDuration = 60;
+
 export async function generateMetadata({ searchParams }: PageProps<"/search">): Promise<Metadata> {
   const q = firstParam((await searchParams).q).trim();
   return { title: q ? `חיפוש: ${q}` : "חיפוש", robots: { index: false } };

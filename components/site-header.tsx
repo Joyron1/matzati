@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Flame } from "lucide-react";
+import { DEALS_ENABLED } from "@/lib/config/site";
 import { Logo } from "./logo";
 import { ThemeToggle } from "./theme-toggle";
 
@@ -15,13 +16,15 @@ export function SiteHeader() {
           >
             חיפוש
           </Link>
-          <Link
-            href="/deals"
-            className="flex min-h-11 items-center gap-1.5 rounded-full px-3 font-medium text-muted hover:text-ink sm:px-4"
-          >
-            <Flame aria-hidden className="size-[18px]" />
-            דילים
-          </Link>
+          {DEALS_ENABLED && (
+            <Link
+              href="/deals"
+              className="flex min-h-11 items-center gap-1.5 rounded-full px-3 font-medium text-muted hover:text-ink sm:px-4"
+            >
+              <Flame aria-hidden className="size-[18px]" />
+              דילים
+            </Link>
+          )}
           <ThemeToggle />
         </nav>
       </div>

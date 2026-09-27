@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { DEALS_ENABLED } from "@/lib/config/site";
 import { Info } from "lucide-react";
 import { DealsBoard } from "@/components/deals-board";
 import { WhatsappCta } from "@/components/whatsapp-cta";
@@ -11,6 +13,7 @@ export const metadata: Metadata = {
 
 // Sample content until the admin-managed deals table goes live (M5).
 export default function DealsPage() {
+  if (!DEALS_ENABLED) notFound();
   return (
     <div className="mx-auto max-w-6xl space-y-8 px-4 pt-8 sm:px-6 sm:pt-12">
       <div className="max-w-2xl space-y-3">
