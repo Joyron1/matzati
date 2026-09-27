@@ -42,8 +42,13 @@ export interface SearchResponse {
   more_available: boolean;
   /** Handle for "show 3 more" (results cache key). Absent on mock data. */
   filters_key?: string;
-  /** True when served from the 48h cache without new AliExpress or explain calls. */
+  /** True when served from the 14-day cache without new AliExpress or explain calls. */
   cached?: boolean;
+  /**
+   * When these results (and their prices) were fetched from AliExpress (ISO); older than the
+   * response itself when served from the cache. Absent on mock data.
+   */
+  fetched_at?: string;
 }
 
 export type DealType = "deal" | "holiday" | "dont_buy";

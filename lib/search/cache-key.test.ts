@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { filtersKey, isFresh, normalizeQuery, queryKey } from "./cache-key";
+import {
+  CACHE_TTL_DAYS,
+  CACHE_TTL_HOURS,
+  EMPTY_RESULTS_TTL_HOURS,
+  filtersKey,
+  isFresh,
+  isFreshResults,
+  normalizeQuery,
+  queryKey,
+} from "./cache-key";
 import type { SearchFilters } from "./filters";
 
 describe("normalizeQuery", () => {
@@ -61,9 +70,21 @@ describe("filtersKey", () => {
 });
 
 describe("isFresh", () => {
-  it("keeps entries for 48 hours", () => {
+  it("keeps entries for 14 days", () => {
+    expect(CACHE_TTL_HOURS).toBe(CACHE_TTL_DAYS * 24);
     const created = new Date("2026-09-27T10:00:00Z");
-    expect(isFresh(created, new Date("2026-09-29T09:59:00Z"))).toBe(true);
-    expect(isFresh(created, new Date("2026-09-29T10:00:00Z"))).toBe(false);
+    expect(isFresh(created, new Date("2026-09-29T10:00:00Z"))).toBe(true); // the old 48h limit
+    expect(isFresh(created, new Date("2026-10-11T09:59:00Z"))).toBe(true);
+    expect(isFresh(created, new Date("2026-10-11T10:00:00Z"))).toBe(false);
+  });
+});
+
+describe("isFreshResults", () => {
+  it("keeps result sets for 14 days, and empty ones for 48h only", () => {
+    const created = new Date("2026-09-27T10:00:00Z");
+    expect(EMPTY_RESULTS_TTL_HOURS).toBe(48);
+    expect(isFreshResults(created, 4, new Date("2026-10-11T09:59:00Z"))).toBe(true);
+    expect(isFreshResults(created, 0, new Date("2026-09-29T09:59:00Z"))).toBe(true);
+    expect(isFreshResults(created, 0, new Date("2026-09-29T10:00:00Z"))).toBe(false);
   });
 });

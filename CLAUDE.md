@@ -107,7 +107,7 @@ Common params: `keywords`, `page_no`, `page_size` (50), `sort` (e.g. `LAST_VOLUM
 Input: `{ q: string }` (1–200 chars, trimmed).
 
 1. **Guard**: validate, rate-limit per hashed IP (sha256 of IP + `IP_HASH_SALT`): 20 searches/hour, 100/day. Global kill switch: refuse new LLM work after `DAILY_SEARCH_CAP` searches/day and return a clear Hebrew message.
-2. **Cache (two levels, 48h; owner decision 2026-09-27)** — never trade accuracy for a hit (`lib/search/cache-key.ts`):
+2. **Cache (two levels, 14 days; owner decision 2026-09-27, was 48h; a result set with no products stays 48h, `EMPTY_RESULTS_TTL_HOURS`)** — never trade accuracy for a hit (`lib/search/cache-key.ts`, `CACHE_TTL_DAYS`):
    - `parse_cache`: key = hash of the normalized query (spacing, niqqud, quotes, ש״ח/שקל/₪ unified). A hit skips the parse call.
    - `search_cache`: key = hash of the canonical parsed filters (sorted keywords, must_have, rounded price bounds, sort, `RANKING_VERSION`). A different phrasing that parses to identical filters reuses the results and explanations; only the parse call is paid.
    - No fuzzy or semantic text matching: reuse only when the filters that determine the results are identical.
@@ -134,10 +134,10 @@ Input: `{ q: string }` (1–200 chars, trimmed).
 6. **Rank**: score = weighted positive-feedback (shrunk toward 98% for small samples) + log(volume) + price fit (+ discount small weight); "cheapest" orders by price. Near-duplicate listings are removed.
    **Commission rate may only break exact ties. Never rank a worse product higher because it pays more.**
 7. **Links**: use `promotion_link` if present; otherwise batch `link.generate`. A product we cannot link is not shown.
-8. **Explain (LLM)** (`lib/llm/explain.ts`): for the 3 shown products, input = the displayed fields plus the search filters and their Hebrew labels. **Never the raw query**: explanations are cached 48h by filters and reused for other users. Output per product: `title_he` and `why_he` (25–120 chars).
+8. **Explain (LLM)** (`lib/llm/explain.ts`): for the 3 shown products, input = the displayed fields plus the search filters and their Hebrew labels. **Never the raw query**: explanations are cached 14 days by filters (owner decision 2026-09-27, was 48h) and reused for other users. Output per product: `title_he` and `why_he` (25–120 chars).
    Post-checks reject a line with an ungrounded number, a written price, a false or unverifiable superlative, singular address, foreign or mixed script, or truncation; a rejected `why_he` falls back to a sentence built from the data ("<pct>% משוב חיובי ו־<n> נמכרו ב־30 הימים האחרונים."). `EXPLAIN_VERSION` is part of the results cache key.
-9. **Store**: `search_cache`, `search_log` (query, parsed filters, result ids, no IP, no user data), upsert `products` + a `price_history` row.
-10. **Respond**: `{ query, chips, sort, checked_count, passed_count, results: [...3], more_available, filters_key, cached }`. "עוד 3 אפשרויות" explains the next 3 on demand (`loadMore`).
+9. **Store**: `search_cache`, `search_log` (query, parsed filters, result ids, the first shown result's first-level `category_id`, `listable`; no IP, no user data), upsert `products` + a `price_history` row. `listable` (`isListableSearch` in `lib/search/pipeline.ts`) is true only for a query the visitor typed (source `search`; not a recent-search card or an example link, which carry `from=recent` / `from=example`; no chips removed; no sort override) that showed results and whose query passes `lib/recent/privacy.ts`; `/searches` lists only those, with the search time rounded down to the hour.
+10. **Respond**: `{ query, chips, sort, checked_count, passed_count, results: [...3], more_available, filters_key, cached, fetched_at }`. `fetched_at` is when the results were fetched from AliExpress (the cache entry's time); `/search` shows "התוצאות והמחירים נבדקו ב־..." once it is older than `STALE_RESULTS_HOURS` (24, `lib/config/site.ts`). "עוד 3 אפשרויות" explains the next 3 on demand (`loadMore`).
 
 "Remove a chip" = re-run the search with that chip id in `without`; the cached parse is reused, so there is no LLM parse call.
 
@@ -146,7 +146,8 @@ Input: `{ q: string }` (1–200 chars, trimmed).
 | Route | Purpose |
 |---|---|
 | `/` | Home: hero, search composer with live "הבנתי ככה" chips after submit, example query buttons, next-sale countdown card |
-| `/search?q=` | Results: query bar, removable chips, "בדקנו X מוצרים. Y עברו", 1 featured result + 2 compact, refine buttons, "עוד 3 אפשרויות" |
+| `/search?q=` | Results: query bar, removable chips, "בדקנו X מוצרים. Y עברו" (plus when prices were checked, for results older than 24h), 1 featured result + 2 compact, refine buttons, "עוד 3 אפשרויות" |
+| `/searches` | "חיפושים אחרונים": one card per normalized query of listable visitor searches (query, understood chips, up to 3 result photos, category, time), category and free-text filters; not hidden by an admin (`hidden_searches`). `noindex, follow`. |
 | `/p/[productId]` | Product: images, approx ILS price, optional community coupon, "למה זה עבר את הסינון" (thresholds shown), category tips (labelled generic), buy CTA, disclosure |
 | `/go/[productId]` | Click-out: logs `{product_id, src, ts}` then 302 to the affiliate link. All buy buttons go through it. Links use `rel="sponsored nofollow"`. |
 | `/deals` | Curated feed from `deals` table: types `deal`, `holiday`, `dont_buy`; filter buttons; WhatsApp channel CTA |
@@ -157,8 +158,8 @@ Share buttons share **our** page URL (e.g. via `https://wa.me/?text=`), never th
 
 ## 8. Data model (Supabase migrations in `supabase/migrations/`)
 
-- `parse_cache(query_key text pk, query_norm text, parsed jsonb, hits int, created_at)` (48h)
-- `search_cache(filters_key text pk, query text, parsed jsonb, response jsonb, hits int, created_at timestamptz)` (48h)
+- `parse_cache(query_key text pk, query_norm text, parsed jsonb, hits int, created_at)` (14 days)
+- `search_cache(filters_key text pk, query text, parsed jsonb, response jsonb, hits int, created_at timestamptz)` (14 days)
 - `search_log(id bigserial pk, query text, parsed jsonb, result_ids text[], created_at)`
 - `products(product_id text pk, data jsonb, title_he text, updated_at)`
 - `price_history(product_id text, price_ils numeric, price_usd numeric, captured_at timestamptz)`
@@ -168,6 +169,7 @@ Share buttons share **our** page URL (e.g. via `https://wa.me/?text=`), never th
 - `rate_limits(ip_hash text, window_start timestamptz, count int, primary key(ip_hash, window_start))`, incremented atomically by `bump_counter()`; keys `h:<hash>`, `d:<hash>`, `llm:day`
 - `fx_rates(date date pk, usd_ils numeric)`
 - Phase 2: `seo_pages(slug text pk, query text, title_he text, intro_he text, published bool, created_at, updated_at)`; `llm_usage(id, created_at, kind in ('parse','explain','explain_more','tips'), model, input/output/cache tokens, cost_usd)`; `search_log` gained `cache`, `results_count`, `query_norm`, `source`; the admin stats read report functions granted to the service role only.
+- Recent searches: `search_log` gained `category_id text null` (first-level AliExpress category of the first shown result) and `listable boolean not null default false`; `hidden_searches(query_norm text pk, hidden_at timestamptz)` holds queries an admin hid from `/searches`.
 
 RLS on everything. Public (anon) may only `select` from `deals where published = true` and `seo_pages where published = true`. Everything else is server-side with the service role key.
 

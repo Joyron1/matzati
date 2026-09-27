@@ -9,7 +9,7 @@ import type { SearchLogEntry } from "@/lib/search/store";
 
 const m = vi.hoisted(() => ({
   runSearch: vi.fn(),
-  logSearch: vi.fn(async () => {}),
+  logSearch: vi.fn<(entry: SearchLogEntry) => Promise<void>>(async () => {}),
 }));
 
 vi.mock("server-only", () => ({}));
@@ -37,7 +37,11 @@ vi.mock("@/lib/search/pipeline", async (importOriginal) => ({
   runSearch: m.runSearch,
 }));
 
-function outcome(q: string, source: SearchLogEntry["source"]): SearchOutcome {
+function outcome(
+  q: string,
+  source: SearchLogEntry["source"],
+  listable = source === "search",
+): SearchOutcome {
   const log: SearchLogEntry = {
     query: q,
     queryNorm: q.trim(),
@@ -52,6 +56,8 @@ function outcome(q: string, source: SearchLogEntry["source"]): SearchOutcome {
     cache: "none",
     resultsCount: 3,
     source,
+    categoryId: "44",
+    listable,
   };
   return {
     response: {
@@ -121,7 +127,50 @@ describe("searchForRequest: shared runs", () => {
       query: 'כבל usb  עד 40 ש"ח',
       queryNorm: "כבל usb עד ₪40",
       cache: "results",
+      listable: true,
     });
+  });
+
+  it("decides whether /searches may list the joiner for its own spelling", async () => {
+    // Both spell "כבל example com" once normalized, but only one of them holds a link.
+    async function join(runQ: string, runListable: boolean, joinQ: string, without: string[]) {
+      m.logSearch.mockClear();
+      const runs = m.runSearch.mock.calls.length;
+      const release = deferredRun(outcome(runQ, "search", runListable));
+      const first = searchForRequest({ q: runQ, without }, new Headers());
+      const second = searchForRequest({ q: joinQ, without }, new Headers());
+      await vi.waitFor(() => expect(m.runSearch).toHaveBeenCalledTimes(runs + 1));
+      release();
+      await Promise.all([first, second]);
+      expect(m.logSearch).toHaveBeenCalledTimes(1);
+      return m.logSearch.mock.calls[0][0];
+    }
+    expect(await join("כבל example com", true, "כבל example.com", [])).toMatchObject({
+      query: "כבל example.com",
+      listable: false,
+    });
+    expect(await join("כבל example.com", false, "כבל example com", [])).toMatchObject({
+      query: "כבל example com",
+      listable: true,
+    });
+    // A search with a chip removed is never listed, whichever request ran it.
+    expect(await join("כבל example com", false, "כבל example com", ["max"])).toMatchObject({
+      listable: false,
+    });
+    expect(m.runSearch).toHaveBeenCalledTimes(3);
+  });
+
+  it("never lists a joiner that came from one of our links, and passes typed to the run", async () => {
+    const q = "מנורת לילה לחדר ילדים";
+    const release = deferredRun(outcome(q, "search"));
+    const first = searchForRequest({ q }, new Headers());
+    const second = searchForRequest({ q, typed: false }, new Headers());
+    await vi.waitFor(() => expect(m.runSearch).toHaveBeenCalledTimes(1));
+    release();
+    await Promise.all([first, second]);
+    expect(m.runSearch.mock.calls[0][0]).toMatchObject({ q, typed: true });
+    expect(m.logSearch).toHaveBeenCalledTimes(1);
+    expect(m.logSearch.mock.calls[0][0]).toMatchObject({ query: q, listable: false });
   });
 
   it("logs nothing extra for a search that ran on its own", async () => {
@@ -160,7 +209,7 @@ describe("examplePreview", () => {
     expect(m.runSearch.mock.calls[0][0]).toEqual({ q, source: "preview" });
     expect(m.logSearch).toHaveBeenCalledTimes(1);
     expect(m.logSearch).toHaveBeenCalledWith(
-      expect.objectContaining({ source: "preview", cache: "results", query: q }),
+      expect.objectContaining({ source: "preview", cache: "results", query: q, listable: false }),
     );
   });
 });

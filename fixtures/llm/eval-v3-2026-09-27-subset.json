@@ -1,0 +1,505 @@
+{
+  "summary": {
+    "model": "claude-haiku-4-5-20251001",
+    "searches": 3,
+    "errors": 0,
+    "llmCalls": 5,
+    "aliexpressCalls": 6,
+    "cacheHits": 0,
+    "tokens": {
+      "parse": {
+        "calls": 3,
+        "avgInputTokens": 1525,
+        "avgOutputTokens": 97.7,
+        "maxInputTokens": 1529,
+        "usd": 0.00604
+      },
+      "explain": {
+        "calls": 2,
+        "avgInputTokens": 1239,
+        "avgOutputTokens": 296.5,
+        "maxInputTokens": 1240,
+        "usd": 0.00544
+      }
+    },
+    "totalUsd": 0.01148,
+    "avgUsdPerSearch": 0.00383,
+    "avgUsdPerFreshSearch": 0.00383,
+    "totalIls": 0.0348,
+    "usdIls": 3.033,
+    "queriesWith3": 2,
+    "queriesWith0": 1,
+    "linesShown": 6,
+    "linesKept": 6,
+    "caveats": 0
+  },
+  "records": [
+    {
+      "id": "gift-cook",
+      "topic": "gifts",
+      "query": "מתנה לאבא שאוהב לבשל עד 200 ש״ח",
+      "ms": 12538,
+      "parsed": {
+        "keywords_en": "kitchen tools set",
+        "product_terms": [
+          "kitchen tools set",
+          "cooking utensils"
+        ],
+        "requirements": [],
+        "max_price_ils": 200,
+        "sort_preference": "best_value",
+        "product_he": "סט כלים למטבח",
+        "category_hint": "kitchen accessories"
+      },
+      "meta": {
+        "cache": "none",
+        "llmUsage": [
+          {
+            "kind": "parse",
+            "usage": {
+              "inputTokens": 1529,
+              "outputTokens": 76,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          },
+          {
+            "kind": "explain",
+            "usage": {
+              "inputTokens": 1238,
+              "outputTokens": 297,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          }
+        ],
+        "aliCalls": 2,
+        "rejected": {
+          "feedback": 13,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 83,
+          "requirement": 0
+        },
+        "keywordsTried": [
+          "kitchen tools set",
+          "kitchen tools set (p2)"
+        ],
+        "explainRejected": []
+      },
+      "response": {
+        "query": "מתנה לאבא שאוהב לבשל עד 200 ש״ח",
+        "chips": [
+          {
+            "id": "product",
+            "kind": "keywords",
+            "label_he": "סט כלים למטבח",
+            "removable": false
+          },
+          {
+            "id": "max",
+            "kind": "max_price",
+            "label_he": "עד ₪200",
+            "removable": true
+          }
+        ],
+        "sort": "best_value",
+        "checked_count": 100,
+        "passed_count": 3,
+        "results": [
+          {
+            "product_id": "1005012013942710",
+            "title_he": "סט כלים מטבח לילדים לעיסוק וגישור עם סירות משחק",
+            "title_en": "Kids Kitchen Toys Pretend Play Cooking and Serving Utensils with Play Pots Kitchen Accessories Kit Fruit Cutting Tools for Girls",
+            "why_he": "סט כלים משחק למטבח עם 98% משוב חיובי, 1023 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 26.77,
+            "original_price_ils": 53.53,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 1023,
+            "passed_tier": "standard",
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S4c039125b19e407a9d08c48c4436f564c.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sbe3a6b1590024c5cad36b8bd6a1b00b5a.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S7e7d1c5652ad41d7ab9408f5ef761ec0i.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S6c37445e7be34b13bbbde8cbe7a372add.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sfaa19bb2262740249ecd690435fcf37cc.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S4588e12bdcd54314b53940a0c68eb68cn.jpg"
+            ],
+            "category_id": "26"
+          },
+          {
+            "product_id": "1005012743006539",
+            "title_he": "סט 5 כלים למטבח עם סכין, מספריים, סכין פירות, מקלף וגוש סכינים",
+            "title_en": "5-piece kitchen tool set, including a small chopping knife, scissors, fruit knife, peeler, and knife block, suitable for househo",
+            "why_he": "סט כלים למטבח עם 98% משוב חיובי, 601 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 36.22,
+            "original_price_ils": 72.43,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 601,
+            "passed_tier": "standard",
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S63337381ebf1451793014f96d643da4bJ.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S62400cb11149476e96929d1c27da558el.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S08ab3f2c99ce45f097bcf52bd512a23aM.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S4cc9a319f6dd4796aeb162be23b47f81k.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S820526cbe32d44388848cab9fd08a01cm.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S2840f0e8abcc447fa981c205977c712cq.jpg"
+            ],
+            "category_id": "15"
+          },
+          {
+            "product_id": "1005007663259910",
+            "title_he": "סט כוסות מדידה וכפות 5/10 חלקים לאחסון",
+            "title_en": "Measuring Cup And  Spoon 5/10PCS Household Kitchen Tool Set, Can Be Used To Store Cooking",
+            "why_he": "סט כלים מטבח מדידה עם 95.1% משוב חיובי, 1451 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 5.79,
+            "original_price_ils": null,
+            "price_is_approx": false,
+            "discount_pct": 0,
+            "positive_feedback_pct": 95.1,
+            "units_sold": 1451,
+            "passed_tier": "standard",
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S11e500d622e145f8ae9f2a2b5b73d810c.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sde77f91458aa4558b2e9f1f0639f4b83Q.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S5b8ded7c9cbf47dd83e216447c046391o.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S544660a1ea274cb1a4590aa9405c3108B.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sc5a8e3b5370041eaac8a260a1dd47e48Z.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sef273b84e1db4baa9feffaa50a3796a8H.jpg"
+            ],
+            "category_id": "15"
+          }
+        ],
+        "more_available": false,
+        "filters_key": "a40ecfdf80e0932827176a17017fceb8520587f04d1cf4b93e44c43357fc40d4",
+        "cached": false
+      },
+      "calls": [
+        {
+          "kind": "parse",
+          "model": "claude-haiku-4-5-20251001",
+          "inputTokens": 1529,
+          "outputTokens": 76,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 0,
+          "usd": 0.001909
+        },
+        {
+          "kind": "explain",
+          "model": "claude-haiku-4-5-20251001",
+          "inputTokens": 1238,
+          "outputTokens": 297,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 0,
+          "usd": 0.002723
+        }
+      ],
+      "categories": [
+        {
+          "product_id": "1005012013942710",
+          "first": "Toys & Hobbies",
+          "second": "Pretend Play"
+        },
+        {
+          "product_id": "1005012743006539",
+          "first": "Home & Garden",
+          "second": "Kitchen,Dining & Bar"
+        },
+        {
+          "product_id": "1005007663259910",
+          "first": "Home & Garden",
+          "second": "Kitchen,Dining & Bar"
+        }
+      ]
+    },
+    {
+      "id": "tech-charger",
+      "topic": "tech",
+      "query": "מטען מהיר 65W לטלפון ולמחשב נייד",
+      "ms": 9956,
+      "parsed": {
+        "keywords_en": "65w fast charger",
+        "product_terms": [
+          "fast charger",
+          "65w charger",
+          "power adapter"
+        ],
+        "requirements": [
+          {
+            "en": "65w",
+            "alt": [],
+            "he": "65W"
+          },
+          {
+            "en": "multi-device",
+            "alt": [
+              "laptop and phone",
+              "universal"
+            ],
+            "he": "לטלפון ולמחשב נייד"
+          }
+        ],
+        "sort_preference": "best_value",
+        "product_he": "מטען מהיר 65W",
+        "category_hint": "phone chargers"
+      },
+      "meta": {
+        "cache": "none",
+        "llmUsage": [
+          {
+            "kind": "parse",
+            "usage": {
+              "inputTokens": 1526,
+              "outputTokens": 133,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          }
+        ],
+        "aliCalls": 3,
+        "rejected": {
+          "feedback": 27,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 64,
+          "requirement": 57
+        },
+        "keywordsTried": [
+          "65w fast charger",
+          "65w fast charger (p2)",
+          "fast charger"
+        ],
+        "explainRejected": []
+      },
+      "response": {
+        "query": "מטען מהיר 65W לטלפון ולמחשב נייד",
+        "chips": [
+          {
+            "id": "product",
+            "kind": "keywords",
+            "label_he": "מטען מהיר 65W",
+            "removable": false
+          },
+          {
+            "id": "req:65w",
+            "kind": "must_have",
+            "label_he": "65W",
+            "removable": true
+          },
+          {
+            "id": "req:multi-device",
+            "kind": "must_have",
+            "label_he": "לטלפון ולמחשב נייד",
+            "removable": true
+          }
+        ],
+        "sort": "best_value",
+        "checked_count": 148,
+        "passed_count": 0,
+        "results": [],
+        "more_available": false,
+        "filters_key": "2b29cd6135ad1f6d70961669551b078b2c546c0b91006fd8a68c19a4269aa68d",
+        "cached": false
+      },
+      "calls": [
+        {
+          "kind": "parse",
+          "model": "claude-haiku-4-5-20251001",
+          "inputTokens": 1526,
+          "outputTokens": 133,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 0,
+          "usd": 0.002191
+        }
+      ],
+      "categories": []
+    },
+    {
+      "id": "ho-neck-pillow",
+      "topic": "held-out",
+      "query": "כרית לצוואר לטיסות ארוכות",
+      "ms": 8177,
+      "parsed": {
+        "keywords_en": "neck pillow travel",
+        "product_terms": [
+          "neck pillow",
+          "travel pillow",
+          "airplane pillow"
+        ],
+        "requirements": [],
+        "sort_preference": "best_value",
+        "product_he": "כרית לצוואר לטיסות",
+        "category_hint": "travel accessories"
+      },
+      "meta": {
+        "cache": "none",
+        "llmUsage": [
+          {
+            "kind": "parse",
+            "usage": {
+              "inputTokens": 1520,
+              "outputTokens": 84,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          },
+          {
+            "kind": "explain",
+            "usage": {
+              "inputTokens": 1240,
+              "outputTokens": 296,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          }
+        ],
+        "aliCalls": 1,
+        "rejected": {
+          "feedback": 2,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 16,
+          "requirement": 0
+        },
+        "keywordsTried": [
+          "neck pillow travel"
+        ],
+        "explainRejected": []
+      },
+      "response": {
+        "query": "כרית לצוואר לטיסות ארוכות",
+        "chips": [
+          {
+            "id": "product",
+            "kind": "keywords",
+            "label_he": "כרית לצוואר לטיסות",
+            "removable": false
+          }
+        ],
+        "sort": "best_value",
+        "checked_count": 50,
+        "passed_count": 26,
+        "results": [
+          {
+            "product_id": "1005010706919284",
+            "title_he": "כרית צוואר נסיעות 3D רכה ונוחה",
+            "title_en": "Car Seat Headrest Universal Travel Rest 3D Neck Pillow Protect Neck Soft Fluffy Comfortable Neck Rest Car Accessories",
+            "why_he": "כרית צוואר לטיסות ונסיעות, 98% משוב חיובי ו־6959 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 31.25,
+            "original_price_ils": 62.49,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 6959,
+            "passed_tier": "standard",
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S2f84b4717f5441599f46c132b33ed737y.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S19a5777784e44b6b9441bf5be69e2510J.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S1f0099864368464c82f62f389ec1597aQ.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sf6a4ff929a1b496cb7340e33ecd3550bG.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S9e3f13cb93b440d2867b886a2fa97a91N.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sec21960628414d6eb50f17488d2868e3y.jpg"
+            ],
+            "category_id": "34"
+          },
+          {
+            "product_id": "1005011653758907",
+            "title_he": "כרית נסיעות משולשת עם תמיכה בצוואר וגב",
+            "title_en": "Triangular Inflatable Travel Pillow, Flocked Multi-use Cushion, Neck Lumbar Leg Support Pillow for Car Office",
+            "why_he": "כרית צוואר מתנפחת לטיסות ונסיעות, 98% משוב חיובי ו־3692 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 17.32,
+            "original_price_ils": 34.63,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 3692,
+            "passed_tier": "standard",
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sff44859b485e445aa6b80984931e4e80u.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sc7afe91876204001b6b3e148c7065d6bt.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S95e09722d3844e1280ab4b475407b118v.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sd46c04f5e9d342ffa2f546ad1f99ddc4Z.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sc3110f05c90a48ce8dd9024704bdf5d3g.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sd078537fbb6f49bda831c20799761baby.jpg"
+            ],
+            "category_id": "15"
+          },
+          {
+            "product_id": "1005009916199837",
+            "title_he": "כרית צוואר U מתנפחת עם משאבה לטיסות",
+            "title_en": "U Shaped Inflatable Travel Pillow Push Pump Portable Air Neck Support Cushion For Flight Car Sleeping",
+            "why_he": "כרית צוואר מתנפחת לטיסות, 98% משוב חיובי ו־3188 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 9.79,
+            "original_price_ils": 20.39,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 3188,
+            "passed_tier": "standard",
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S91e25094626a49ab93a7bf6eb2684aaa8.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sf2a367a34b0e4c98aef6cb8c2d17268bO.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S0bbe82b428c04891ad8d133e492fff819.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Saa67fa3fd7214e279f385b3cac7b4275h.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S0284fd5af3bc4796acf1685107e9a7a5x.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sad8c74a88d42461988753770fabfbe442.jpeg"
+            ],
+            "category_id": "18"
+          }
+        ],
+        "more_available": true,
+        "filters_key": "f8afcae23a53865ac6038ff3d772372ae5b611a9dfb0b01ccf7b42544dc838b8",
+        "cached": false
+      },
+      "calls": [
+        {
+          "kind": "parse",
+          "model": "claude-haiku-4-5-20251001",
+          "inputTokens": 1520,
+          "outputTokens": 84,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 0,
+          "usd": 0.00194
+        },
+        {
+          "kind": "explain",
+          "model": "claude-haiku-4-5-20251001",
+          "inputTokens": 1240,
+          "outputTokens": 296,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 0,
+          "usd": 0.00272
+        }
+      ],
+      "categories": [
+        {
+          "product_id": "1005010706919284",
+          "first": "Automobiles, Parts & Accessories",
+          "second": "Interior Accessories"
+        },
+        {
+          "product_id": "1005011653758907",
+          "first": "Home & Garden",
+          "second": "Home Textile"
+        },
+        {
+          "product_id": "1005009916199837",
+          "first": "Sports & Entertainment",
+          "second": "Camping & Hiking"
+        }
+      ]
+    }
+  ]
+}

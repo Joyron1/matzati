@@ -5,7 +5,7 @@ import { EXPLAIN_SYSTEM } from "@/lib/llm/explain";
 import type { ParsedQueryRaw } from "@/lib/llm/parse";
 import type { LlmProvider, StructuredRequest } from "@/lib/llm/provider";
 import type { z } from "zod";
-import { keywordLadder, loadMore, runSearch, SearchError } from "./pipeline";
+import { isListableSearch, keywordLadder, loadMore, runSearch, SearchError } from "./pipeline";
 import { MemoryStore } from "./store";
 
 // Real product.query response ("usb cable", ILS), captured by check:ali.
@@ -77,7 +77,7 @@ describe("runSearch", () => {
     expect(response.chips.map((c) => c.label_he)).toEqual(["כבל USB", "עד ₪40"]);
   });
 
-  it("serves the same query from the 48h cache without any LLM or AliExpress call", async () => {
+  it("serves the same query from the 14-day cache without any LLM or AliExpress call", async () => {
     const { deps, llm, fetchMock } = setup();
     await runSearch({ q: "כבל USB עד 40 ש״ח" }, deps);
     const callsBefore = fetchMock.mock.calls.length;
@@ -88,13 +88,29 @@ describe("runSearch", () => {
     expect(fetchMock.mock.calls.length).toBe(callsBefore);
   });
 
-  it("expires cache entries after 48 hours", async () => {
+  it("expires cache entries after 14 days", async () => {
     const { deps, llm } = setup();
     const t0 = new Date("2026-09-27T10:00:00Z");
+    const after = (hours: number) => new Date(t0.getTime() + hours * 3_600_000);
     await runSearch({ q: "כבל USB עד 40 ש״ח" }, { ...deps, now: () => t0 });
-    const later = new Date(t0.getTime() + 49 * 3_600_000);
-    await runSearch({ q: "כבל USB עד 40 ש״ח" }, { ...deps, now: () => later });
+    const cached = await runSearch({ q: "כבל USB עד 40 ש״ח" }, { ...deps, now: () => after(335) });
+    expect(cached.meta.cache).toBe("results");
+    expect(llm.calls).toEqual(["parse", "explain"]);
+    const fresh = await runSearch({ q: "כבל USB עד 40 ש״ח" }, { ...deps, now: () => after(336) });
+    expect(fresh.meta.cache).toBe("none");
     expect(llm.calls).toEqual(["parse", "explain", "parse", "explain"]);
+  });
+
+  it("says when the results were fetched, also when they come from the cache", async () => {
+    const { deps } = setup({ ...PARSE, max_price_ils: null });
+    const t0 = new Date("2026-09-27T10:00:00Z");
+    const later = new Date(t0.getTime() + 5 * 24 * 3_600_000);
+    const fresh = await runSearch({ q: "כבל USB" }, { ...deps, now: () => t0 });
+    expect(fresh.response.fetched_at).toBe(t0.toISOString());
+    const cached = await runSearch({ q: "כבל USB" }, { ...deps, now: () => later });
+    expect(cached.response).toMatchObject({ cached: true, fetched_at: t0.toISOString() });
+    const more = await loadMore(fresh.response.filters_key!, 1, { ...deps, now: () => later });
+    expect(more?.fetched_at).toBe(t0.toISOString());
   });
 
   it("removing a chip reuses the parse (no LLM parse call)", async () => {
@@ -262,9 +278,60 @@ describe("search_log (stats)", () => {
     // Never anything about the visitor.
     for (const log of store.logs) {
       expect(Object.keys(log).sort()).toEqual(
-        ["cache", "parsed", "query", "queryNorm", "resultIds", "resultsCount", "source"].sort(),
+        [
+          "cache",
+          "categoryId",
+          "listable",
+          "parsed",
+          "query",
+          "queryNorm",
+          "resultIds",
+          "resultsCount",
+          "source",
+        ].sort(),
       );
     }
+  });
+
+  it("records the first shown category and whether /searches may list the search", async () => {
+    const { deps, store } = setup();
+    const fresh = await runSearch({ q: Q }, deps);
+    const cached = await runSearch({ q: Q }, deps);
+    const refined = await runSearch({ q: Q, without: ["max"] }, deps);
+    const phone = await runSearch({ q: `${Q} 050-1234567` }, deps);
+    const preview = await runSearch({ q: Q, source: "preview" }, deps);
+    const sorted = await runSearch({ q: Q, sort: "cheapest" }, deps);
+    const card = await runSearch({ q: Q, typed: false }, deps);
+
+    const top = fresh.response.results[0].category_id;
+    expect(top).toEqual(expect.any(String));
+    expect(fresh.log).toMatchObject({ categoryId: top, listable: true });
+    expect(cached.log).toMatchObject({ categoryId: top, listable: true });
+    // A chip removal, a query with a phone number, the home page example, a sort change and a
+    // click on a recent-search card are never listed.
+    expect(refined.log).toMatchObject({
+      categoryId: refined.response.results[0].category_id,
+      listable: false,
+    });
+    expect(phone.log.listable).toBe(false);
+    expect(preview.log.listable).toBe(false);
+    expect(sorted.log).toMatchObject({ source: "search", listable: false });
+    expect(card.log).toMatchObject({ source: "search", categoryId: top, listable: false });
+    expect(store.logs.map((l) => l.listable)).toEqual([
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+    ]);
+  });
+
+  it("never lists a zero-result search", async () => {
+    const { deps, store } = setup({ ...PARSE, max_price_ils: 0.5 });
+    await runSearch({ q: "כבל USB עד חצי שקל" }, deps);
+    expect(store.logs[0]).toMatchObject({ resultsCount: 0, categoryId: null, listable: false });
   });
 
   it("logs a zero-result search with resultsCount 0", async () => {
@@ -386,7 +453,10 @@ describe("loadMore stats", () => {
       cache: "results",
       resultsCount: more?.results.length,
       source: "more",
+      categoryId: more?.results[0].category_id,
+      listable: false, // never on /searches
     });
+    expect(more?.log?.categoryId).toEqual(expect.any(String));
     expect(store.logs).toEqual([more?.log]);
     expect(store.usage.map((u) => u.kind)).toEqual(["explain_more"]);
 
@@ -397,6 +467,24 @@ describe("loadMore stats", () => {
     const past = await loadMore(fk, 99, deps); // an empty page is not logged
     expect(past?.log).toBeNull();
     expect(store.logs).toHaveLength(2);
+  });
+});
+
+describe("isListableSearch", () => {
+  const typed = { source: "search", without: [], typed: true } as const;
+  const q = "מנורת לילה לילדים";
+  it("lists only a typed search with results and a query without personal details", () => {
+    expect(isListableSearch(q, typed, 3)).toBe(true);
+    expect(isListableSearch(q, { ...typed, without: ["max"] }, 3)).toBe(false);
+    expect(isListableSearch(q, typed, 0)).toBe(false);
+    expect(isListableSearch(q, { ...typed, source: "preview" }, 3)).toBe(false);
+    expect(isListableSearch(q, { ...typed, source: "more" }, 3)).toBe(false);
+    expect(isListableSearch("מנורה, לשלוח ל-dana@example.com", typed, 3)).toBe(false);
+  });
+  it("never lists a sort change or a query from one of our own links", () => {
+    expect(isListableSearch(q, { ...typed, sort: "cheapest" }, 3)).toBe(false);
+    expect(isListableSearch(q, { ...typed, sort: "best_value" }, 3)).toBe(false);
+    expect(isListableSearch(q, { ...typed, typed: false }, 3)).toBe(false);
   });
 });
 

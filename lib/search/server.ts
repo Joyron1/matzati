@@ -24,6 +24,7 @@ import { displayableTips, readCategoryTips } from "@/lib/tips/store";
 import type { Deal, ResultProduct, SearchResponse } from "@/lib/types";
 import type { SortPreference } from "./filters";
 import {
+  isListableSearch,
   loadMore,
   MAX_QUERY_LENGTH,
   RESULTS_KEPT,
@@ -31,6 +32,7 @@ import {
   SearchError,
   toResultProduct,
   type SearchDeps,
+  type SearchOrigin,
   type SearchOutcome,
 } from "./pipeline";
 import { normalizeQuery } from "./cache-key";
@@ -119,11 +121,25 @@ export function dailySearchCap(): number {
 
 /**
  * A request that joined another request's run was served without any new work, so it is logged
- * like a cache hit: its own query, cache "results". Never throws.
+ * like a cache hit: its own query, cache "results". Whether /searches may list it is decided again
+ * for its own query and origin: the run it joined had the same source, chips removed and sort
+ * (both part of the in-flight key) and showed the same results, but it may have been typed where
+ * this one came from one of our links, or the other way round. Never throws.
  */
-async function logShared(store: () => SearchStore, log: SearchLogEntry, q: string) {
+async function logShared(
+  store: () => SearchStore,
+  log: SearchLogEntry,
+  q: string,
+  origin: Omit<SearchOrigin, "source">,
+) {
   try {
-    await store().logSearch({ ...log, query: q, queryNorm: normalizeQuery(q), cache: "results" });
+    await store().logSearch({
+      ...log,
+      query: q,
+      queryNorm: normalizeQuery(q),
+      cache: "results",
+      listable: isListableSearch(q, { ...origin, source: log.source }, log.resultsCount),
+    });
   } catch (err) {
     logError("search-log", err);
   }
@@ -132,29 +148,34 @@ async function logShared(store: () => SearchStore, log: SearchLogEntry, q: strin
 /** Runs a search for a request. `headers` are the incoming request headers (for the IP). */
 // Identical searches that arrive while one is still running share its result instead of paying
 // for a second parse, fetch and explain (seen in testing: a refresh during a 10 s search ran it
-// twice). Per server instance; the 48h cache covers everything after the first run completes.
+// twice). Per server instance; the 14-day cache covers everything after the first run completes.
 const inFlight = new Map<string, Promise<SearchOutcome>>();
 
 async function sharedRun(
   q: string,
   without: string[],
   sort: SortPreference | undefined,
+  typed: boolean,
   deps: SearchDeps,
 ): Promise<SearchOutcome> {
   const key = JSON.stringify([normalizeQuery(q), [...without].sort(), sort ?? null]);
   const running = inFlight.get(key);
   if (running) {
     const outcome = await running;
-    await logShared(() => deps.store, outcome.log, q);
+    await logShared(() => deps.store, outcome.log, q, { without, sort, typed });
     return outcome;
   }
-  const run = runSearch({ q, without, sort }, deps).finally(() => inFlight.delete(key));
+  const run = runSearch({ q, without, sort, typed }, deps).finally(() => inFlight.delete(key));
   inFlight.set(key, run);
   return run;
 }
 
+/**
+ * `typed` is false for a query from one of our own links (a recent-search card, an example): it is
+ * searched and logged like any other, but never listed on /searches. Default true.
+ */
 export async function searchForRequest(
-  input: { q: string; without?: string[]; sort?: SortPreference },
+  input: { q: string; without?: string[]; sort?: SortPreference; typed?: boolean },
   headers: Headers,
 ): Promise<SearchPageResult> {
   const q = input.q.trim();
@@ -169,7 +190,13 @@ export async function searchForRequest(
     // leaves room for refining.
     const rate = await checkSearchRate(db, hashIp(clientIp(headers), env.ipHashSalt), new Date());
     if (!rate.ok) return { ok: false, error: "rate_limited", retryAfterSec: rate.retryAfterSec };
-    const { response } = await sharedRun(q, input.without ?? [], input.sort, deps);
+    const { response } = await sharedRun(
+      q,
+      input.without ?? [],
+      input.sort,
+      input.typed ?? true,
+      deps,
+    );
     return { ok: true, response };
   } catch (err) {
     return { ok: false, error: toFailure(err, "search") };
@@ -399,8 +426,8 @@ async function runPreview(q: string): Promise<SearchOutcome | null> {
 
 /**
  * Real results for the home page example. Not counted against the visitor's rate limit (it is
- * not their search), still subject to the daily LLM budget, and served from the 48h cache after
- * the first run. Null on any failure, so the home page simply hides the preview.
+ * not their search), still subject to the daily LLM budget, and served from the 14-day cache
+ * after the first run. Null on any failure, so the home page simply hides the preview.
  * Logged with source "preview", so home page views and SEO landing page renders
  * (lib/seo/page-view.ts) never count as searches in the stats.
  */
@@ -413,7 +440,10 @@ export async function examplePreview(q: string): Promise<SearchResponse | null> 
   const retry = entry?.failedAt !== undefined && Date.now() - entry.failedAt >= PREVIEW_RETRY_MS;
   if (entry && !retry) {
     const shared = await entry.run;
-    if (shared) await logShared(() => new SupabaseStore(serviceClient()), shared.log, key);
+    if (shared) {
+      const origin = { without: [], typed: false };
+      await logShared(() => new SupabaseStore(serviceClient()), shared.log, key, origin);
+    }
     return shared?.response ?? null;
   }
   const run: Promise<SearchOutcome | null> = runPreview(key).then((outcome) => {

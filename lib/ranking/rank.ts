@@ -71,6 +71,32 @@ const DEVICE_HEADS = new Map<string, ReadonlySet<string>>([
   ["torch", LIGHT_WORDS],
 ]);
 
+/**
+ * Search words that ask for children's products or toys. Without one of them, a toy replica of the
+ * product ("Kids Kitchen Toys Pretend Play Cooking Utensils" for cooking utensils) is not it.
+ */
+const KIDS_OR_TOY_WORDS = new Set([
+  "toy",
+  "kid",
+  "child",
+  "children",
+  "baby",
+  "toddler",
+  "boy",
+  "girl",
+  "montessori",
+]);
+
+/** True when the title sells a pretend-play replica: "Pretend Play", "Role Play", "Play House". */
+function isToyReplica(words: string[]): boolean {
+  return words.some(
+    (w, i) =>
+      w === "pretend" ||
+      w === "playhouse" ||
+      (w === "play" && (words[i - 1] === "role" || words[i + 1] === "house")),
+  );
+}
+
 /** Words that end a compound: in "Earbuds With Charging Case" the case is not the head noun. */
 const LINK_WORDS = new Set(["with", "for", "and", "plus", "include", "included", "including"]);
 
@@ -132,7 +158,8 @@ function labelTails(words: string[]): Set<number> {
  * TYPE_GATE.windowTokens tokens that is not only what the listing fits or comes with
  * (namesFitOrPart) and does not borrow a word from a category label (CATEGORY_LABELS); no
  * accessory noun before it, and no head noun right after it. An accessory noun the user searched
- * for ("phone case") is allowed. No product terms: no check.
+ * for ("phone case") is allowed. A pretend-play toy is kept only when the search is for kids or
+ * toys. No product terms: no check.
  * Product terms match whole singular words, not stems: a stem would let "charger" match
  * "Charging Cable", "light" match "Lighter" and "mount" match "Mounting Tape".
  */
@@ -145,6 +172,7 @@ export function isRequestedProduct(
   const opening = words.slice(0, TYPE_GATE.windowTokens);
   const searched = new Set(tokenize([f.keywords_en, ...f.product_terms].join(" ")));
   const searchedStems = new Set([...searched].map(stem));
+  if (isToyReplica(words) && ![...searched].some((w) => KIDS_OR_TOY_WORDS.has(w))) return false;
   const tails = labelTails(words);
   const spans = f.product_terms
     .flatMap((term) => phraseSpans(opening, term, tokenize))

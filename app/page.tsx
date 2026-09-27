@@ -8,6 +8,7 @@ import {
   Sparkles,
   SlidersHorizontal,
 } from "lucide-react";
+import { RecentSearchesStrip } from "@/components/recent-searches-strip";
 import { ResultsPreview } from "@/components/results-preview";
 import { SaleCountdown } from "@/components/sale-countdown";
 import { SearchComposer } from "@/components/search-composer";
@@ -138,7 +139,8 @@ export default function HomePage() {
               {EXAMPLES.map((q) => (
                 <li key={q}>
                   <Link
-                    href={searchHref({ q })}
+                    // Not typed by the visitor, so never listed on /searches.
+                    href={searchHref({ q, from: "example" })}
                     className="inline-flex min-h-11 items-center rounded-full border border-line bg-surface px-4 text-sm font-medium text-ink hover:border-accent hover:text-accent-ink"
                   >
                     {q}
@@ -201,6 +203,10 @@ export default function HomePage() {
           </Link>
         </section>
       </div>
+
+      <Suspense fallback={null}>
+        <RecentSearchesStrip />
+      </Suspense>
 
       <Suspense fallback={null}>
         <PopularSearches />

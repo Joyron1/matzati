@@ -38,8 +38,8 @@ export interface ExplainInput {
 }
 
 /**
- * What the model knows about the search. Never the raw query: explanations are cached for 48h
- * by filters and reused for other shoppers whose query parsed to the same filters.
+ * What the model knows about the search. Never the raw query: explanations are cached for 14
+ * days by filters and reused for other shoppers whose query parsed to the same filters.
  */
 export interface ExplainContext {
   product_he: string;

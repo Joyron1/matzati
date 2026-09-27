@@ -15,6 +15,7 @@ import {
   type RejectReason,
 } from "@/lib/ranking/rank";
 import { RESULTS_PER_PAGE } from "@/lib/config/site";
+import { isListableQuery } from "@/lib/recent/privacy";
 import type { LlmCallKind, LlmUsageRecord } from "@/lib/stats/usage";
 import type { ResultProduct, SearchResponse } from "@/lib/types";
 import { filtersKey, normalizeQuery, queryKey } from "./cache-key";
@@ -75,6 +76,11 @@ export interface SearchInput {
   sort?: SortPreference;
   /** Written to search_log (default "search"); "preview" is examplePreview (home page, SEO pages). */
   source?: Exclude<SearchSource, "more">;
+  /**
+   * The visitor typed the query (default). False when it came from one of our own links (a
+   * recent-search card, an example query): logged as usual, never listed on /searches.
+   */
+  typed?: boolean;
 }
 
 /** An LLM call recorded by the pipeline; K narrows the jobs one entry point can make. */
@@ -290,7 +296,36 @@ function respond(
     more_available: cached.products.length > RESULTS_PER_PAGE,
     filters_key: key,
     cached: fromCache,
+    fetched_at: cached.createdAt,
   };
+}
+
+/** How a search was asked for: what decides whether /searches may list it (isListableSearch). */
+export interface SearchOrigin {
+  source: SearchSource;
+  /** Chip ids removed. */
+  without: readonly string[];
+  /** Sort chosen with the refine buttons, if any. */
+  sort?: SortPreference;
+  /** False for a query from one of our own links (SearchInput.typed). */
+  typed: boolean;
+}
+
+/**
+ * Whether a search may appear on the public recent-searches page (/searches): only a query the
+ * visitor typed (source "search", not from one of our links, no chips removed, no sort override,
+ * so the card's link rebuilds exactly these filters) that showed results, and only when the query
+ * passes the privacy check (no phone or ID numbers, emails, links or handles).
+ */
+export function isListableSearch(q: string, origin: SearchOrigin, resultsCount: number): boolean {
+  return (
+    origin.source === "search" &&
+    origin.typed &&
+    origin.without.length === 0 &&
+    origin.sort === undefined &&
+    resultsCount > 0 &&
+    isListableQuery(q)
+  );
 }
 
 function searchLogEntry(
@@ -299,7 +334,7 @@ function searchLogEntry(
   products: AliProduct[],
   response: SearchResponse,
   cache: CacheLevel,
-  source: SearchSource,
+  origin: SearchOrigin,
 ): SearchLogEntry {
   return {
     query: q,
@@ -308,7 +343,9 @@ function searchLogEntry(
     resultIds: products.map((p) => p.productId),
     cache,
     resultsCount: response.results.length,
-    source,
+    source: origin.source,
+    categoryId: response.results[0]?.category_id ?? null,
+    listable: isListableSearch(q, origin, response.results.length),
   };
 }
 
@@ -341,7 +378,13 @@ async function search(
 ): Promise<SearchOutcome> {
   const now = deps.now ?? (() => new Date());
   const sleep = deps.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
-  const source = input.source ?? "search";
+  const without = input.without ?? [];
+  const origin: SearchOrigin = {
+    source: input.source ?? "search",
+    without,
+    sort: input.sort,
+    typed: input.typed ?? true,
+  };
   let charged = false;
   const chargeOnce = async () => {
     if (charged) return;
@@ -349,7 +392,7 @@ async function search(
     await deps.beforeLlmWork?.();
   };
 
-  // 1. Parse, from the 48h parse cache when possible.
+  // 1. Parse, from the 14-day parse cache when possible.
   const qk = queryKey(q);
   let parsed = await deps.store.getParse(qk, now());
   if (parsed) {
@@ -363,17 +406,17 @@ async function search(
     await deps.store.putParse(qk, normalizeQuery(q), parsed, now());
   }
   const filters: ParsedQuery = {
-    ...applyOverrides(parsed, input.without ?? []),
+    ...applyOverrides(parsed, without),
     ...(input.sort ? { sort_preference: input.sort } : {}),
   };
 
-  // 2. Results, from the 48h filters cache when possible.
+  // 2. Results, from the 14-day filters cache when possible.
   const fk = filtersKey(filters);
   const hit = await deps.store.getResults(fk, now());
   if (hit) {
     meta.cache = "results";
     const response = respond(q, filters, hit, fk, true);
-    const log = searchLogEntry(q, filters, hit.products, response, meta.cache, source);
+    const log = searchLogEntry(q, filters, hit.products, response, meta.cache, origin);
     await Promise.all([quietly("logSearch", () => deps.store.logSearch(log)), writeUsage()]);
     return { response, meta, log };
   }
@@ -411,7 +454,7 @@ async function search(
     createdAt: now().toISOString(),
   };
   const response = respond(q, filters, results, fk, false);
-  const log = searchLogEntry(q, filters, ranked, response, meta.cache, source);
+  const log = searchLogEntry(q, filters, ranked, response, meta.cache, origin);
   await Promise.all([
     deps.store.putResults(fk, q, results),
     quietly("logSearch", () => deps.store.logSearch(log)),
@@ -427,6 +470,8 @@ async function search(
 export interface MoreOutcome {
   results: ResultProduct[];
   more_available: boolean;
+  /** When the cached result set was fetched from AliExpress (ISO), as SearchResponse.fetched_at. */
+  fetched_at: string;
   meta: SearchMeta<"explain_more">;
   /** The search_log row written for this page, or null for an empty page (nothing is logged). */
   log: SearchLogEntry | null;
@@ -475,12 +520,15 @@ export async function loadMore(
           cache: "results",
           resultsCount: results.length,
           source: "more",
+          categoryId: slice[0].category.firstId,
+          listable: false,
         }
       : null;
     await Promise.all([log && quietly("logSearch", () => deps.store.logSearch(log)), writeUsage()]);
     return {
       results,
       more_available: cached.products.length > start + RESULTS_PER_PAGE,
+      fetched_at: cached.createdAt,
       meta,
       log,
     };

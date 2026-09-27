@@ -472,6 +472,39 @@ describe("product type check", () => {
     ).toBe(true);
   });
 
+  it("drops a pretend-play toy unless the search is for kids or toys", () => {
+    // Recorded round-3 re-check miss: a toy kitchen set for "a gift for a dad who likes to cook".
+    const toy =
+      "Kids Kitchen Toys Pretend Play Cooking and Serving Utensils with Play Pots Kitchen Accessories Kit For Toddlers";
+    const kitchen = {
+      keywords_en: "kitchen tools set",
+      product_terms: ["kitchen tools set", "cooking utensils"],
+    };
+    expect(isRequestedProduct(toy, kitchen)).toBe(false);
+    expect(isRequestedProduct("Silicone Cooking Utensils Set 12pcs Kitchen Tools", kitchen)).toBe(
+      true,
+    );
+    expect(
+      isRequestedProduct("Doctor Role Play Kit Medical Set", {
+        ...kitchen,
+        product_terms: ["medical set"],
+      }),
+    ).toBe(false);
+    expect(
+      isRequestedProduct(toy, { keywords_en: "kids kitchen set", product_terms: ["kitchen toy"] }),
+    ).toBe(true);
+    expect(
+      isRequestedProduct(toy, { keywords_en: "toy kitchen", product_terms: ["cooking utensils"] }),
+    ).toBe(true);
+    // "Play" alone is not a replica: game controllers and play mats stay.
+    expect(
+      isRequestedProduct("Wireless Game Controller Plug and Play for PC", {
+        keywords_en: "game controller",
+        product_terms: ["game controller"],
+      }),
+    ).toBe(true);
+  });
+
   it("keeps a light followed by 'Flashlight' or 'Torch': it is still a light", () => {
     const bike = { keywords_en: "bike light", product_terms: ["bike light", "bicycle light"] };
     expect(

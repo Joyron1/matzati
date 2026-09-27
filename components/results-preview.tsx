@@ -1,14 +1,17 @@
 import Link from "next/link";
 import { ChevronLeft, ThumbsUp } from "lucide-react";
 import { APPROX_PRICE_NOTE } from "@/lib/copy";
-import { formatCount, formatIls, formatPct } from "@/lib/format";
+import { formatCount, formatDateTime, formatIls, formatPct } from "@/lib/format";
 import { searchHref } from "@/lib/search-url";
+import { staleFetchedAt } from "@/lib/search/freshness";
 import type { SearchResponse } from "@/lib/types";
 import { ProductImage } from "./product-image";
 import { featured } from "./styles";
 
 /** Hero preview of what a search returns, from a real (cached) run of the example query. */
 export function ResultsPreview({ response }: { response: SearchResponse }) {
+  // Rendered on the server after connection(); the example can come from the 14-day cache.
+  const checkedAt = staleFetchedAt(response.fetched_at, new Date());
   return (
     <section aria-labelledby="preview-title" className={`${featured} space-y-5 p-5 sm:p-6`}>
       <div className="flex items-center justify-between gap-3">
@@ -68,12 +71,21 @@ export function ResultsPreview({ response }: { response: SearchResponse }) {
           </li>
         ))}
       </ol>
-      {response.results.some((p) => p.price_is_approx) && (
-        <p className="text-xs text-muted">{APPROX_PRICE_NOTE}</p>
+      {(checkedAt || response.results.some((p) => p.price_is_approx)) && (
+        <div className="space-y-1 text-xs text-muted">
+          {checkedAt && (
+            <p>
+              התוצאות והמחירים נבדקו ב־<time dateTime={checkedAt}>{formatDateTime(checkedAt)}</time>
+              . המחיר העדכני מופיע באלי אקספרס.
+            </p>
+          )}
+          {response.results.some((p) => p.price_is_approx) && <p>{APPROX_PRICE_NOTE}</p>}
+        </div>
       )}
 
       <Link
-        href={searchHref({ q: response.query })}
+        // Not typed by the visitor, so never listed on /searches.
+        href={searchHref({ q: response.query, from: "example" })}
         className="inline-flex min-h-11 items-center gap-1 font-semibold text-accent-ink underline-offset-4 hover:underline"
       >
         לתוצאות המלאות של הדוגמה

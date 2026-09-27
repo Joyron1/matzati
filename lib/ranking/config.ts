@@ -70,4 +70,4 @@ export const CATEGORY_LABELS = [
 export const DEDUP = { sameShopJaccard: 0.7, modelTokenWindow: 4 } as const;
 
 /** Bump when any filter or ranking rule changes, so cached results ranked the old way are not reused. */
-export const RANKING_VERSION = 4;
+export const RANKING_VERSION = 5;

@@ -158,6 +158,8 @@ const LOG: SearchLogEntry = {
   cache: "results",
   resultsCount: 3,
   source: "search",
+  categoryId: "44",
+  listable: true,
 };
 
 const USAGE: LlmUsageRecord = {
@@ -190,16 +192,17 @@ describe("SupabaseStore", () => {
       expect(await store.getParse("other", new Date())).toBeNull();
     });
 
-    it("treats entries older than 48h as a miss and refreshes them on write", async () => {
+    it("treats entries 14 days old as a miss and refreshes them on write", async () => {
       const db = new FakeDb();
       db.rows("parse_cache").push({
         query_key: "qk",
         query_norm: "old",
         parsed: PARSED,
         hits: 7,
-        created_at: "2026-09-20T10:00:00.000Z",
+        created_at: "2026-09-13T10:00:00.000Z",
       });
       const store = new SupabaseStore(db.client());
+      expect(await store.getParse("qk", new Date("2026-09-27T09:59:00Z"))).toEqual(PARSED);
       const now = new Date("2026-09-27T10:00:00Z");
       expect(await store.getParse("qk", now)).toBeNull();
       await store.putParse("qk", "new", PARSED);
@@ -241,8 +244,16 @@ describe("SupabaseStore", () => {
     it("misses when stale or malformed", async () => {
       const db = new FakeDb();
       const store = new SupabaseStore(db.client());
-      await store.putResults("old", "q", results("2026-09-20T10:00:00.000Z"));
+      await store.putResults("week", "q", results("2026-09-20T10:00:00.000Z"));
+      expect(await store.getResults("week", new Date("2026-09-27T10:00:00Z"))).not.toBeNull();
+      await store.putResults("old", "q", results("2026-09-13T10:00:00.000Z"));
       expect(await store.getResults("old", new Date("2026-09-27T10:00:00Z"))).toBeNull();
+      // Nothing passed: reused for 48h only.
+      const empty = (at: string) => ({ ...results(at), products: [], passed: 0, explanations: {} });
+      await store.putResults("empty-day", "q", empty("2026-09-26T10:00:00.000Z"));
+      expect(await store.getResults("empty-day", new Date("2026-09-27T10:00:00Z"))).not.toBeNull();
+      await store.putResults("empty-3d", "q", empty("2026-09-24T10:00:00.000Z"));
+      expect(await store.getResults("empty-3d", new Date("2026-09-27T10:00:00Z"))).toBeNull();
       db.rows("search_cache").push({
         filters_key: "bad",
         response: { nope: true },
@@ -283,7 +294,9 @@ describe("SupabaseStore", () => {
 
   it("logs a search without any IP or user data", async () => {
     const db = new FakeDb();
-    await new SupabaseStore(db.client()).logSearch({ ...LOG, resultIds: ["1", "2"] });
+    const store = new SupabaseStore(db.client());
+    await store.logSearch({ ...LOG, resultIds: ["1", "2"] });
+    await store.logSearch({ ...LOG, source: "more", categoryId: null, listable: false });
     expect(db.rows("search_log")).toEqual([
       {
         query: "כבל USB",
@@ -293,6 +306,19 @@ describe("SupabaseStore", () => {
         cache: "results",
         results_count: 3,
         source: "search",
+        category_id: "44",
+        listable: true,
+      },
+      {
+        query: "כבל USB",
+        query_norm: "כבל usb",
+        parsed: PARSED,
+        result_ids: [],
+        cache: "results",
+        results_count: 3,
+        source: "more",
+        category_id: null,
+        listable: false,
       },
     ]);
   });

@@ -1,18 +1,8 @@
 import Image from "next/image";
 import { ImageOff } from "lucide-react";
-
-// Mirrors images.remotePatterns in next.config.ts: next/image throws on any other host, so an
-// unexpected URL falls back to the placeholder instead of breaking the page.
-const IMAGE_HOST_SUFFIX = ".aliexpress-media.com";
-
-function isAllowedImage(src: string): boolean {
-  try {
-    const url = new URL(src);
-    return url.protocol === "https:" && url.hostname.endsWith(IMAGE_HOST_SUFFIX);
-  } catch {
-    return false;
-  }
-}
+// next/image throws on a host outside images.remotePatterns, so an unexpected URL falls back to
+// the placeholder instead of breaking the page.
+import { isAllowedImage } from "@/lib/images";
 
 interface ProductImageProps {
   src: string | undefined;

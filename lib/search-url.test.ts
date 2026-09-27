@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { firstParam, parseSort, parseWithout, searchHref } from "./search-url";
+import { firstParam, parseFrom, parseSort, parseWithout, searchHref } from "./search-url";
 
 describe("searchHref", () => {
   it("omits empty values", () => {
@@ -19,6 +19,10 @@ describe("searchHref", () => {
   it("dedupes removed filters", () => {
     expect(searchHref({ q: "x", without: ["a", "a", "b"] })).toBe("/search?q=x&without=a%2Cb");
   });
+  it("marks our own links to a query the visitor did not type", () => {
+    expect(searchHref({ q: "x", from: "recent" })).toBe("/search?q=x&from=recent");
+    expect(searchHref({ q: "x", from: "example" })).toBe("/search?q=x&from=example");
+  });
 });
 
 describe("param parsing", () => {
@@ -37,5 +41,11 @@ describe("param parsing", () => {
     expect(parseWithout(undefined)).toEqual([]);
     const many = Array.from({ length: 30 }, (_, i) => `id${i}`).join(",");
     expect(parseWithout(many)).toHaveLength(10);
+  });
+  it("accepts only known link origins", () => {
+    expect(parseFrom("recent")).toBe("recent");
+    expect(parseFrom(["example", "recent"])).toBe("example");
+    expect(parseFrom("seo")).toBeUndefined();
+    expect(parseFrom(undefined)).toBeUndefined();
   });
 });

@@ -24,7 +24,8 @@ in `lib/ranking/`, and filters-only explain context with stricter post-checks.
 
 Cost rose because the prompts are ~2.5x longer (parse ≈2,500 input tokens, explain ≈2,100).
 Output tokens did not change. Claude Haiku 4.5 caches prompts only from 4,096 tokens, so prompt
-caching does not apply yet. At 1,000 searches that is about $6.6 (≈₪20) before our 48h cache.
+caching does not apply yet. At 1,000 searches that is about $6.6 (≈₪20) before our search cache
+(48h at the time, 14 days since 2026-09-27).
 
 ## Known tuning items after round 2
 
@@ -117,7 +118,17 @@ Round 2 replayed with the round-3 script, for a like-for-like comparison.
   back in their original wording. product_terms never hold gift, occasion or audience words, and a
   request without a product gets the most common fitting type. A requirement is a short phrase as
   sellers title it, never a description. Who it is for, the occasion and a general use ("למשרד",
-  "לקמפינג") are not requirements. The two-requirement example went back as well. It needs a paid
-  re-run of the three queries (`--only gift-cook,tech-charger,ho-neck-pillow`, 6 LLM calls).
+  "לקמפינג") are not requirements. The two-requirement example went back as well.
+- Re-check of the three queries (owner approved; `--only gift-cook,tech-charger,ho-neck-pillow`,
+  5 LLM calls, $0.0115, recording `fixtures/llm/eval-v3-2026-09-27-subset.json`):
+  - gift-cook: 3 results (product_terms "kitchen tools set", "cooking utensils"). The first was a
+    toy kitchen ("Kids Kitchen Toys Pretend Play Cooking and Serving Utensils"), so the type gate now
+    drops a pretend-play or role-play toy unless the search names kids or toys (`RANKING_VERSION` 5;
+    no round-2 result is affected).
+  - ho-neck-pillow: 3 results, no requirement.
+  - tech-charger: still 0. The model makes "לטלפון ולמחשב נייד" a requirement ("multi-device", alt
+    "laptop and phone", "universal") that few titles contain. The results page offers to remove
+    that chip, which reuses the parse. Round 2's 3 results came from a redundant "fast charging"
+    requirement, so that round only looked better by luck.
 - Explain wording is a little rougher in places ("אלחוטי עם נטענות", a garbled "וזקנין"). The
   post-checks do not catch Hebrew style; watch it in production.

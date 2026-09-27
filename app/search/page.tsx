@@ -20,9 +20,10 @@ import { SortBar } from "@/components/sort-bar";
 import { StateCard } from "@/components/state-card";
 import { btnMd, btnPrimary, btnSecondary } from "@/components/styles";
 import { APPROX_PRICE_NOTE } from "@/lib/copy";
-import { formatCount, formatWait } from "@/lib/format";
+import { formatCount, formatDateTime, formatWait } from "@/lib/format";
 import { FILTERS } from "@/lib/ranking/config";
-import { firstParam, parseSort, parseWithout, searchHref } from "@/lib/search-url";
+import { firstParam, parseFrom, parseSort, parseWithout, searchHref } from "@/lib/search-url";
+import { staleFetchedAt } from "@/lib/search/freshness";
 import { MAX_QUERY_LENGTH } from "@/lib/search/pipeline";
 import { searchForRequest, type SearchFailure } from "@/lib/search/server";
 import type { SearchResponse, SortPreference } from "@/lib/types";
@@ -42,7 +43,12 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
 
   const sort = parseSort(params.sort);
   const without = parseWithout(params.without);
-  const result = await searchForRequest({ q, without, sort }, await headers());
+  // A recent-search card or an example query: searched as usual, never listed on /searches.
+  const from = parseFrom(params.from);
+  const result = await searchForRequest(
+    { q, without, sort, typed: from === undefined },
+    await headers(),
+  );
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-4 pt-6 sm:px-6 sm:pt-10">
@@ -54,7 +60,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
         <SearchError
           error={result.error}
           retryAfterSec={result.retryAfterSec}
-          retryHref={searchHref({ q, sort, without })}
+          retryHref={searchHref({ q, sort, without, from })}
         />
       )}
     </div>
@@ -121,6 +127,8 @@ function Results({
   }
 
   const shown = response.results;
+  // Server-rendered with the server's clock; results can come from the 14-day cache.
+  const checkedAt = staleFetchedAt(response.fetched_at, new Date());
   return (
     <>
       {chips}
@@ -152,6 +160,12 @@ function Results({
             {priceChips.length > 0 ? ", בתוך התקציב" : ""}.
             {shown.some((p) => p.price_is_approx) && <> {APPROX_PRICE_NOTE}</>}
           </p>
+          {checkedAt && (
+            <p className="text-sm text-muted">
+              התוצאות והמחירים נבדקו ב־<time dateTime={checkedAt}>{formatDateTime(checkedAt)}</time>
+              . המחיר העדכני מופיע באלי אקספרס.
+            </p>
+          )}
         </div>
         <SortBar q={q} active={response.sort} without={without} />
       </div>

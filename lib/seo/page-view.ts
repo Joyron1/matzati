@@ -32,7 +32,7 @@ async function fetchedAtOf(response: SearchResponse): Promise<string | null> {
 /**
  * The landing page for a [slug] param, or null for a 404 (not a slug, no such page, or a draft).
  * A database failure throws, so a hiccup never gets cached as a 404. Results come from
- * examplePreview (real pipeline, daily LLM budget, 48h cache, no per-visitor limit).
+ * examplePreview (real pipeline, daily LLM budget, 14-day cache, no per-visitor limit).
  * Wrapped in cache() so generateMetadata and the page share one lookup per render.
  */
 export const seoPageView = cache(async (slugParam: string): Promise<SeoPageView | null> => {

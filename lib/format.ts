@@ -80,6 +80,60 @@ export function formatDateTime(iso: string): string {
   return `${shortDate.format(date)} בשעה ${shortTime.format(date)}`;
 }
 
+const dateWithYear = new Intl.DateTimeFormat("he-IL", {
+  day: "numeric",
+  month: "numeric",
+  year: "numeric",
+  timeZone: "Asia/Jerusalem",
+});
+
+// "2026-09-27": the calendar day in Israel, comparable across dates.
+const israelDay = new Intl.DateTimeFormat("en-CA", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  timeZone: "Asia/Jerusalem",
+});
+
+function israelDayNumber(date: Date): number {
+  return Date.parse(`${israelDay.format(date)}T00:00:00Z`) / 86_400_000;
+}
+
+/**
+ * How long ago `iso` was, for recent-search cards: "עכשיו", "לפני 5 דקות", "לפני שעה",
+ * "לפני 3 שעות", "אתמול", "לפני 4 ימים", then the date ("20.9", with the year when it is not
+ * this year). Days count calendar days in Israel time.
+ */
+export function formatTimeAgo(iso: string, now: Date): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const minutes = Math.floor((now.getTime() - date.getTime()) / 60_000);
+  if (minutes < 1) return "עכשיו"; // also a time slightly ahead of our clock
+  if (minutes < 60) return minutes === 1 ? "לפני דקה" : `לפני ${minutes} דקות`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) {
+    if (hours === 1) return "לפני שעה";
+    if (hours === 2) return "לפני שעתיים";
+    return `לפני ${hours} שעות`;
+  }
+  const days = israelDayNumber(now) - israelDayNumber(date);
+  if (days <= 1) return "אתמול";
+  if (days === 2) return "לפני יומיים";
+  if (days < 7) return `לפני ${days} ימים`;
+  const sameYear = israelDay.format(date).slice(0, 4) === israelDay.format(now).slice(0, 4);
+  return (sameYear ? shortDate : dateWithYear).format(date);
+}
+
+/**
+ * formatTimeAgo for a time rounded down to the hour (recent-search cards): under an hour it says
+ * "בשעה האחרונה", since minutes counted from the rounded time would be wrong.
+ */
+export function formatHourAgo(iso: string, now: Date): string {
+  const at = Date.parse(iso);
+  if (Number.isNaN(at)) return "";
+  return now.getTime() - at < 3_600_000 ? "בשעה האחרונה" : formatTimeAgo(iso, now);
+}
+
 /** Shares our own page URL, never the raw affiliate link. */
 export function whatsappShareUrl(text: string, pageUrl: string): string {
   return `https://wa.me/?text=${encodeURIComponent(`${text}\n${pageUrl}`)}`;

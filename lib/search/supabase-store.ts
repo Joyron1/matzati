@@ -4,7 +4,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AliProduct } from "@/lib/aliexpress/schemas";
 import { usageRow, type LlmUsageRecord } from "@/lib/stats/usage";
-import { isFresh } from "./cache-key";
+import { isFresh, isFreshResults } from "./cache-key";
 import type { ParsedQuery } from "./filters";
 import type { CachedResults, SearchLogEntry, SearchStore } from "./store";
 
@@ -135,7 +135,11 @@ export class SupabaseStore implements SearchStore {
           .eq("filters_key", filtersKey)
           .maybeSingle(),
     );
-    if (!row || !looksLikeResults(row.response) || !isFresh(new Date(row.created_at), now)) {
+    if (
+      !row ||
+      !looksLikeResults(row.response) ||
+      !isFreshResults(new Date(row.created_at), row.response.products.length, now)
+    ) {
       return null;
     }
     this.bumpHits("search_cache", filtersKey, row.hits ?? 0);
@@ -173,6 +177,8 @@ export class SupabaseStore implements SearchStore {
         cache: entry.cache,
         results_count: entry.resultsCount,
         source: entry.source,
+        category_id: entry.categoryId,
+        listable: entry.listable,
       }),
     );
   }

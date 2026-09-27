@@ -3,9 +3,9 @@
 import type { AliProduct } from "@/lib/aliexpress/schemas";
 import type { LlmUsageRecord } from "@/lib/stats/usage";
 import type { ParsedQuery } from "./filters";
-import { isFresh } from "./cache-key";
+import { isFresh, isFreshResults } from "./cache-key";
 
-/** What the 48h cache saved: nothing, the parse call, or everything (CLAUDE.md §6.2). */
+/** What the 14-day cache saved: nothing, the parse call, or everything (CLAUDE.md §6.2). */
 export type CacheLevel = "none" | "parse" | "results";
 
 /**
@@ -27,6 +27,14 @@ export interface SearchLogEntry {
   /** Results in this response (0-3). 0 is a zero-result search. */
   resultsCount: number;
   source: SearchSource;
+  /** First-level AliExpress category of the first product shown; null when none was shown. */
+  categoryId: string | null;
+  /**
+   * May appear on the public recent-searches page (/searches): a query the visitor typed, with no
+   * chips removed and no sort override, that showed results and passes lib/recent/privacy.ts. See
+   * isListableSearch in ./pipeline.ts.
+   */
+  listable: boolean;
 }
 
 export interface Explanation {
@@ -83,7 +91,7 @@ export class MemoryStore implements SearchStore {
   }
   async getResults(key: string, now: Date) {
     const hit = this.results.get(key);
-    return hit && isFresh(new Date(hit.createdAt), now) ? hit : null;
+    return hit && isFreshResults(new Date(hit.createdAt), hit.products.length, now) ? hit : null;
   }
   async putResults(key: string, _query: string, results: CachedResults) {
     this.results.set(key, results);

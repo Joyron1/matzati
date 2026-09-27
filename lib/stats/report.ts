@@ -10,7 +10,7 @@ export interface DailyStats {
   searches: number;
   /** Results fetched for this search (cache "none" or "parse"). */
   fresh: number;
-  /** Served entirely from the 48h results cache. */
+  /** Served entirely from the results cache (14 days; 48h before 2026-09-27). */
   cached: number;
   zeroResults: number;
   /** examplePreview runs (home page example, SEO landing pages); not searches. */
