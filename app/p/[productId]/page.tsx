@@ -10,7 +10,7 @@ import { card, featured } from "@/components/styles";
 import { SOLD_30D_LABEL } from "@/components/trust-metrics";
 import { APPROX_PRICE_NOTE } from "@/lib/copy";
 import { formatCount, formatDateTime, formatPct } from "@/lib/format";
-import { FILTERS } from "@/lib/ranking/config";
+import { FILL_TIER, FILTERS } from "@/lib/ranking/config";
 import { firstParam, searchHref } from "@/lib/search-url";
 import { productForPage } from "@/lib/search/server";
 
@@ -33,18 +33,21 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
   const sold = product.units_sold;
   // Re-evaluated on current data: values change after a search, and /p can also be opened for a
   // product no search showed. A missing value fails, as it does in the ranking filter.
+  // Show the thresholds this product actually met: FILL_TIER products (niche items topped up when
+  // too few met FILTERS) are held to a higher feedback bar and a lower sales bar.
+  const trust = product.passed_tier === "fill" ? FILL_TIER : FILTERS;
   const checks = [
     {
       label: "משוב חיובי",
       value: pct === null ? null : formatPct(pct),
-      threshold: `${FILTERS.minPositiveFeedbackPct}%`,
-      passes: pct !== null && pct >= FILTERS.minPositiveFeedbackPct,
+      threshold: `${trust.minPositiveFeedbackPct}%`,
+      passes: pct !== null && pct >= trust.minPositiveFeedbackPct,
     },
     {
       label: SOLD_30D_LABEL,
       value: sold === null ? null : formatCount(sold),
-      threshold: formatCount(FILTERS.minUnitsSold),
-      passes: sold !== null && sold >= FILTERS.minUnitsSold,
+      threshold: formatCount(trust.minUnitsSold),
+      passes: sold !== null && sold >= trust.minUnitsSold,
     },
   ];
   const allPass = checks.every((c) => c.passes);

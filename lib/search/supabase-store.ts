@@ -104,7 +104,12 @@ export class SupabaseStore implements SearchStore {
     return row.parsed;
   }
 
-  async putParse(queryKey: string, queryNorm: string, parsed: ParsedQuery): Promise<void> {
+  async putParse(
+    queryKey: string,
+    queryNorm: string,
+    parsed: ParsedQuery,
+    createdAt = new Date(),
+  ): Promise<void> {
     // created_at is set explicitly so a stale row that gets replaced is fresh again.
     await this.write("putParse", () =>
       this.db.from("parse_cache").upsert(
@@ -112,7 +117,7 @@ export class SupabaseStore implements SearchStore {
           query_key: queryKey,
           query_norm: queryNorm,
           parsed,
-          created_at: new Date().toISOString(),
+          created_at: createdAt.toISOString(),
         },
         { onConflict: "query_key" },
       ),

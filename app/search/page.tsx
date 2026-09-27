@@ -130,9 +130,23 @@ function Results({
             </span>
           </p>
           <p className="text-sm text-muted">
-            הסינון: <bdi dir="ltr">{FILTERS.minPositiveFeedbackPct}%</bdi> משוב חיובי ומעלה ו־
-            <bdi dir="ltr">{formatCount(FILTERS.minUnitsSold)}</bdi> מכירות ומעלה ב־30 הימים
-            האחרונים{priceChips.length > 0 ? ", בתוך התקציב" : ""}.
+            {/* When the second trust tier filled in, one pair of numbers would be false for some
+                cards, so the line names the criteria and links to the full rules instead. */}
+            {shown.some((p) => p.passed_tier === "fill") ? (
+              <>
+                הסינון: משוב חיובי ומספר מכירות ב־30 הימים האחרונים לפי{" "}
+                <Link href="/disclosure" className="underline underline-offset-4 hover:text-ink">
+                  הספים שלנו
+                </Link>
+              </>
+            ) : (
+              <>
+                הסינון: <bdi dir="ltr">{FILTERS.minPositiveFeedbackPct}%</bdi> משוב חיובי ומעלה ו־
+                <bdi dir="ltr">{formatCount(FILTERS.minUnitsSold)}</bdi> מכירות ומעלה ב־30 הימים
+                האחרונים
+              </>
+            )}
+            {priceChips.length > 0 ? ", בתוך התקציב" : ""}.
             {shown.some((p) => p.price_is_approx) && <> {APPROX_PRICE_NOTE}</>}
           </p>
         </div>

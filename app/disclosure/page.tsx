@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { StaticPage } from "@/components/static-page";
 import { BRAND } from "@/lib/config/brand";
-import { FILTERS } from "@/lib/ranking/config";
+import { FILL_TIER, FILTERS } from "@/lib/ranking/config";
 
 export const metadata: Metadata = { title: "גילוי נאות" };
 
@@ -16,7 +16,13 @@ export default function DisclosurePage() {
       <ul>
         <li>
           אנחנו מסננים מוצרים לפי משוב חיובי של קונים ({FILTERS.minPositiveFeedbackPct}% ומעלה),
-          מספר מכירות ({FILTERS.minUnitsSold} ומעלה) והתאמה לתקציב שכתבתם.
+          מספר מכירות ב־30 הימים האחרונים ({FILTERS.minUnitsSold} ומעלה) והתאמה לתקציב שכתבתם.
+        </li>
+        <li>
+          במוצרים שנמכרים אצל הרבה מוכרים קטנים, כשפחות מ־3 מוצרים עומדים בספים האלה, אנחנו משלימים
+          מוצרים עם משוב חיובי גבוה יותר ({FILL_TIER.minPositiveFeedbackPct}% ומעלה) ולפחות{" "}
+          {FILL_TIER.minUnitsSold} מכירות ב־30 הימים האחרונים. בדף של כל מוצר מופיעים הספים שהוא
+          עבר.
         </li>
         <li>
           גובה העמלה לא משפיע על הדירוג. הוא משמש רק כדי להכריע בין שני מוצרים שקיבלו בדיוק את אותו

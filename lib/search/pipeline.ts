@@ -7,7 +7,13 @@ import type { AliProduct } from "@/lib/aliexpress/schemas";
 import { explainContextFrom, explainProducts, type ExplainInput } from "@/lib/llm/explain";
 import { parseQuery } from "@/lib/llm/parse";
 import type { LlmProvider, LlmUsage } from "@/lib/llm/provider";
-import { rankProducts, rejectionCounts, type RejectReason } from "@/lib/ranking/rank";
+import {
+  rankProducts,
+  rankWithFill,
+  rejectionCounts,
+  trustTierOf,
+  type RejectReason,
+} from "@/lib/ranking/rank";
 import { RESULTS_PER_PAGE } from "@/lib/config/site";
 import type { ResultProduct, SearchResponse } from "@/lib/types";
 import { filtersKey, normalizeQuery, queryKey } from "./cache-key";
@@ -122,6 +128,7 @@ export function toResultProduct(p: AliProduct, e: Explanation | undefined): Resu
     discount_pct: p.discountPct,
     positive_feedback_pct: p.positiveFeedbackPct,
     units_sold: p.unitsSold,
+    passed_tier: trustTierOf(p),
     image_urls: p.imageUrls,
     category_id: p.category.firstId,
   };
@@ -169,8 +176,14 @@ async function fetchAndRank(
     await call(keywords, 1);
   }
   meta.rejected = rejectionCounts([...seen.values()], parsed);
+  // Too few met FILTERS: top up to one page from the second trust tier (FILL_TIER).
+  const final = rankWithFill([...seen.values()], parsed, RESULTS_PER_PAGE);
   // passed counts every distinct product that met the filters, not just the ones we keep.
-  return { ranked: ranked.slice(0, RESULTS_KEPT), passed: ranked.length, checked: seen.size };
+  return {
+    ranked: final.ranked.slice(0, RESULTS_KEPT),
+    passed: final.ranked.length,
+    checked: seen.size,
+  };
 }
 
 /** Makes sure every product we may show has an affiliate link (§6.7). */
@@ -262,7 +275,7 @@ export async function runSearch(input: SearchInput, deps: SearchDeps): Promise<S
     res.usage.forEach((u) => meta.llmUsage.push({ kind: "parse", usage: u, model: res.model }));
     if (!res.parsed) throw new SearchError("parse_failed", "could not understand the query");
     parsed = res.parsed;
-    await deps.store.putParse(qk, normalizeQuery(q), parsed);
+    await deps.store.putParse(qk, normalizeQuery(q), parsed, now());
   }
   const filters: ParsedQuery = {
     ...applyOverrides(parsed, input.without ?? []),

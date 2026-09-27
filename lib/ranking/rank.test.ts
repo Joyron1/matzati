@@ -11,6 +11,8 @@ import {
   rankProducts,
   rejectReason,
   rejectionCounts,
+  rankWithFill,
+  trustTierOf,
 } from "./rank";
 
 function product(overrides: Partial<AliProduct>): AliProduct {
@@ -732,5 +734,67 @@ describe("dedupeListings", () => {
       f,
     );
     expect(ids(ranked).sort()).toEqual(["a", "b"]);
+  });
+});
+
+describe("trust tiers", () => {
+  it("classifies products by the thresholds they meet", () => {
+    expect(trustTierOf({ positiveFeedbackPct: 92, unitsSold: 150 })).toBe("standard");
+    expect(trustTierOf({ positiveFeedbackPct: 100, unitsSold: 67 })).toBe("fill");
+    expect(trustTierOf({ positiveFeedbackPct: 94, unitsSold: 67 })).toBeNull();
+    expect(trustTierOf({ positiveFeedbackPct: 100, unitsSold: 29 })).toBeNull();
+    expect(trustTierOf({ positiveFeedbackPct: null, unitsSold: 5000 })).toBeNull();
+  });
+
+  // Real case, "בובת סוניק" (2026-09-27): 0 of 91 met FILTERS; plush listings with 100% feedback
+  // and 43-96 sales a month were rejected on volume.
+  const sonic = filters({
+    keywords_en: "sonic plush toy",
+    product_terms: ["sonic plush", "sonic doll"],
+  });
+  const plush = (id: string, title: string, fb: number | null, sold: number) =>
+    product({ productId: id, title, positiveFeedbackPct: fb, unitsSold: sold });
+
+  it("tops up to the target from the second tier only when too few meet FILTERS", () => {
+    const { ranked, fillIds } = rankWithFill(
+      [
+        plush("a", "33cm Sonic Plush High Quality Hedgehog Toy", 100, 96),
+        plush("b", "Genuine Sonic Tails Knuckles Plush Doll Pillow", 100, 43),
+        plush("c", "30cm Sonic Plush Toys Knuckles Tails Amy", 100, 67),
+        plush("d", "New Sonic Doll Plush 30cm", 85.7, 31), // feedback below both tiers
+        plush("e", "Sonic Plush Doll Toy", 100, 12), // too few sales for either tier
+      ],
+      sonic,
+      3,
+    );
+    expect(ranked.map((p) => p.productId).sort()).toEqual(["a", "b", "c"]);
+    expect(fillIds.sort()).toEqual(["a", "b", "c"]);
+  });
+
+  it("never uses the second tier when enough products meet FILTERS, and keeps standard first", () => {
+    const items = [
+      plush("s1", "Sonic Plush Doll Classic", 98, 2000),
+      plush("s2", "Sonic Plush Doll Big", 97, 900),
+      plush("f1", "Sonic Plush Doll Mini", 100, 80),
+    ];
+    const two = rankWithFill(items, sonic, 3);
+    expect(two.ranked.map((p) => p.productId)).toEqual(["s1", "s2", "f1"]);
+    expect(two.fillIds).toEqual(["f1"]);
+    const enough = rankWithFill(
+      [...items, plush("s3", "Sonic Plush Doll Plus", 96, 500)],
+      sonic,
+      3,
+    );
+    expect(enough.fillIds).toEqual([]);
+    expect(enough.ranked.every((p) => trustTierOf(p) === "standard")).toBe(true);
+  });
+
+  it("applies every other gate to the second tier unchanged", () => {
+    const { ranked } = rankWithFill(
+      [plush("k", "Sonic Plush Keychain Pendant", 100, 80)], // accessory: fails the type gate
+      { ...sonic, max_price_ils: 30 },
+      3,
+    );
+    expect(ranked).toEqual([]);
   });
 });

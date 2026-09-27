@@ -1,7 +1,16 @@
 // Deterministic filter and rank (CLAUDE.md §6.5-6). Pure: no I/O, no LLM.
 import type { AliProduct } from "@/lib/aliexpress/schemas";
 import type { SearchFilters, SortPreference } from "@/lib/search/filters";
-import { DEDUP, FEEDBACK_PRIOR, FILTERS, PRICE_FIT, TYPE_GATE, WEIGHTS } from "./config";
+import {
+  DEDUP,
+  FEEDBACK_PRIOR,
+  FILL_TIER,
+  FILTERS,
+  PRICE_FIT,
+  TYPE_GATE,
+  WEIGHTS,
+  type TrustThresholds,
+} from "./config";
 import { phraseSpans, requirementMatches, stem, tokenize, type Span } from "./match";
 
 export type RejectReason = "feedback" | "volume" | "currency" | "price" | "type" | "requirement";
@@ -77,16 +86,24 @@ export function isRequestedProduct(
 }
 
 /** Missing trust data fails (never treated as good); prices are never compared across currencies. */
-export function passesFilters(p: AliProduct, f: SearchFilters): boolean {
-  return rejectReason(p, f) === null;
+export function passesFilters(
+  p: AliProduct,
+  f: SearchFilters,
+  trust: TrustThresholds = FILTERS,
+): boolean {
+  return rejectReason(p, f, trust) === null;
 }
 
 /** First filter each product fails, or null when it passes. */
-export function rejectReason(p: AliProduct, f: SearchFilters): RejectReason | null {
-  if (p.positiveFeedbackPct === null || p.positiveFeedbackPct < FILTERS.minPositiveFeedbackPct) {
+export function rejectReason(
+  p: AliProduct,
+  f: SearchFilters,
+  trust: TrustThresholds = FILTERS,
+): RejectReason | null {
+  if (p.positiveFeedbackPct === null || p.positiveFeedbackPct < trust.minPositiveFeedbackPct) {
     return "feedback";
   }
-  if (p.unitsSold === null || p.unitsSold < FILTERS.minUnitsSold) return "volume";
+  if (p.unitsSold === null || p.unitsSold < trust.minUnitsSold) return "volume";
   if (p.currency !== "ILS") return "currency";
   if (f.min_price_ils !== undefined && p.price < f.min_price_ils) return "price";
   if (f.max_price_ils !== undefined && p.price > f.max_price_ils) return "price";
@@ -235,8 +252,12 @@ export function dedupeListings(
  * only breaks exact ties, and product id keeps the order deterministic after that. A worse
  * product never ranks higher because it pays more.
  */
-export function rankProducts(products: AliProduct[], filters: SearchFilters): AliProduct[] {
-  const passed = products.filter((p) => passesFilters(p, filters));
+export function rankProducts(
+  products: AliProduct[],
+  filters: SearchFilters,
+  trust: TrustThresholds = FILTERS,
+): AliProduct[] {
+  const passed = products.filter((p) => passesFilters(p, filters, trust));
   if (!passed.length) return [];
   const ctx: ScoreContext = {
     sort: filters.sort_preference,
@@ -260,4 +281,45 @@ export function rankProducts(products: AliProduct[], filters: SearchFilters): Al
     scored.map((x) => x.p),
     new Set(tokenize(searched.join(" "))),
   );
+}
+
+export type TrustTier = "standard" | "fill";
+
+/** Which trust thresholds a product meets, standard first. Null when it meets neither. */
+export function trustTierOf(
+  p: Pick<AliProduct, "positiveFeedbackPct" | "unitsSold">,
+): TrustTier | null {
+  const meets = (t: TrustThresholds) =>
+    p.positiveFeedbackPct !== null &&
+    p.positiveFeedbackPct >= t.minPositiveFeedbackPct &&
+    p.unitsSold !== null &&
+    p.unitsSold >= t.minUnitsSold;
+  if (meets(FILTERS)) return "standard";
+  if (meets(FILL_TIER)) return "fill";
+  return null;
+}
+
+/**
+ * Standard ranking, topped up to `target` results from FILL_TIER only when too few products meet
+ * FILTERS. Standard products always come first; every other gate (price, type, requirements)
+ * applies to both tiers unchanged.
+ */
+export function rankWithFill(
+  products: AliProduct[],
+  filters: SearchFilters,
+  target: number,
+): { ranked: AliProduct[]; fillIds: string[] } {
+  const standard = rankProducts(products, filters);
+  if (standard.length >= target) return { ranked: standard, fillIds: [] };
+  const taken = new Set(standard.map((p) => p.productId));
+  const extra = rankProducts(products, filters, FILL_TIER).filter((p) => !taken.has(p.productId));
+  const searched = [
+    filters.keywords_en,
+    ...filters.product_terms,
+    ...filters.requirements.flatMap((r) => [r.en, ...r.alt]),
+  ];
+  // Dedupe across tiers too, keeping the standard listing when two are the same product.
+  const merged = dedupeListings([...standard, ...extra], new Set(tokenize(searched.join(" "))));
+  const fill = merged.filter((p) => !taken.has(p.productId)).slice(0, target - standard.length);
+  return { ranked: [...standard, ...fill], fillIds: fill.map((p) => p.productId) };
 }

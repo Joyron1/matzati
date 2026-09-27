@@ -26,6 +26,8 @@ export interface ResultProduct {
   positive_feedback_pct: number | null;
   /** From `lastest_volume`: sales in the last 30 days (AliExpress docs), not lifetime. */
   units_sold: number | null;
+  /** Trust thresholds the product meets (lib/ranking/config.ts); null when it meets neither. */
+  passed_tier: "standard" | "fill" | null;
   image_urls: string[];
   category_id: string | null;
 }

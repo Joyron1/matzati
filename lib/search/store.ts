@@ -23,7 +23,13 @@ export interface CachedResults {
 
 export interface SearchStore {
   getParse(queryKey: string, now: Date): Promise<ParsedQuery | null>;
-  putParse(queryKey: string, queryNorm: string, parsed: ParsedQuery): Promise<void>;
+  /** createdAt defaults to now; the pipeline passes its own clock so freshness is testable. */
+  putParse(
+    queryKey: string,
+    queryNorm: string,
+    parsed: ParsedQuery,
+    createdAt?: Date,
+  ): Promise<void>;
   getResults(filtersKey: string, now: Date): Promise<CachedResults | null>;
   putResults(filtersKey: string, query: string, results: CachedResults): Promise<void>;
   /** Saves added explanations without touching the query that created the entry. */
@@ -44,8 +50,8 @@ export class MemoryStore implements SearchStore {
     const hit = this.parses.get(key);
     return hit && isFresh(hit.at, now) ? hit.parsed : null;
   }
-  async putParse(key: string, _norm: string, parsed: ParsedQuery) {
-    this.parses.set(key, { parsed, at: new Date() });
+  async putParse(key: string, _norm: string, parsed: ParsedQuery, createdAt = new Date()) {
+    this.parses.set(key, { parsed, at: createdAt });
   }
   async getResults(key: string, now: Date) {
     const hit = this.results.get(key);

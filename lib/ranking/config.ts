@@ -1,9 +1,25 @@
 // Filter thresholds and ranking weights (CLAUDE.md §6.5-6). Defaults are to be tuned against
 // real data. The UI reads FILTERS too, so the numbers we show always match the numbers we use.
-export const FILTERS = {
+export interface TrustThresholds {
+  minPositiveFeedbackPct: number;
+  minUnitsSold: number;
+}
+
+export const FILTERS: TrustThresholds = {
   minPositiveFeedbackPct: 90,
   minUnitsSold: 100,
-} as const;
+};
+
+/**
+ * Second tier (owner decision 2026-09-27), used only to fill up to 3 results when too few meet
+ * FILTERS. Niche products (licensed toys, for example) are fragmented across many small sellers
+ * with fewer than 100 sales a month; a higher feedback bar keeps them trustworthy. The UI states
+ * the thresholds a product actually met; it does not label these products.
+ */
+export const FILL_TIER: TrustThresholds = {
+  minPositiveFeedbackPct: 95,
+  minUnitsSold: 30,
+};
 
 export const WEIGHTS = {
   feedback: 2,
@@ -33,4 +49,4 @@ export const TYPE_GATE = { windowTokens: 12, headGap: 2 } as const;
 export const DEDUP = { sameShopJaccard: 0.7, modelTokenWindow: 4 } as const;
 
 /** Bump when any filter or ranking rule changes, so cached results ranked the old way are not reused. */
-export const RANKING_VERSION = 2;
+export const RANKING_VERSION = 3;
