@@ -36,7 +36,7 @@ export function CommunityCoupon({ deal }: { deal: Deal }) {
             {deal.coupon_code}
           </bdi>
         </p>
-        <CopyButton value={deal.coupon_code} />
+        <CopyButton value={deal.coupon_code} label={`של הקוד ${deal.coupon_code}`} />
       </div>
       <p className="text-xs leading-relaxed text-muted">{COUPON_DISCLAIMER}</p>
     </section>

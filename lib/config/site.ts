@@ -6,6 +6,20 @@ export const DEALS_ENABLED = true;
 /** Results fetched longer ago than this say on /search when their prices were checked. */
 export const STALE_RESULTS_HOURS = 24;
 
+/**
+ * /go makes a new affiliate link (link.generate) for a stored product whose link is older than
+ * this. AliExpress may invalidate a short link that is over a year old or unused for 6 months
+ * (Affiliate Program Service Agreement 5.4); 90 days stays well inside both.
+ */
+export const LINK_MAX_AGE_DAYS = 90;
+
+/**
+ * Colors and sizes on /p (product.sku.detail.get). Off until the owner gets the method approved in
+ * the AliExpress console (InsufficientPermission on 2026-09-28) and one real call confirms its
+ * response shape (docs/aliexpress-api.md).
+ */
+export const SKU_DETAILS_ENABLED = false;
+
 /** Production host, used when Vercel does not tell us (local dev, tests, other hosts). */
 export const DEFAULT_SITE_HOST = "matzati-il.vercel.app";
 

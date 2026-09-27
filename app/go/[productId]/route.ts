@@ -1,11 +1,13 @@
 import type { NextRequest } from "next/server";
 import { clickOut } from "@/lib/search/server";
 
-// A fresh search (parse, up to 3 AliExpress calls, explain) takes 7-15 s; give it room.
+// A missing link, or one older than LINK_MAX_AGE_DAYS, costs one link.generate call first.
 export const maxDuration = 60;
 
 // Click-out (CLAUDE.md §7): logs { product_id, src, created_at } and redirects to the affiliate
-// link. Every buy button goes through here.
+// link. Every buy button goes through here, and so does the reviews link on /p. `src` names the
+// button ("product", "reviews", "search_featured", "seo", ...); anything that is not 1-32 letters,
+// digits, "_" or "-" is logged as "other" (clickOut).
 
 // A route handler cannot render app/not-found.tsx, so the 404 is a minimal standalone page.
 const NOT_FOUND_HTML = `<!doctype html>

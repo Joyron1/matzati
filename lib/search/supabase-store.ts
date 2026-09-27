@@ -189,13 +189,58 @@ export class SupabaseStore implements SearchStore {
     await this.write("logUsage", () => this.db.from("llm_usage").insert(records.map(usageRow)));
   }
 
+  /**
+   * Ids of stored products whose updated_at is at or after `checkedAt`: their data is at least as
+   * new as data checked then. Null when the read failed.
+   */
+  private async checkedSince(ids: string[], checkedAt: string): Promise<Set<string> | null> {
+    const rows = await this.read<{ product_id: string; updated_at: string }[]>(
+      "saveProducts newer",
+      () => this.db.from("products").select("product_id, updated_at").in("product_id", ids),
+    );
+    if (rows === null) return null;
+    const since = Date.parse(checkedAt);
+    return new Set(rows.filter((r) => Date.parse(r.updated_at) >= since).map((r) => r.product_id));
+  }
+
+  /**
+   * `checkedAt` is when the data was fetched from AliExpress, for products from a cached result set
+   * ("עוד 3 אפשרויות" serves results cached up to 14 days). The rows and their price_history get
+   * that time, never the time of the save, since /p, /coupons and /go read updated_at as when the
+   * price, the promo code and the link were checked. A row already stored with data as new or newer
+   * (a /p refresh, a newer search) keeps it; only its Hebrew title is written.
+   */
   async saveProducts(
     products: AliProduct[],
     titlesHe: Record<string, string | null>,
+    checkedAt?: Date,
   ): Promise<void> {
-    const unique = [...new Map(products.map((p) => [p.productId, p])).values()];
+    let unique = [...new Map(products.map((p) => [p.productId, p])).values()];
     if (!unique.length) return;
-    const updatedAt = new Date().toISOString();
+    const updatedAt = (checkedAt ?? new Date()).toISOString();
+    if (checkedAt) {
+      // A failed read saves everything: the rows then carry the older time, which is still true.
+      const newer = await this.checkedSince(
+        unique.map((p) => p.productId),
+        updatedAt,
+      );
+      if (newer?.size) {
+        await Promise.all(
+          unique
+            .filter((p) => newer.has(p.productId) && titlesHe[p.productId])
+            .map((p) =>
+              this.write("saveProducts title", () =>
+                this.db
+                  .from("products")
+                  .update({ title_he: titlesHe[p.productId] })
+                  .eq("product_id", p.productId),
+              ),
+            ),
+        );
+        unique = unique.filter((p) => !newer.has(p.productId));
+        if (!unique.length) return;
+      }
+    }
     const row = (p: AliProduct) => ({ product_id: p.productId, data: p, updated_at: updatedAt });
     // PostgREST's upsert overwrites every column in the payload, so rows without a Hebrew title
     // go in a separate upsert that leaves title_he out and keeps a title saved earlier.

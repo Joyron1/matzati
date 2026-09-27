@@ -6,15 +6,18 @@
 // - target_language=HE returns machine-translated Hebrew titles. We search in EN so the §6.5
 //   must_have check runs on the original English title; the LLM writes title_he (§6.8)
 // - default ordering is poor for keyword searches; LAST_VOLUME_DESC surfaces established products
-// - hotproduct.query returns InsufficientPermission for this app (needs approval in the AE console)
+// - hotproduct.query returns InsufficientPermission for this app (needs approval in the AE console),
+//   and so does product.sku.detail.get (2026-09-28): getSkuDetails stays behind SKU_DETAILS_ENABLED
 import type { AliExpressClient, ParamValue } from "./client";
 import { AliExpressError } from "./errors";
 import {
   parseCategories,
   parseProductPage,
   parsePromotionLinks,
+  parseSkuDetails,
   type AliCategory,
   type AliPromotionLink,
+  type AliSkuDetails,
   type ProductPage,
 } from "./schemas";
 
@@ -110,6 +113,31 @@ export function chunk<T>(items: T[], size: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
   return out;
+}
+
+/**
+ * Colors, sizes, prices and delivery days per SKU (product.sku.detail.get, doc 1795). Only called
+ * while SKU_DETAILS_ENABLED is on: this app has no permission for the method yet. need_deliver_info
+ * asks for the delivery-day fields (slower, per the docs). No tracking_id: the per-SKU links it
+ * returns are never used, buying always goes through /go. Null when there are no SKUs.
+ */
+export async function getSkuDetails(
+  client: AliExpressClient,
+  productId: string,
+): Promise<AliSkuDetails | null> {
+  try {
+    const res = await client.call("aliexpress.affiliate.product.sku.detail.get", {
+      product_id: productId,
+      ship_to_country: SHIP_TO,
+      target_currency: CURRENCY,
+      target_language: "HE",
+      need_deliver_info: "Yes",
+    });
+    return parseSkuDetails(res.result, productId);
+  } catch (err) {
+    if (err instanceof AliExpressError && err.kind === "no_results") return null;
+    throw err;
+  }
 }
 
 /** Affiliate links for product URLs that came without promotion_link. Batches of 50. */

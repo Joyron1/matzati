@@ -58,6 +58,7 @@ async function NextSale() {
       startsAt={sale.starts_at}
       endsAt={sale.ends_at}
       renderedAt={now.getTime()}
+      moreHref="/sales"
     />
   );
 }

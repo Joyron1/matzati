@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { chunk, generateLinks, productQueryParams, queryProducts, toMinorUnits } from "./affiliate";
+import {
+  chunk,
+  generateLinks,
+  getSkuDetails,
+  productQueryParams,
+  queryProducts,
+  toMinorUnits,
+} from "./affiliate";
 import { AliExpressClient } from "./client";
 
 const config = {
@@ -84,6 +91,49 @@ describe("queryProducts", () => {
       skipped: 0,
       totalRecords: 0,
     });
+  });
+});
+
+// A fake gateway only: this method is never called for real (no permission yet). The fake uses
+// the resp_result envelope the client understands; the documented envelope has none (open item).
+describe("getSkuDetails", () => {
+  const skuResponse = (respResult: unknown) => ({
+    aliexpress_affiliate_product_sku_detail_get_response: { resp_result: respResult },
+  });
+
+  it("sends IL/ILS/HE with delivery info and no tracking id", async () => {
+    const { client, fetchMock } = clientReturning([
+      skuResponse({
+        resp_code: 200,
+        result: {
+          result: {
+            ae_item_info: { product_id: "1005004757833857" },
+            ae_item_sku_info: [{ sku_id: "12000030358585276", color: "WHITE" }],
+          },
+          code: "200",
+          success: "true",
+        },
+      }),
+    ]);
+    const details = await getSkuDetails(client, "1005004757833857");
+    const f = sentFields(fetchMock);
+    expect(f.get("method")).toBe("aliexpress.affiliate.product.sku.detail.get");
+    expect(f.get("product_id")).toBe("1005004757833857");
+    expect(f.get("ship_to_country")).toBe("IL");
+    expect(f.get("target_currency")).toBe("ILS");
+    expect(f.get("target_language")).toBe("HE");
+    expect(f.get("need_deliver_info")).toBe("Yes");
+    expect(f.has("tracking_id")).toBe(false);
+    expect(details?.skus.map((s) => s.color)).toEqual(["WHITE"]);
+  });
+
+  it("returns null for resp_code 405 and rethrows a missing permission", async () => {
+    const empty = clientReturning([skuResponse({ resp_code: 405, resp_msg: "empty" })]);
+    await expect(getSkuDetails(empty.client, "1")).resolves.toBeNull();
+    const denied = clientReturning([
+      { error_response: { type: "ISV", code: "InsufficientPermission", msg: "no permission" } },
+    ]);
+    await expect(getSkuDetails(denied.client, "1")).rejects.toMatchObject({ kind: "auth" });
   });
 });
 

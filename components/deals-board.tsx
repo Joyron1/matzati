@@ -4,7 +4,9 @@ import Link from "next/link";
 import { ChevronLeft, Inbox } from "lucide-react";
 import { useRef, useState } from "react";
 import { BRAND } from "@/lib/config/brand";
+import { SALE_CODE_NOTE, SALE_DATES_NOTE } from "@/lib/copy";
 import { DEAL_TYPE_DISPLAY, DEAL_TYPE_TAG } from "@/lib/deals/display";
+import { lastCoveredInstant } from "@/lib/deals/time";
 import { formatShortDate } from "@/lib/format";
 import type { Deal, DealType } from "@/lib/types";
 import { COUPON_DISCLAIMER } from "./community-coupon";
@@ -20,34 +22,34 @@ const FILTERS: { value: DealType | "all"; label: string }[] = [
 ];
 
 // Always rendered from the stored dates (not from "now"), so server and client HTML match. A deal
-// or coupon that has not started yet shows its start date instead of looking usable today.
+// or coupon that has not started yet shows its start date instead of looking usable today. An end
+// is the last day covered: one at midnight ends the day before (as on /sales).
 function DealDates({ deal }: { deal: Deal }) {
+  const end = deal.ends_at && (
+    <bdi dir="ltr">{formatShortDate(lastCoveredInstant(deal.ends_at))}</bdi>
+  );
   if (deal.starts_at) {
     return (
       <p className="text-sm text-muted">
         {deal.type === "holiday" ? null : "מ־"}
         <bdi dir="ltr">{formatShortDate(deal.starts_at)}</bdi>
-        {deal.ends_at && (
-          <>
-            {" "}
-            עד <bdi dir="ltr">{formatShortDate(deal.ends_at)}</bdi>
-          </>
-        )}
+        {end && <> עד {end}</>}
       </p>
     );
   }
-  if (deal.ends_at) {
-    return (
-      <p className="text-sm text-muted">
-        בתוקף עד <bdi dir="ltr">{formatShortDate(deal.ends_at)}</bdi>
-      </p>
-    );
-  }
+  if (end) return <p className="text-sm text-muted">בתוקף עד {end}</p>;
   return null;
 }
 
+const cardLink =
+  "inline-flex min-h-11 items-center gap-1 font-semibold text-accent-ink underline-offset-4 hover:underline";
+
 function DealCard({ deal }: { deal: Deal }) {
   const { tagLabel, Icon, tag } = DEAL_TYPE_DISPLAY[deal.type];
+  // A "don't buy" warning never links to a page with a buy button.
+  const productLink = deal.product_id !== null && deal.type !== "dont_buy";
+  // Big sales have their own page: countdown, coupons and "הוספה ליומן".
+  const salesLink = deal.type === "holiday";
   return (
     <article
       className={`${card} flex flex-col gap-4 p-5 ${deal.type === "dont_buy" ? "border-dashed" : ""}`}
@@ -61,6 +63,10 @@ function DealCard({ deal }: { deal: Deal }) {
       </div>
       <div className="space-y-2">
         <h2 className="text-lg leading-snug font-bold">{deal.title}</h2>
+        {/* A sale's dates are the owner's (CLAUDE.md §1): say so wherever they appear. */}
+        {deal.type === "holiday" && (deal.starts_at || deal.ends_at) && (
+          <p className="text-xs leading-relaxed text-muted">{SALE_DATES_NOTE}</p>
+        )}
         {deal.body && <p className="leading-relaxed whitespace-pre-line text-muted">{deal.body}</p>}
       </div>
       {deal.coupon_code && (
@@ -72,21 +78,30 @@ function DealCard({ deal }: { deal: Deal }) {
                 {deal.coupon_code}
               </bdi>
             </p>
-            <CopyButton value={deal.coupon_code} />
+            <CopyButton value={deal.coupon_code} label={`של הקוד ${deal.coupon_code}`} />
           </div>
-          {/* Same note as on /p: we cannot promise a community coupon works for everyone. */}
-          <p className="text-xs leading-relaxed text-muted">{COUPON_DISCLAIMER}</p>
+          {/* Same note as on /p: we cannot promise a community coupon works for everyone. A big
+              sale's code is ours, as on /sales. */}
+          <p className="text-xs leading-relaxed text-muted">
+            {deal.type === "holiday" ? SALE_CODE_NOTE : COUPON_DISCLAIMER}
+          </p>
         </div>
       )}
-      {/* A "don't buy" warning never links to a page with a buy button. */}
-      {deal.product_id && deal.type !== "dont_buy" && (
-        <Link
-          href={`/p/${deal.product_id}`}
-          className="mt-auto inline-flex min-h-11 items-center gap-1 self-start font-semibold text-accent-ink underline-offset-4 hover:underline"
-        >
-          לפרטי המוצר
-          <ChevronLeft aria-hidden className="size-4" />
-        </Link>
+      {(productLink || salesLink) && (
+        <div className="mt-auto flex flex-wrap gap-x-5">
+          {productLink && (
+            <Link href={`/p/${deal.product_id}`} className={cardLink}>
+              לפרטי המוצר
+              <ChevronLeft aria-hidden className="size-4" />
+            </Link>
+          )}
+          {salesLink && (
+            <Link href={`/sales#sale-${deal.id}`} className={cardLink}>
+              ליומן המבצעים
+              <ChevronLeft aria-hidden className="size-4" />
+            </Link>
+          )}
+        </div>
       )}
     </article>
   );

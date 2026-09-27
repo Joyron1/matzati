@@ -42,10 +42,14 @@ function logError(where: string, err: unknown) {
   console.error(`[admin-deals] ${where}: ${text.slice(0, 300)}`);
 }
 
-/** Everything that shows deals: the public board, the home countdown and the admin list. */
+/**
+ * Everything that shows deals: the public board, the sales calendar, the home countdown and the
+ * admin list. The tag also refreshes the menu links (hasPublishedDeals, hasUpcomingSales).
+ */
 function revalidateDeals() {
   updateTag(DEALS_TAG);
   revalidatePath("/deals");
+  revalidatePath("/sales");
   revalidatePath("/");
   revalidatePath("/admin");
 }

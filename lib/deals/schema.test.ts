@@ -28,6 +28,7 @@ const FORM: DealFormValues = {
   coupon_code: "",
   starts_at: "2026-11-11T00:00",
   ends_at: "2026-11-13T23:59",
+  date_zone: "israel",
 };
 
 describe("validateDealInput", () => {
@@ -131,6 +132,21 @@ describe("parseDealForm", () => {
     });
   });
 
+  it("reads dates typed in Pacific time straight to an instant", () => {
+    const pacific = { ...FORM, date_zone: "pacific" };
+    expect(parseDealForm(pacific)).toMatchObject({
+      ok: true,
+      input: { starts_at: "2026-11-11T08:00:00.000Z", ends_at: "2026-11-14T07:59:00.000Z" },
+    });
+    // 16:30 Pacific on 24.10 is 01:30 on 25.10 in Israel, inside Israel's repeated fall-back
+    // hour. Read directly it is 23:30Z; through Israel wall-clock time it would come out 22:30Z.
+    expect(parseDealForm({ ...pacific, starts_at: "2026-10-24T16:30", ends_at: "" })).toMatchObject(
+      { ok: true, input: { starts_at: "2026-10-24T23:30:00.000Z" } },
+    );
+    // Any other value is Israel time.
+    expect(parseDealForm({ ...FORM, date_zone: "mars" })).toEqual(parseDealForm(FORM));
+  });
+
   it("takes the product id from a pasted AliExpress link", () => {
     const result = parseDealForm({
       ...FORM,
@@ -195,6 +211,7 @@ describe("form values", () => {
       coupon_code: "",
       starts_at: "",
       ends_at: "",
+      date_zone: "",
     });
   });
 
@@ -216,6 +233,7 @@ describe("form values", () => {
       coupon_code: "IL_SALE-5",
       starts_at: "2026-10-01T00:00",
       ends_at: "",
+      date_zone: "israel",
     });
     expect(parseDealForm(values)).toEqual({
       ok: true,

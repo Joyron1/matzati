@@ -11,7 +11,7 @@
             }
           ]
         },
-        "tracking_id": "matzati_web_api"
+        "tracking_id": "<ALIEXPRESS_TRACKING_ID>"
       },
       "resp_code": 200,
       "resp_msg": "Call succeeds"

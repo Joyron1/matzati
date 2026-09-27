@@ -147,6 +147,16 @@ describe("loadMore", () => {
     expect(again?.results).toEqual(more?.results);
     expect(llm.calls.filter((c) => c === "explain")).toHaveLength(2);
   });
+
+  it("saves the next page's products as checked when the results were fetched", async () => {
+    const { deps, store } = setup({ ...PARSE, max_price_ils: null });
+    const t0 = new Date("2026-09-27T10:00:00Z");
+    const later = new Date(t0.getTime() + 5 * 24 * 3_600_000);
+    const { response } = await runSearch({ q: "כבל USB" }, { ...deps, now: () => t0 });
+    await loadMore(response.filters_key!, 1, { ...deps, now: () => later });
+    // The search saves fresh data (now); the page from the 5-day-old cache keeps the cache's time.
+    expect(store.savedAt).toEqual([null, t0.toISOString()]);
+  });
 });
 
 const Q = "כבל USB עד 40 ש״ח";

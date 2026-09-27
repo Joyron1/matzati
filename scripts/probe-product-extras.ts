@@ -2,16 +2,23 @@
 // Answers: which affiliate methods give a long description, video, specs, SKUs, coupons and sale
 // dates; whether dropshipping/order methods are open to this app; and whether our links carry our
 // tracking id. At most 15 AliExpress requests (API calls + redirect hops), spaced >= 1.6 s apart,
-// no retries. Never prints or saves a value from .env.local; masked fixtures go to
+// no retries. Never prints or saves a secret from .env.local; masked fixtures go to
 // fixtures/aliexpress/probe-extras/. No review scraping: reviews are not in the affiliate API.
 // Usage: npx tsx --env-file=.env.local scripts/probe-product-extras.ts
 //        ... scripts/probe-product-extras.ts --detail-only --max=1   (only the productdetail
 //        fields= probe; used after the first run lost both productdetail calls to ApiCallLimit)
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { AliExpressClient, parseJsonKeepingIds, type ParamValue } from "@/lib/aliexpress/client";
 import { AliExpressError } from "@/lib/aliexpress/errors";
 import { unwrapList } from "@/lib/aliexpress/unwrap";
 import { aliexpressConfig } from "@/lib/env";
+import {
+  findEnvValues,
+  maskEnvValues,
+  maskEnvValuesDeep,
+  parseEnvFile,
+  secretEnv,
+} from "@/lib/mask";
 
 type Row = Record<string, unknown>;
 
@@ -30,66 +37,17 @@ const config = aliexpressConfig();
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // ---------------------------------------------------------------- masking
-// Every value in .env.local, not only the AliExpress ones.
-function envValues(): Array<[string, string]> {
-  const out: Array<[string, string]> = [];
-  for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
-    const m = /^\s*([A-Z0-9_]+)\s*=(.*)$/.exec(line);
-    if (!m) continue;
-    const value = m[2].trim().replace(/^["']|["']$/g, "");
-    if (value.length >= 3) out.push([m[1], value]);
-  }
-  return out;
-}
-const SECRETS = envValues();
-const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-// Long values are masked wherever they appear. Short ones (e.g. a 4-digit cap) are masked only as
-// a standalone token, so they don't corrupt unrelated ids that happen to contain the same digits.
-const MASKERS = SECRETS.map(([key, value]) => ({
-  key,
-  value,
-  re:
-    value.length >= 8
-      ? new RegExp(escapeRe(value), "g")
-      : new RegExp(`(?<![A-Za-z0-9])${escapeRe(value)}(?![A-Za-z0-9])`, "g"),
-}));
-
-function maskText(text: string): string {
-  let out = text;
-  for (const m of MASKERS) out = out.replace(m.re, `<masked:${m.key}>`);
-  return out;
-}
-
-function maskTree(value: unknown): unknown {
-  if (typeof value === "string") return maskText(value);
-  if (typeof value === "number" || typeof value === "boolean") {
-    const masked = maskText(String(value));
-    return masked === String(value) ? value : masked;
-  }
-  if (Array.isArray(value)) return value.map(maskTree);
-  if (value && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, maskTree(v)]));
-  }
-  return value;
-}
-
-/** Remaining .env.local hits after masking: standalone hits are leaks; others are coincidental. */
-function leakReport(text: string): { leaks: string[]; coincidental: string[] } {
-  const leaks: string[] = [];
-  const coincidental: string[] = [];
-  for (const m of MASKERS) {
-    if (!text.includes(m.value)) continue;
-    m.re.lastIndex = 0;
-    if (m.re.test(text)) leaks.push(m.key);
-    else coincidental.push(m.key);
-    m.re.lastIndex = 0;
-  }
-  return { leaks, coincidental };
-}
+// Every value in .env.local, not only the AliExpress ones (lib/mask.ts: <KEY>; values of 8+
+// characters anywhere, 6-7 only as a standalone token).
+const SECRETS = secretEnv(
+  parseEnvFile(readFileSync(".env.local", "utf8")),
+  parseEnvFile(existsSync(".env.example") ? readFileSync(".env.example", "utf8") : ""),
+);
+const maskText = (text: string) => maskEnvValues(text, SECRETS);
 
 function saveFixture(name: string, raw: unknown) {
-  const text = `${JSON.stringify(maskTree(raw), null, 2)}\n`;
-  const { leaks, coincidental } = leakReport(text);
+  const text = `${JSON.stringify(maskEnvValuesDeep(raw, SECRETS), null, 2)}\n`;
+  const { leaks, coincidental } = findEnvValues(text, SECRETS);
   if (leaks.length) {
     console.log(`       NOT SAVED ${name}: still contains ${leaks.join(", ")}`);
     return;

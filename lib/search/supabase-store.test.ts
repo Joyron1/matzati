@@ -52,6 +52,7 @@ class FakeQuery implements PromiseLike<{ data: unknown; error: { message: string
   private payload: unknown;
   private options: unknown;
   private filters: [string, unknown][] = [];
+  private inFilters: [string, unknown[]][] = [];
   private single = false;
 
   constructor(
@@ -76,6 +77,10 @@ class FakeQuery implements PromiseLike<{ data: unknown; error: { message: string
     this.filters.push([column, value]);
     return this;
   }
+  in(column: string, values: unknown[]) {
+    this.inFilters.push([column, values]);
+    return this;
+  }
   maybeSingle() {
     this.single = true;
     return this;
@@ -92,7 +97,9 @@ class FakeQuery implements PromiseLike<{ data: unknown; error: { message: string
     db.calls.push({ table, op, payload: this.payload, options: this.options });
     if (db.failing.has(`${table}:${op}`)) return { data: null, error: { message: `${op} denied` } };
     const rows = db.rows(table);
-    const matches = (r: Row) => this.filters.every(([c, v]) => r[c] === v);
+    const matches = (r: Row) =>
+      this.filters.every(([c, v]) => r[c] === v) &&
+      this.inFilters.every(([c, vs]) => vs.includes(r[c]));
     const payload = (Array.isArray(this.payload) ? this.payload : [this.payload]) as Row[];
     if (op === "select") {
       const found = rows.filter(matches).map((r) => structuredClone(r));
@@ -419,6 +426,69 @@ describe("SupabaseStore", () => {
       const db = new FakeDb();
       await new SupabaseStore(db.client()).saveProducts([], {});
       expect(db.calls).toHaveLength(0);
+    });
+
+    describe("from a cached result set (checkedAt)", () => {
+      const checkedAt = new Date(Date.now() - 5 * 86_400_000);
+      const [a, b] = PRODUCTS;
+      const storedRow = (p: AliProduct, updatedAt: Date) => ({
+        product_id: p.productId,
+        data: { ...p, price: 1 },
+        title_he: null,
+        updated_at: updatedAt.toISOString(),
+      });
+
+      it("stamps the rows and their price history with the time the data was checked", async () => {
+        const db = new FakeDb();
+        const store = new SupabaseStore(db.client());
+        await store.saveProducts([a], { [a.productId]: "כבל" }, checkedAt);
+        expect(await store.getProduct(a.productId)).toEqual({
+          product: a,
+          titleHe: "כבל",
+          updatedAt: checkedAt.toISOString(),
+        });
+        expect(db.rows("price_history")).toEqual([
+          expect.objectContaining({
+            product_id: a.productId,
+            captured_at: checkedAt.toISOString(),
+          }),
+        ]);
+      });
+
+      it("keeps a row stored with newer data and writes only its Hebrew title", async () => {
+        const db = new FakeDb();
+        const store = new SupabaseStore(db.client());
+        const refreshed = new Date();
+        db.rows("products").push(storedRow(b, refreshed), storedRow(a, new Date(0)));
+        await store.saveProducts(
+          [a, b],
+          { [a.productId]: "כבל", [b.productId]: "מטען" },
+          checkedAt,
+        );
+        // b was refreshed after the cache was made (a /p visit): its data and time stay.
+        expect(await store.getProduct(b.productId)).toEqual({
+          product: { ...b, price: 1 },
+          titleHe: "מטען",
+          updatedAt: refreshed.toISOString(),
+        });
+        // a was older than the cache: replaced, with the cache's time.
+        expect(await store.getProduct(a.productId)).toMatchObject({
+          product: a,
+          updatedAt: checkedAt.toISOString(),
+        });
+        expect(db.rows("price_history").map((h) => h.product_id)).toEqual([a.productId]);
+      });
+
+      it("saves every product with the older time when the stored rows cannot be read", async () => {
+        const db = new FakeDb();
+        db.failing.add("products:select");
+        db.rows("products").push(storedRow(b, new Date()));
+        await new SupabaseStore(db.client()).saveProducts([b], {}, checkedAt);
+        expect(db.rows("products")[0]).toMatchObject({
+          data: b,
+          updated_at: checkedAt.toISOString(),
+        });
+      });
     });
   });
 

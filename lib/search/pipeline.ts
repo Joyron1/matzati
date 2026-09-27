@@ -504,9 +504,12 @@ export async function loadMore(
       );
       Object.assign(cached.explanations, added);
       await deps.store.updateResults(fk, cached);
+      // The product data is as old as the cached result set: the rows must say so (/p, /coupons
+      // and /go read updated_at as when the price, promo code and link were checked).
       await deps.store.saveProducts(
         missing,
         Object.fromEntries(Object.entries(added).map(([id, e]) => [id, e.title_he])),
+        new Date(cached.createdAt),
       );
     }
     const results = slice.map((p) => toResultProduct(p, cached.explanations[p.productId]));

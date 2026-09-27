@@ -3,7 +3,11 @@
 import { Check, Copy } from "lucide-react";
 import { useState } from "react";
 
-export function CopyButton({ value }: { value: string }) {
+/**
+ * "העתקה" for a coupon code. `label` is heard but not seen, after the visible word (e.g. "של הקוד
+ * SAVE5"), so a page with several codes does not list several identical "העתקה" buttons.
+ */
+export function CopyButton({ value, label }: { value: string; label?: string }) {
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -24,6 +28,7 @@ export function CopyButton({ value }: { value: string }) {
     >
       {copied ? <Check aria-hidden className="size-4" /> : <Copy aria-hidden className="size-4" />}
       <span aria-live="polite">{copied ? "הועתק" : "העתקה"}</span>
+      {label && <span className="sr-only"> {label}</span>}
     </button>
   );
 }

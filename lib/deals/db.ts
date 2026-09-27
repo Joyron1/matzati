@@ -84,6 +84,12 @@ async function run(query: PromiseLike<DbResult>): Promise<unknown> {
 /** PostgREST filter: ends_at is empty or still ahead. Matches hasEnded(). */
 const notEnded = (now: Date) => `ends_at.is.null,ends_at.gt.${now.toISOString()}`;
 
+/** A big sale: a published holiday with a start (the countdowns count from it). */
+const isSale = (d: Deal) => d.published && d.type === "holiday" && d.starts_at !== null;
+
+/** How far ahead /sales looks: its calendar shows 12 months. */
+export const SALES_HORIZON_DAYS = 365;
+
 // Public reads.
 
 export async function selectPublishedDeals(db: DealsClient, now: Date): Promise<Deal[]> {
@@ -112,11 +118,50 @@ export async function selectNextSale(db: DealsClient, now: Date): Promise<Deal |
       .order("starts_at", { ascending: true })
       .limit(10),
   );
-  return (
-    toDeals(data).find(
-      (d) => d.published && d.type === "holiday" && d.starts_at !== null && !hasEnded(d, now),
-    ) ?? null
+  return toDeals(data).find((d) => isSale(d) && !hasEnded(d, now)) ?? null;
+}
+
+/**
+ * Published holidays for /sales, earliest start first: not ended, and starting within
+ * `horizonDays` of now (or already running).
+ */
+export async function selectSalesCalendar(
+  db: DealsClient,
+  now: Date,
+  horizonDays: number = SALES_HORIZON_DAYS,
+): Promise<Deal[]> {
+  const horizon = new Date(now.getTime() + horizonDays * 86_400_000);
+  const data = await run(
+    db
+      .from(DEALS_TABLE)
+      .select(DEAL_COLUMNS)
+      .eq("published", true)
+      .eq("type", "holiday")
+      .not("starts_at", "is", null)
+      .lte("starts_at", horizon.toISOString())
+      .or(notEnded(now))
+      .order("starts_at", { ascending: true })
+      .limit(PUBLIC_LIMIT),
   );
+  return toDeals(data).filter(
+    (d) => isSale(d) && !hasEnded(d, now) && Date.parse(d.starts_at as string) <= horizon.getTime(),
+  );
+}
+
+/** One published holiday by id (the /sales calendar file), or null. Ended ones still count. */
+export async function selectPublishedSale(db: DealsClient, id: string): Promise<Deal | null> {
+  if (!isDealId(id)) return null;
+  const data = await run(
+    db
+      .from(DEALS_TABLE)
+      .select(DEAL_COLUMNS)
+      .eq("id", id)
+      .eq("published", true)
+      .eq("type", "holiday")
+      .maybeSingle(),
+  );
+  const deal = data ? toDeal(data) : null;
+  return deal && deal.id === id && isSale(deal) ? deal : null;
 }
 
 /** Newest published deal for this product that is running now and has a coupon. */

@@ -12,6 +12,8 @@ import {
   selectDeal,
   selectNextSale,
   selectPublishedDeals,
+  selectPublishedSale,
+  selectSalesCalendar,
   toDeal,
   updateDeal,
   updatePublished,
@@ -49,6 +51,9 @@ class FakeQuery implements PromiseLike<Result> {
   }
   not(...a: unknown[]) {
     return this.add("not", a);
+  }
+  lte(...a: unknown[]) {
+    return this.add("lte", a);
   }
   or(...a: unknown[]) {
     return this.add("or", a);
@@ -196,6 +201,81 @@ describe("public reads", () => {
     });
     expect((await selectNextSale(db, NOW))?.id).toBe(future.id);
     expect(await selectNextSale(fakeDb().db, NOW)).toBeNull();
+  });
+
+  it("sales calendar: published holidays not ended and starting within a year", async () => {
+    const running = row({
+      type: "holiday",
+      starts_at: "2026-09-30T00:00:00Z",
+      ends_at: "2026-10-02T00:00:00Z",
+    });
+    const later = row({ type: "holiday", starts_at: "2026-11-11T00:00:00+02:00" });
+    const { db, queries } = fakeDb({ data: [running, later], error: null });
+    expect((await selectSalesCalendar(db, NOW)).map((d) => d.id)).toEqual([running.id, later.id]);
+    expect(queries[0].calls).toEqual([
+      ["select", DEAL_COLUMNS],
+      ["eq", "published", true],
+      ["eq", "type", "holiday"],
+      ["not", "starts_at", "is", null],
+      ["lte", "starts_at", "2027-10-01T09:00:00.000Z"],
+      ["or", NOT_ENDED],
+      ["order", "starts_at", { ascending: true }],
+      ["limit", 100],
+    ]);
+  });
+
+  it("sales calendar: a shorter horizon moves the cutoff", async () => {
+    const { db, queries } = fakeDb();
+    await selectSalesCalendar(db, NOW, 30);
+    expect(queries[0].calls).toContainEqual(["lte", "starts_at", "2026-10-31T09:00:00.000Z"]);
+  });
+
+  it("sales calendar: drops rows that do not qualify even if the database returns them", async () => {
+    const keep = row({ type: "holiday", starts_at: "2027-09-30T00:00:00Z", ends_at: null });
+    const { db } = fakeDb({
+      data: [
+        row({ type: "holiday", starts_at: "2026-09-01T00:00:00Z", ends_at: NOW.toISOString() }),
+        row({ type: "holiday", starts_at: "2027-10-01T09:00:01Z" }),
+        row({ type: "holiday", starts_at: null }),
+        row({ type: "holiday", starts_at: "2026-11-11T00:00:00Z", published: false }),
+        row({ type: "deal", starts_at: "2026-11-11T00:00:00Z" }),
+        row({ type: "holiday", starts_at: "someday" }),
+        keep,
+      ],
+      error: null,
+    });
+    expect((await selectSalesCalendar(db, NOW)).map((d) => d.id)).toEqual([keep.id]);
+    await expect(
+      selectSalesCalendar(fakeDb({ data: null, error: { message: "boom" } }).db, NOW),
+    ).rejects.toBeInstanceOf(DealsDbError);
+  });
+
+  it("published sale: one holiday by uuid; other ids never reach the database", async () => {
+    const sale = row({ id: ID, type: "holiday", starts_at: "2026-11-11T00:00:00Z" });
+    const { db, queries } = fakeDb({ data: sale, error: null });
+    expect((await selectPublishedSale(db, ID))?.id).toBe(ID);
+    expect(queries[0].calls).toEqual([
+      ["select", DEAL_COLUMNS],
+      ["eq", "id", ID],
+      ["eq", "published", true],
+      ["eq", "type", "holiday"],
+      ["maybeSingle"],
+    ]);
+    expect(await selectPublishedSale(db, "../etc")).toBeNull();
+    expect(queries).toHaveLength(1);
+  });
+
+  it("published sale: null for a missing row, a draft, another type or no start", async () => {
+    expect(await selectPublishedSale(fakeDb({ data: null, error: null }).db, ID)).toBeNull();
+    for (const over of [
+      { published: false },
+      { type: "deal" as const },
+      { starts_at: null },
+      { id: "9b1deb4d-3b7d-4bad-9bdd-000000000000" },
+    ]) {
+      const data = row({ id: ID, type: "holiday", starts_at: "2026-11-11T00:00:00Z", ...over });
+      expect(await selectPublishedSale(fakeDb({ data, error: null }).db, ID)).toBeNull();
+    }
   });
 
   it("coupon: newest current published deal for the product with a code", async () => {

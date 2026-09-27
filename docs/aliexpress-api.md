@@ -39,6 +39,7 @@ user `access_token` from the OAuth flow (docs 1590, 1364).
 | Video         | `product_video_url`: an `.mp4` on `video.aliexpress-media.com`, or `""`. Returned by `product.query`, `productdetail.get` and `featuredpromo.products.get`. Present on 1 of 2 products (productdetail), 6 of 50 (product.query fixture), 3 of 5 (featuredpromo.products)                                                                                                       | Real calls + fixtures                                |
 | SKUs          | `productdetail.get` returns a single `sku_id` (the default SKU) and no SKU list, colors, sizes or stock                                                                                                                                                                                                                                                                        | Real calls + docs                                    |
 | Promo codes   | `promo_code_info` is present on some products only (1 of 5 featuredpromo products, 0 of 50 in product.query, 0 of 2 in productdetail). Fields: `promo_code`, `code_value` (English text, e.g. "On order over ILS 62.2 , get ILS 3.11 off"), `code_mini_spend`, `code_quantity`, `code_availabletime_start`/`_end` (docs: PST), `code_campaigntype`, `code_promotionurl` (docs) | Real call 2026-09-28 + docs                          |
+| Promo times   | The docs say "PST" and do not say whether PDT applies in summer: UNCONFIRMED. Until one real code settles it, `lib/aliexpress/promo-code.ts` reads the window on the safe side: the start as fixed UTC-8 (the later reading in the PDT season), the end as `America/Los_Angeles` (the earlier one). The sample's start 2026-08-18 00:00 is stored as 08:00Z, not 07:00Z        | Docs + sample                                        |
 | Promo type    | `code_campaigntype` is documented as 0 = amount off, 1 = % off, but the sample had `"1"` with a fixed-amount `code_value`. Read the offer from `code_value`, never from the type                                                                                                                                                                                               | Real call                                            |
 | Not returned  | No long description, attribute/spec table or review text in any affiliate method. `ean_code` and `promo_code_info` are documented for productdetail but were absent on both probed products                                                                                                                                                                                    | Docs (all 15 AE-Affiliate methods) + real calls      |
 
@@ -90,13 +91,28 @@ Group (doc 1940). Request ids are for support tickets.
 
 - `aliexpress.affiliate.hotproduct.query`, `product.sku.detail.get` and `promotion.info.get` return
   `InsufficientPermission`. The owner can request them in the API Permission Group (doc 1940);
-  confirm each with one call before building on it.
+  confirm each with one call before building on it. The product page's SKU variants are built
+  behind `SKU_DETAILS_ENABLED`, which stays off until `product.sku.detail.get` is granted.
+- `product.sku.detail.get` (doc 1795) documents a response envelope with `result.{result, code, success}`
+  rather than `resp_result`, which `parseEnvelope` expects ("Missing resp_result"). Adapt the parser
+  only after the first real call once the permission is granted, and only then turn on
+  `SKU_DETAILS_ENABLED`. The /p refresh already spaces its calls (productdetail, link.generate,
+  SKU details) 1.1 s apart.
+- Promo code times: confirm with one real code whether `code_availabletime_*` follow PDT in summer,
+  then read both ends in that zone (see Promo times).
 - The owner should confirm in the Portals click report that the probe click of 2026-09-27 21:09 UTC
   on product 1005006338829917 was counted, and read the Portals Help Center (logged in) for the
   cookie window and cart rules.
-- `fixtures/aliexpress/aliexpress.affiliate.link.generate.json` (committed in M2) holds the real
-  tracking id in `result.tracking_id`, and `npm run check:ali -- --save` writes it unmasked. Mask
-  both.
+- Tracking id in fixtures: masked since 2026-09-28. `result.tracking_id` in
+  `fixtures/aliexpress/aliexpress.affiliate.link.generate.json` is `<ALIEXPRESS_TRACKING_ID>`;
+  `npm run check:ali -- --save` and `scripts/probe-product-extras.ts` replace every `.env.local`
+  value with `<KEY>` before saving (`maskEnvValues` in `lib/mask.ts`; fixtures the probe saved
+  earlier say `<masked:KEY>`), and `lib/fixtures-secrets.test.ts` fails when a file under
+  `fixtures/` holds one. The real id remains in git history from commit 5b698fc (M2). Low risk: it
+  is an identifier that credits sales to this account, not a credential. Links still need our app
+  key and secret, and the gateway accepts only tracking ids of the account behind the app key (see
+  Account check). Rotating it in Portals is the owner's call; a new id goes into `.env.local` and
+  the Vercel env vars, and links already stored were made with the old id and need regenerating.
 - Rate limits are not documented per method; see the Rate limit row. The client retries network
   errors and 5xx twice with backoff (400 ms, 1200 ms) and does not retry auth, parameter or
   rate-limit errors.

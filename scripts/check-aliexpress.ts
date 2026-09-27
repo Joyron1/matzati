@@ -1,32 +1,68 @@
 // Credential and API check (CLAUDE.md §5.4). Makes exactly 3 AliExpress calls.
 // Usage: npm run check:ali            prints PASS/FAIL per step
-//        npm run check:ali -- --save  also writes the raw responses to fixtures/aliexpress/
-import { mkdirSync, writeFileSync } from "node:fs";
+//        npm run check:ali -- --save  also writes the raw responses to fixtures/aliexpress/,
+//                                     with every .env.local value (the tracking id in
+//                                     link.generate's result) replaced by <KEY>
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { productQueryParams } from "@/lib/aliexpress/affiliate";
 import { AliExpressClient, type CallResult } from "@/lib/aliexpress/client";
 import { AliExpressError } from "@/lib/aliexpress/errors";
 import { unwrapList } from "@/lib/aliexpress/unwrap";
-import { aliexpressConfig, ConfigError } from "@/lib/env";
-import { maskSecret } from "@/lib/mask";
+import { aliexpressConfig, ConfigError, type AliExpressConfig } from "@/lib/env";
+import {
+  findEnvValues,
+  maskEnvValues,
+  maskEnvValuesDeep,
+  parseEnvFile,
+  secretEnv,
+  type EnvValues,
+} from "@/lib/mask";
 
 const SAVE = process.argv.includes("--save");
 const FIXTURES = "fixtures/aliexpress";
 
 type Row = Record<string, unknown>;
 
+const readIfExists = (path: string) => (existsSync(path) ? readFileSync(path, "utf8") : "");
+
+// Every .env.local value, not only the AliExpress ones; the config values in case the variables
+// came from somewhere else.
+let secrets: EnvValues = {};
+function loadSecrets(config: AliExpressConfig) {
+  secrets = {
+    ...secretEnv(
+      parseEnvFile(readIfExists(".env.local")),
+      parseEnvFile(readIfExists(".env.example")),
+    ),
+    ALIEXPRESS_APP_KEY: config.appKey,
+    ALIEXPRESS_APP_SECRET: config.appSecret,
+    ALIEXPRESS_TRACKING_ID: config.trackingId,
+  };
+}
+
 function saveFixture(method: string, res: CallResult) {
   if (!SAVE) return;
+  const text = `${JSON.stringify(maskEnvValuesDeep(res.raw, secrets), null, 2)}\n`;
+  const { leaks } = findEnvValues(text, secrets);
+  if (leaks.length) {
+    console.log(`       NOT SAVED ${FIXTURES}/${method}.json: still contains ${leaks.join(", ")}`);
+    process.exitCode = 1;
+    return;
+  }
   mkdirSync(FIXTURES, { recursive: true });
-  writeFileSync(`${FIXTURES}/${method}.json`, `${JSON.stringify(res.raw, null, 2)}\n`);
-  console.log(`       saved ${FIXTURES}/${method}.json`);
+  writeFileSync(`${FIXTURES}/${method}.json`, text);
+  console.log(`       saved ${FIXTURES}/${method}.json (.env.local values masked)`);
 }
 
 function describeError(err: unknown): string {
+  let text: string;
   if (err instanceof AliExpressError) {
     const d = err.details;
-    return `[${err.kind}] ${err.message}${d.requestId ? ` (request_id ${d.requestId})` : ""}`;
+    text = `[${err.kind}] ${err.message}${d.requestId ? ` (request_id ${d.requestId})` : ""}`;
+  } else {
+    text = err instanceof Error ? err.message : String(err);
   }
-  return err instanceof Error ? err.message : String(err);
+  return maskEnvValues(text, secrets);
 }
 
 async function step<T>(name: string, fn: () => Promise<T>): Promise<T | undefined> {
@@ -53,9 +89,10 @@ async function main() {
     throw err;
   }
 
+  loadSecrets(config);
   console.log(`app_key     set (${config.appKey.length} chars)`);
   console.log(`app_secret  set (${config.appSecret.length} chars)`);
-  console.log(`tracking_id ${maskSecret(config.trackingId)}`);
+  console.log(`tracking_id set (${config.trackingId.length} chars)`);
   console.log(`gateway     ${config.gateway}\n`);
 
   const client = new AliExpressClient(config);

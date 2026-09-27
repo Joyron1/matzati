@@ -4,14 +4,22 @@
 // traces and error messages never reach the caller.
 import "server-only";
 import { APIError as LlmApiError } from "@anthropic-ai/sdk";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { after } from "next/server";
 import { cache } from "react";
 import { z } from "zod";
-import { generateLinks, getProductDetails } from "@/lib/aliexpress/affiliate";
+import { generateLinks, getProductDetails, getSkuDetails } from "@/lib/aliexpress/affiliate";
 import { AliExpressClient } from "@/lib/aliexpress/client";
 import { AliExpressError } from "@/lib/aliexpress/errors";
-import type { AliProduct } from "@/lib/aliexpress/schemas";
-import { RESULTS_PER_PAGE } from "@/lib/config/site";
+import {
+  isPromoCodeCurrent,
+  readStoredPromoCode,
+  type AliPromoCode,
+} from "@/lib/aliexpress/promo-code";
+import { mediaUrl, type AliProduct, type AliSkuDetails } from "@/lib/aliexpress/schemas";
+import { LINK_MAX_AGE_DAYS, RESULTS_PER_PAGE, SKU_DETAILS_ENABLED } from "@/lib/config/site";
+import { couponsForProduct } from "@/lib/coupons/queries";
+import type { Coupon } from "@/lib/coupons/types";
 import { couponForProduct } from "@/lib/deals/queries";
 import { aliexpressConfig, ConfigError, llmConfig } from "@/lib/env";
 import { checkSearchRate, clientIp, consumeDailyLlmBudget, hashIp } from "@/lib/guard/rate-limit";
@@ -50,7 +58,34 @@ const PRODUCT_ID = /^\d{1,20}$/;
 const FILTERS_KEY = /^[0-9a-f]{64}$/;
 const CLICK_SRC = /^[a-z0-9_-]{1,32}$/i;
 const PRODUCT_TTL_MS = 24 * 3_600_000;
+const LINK_MAX_AGE_MS = LINK_MAX_AGE_DAYS * 86_400_000;
 const LAST_PAGE = Math.ceil(RESULTS_KEPT / RESULTS_PER_PAGE) - 1;
+/**
+ * Gap between two AliExpress calls of one request. The app key's frequency ban (ApiCallLimit,
+ * about a second) is shared by every caller, so back-to-back calls would cost a retry (CLAUDE.md
+ * §6.4 spaces the search's calls the same way).
+ */
+const ALI_SPACING_MS = 1_100;
+
+type Spaced = <T>(call: () => Promise<T>) => Promise<T>;
+
+/**
+ * Runs the AliExpress calls of one request one after another, each starting at least
+ * ALI_SPACING_MS after the previous one ended. The /p refresh can make productdetail.get,
+ * link.generate and (with SKU_DETAILS_ENABLED) product.sku.detail.get in a row.
+ */
+function aliSpacer(): Spaced {
+  let lastEnd: number | null = null;
+  return async (call) => {
+    const wait = lastEnd === null ? 0 : lastEnd + ALI_SPACING_MS - Date.now();
+    if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+    try {
+      return await call();
+    } finally {
+      lastEnd = Date.now();
+    }
+  };
+}
 
 const guardEnvSchema = z.object({
   IP_HASH_SALT: z.string().trim().optional(),
@@ -266,8 +301,19 @@ export interface ProductPageData {
   tips: string[] | null;
   /** Hebrew name of the category the tips are for; null when we have no translation. */
   tipsCategoryHe: string | null;
-  /** A published, current community coupon for this product, or null. */
+  /**
+   * A published, current community coupon for this product (deals table), or null. The fallback:
+   * null whenever there are owner coupons.
+   */
   coupon: Deal | null;
+  /** Owner coupons valid now (lib/coupons): this product's own first, then featured sitewide. */
+  ownerCoupons: Coupon[];
+  /** The product's AliExpress promo code while it is valid (startsAt <= now < endsAt), or null. */
+  apiCoupon: AliPromoCode | null;
+  /** product_video_url (https, *.aliexpress-media.com), or null. */
+  videoUrl: string | null;
+  /** Colors and sizes; always null while SKU_DETAILS_ENABLED is off. */
+  skuDetails: AliSkuDetails | null;
 }
 
 const itemUrl = (productId: string) => `https://www.aliexpress.com/item/${productId}.html`;
@@ -277,15 +323,50 @@ async function generateLink(ali: AliExpressClient, productId: string): Promise<s
   return links.find((l) => l.promotionLink)?.promotionLink ?? null;
 }
 
-/** Fresh details with an affiliate link, or null when AliExpress no longer returns the product. */
-async function refreshProduct(productId: string, knownLink: string | null) {
-  const ali = aliClient();
-  const page = await getProductDetails(ali, [productId]);
+/**
+ * When the stored affiliate link was made: promotionLinkAt when that was set, otherwise the row's
+ * last save (the link came with that save's product data).
+ */
+const linkMadeAt = (stored: StoredProduct) => stored.product.promotionLinkAt ?? stored.updatedAt;
+
+/** True while the stored link is younger than LINK_MAX_AGE_DAYS. An unreadable time is old. */
+function linkIsFresh(stored: StoredProduct, now: Date): boolean {
+  const made = Date.parse(linkMadeAt(stored));
+  return Number.isFinite(made) && now.getTime() - made < LINK_MAX_AGE_MS;
+}
+
+/**
+ * Fresh details with an affiliate link, or null when AliExpress no longer returns the product.
+ * When productdetail.get sends no link, the stored one is kept (with the time it was made) while it
+ * is fresh; otherwise a new one is generated.
+ */
+async function refreshProduct(
+  ali: AliExpressClient,
+  spaced: Spaced,
+  stored: StoredProduct,
+  now: Date,
+): Promise<AliProduct | null> {
+  const { productId } = stored.product;
+  const page = await spaced(() => getProductDetails(ali, [productId]));
   const product = page.products.find((p) => p.productId === productId);
   if (!product) return null;
   if (product.promotionLink) return product;
-  const promotionLink = knownLink ?? (await generateLink(ali, productId));
+  const known = stored.product.promotionLink;
+  if (known && linkIsFresh(stored, now)) {
+    return { ...product, promotionLink: known, promotionLinkAt: linkMadeAt(stored) };
+  }
+  const promotionLink = await spaced(() => generateLink(ali, productId));
   return promotionLink ? { ...product, promotionLink } : null; // never show what we cannot link
+}
+
+/** SKU details for the refresh. A failure (such as a missing permission) only leaves them out. */
+async function skuDetailsFor(ali: AliExpressClient, productId: string) {
+  try {
+    return await getSkuDetails(ali, productId);
+  } catch (err) {
+    logError("sku", err);
+    return null;
+  }
 }
 
 interface PageProduct {
@@ -312,7 +393,12 @@ async function loadPageProduct(productId: string): Promise<PageProduct | null> {
   }
   let fresh: AliProduct | null;
   try {
-    fresh = await refreshProduct(productId, stored.product.promotionLink);
+    const ali = aliClient();
+    const spaced = aliSpacer();
+    fresh = await refreshProduct(ali, spaced, stored, now);
+    if (fresh && SKU_DETAILS_ENABLED) {
+      fresh = { ...fresh, skuDetails: await spaced(() => skuDetailsFor(ali, productId)) };
+    }
   } catch (err) {
     logError("product", err);
     // Real data from the last refresh (with its date) beats a 404 while AliExpress is down.
@@ -385,9 +471,29 @@ async function couponForPage(productId: string, now: Date): Promise<Deal | null>
   }
 }
 
+async function ownerCouponsForPage(productId: string, now: Date): Promise<Coupon[]> {
+  try {
+    return await couponsForProduct(productId, now);
+  } catch (err) {
+    logError("coupons", err);
+    return [];
+  }
+}
+
 /**
- * Everything /p shows: the product (see loadPageProduct), its category tips and a community
- * coupon. Tips and coupon never fail the page; they are simply left out.
+ * The product's AliExpress promo code while it is valid. Its amounts are in the request currency,
+ * so it is shown for ILS products only, where ₪ is what AliExpress itself wrote. The stored jsonb
+ * is checked again (readStoredPromoCode), as /coupons does.
+ */
+function apiCouponFor(p: AliProduct, now: Date): AliPromoCode | null {
+  const code = readStoredPromoCode(p.promoCode);
+  return code && p.currency === "ILS" && isPromoCodeCurrent(code, now) ? code : null;
+}
+
+/**
+ * Everything /p shows: the product (see loadPageProduct) with its video and AliExpress promo code,
+ * its category tips, owner coupons and the community coupon. Tips and coupons never fail the page;
+ * they are simply left out. Products saved before videos and promo codes were read lack them.
  * Wrapped in cache() so generateMetadata and the page share one lookup (and refresh) per request.
  */
 export const productForPage = cache(async (productId: string): Promise<ProductPageData | null> => {
@@ -397,14 +503,23 @@ export const productForPage = cache(async (productId: string): Promise<ProductPa
     if (!loaded) return null;
     const { product: p, titleHe, updatedAt } = loaded;
     const now = new Date();
-    const [tips, coupon] = await Promise.all([tipsForPage(p, now), couponForPage(productId, now)]);
+    const [tips, coupon, ownerCoupons] = await Promise.all([
+      tipsForPage(p, now),
+      couponForPage(productId, now),
+      ownerCouponsForPage(productId, now),
+    ]);
     return {
       product: toResultProduct(p, titleHe ? { title_he: titleHe, why_he: "" } : undefined),
       detailUrl: p.detailUrl,
       shopName: p.shop.name,
       updatedAt,
       ...tips,
-      coupon,
+      coupon: ownerCoupons.length ? null : coupon,
+      ownerCoupons,
+      apiCoupon: apiCouponFor(p, now),
+      // The stored row is not trusted blindly: only AliExpress's media CDN over https.
+      videoUrl: mediaUrl(p.videoUrl),
+      skuDetails: SKU_DETAILS_ENABLED ? (p.skuDetails ?? null) : null,
     };
   } catch (err) {
     logError("product", err);
@@ -473,27 +588,94 @@ function safeAliExpressUrl(link: string): string | null {
   }
 }
 
-async function affiliateLink(store: SupabaseStore, stored: StoredProduct): Promise<string | null> {
-  if (stored.product.promotionLink) return stored.product.promotionLink;
-  const { productId } = stored.product;
-  const link = await generateLink(aliClient(), productId);
-  if (link) {
-    await store
-      .saveProducts([{ ...stored.product, promotionLink: link }], { [productId]: stored.titleHe })
-      .catch((err) => logError("go", err));
+/**
+ * Saves a new link into the stored product without touching updated_at: the row's price is as old
+ * as before, and /p must keep saying when it was checked (saveProducts would stamp the row as
+ * fresh and add a price_history row). Applies only to the row as it was read, so a refresh saved
+ * in the meantime is never overwritten with older data.
+ */
+async function saveLink(db: SupabaseClient, stored: StoredProduct, link: string, now: Date) {
+  const data: AliProduct = {
+    ...stored.product,
+    promotionLink: link,
+    promotionLinkAt: now.toISOString(),
+  };
+  const { error } = await db
+    .from("products")
+    .update({ data })
+    .eq("product_id", data.productId)
+    .eq("updated_at", stored.updatedAt);
+  if (error) throw error;
+}
+
+/** One link.generate call for /go; the new link is saved. Null when it fails or gives nothing usable. */
+async function regenerateLink(
+  db: SupabaseClient,
+  stored: StoredProduct,
+  now: Date,
+): Promise<string | null> {
+  let link: string | null = null;
+  try {
+    link = await generateLink(aliClient(), stored.product.productId);
+  } catch (err) {
+    logError("go", err);
   }
+  if (!link || !safeAliExpressUrl(link)) return null;
+  await saveLink(db, stored, link, now).catch((err) => logError("go", err));
   return link;
+}
+
+/** How long a link.generate result for /go is reused (per product and server instance). */
+const LINK_RETRY_MS = 10 * 60_000;
+const linkRuns = new Map<string, { run: Promise<string | null>; settledAt?: number }>();
+
+/**
+ * The stored link while it is younger than LINK_MAX_AGE_DAYS (AliExpress may invalidate old short
+ * links, agreement 5.4). Otherwise, or when there is none, one link.generate call makes a new one,
+ * which is saved; when that fails the stored link is still used.
+ *
+ * /go is public and has no per-IP limit, and the app key shares one frequency ban with searches and
+ * /p, so a burst of clicks on one old link must not become a burst of calls: clicks that arrive
+ * while a call runs share it, and its result (a new link, or a failure that falls back to the
+ * stored link) is reused for LINK_RETRY_MS instead of calling again. Normally the saved link is
+ * fresh and no click gets here; the reuse matters when AliExpress or the save fails.
+ */
+async function affiliateLink(
+  db: SupabaseClient,
+  stored: StoredProduct,
+  now: Date,
+): Promise<string | null> {
+  const current = stored.product.promotionLink;
+  if (current && linkIsFresh(stored, now)) return current;
+  const id = stored.product.productId;
+  const entry = linkRuns.get(id);
+  const expired =
+    entry?.settledAt !== undefined && now.getTime() - entry.settledAt >= LINK_RETRY_MS;
+  if (entry && !expired) return (await entry.run) ?? current;
+  for (const [key, e] of linkRuns) {
+    // Results nobody can reuse any more; keeps the map as small as the recent regenerations.
+    if (e.settledAt !== undefined && now.getTime() - e.settledAt >= LINK_RETRY_MS) {
+      linkRuns.delete(key);
+    }
+  }
+  const run: Promise<string | null> = regenerateLink(db, stored, now).then((link) => {
+    linkRuns.set(id, { run, settledAt: Date.now() });
+    return link;
+  });
+  linkRuns.set(id, { run });
+  return (await run) ?? current;
 }
 
 /** Logs a click and returns the affiliate link to redirect to, or null when there is none. */
 export async function clickOut(productId: string, src: string): Promise<string | null> {
   if (!PRODUCT_ID.test(productId)) return null;
   try {
-    const store = new SupabaseStore(serviceClient());
+    const db = serviceClient();
+    const store = new SupabaseStore(db);
     const stored = await store.getProduct(productId);
     if (!stored) return null;
     const [link] = await Promise.all([
-      affiliateLink(store, stored),
+      affiliateLink(db, stored, new Date()),
       store
         .logClick(productId, CLICK_SRC.test(src) ? src : "other")
         .catch((err) => logError("go", err)),

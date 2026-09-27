@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { CloudOff } from "lucide-react";
+import { CalendarClock, ChevronLeft, CloudOff } from "lucide-react";
 import { DealsBoard } from "@/components/deals-board";
 import { StateCard } from "@/components/state-card";
 import { WhatsappCta } from "@/components/whatsapp-cta";
 import { DEALS_ENABLED } from "@/lib/config/site";
-import { listPublishedDeals } from "@/lib/deals/queries";
+import { hasUpcomingSales, listPublishedDeals } from "@/lib/deals/queries";
 import type { Deal } from "@/lib/types";
 
 export const metadata: Metadata = {
@@ -27,7 +28,7 @@ export default async function DealsPage() {
   if (!DEALS_ENABLED) notFound();
   // Rendered per request: which deals have ended depends on the time of the visit.
   await connection();
-  const deals = await loadDeals();
+  const [deals, hasSales] = await Promise.all([loadDeals(), hasUpcomingSales()]);
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 px-4 pt-8 sm:px-6 sm:pt-12">
@@ -37,6 +38,16 @@ export default async function DealsPage() {
           הצוות בוחר ידנית דילים, מזכיר מתי מתחילים המבצעים הגדולים, ומסמן מוצרים שעדיף לא לקנות.
           אין כאן מקומות ממומנים.
         </p>
+        {hasSales && (
+          <Link
+            href="/sales"
+            className="inline-flex min-h-11 items-center gap-1.5 font-semibold text-accent-ink underline-offset-4 hover:underline"
+          >
+            <CalendarClock aria-hidden className="size-[18px]" />
+            ליומן המבצעים הגדולים
+            <ChevronLeft aria-hidden className="size-4" />
+          </Link>
+        )}
       </div>
       {deals ? (
         <DealsBoard deals={deals} />

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { BRAND } from "@/lib/config/brand";
 import { DEALS_ENABLED } from "@/lib/config/site";
-import { hasPublishedDeals } from "@/lib/deals/queries";
+import { hasPublishedCoupons } from "@/lib/coupons/queries";
+import { hasPublishedDeals, hasUpcomingSales } from "@/lib/deals/queries";
 import { LogoMark } from "./logo";
 
 const LINKS = [
@@ -12,10 +13,18 @@ const LINKS = [
 ];
 
 export async function SiteFooter() {
-  const links =
-    DEALS_ENABLED && (await hasPublishedDeals())
-      ? [{ href: "/deals", label: "דילים" }, ...LINKS]
-      : LINKS;
+  // Deals, sales and coupons only while their pages have something to show (as in the header).
+  const [deals, sales, coupons] = await Promise.all([
+    DEALS_ENABLED && hasPublishedDeals(),
+    hasUpcomingSales(),
+    hasPublishedCoupons(),
+  ]);
+  const links = [
+    ...(deals ? [{ href: "/deals", label: "דילים" }] : []),
+    ...(sales ? [{ href: "/sales", label: "מבצעים" }] : []),
+    ...(coupons ? [{ href: "/coupons", label: "קופונים" }] : []),
+    ...LINKS,
+  ];
   return (
     <footer className="mt-20 border-t border-line">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-[1.2fr_1fr]">

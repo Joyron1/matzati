@@ -14,7 +14,7 @@ Revenue comes from the AliExpress Affiliate Program (the owner already has an af
 
 Core product promises (never break these):
 1. **Few, vetted results.** 3 at a time, and every one passed our filters.
-2. **Honest data.** Every number shown (price, % positive feedback, units sold) comes from an AliExpress API response. Nothing invented.
+2. **Honest data.** Every number shown (price, % positive feedback, units sold) comes from an AliExpress API response. Nothing invented. The only exceptions are what the owner enters in `/admin` and we label as ours: coupons ("לפי תנאי הקופון") and sale dates ("תאריכים לפי הודעת אלי אקספרס"). No review text, no invented specs or descriptions.
 3. **Transparent.** Affiliate disclosure next to every buy button. Show which filters were applied and let the user remove them.
 
 ## 2. The golden architecture rule
@@ -86,9 +86,14 @@ All AliExpress and LLM calls happen **server-side only** (route handlers / serve
 |---|---|
 | `aliexpress.affiliate.category.get` | Credential check + category list |
 | `aliexpress.affiliate.product.query` | Main search by keywords |
-| `aliexpress.affiliate.productdetail.get` | Product page refresh by id |
-| `aliexpress.affiliate.link.generate` | Affiliate link when a product lacks `promotion_link` (batch `source_values`) |
-| `aliexpress.affiliate.hotproduct.query` | Ideas for the deals feed (admin only) |
+| `aliexpress.affiliate.productdetail.get` | Product page refresh by id (also `product_video_url` and, on some products, `promo_code_info`) |
+| `aliexpress.affiliate.link.generate` | Affiliate link when a product lacks `promotion_link` (batch `source_values`); regenerates a stored link older than `LINK_MAX_AGE_DAYS` |
+| `aliexpress.affiliate.featuredpromo.get` / `featuredpromo.products.get` | **Probed, not used by the app yet** (`scripts/probe-product-extras.ts` only). Promotion pools and their products, a possible source of per-product `promo_code_info` (AliExpress codes). Pools carry no dates or country, so they would never feed the sales calendar |
+| `aliexpress.affiliate.order.list` | **Probed, not used by the app yet** (`scripts/probe-product-extras.ts` only). Planned attribution check: our sub-orders per status (`tracking_id`, status, estimated commission). Owner-side only, never shown to visitors |
+| `aliexpress.affiliate.product.sku.detail.get` | **Pending permission** (`InsufficientPermission` 2026-09-28): variants (color, size, price) for the product page, behind `SKU_DETAILS_ENABLED` (off) |
+| `aliexpress.affiliate.hotproduct.query` | Ideas for the deals feed (admin only). **Pending permission** |
+
+Verified behavior, access per method and request ids: `docs/aliexpress-api.md`. Confirm a newly granted permission with one call before turning its flag on.
 
 Common params: `keywords`, `page_no`, `page_size` (50), `sort` (e.g. `LAST_VOLUME_DESC`), `target_currency`, `target_language` (`HE`), `ship_to_country=IL`, `tracking_id`, `min_sale_price` / `max_sale_price`.
 
@@ -97,10 +102,11 @@ Common params: `keywords`, `page_no`, `page_size` (50), `sort` (e.g. `LAST_VOLUM
 - **Price units** of `min_sale_price` / `max_sale_price` (whole units vs cents).
 - **Response fields**: expected names include `product_id`, `product_title`, `target_sale_price`, `target_original_price`, `discount`, `evaluate_rate` (e.g. `"97.5%"`), `lastest_volume` (API spelling), `product_main_image_url`, `product_small_image_urls`, `product_detail_url`, `promotion_link`, `shop_id`, `shop_url`, `commission_rate`, `first_level_category_id`. Save one raw response per method to `fixtures/aliexpress/` (dev only, no secrets) and build zod schemas from real data.
 - **Seller/store rating**: the affiliate API may not expose a store rating. **If no verified field exists, do not show any "seller reliability" number.** Our trust signals are then product positive-feedback % and units sold only.
-- **Reviews**: review text is not available through the affiliate API. Do not build review summaries. Do not scrape AliExpress pages (violates their terms).
+- **Reviews**: review text is not available through the affiliate API. Do not build review summaries. Do not scrape AliExpress pages (violates their terms). The product page shows the API's numbers only and links to the reviews on AliExpress through `/go`.
 
 ### 5.4 Credential check script
 `scripts/check-aliexpress.ts` (run with `npm run check:ali`): calls `category.get`, a sample `product.query` for "usb cable", and `link.generate` for one product. Prints PASS/FAIL per step with secrets masked. Build this in milestone M2 before anything depends on the API.
+`-- --save` writes the raw responses to `fixtures/aliexpress/` with every `.env.local` value of 6+ characters replaced by `<KEY>` (`maskEnvValues` in `lib/mask.ts`; keys with a default in `.env.example` are public config and stay). The tracking id comes back in `link.generate`'s `result.tracking_id`, so the committed fixture holds `<ALIEXPRESS_TRACKING_ID>`.
 
 ## 6. Search pipeline — `POST /api/search`
 
@@ -148,10 +154,12 @@ Input: `{ q: string }` (1–200 chars, trimmed).
 | `/` | Home (redesigned with the owner 2026-09-28): one centered hero column (tagline, H1, subline) with the search composer as the focal point; right under it "חיפושים חמים" (pills of the understood product label of recent searches, one per product, never the visitor's query; owner decision 2026-09-27; link to `/searches`); then "איך לחפש" (4 tips whose example buttons add their text to the composer without searching, plus one full example) beside "רעיונות לחיפוש" (8 example queries by topic, `from=example`); then "איך זה עובד", next-sale countdown card, "איך אנחנו מרוויחים", popular SEO searches. No live example preview: the home page reads the database only and never starts a search. |
 | `/search?q=` | Results: query bar, removable chips, "בדקנו X מוצרים. Y עברו" (plus when prices were checked, for results older than 24h), 1 featured result + 2 compact, refine buttons, "עוד 3 אפשרויות" |
 | `/searches` | "חיפושים אחרונים": one card per normalized query of listable visitor searches (query, understood chips, up to 3 result photos, category, time), category and free-text filters; not hidden by an admin (`hidden_searches`). `noindex, follow`. |
-| `/p/[productId]` | Product: images, approx ILS price, optional community coupon, "למה זה עבר את הסינון" (thresholds shown), category tips (labelled generic), buy CTA, disclosure |
-| `/go/[productId]` | Click-out: logs `{product_id, src, ts}` then 302 to the affiliate link. All buy buttons go through it. Links use `rel="sponsored nofollow"`. |
+| `/p/[productId]` | Product: images plus the AliExpress video when the product has one (`product_video_url`), approx ILS price, AliExpress promo codes for the product (`promo_code_info`, shown only while valid, offer as AliExpress states it) and our coupons for it (labelled "לפי תנאי הקופון"), "למה זה עבר את הסינון" (thresholds shown), reviews card (no review text and no numbers of its own, since % positive and 30-day sales are shown above it; a link to the reviews on AliExpress through `/go?src=reviews`), variants behind `SKU_DETAILS_ENABLED` (off until `product.sku.detail.get` is granted), category tips (labelled generic), buy CTA, disclosure |
+| `/go/[productId]` | Click-out: logs `{product_id, src, ts}` then 302 to the affiliate link. All buy buttons go through it, and so does the reviews card (`src=reviews`). A stored link older than `LINK_MAX_AGE_DAYS` is regenerated with `link.generate` first (AliExpress may invalidate short links over a year old, docs/aliexpress-api.md); clicks that arrive together share one call, and its result (or failure, which falls back to the stored link) is reused for 10 minutes per product. Links use `rel="sponsored nofollow"`. |
 | `/deals` | Curated feed from `deals` table: types `deal`, `holiday`, `dont_buy`; filter buttons; WhatsApp channel CTA |
-| `/admin` | Supabase Auth (magic link), allowed only for `ADMIN_EMAILS`. CRUD for deals and coupons. |
+| `/coupons` | Our published coupons (`coupons` table), valid now (featured first, then the soonest to end) and upcoming, each with its code, copy button and terms, labelled "לפי תנאי הקופון". Then "קודים של אלי אקספרס למוצרים שבדקנו": the AliExpress promo codes (`promo_code_info`) of ILS products refreshed in the last 48 hours, shown only while valid by their own dates, with the offer as AliExpress states it. The menu, footer and sitemap link appears when either section has something to show (`hasPublishedCoupons`). |
+| `/sales` | Sales calendar of the big AliExpress sales (`deals` rows of type `holiday`): countdown to the running or next sale, upcoming sales, a 12-month calendar, add-to-calendar `.ics` per sale (served inline), and the coupons linked to each sale. Dates are the owner's, labelled "תאריכים לפי הודעת אלי אקספרס" (`SALE_DATES_NOTE` in `lib/copy.ts`) wherever they appear: `/sales`, the home countdown, the holiday cards on `/deals` and the `.ics` (no AliExpress method returns sale dates). |
+| `/admin` | Supabase Auth (magic link), allowed only for `ADMIN_EMAILS`. CRUD for deals (sale dates are `holiday` deals) and coupons (`/admin/coupons`). |
 | `/disclosure`, `/privacy`, `/terms` | Static Hebrew pages with `[PLACEHOLDER]` text for the owner to complete |
 
 Share buttons share **our** page URL (e.g. via `https://wa.me/?text=`), never the raw affiliate link.
@@ -170,8 +178,10 @@ Share buttons share **our** page URL (e.g. via `https://wa.me/?text=`), never th
 - `fx_rates(date date pk, usd_ils numeric)`
 - Phase 2: `seo_pages(slug text pk, query text, title_he text, intro_he text, published bool, created_at, updated_at)`; `llm_usage(id, created_at, kind in ('parse','explain','explain_more','tips'), model, input/output/cache tokens, cost_usd)`; `search_log` gained `cache`, `results_count`, `query_norm`, `source`; the admin stats read report functions granted to the service role only.
 - Recent searches: `search_log` gained `category_id text null` (first-level AliExpress category of the first shown result) and `listable boolean not null default false`; `hidden_searches(query_norm text pk, hidden_at timestamptz)` holds queries an admin hid from `/searches`.
+- `products.updated_at` is when the row's data was checked at AliExpress: `/p` ("המחיר נבדק ב־"), the AliExpress codes on `/coupons` (48-hour window) and `/go` (link age) read it that way. "עוד 3 אפשרויות" saves products from a cached result set with the cache's time and never overwrites a row with newer data (`SupabaseStore.saveProducts(…, checkedAt)`).
+- Coupons (`20260928090000_coupons.sql`, apply before deploying the code that reads it): `coupons(id uuid pk, code text, title text, terms text null, min_spend_ils numeric null, scope text check in ('sitewide','product'), product_id text null, sale_id uuid null references deals on delete set null, starts_at timestamptz null, ends_at timestamptz null, featured bool, published bool default false, created_at, updated_at)`. A `product` coupon names its product, a `sitewide` one none; `sale_id` links a coupon to a `holiday` deal; `updated_at` is kept by a trigger. Owner data, never AliExpress data.
 
-RLS on everything. Public (anon) may only `select` from `deals where published = true` and `seo_pages where published = true`. Everything else is server-side with the service role key.
+RLS on everything. Public (anon) may only `select` from `deals where published = true`, `seo_pages where published = true` and `coupons where published = true`. Everything else is server-side with the service role key.
 
 ## 9. Design system (match the approved mockup)
 
@@ -243,13 +253,14 @@ Map these into Tailwind (`theme.extend.colors` using `var(--…)`), never hard-c
   Status 2026-09-27: live at https://matzati-il.vercel.app (Vercel project matzati-il, Git-connected, env vars set).
 - **Phase 2**: price cron, SEO pages for popular queries (`/s/[slug]`, statically generated), sitemap, analytics (only with a cookie notice).
   Status 2026-09-27: SEO pages (`seo_pages` table, `/admin/seo`, `/s/[slug]` ISR), sitemap and robots done; admin stats (`/admin/stats`, `llm_usage` table, report functions) done; price cron and analytics open.
+  Status 2026-09-28 (plan approved by the owner): product page extras (video, AliExpress promo codes, reviews card, affiliate-link refresh past `LINK_MAX_AGE_DAYS`; SKU variants built behind `SKU_DETAILS_ENABLED`, off until the permission is granted), coupons (`coupons` table, `/admin/coupons`, public `/coupons`) and the sales calendar (`/sales`, countdowns, 12-month calendar, `.ics`) done; the coupons migration must be applied before the deploy. The tracking id is masked in committed fixtures and in `check:ali -- --save` (it remains in git history from commit 5b698fc; see docs/aliexpress-api.md).
 
 ## 12. Working rules for Claude Code
 
 - Code and comments in English; all user-facing text in Hebrew.
 - Before calling any paid or quota-limited API in bulk (LLM, AliExpress), say how many calls you are about to make.
 - Do not create cloud resources (Supabase projects, Vercel projects, domains) or anything with a cost without explicit owner approval.
-- Never commit `.env.local`, fixtures containing secrets, or raw IPs.
+- Never commit `.env.local`, fixtures containing secrets, or raw IPs. Save fixtures through `maskEnvValues` (`lib/mask.ts`); `lib/fixtures-secrets.test.ts` fails when a file under `fixtures/` holds an `.env.local` value of 8+ characters (it runs only where `.env.local` exists, and names the key and file, never the value).
 - Run `npm run lint`, `npm run typecheck` and `npm test` before every commit.
 - When an AliExpress field or behavior is uncertain, test it with the check script or read the official docs. Do not guess.
 - Keep functions small and pure where possible (`lib/ranking`, `lib/aliexpress/sign` are pure and fully unit-tested).

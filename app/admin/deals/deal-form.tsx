@@ -11,10 +11,12 @@ import {
   DEAL_TYPES,
   TITLE_MAX,
   TITLE_MIN,
+  type DateZone,
   type DealFormState,
   type DealFormValues,
   type FieldErrors,
 } from "@/lib/deals/schema";
+import { convertLocal, ISRAEL_TIME_ZONE, PACIFIC_TIME_ZONE } from "@/lib/deals/time";
 import { saveDealAction } from "./actions";
 
 const input =
@@ -81,7 +83,141 @@ const ERROR_KEY: Record<keyof DealFormValues, keyof FieldErrors> = {
   coupon_code: "coupon_code",
   starts_at: "starts_at",
   ends_at: "ends_at",
+  date_zone: "form",
 };
+
+const ZONES: Record<DateZone, { timeZone: string; label: string; hint: string }> = {
+  israel: { timeZone: ISRAEL_TIME_ZONE, label: "שעון ישראל", hint: "כמו שמוצג באתר." },
+  pacific: {
+    timeZone: PACIFIC_TIME_ZONE,
+    label: "שעון החוף המערבי",
+    hint: "כמו בהודעות של אלי אקספרס. נמיר לשעון ישראל בשמירה.",
+  },
+};
+
+const otherZone = (zone: DateZone): DateZone => (zone === "israel" ? "pacific" : "israel");
+
+/** "= 10.11 בשעה 14:00 שעון החוף המערבי": a datetime-local value in the other zone. */
+function inOtherZone(value: string, zone: DateZone): string | null {
+  const other = ZONES[otherZone(zone)];
+  const local = convertLocal(value, ZONES[zone].timeZone, other.timeZone);
+  if (!local) return null;
+  const [date, time] = local.split("T");
+  const [, month, day] = date.split("-").map(Number);
+  return `= ${day}.${month} בשעה ${time} ${other.label}`;
+}
+
+type DateField = "starts_at" | "ends_at";
+
+/**
+ * Start and end, typed in Israel time or in Pacific time (AliExpress announces its sales in
+ * Pacific time), each with the same moment in the other zone underneath. The inputs submit what
+ * was typed, together with the chosen zone (date_zone); parseDealForm turns each into an ISO
+ * instant in one step.
+ */
+function DealDates({
+  initial,
+  initialZone,
+  startRequired,
+  errorFor,
+}: {
+  /** datetime-local values in `initialZone`. */
+  initial: Record<DateField, string>;
+  initialZone: DateZone;
+  startRequired: boolean;
+  errorFor: (field: DateField) => string | undefined;
+}) {
+  const [zone, setZone] = useState<DateZone>(initialZone);
+  // What the inputs show, in `zone`. Kept across a rejected submit: the form stays mounted.
+  const [shown, setShown] = useState(initial);
+
+  function switchZone(next: DateZone) {
+    // An incomplete or impossible value is left as typed; the server reports it.
+    const move = (v: string) => convertLocal(v, ZONES[zone].timeZone, ZONES[next].timeZone) || v;
+    setShown((s) => ({ starts_at: move(s.starts_at), ends_at: move(s.ends_at) }));
+    setZone(next);
+  }
+
+  const fields: { name: DateField; label: string; required: boolean }[] = [
+    {
+      name: "starts_at",
+      label: startRequired ? "מועד התחלה (חובה למבצע)" : "מועד התחלה (לא חובה)",
+      required: startRequired,
+    },
+    { name: "ends_at", label: "מועד סיום (לא חובה)", required: false },
+  ];
+
+  return (
+    <div className="space-y-5">
+      <fieldset className="space-y-3" aria-describedby="deal-dates-hint">
+        <legend className="mb-2 font-semibold">באיזה שעון מקלידים</legend>
+        <p id="deal-dates-hint" className="text-sm leading-relaxed text-muted">
+          אלי אקספרס מודיעה על מבצעים בשעון החוף המערבי של ארה״ב. בחרו אותו כדי להקליד את השעות כמו
+          בהודעה. בלי מועד סיום, הפריט נשאר באתר עד שתסירו את הפרסום.
+        </p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {(Object.keys(ZONES) as DateZone[]).map((z) => (
+            <label
+              key={z}
+              className="flex min-h-11 cursor-pointer items-start gap-3 rounded-2xl border border-line bg-surface p-4 hover:border-accent has-checked:border-accent has-checked:ring-1 has-checked:ring-accent has-focus-visible:outline-3 has-focus-visible:outline-offset-2 has-focus-visible:outline-accent"
+            >
+              <input
+                type="radio"
+                name="date_zone"
+                value={z}
+                checked={zone === z}
+                onChange={() => switchZone(z)}
+                className="mt-1 size-4 shrink-0 accent-accent focus-visible:outline-none"
+              />
+              <span className="space-y-1">
+                <span className="block font-semibold">{ZONES[z].label}</span>
+                <span className="block text-sm leading-relaxed text-muted">{ZONES[z].hint}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      <div className="grid gap-5 sm:grid-cols-2">
+        {fields.map(({ name, label, required }) => {
+          const other = shown[name] ? inOtherZone(shown[name], zone) : null;
+          return (
+            <Field key={name} name={name} label={label} error={errorFor(name)}>
+              {(a11y) => (
+                <>
+                  <input
+                    {...a11y}
+                    aria-describedby={[
+                      a11y["aria-describedby"],
+                      `${a11y.id}-zone`,
+                      "deal-dates-hint",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    type="datetime-local"
+                    dir="ltr"
+                    required={required}
+                    value={shown[name]}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setShown((s) => ({ ...s, [name]: value }));
+                    }}
+                    className={input}
+                  />
+                  {/* Not a live region: it changes with every keystroke. The input's
+                      aria-describedby reads it on focus. */}
+                  <p id={`${a11y.id}-zone`} className="text-sm text-muted">
+                    {other}
+                  </p>
+                </>
+              )}
+            </Field>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export function DealForm({ dealId, initial }: { dealId: string | null; initial: DealFormValues }) {
   const action = useMemo(() => saveDealAction.bind(null, dealId), [dealId]);
@@ -239,46 +375,12 @@ export function DealForm({ dealId, initial }: { dealId: string | null; initial: 
         )}
       </Field>
 
-      <div className="space-y-2">
-        <p id="deal-dates-hint" className="text-sm leading-relaxed text-muted">
-          התאריכים בשעון ישראל. בלי מועד סיום, הפריט נשאר באתר עד שתסירו את הפרסום.
-        </p>
-        <div className="grid gap-5 sm:grid-cols-2">
-          <Field
-            name="starts_at"
-            label={type === "holiday" ? "מועד התחלה (חובה למבצע)" : "מועד התחלה (לא חובה)"}
-            error={errorFor("starts_at")}
-          >
-            {(a11y) => (
-              <input
-                {...a11y}
-                aria-describedby={[a11y["aria-describedby"], "deal-dates-hint"]
-                  .filter(Boolean)
-                  .join(" ")}
-                type="datetime-local"
-                dir="ltr"
-                required={type === "holiday"}
-                defaultValue={values.starts_at}
-                className={input}
-              />
-            )}
-          </Field>
-          <Field name="ends_at" label="מועד סיום (לא חובה)" error={errorFor("ends_at")}>
-            {(a11y) => (
-              <input
-                {...a11y}
-                aria-describedby={[a11y["aria-describedby"], "deal-dates-hint"]
-                  .filter(Boolean)
-                  .join(" ")}
-                type="datetime-local"
-                dir="ltr"
-                defaultValue={values.ends_at}
-                className={input}
-              />
-            )}
-          </Field>
-        </div>
-      </div>
+      <DealDates
+        initial={{ starts_at: values.starts_at, ends_at: values.ends_at }}
+        initialZone={values.date_zone === "pacific" ? "pacific" : "israel"}
+        startRequired={type === "holiday"}
+        errorFor={errorFor}
+      />
 
       <div className="flex flex-wrap items-center gap-3 border-t border-line pt-6">
         <button type="submit" disabled={pending} className={`${btnPrimary} ${btnLg}`}>

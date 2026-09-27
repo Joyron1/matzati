@@ -71,8 +71,16 @@ export interface SearchStore {
   logSearch(entry: SearchLogEntry): Promise<void>;
   /** One llm_usage row per LLM call, with its token usage and cost. */
   logUsage(records: LlmUsageRecord[]): Promise<void>;
-  /** Upserts products and appends a price_history row for each. */
-  saveProducts(products: AliProduct[], titlesHe: Record<string, string | null>): Promise<void>;
+  /**
+   * Upserts products and appends a price_history row for each. `checkedAt` is when the data was
+   * fetched from AliExpress when that was earlier than now (a cached result set): the rows get that
+   * time, and a row stored with newer data keeps it (SupabaseStore.saveProducts).
+   */
+  saveProducts(
+    products: AliProduct[],
+    titlesHe: Record<string, string | null>,
+    checkedAt?: Date,
+  ): Promise<void>;
 }
 
 export class MemoryStore implements SearchStore {
@@ -105,7 +113,15 @@ export class MemoryStore implements SearchStore {
   async logUsage(records: LlmUsageRecord[]) {
     this.usage.push(...records);
   }
-  async saveProducts(products: AliProduct[], titlesHe: Record<string, string | null>) {
+  /** Save times of the calls, for tests: null for "now", otherwise the given checkedAt. */
+  savedAt: (string | null)[] = [];
+
+  async saveProducts(
+    products: AliProduct[],
+    titlesHe: Record<string, string | null>,
+    checkedAt?: Date,
+  ) {
+    this.savedAt.push(checkedAt?.toISOString() ?? null);
     for (const p of products) {
       this.products.set(p.productId, { product: p, titleHe: titlesHe[p.productId] ?? null });
     }

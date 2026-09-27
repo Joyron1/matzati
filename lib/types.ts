@@ -70,12 +70,6 @@ export interface Deal {
 /** Fields an admin edits; id, published and created_at are managed separately. */
 export type DealInput = Omit<Deal, "id" | "published" | "created_at">;
 
-export interface Coupon {
-  code: string;
-  description_he: string;
-  valid_until: string | null;
-}
-
 export interface CategoryTips {
   category_id: string;
   category_name_he: string;

@@ -1,10 +1,10 @@
 // Validation for deals: the DealInput contract (checked again right before every write) and the
-// admin form on top of it (datetime-local in Israel time, product id or AliExpress URL).
+// admin form on top of it (datetime-local in Israel or Pacific time, product id or AliExpress URL).
 // Pure, with Hebrew messages the form shows next to each field.
 import { z } from "zod";
 import type { Deal, DealInput, DealType } from "@/lib/types";
 import { extractProductId, PRODUCT_ID_ERRORS, PRODUCT_ID_PATTERN } from "./product-id";
-import { israelLocalToIso, isoToIsraelLocal } from "./time";
+import { ISRAEL_TIME_ZONE, isoToIsraelLocal, PACIFIC_TIME_ZONE, zonedLocalToIso } from "./time";
 
 export const DEAL_TYPES = ["deal", "holiday", "dont_buy"] as const satisfies readonly DealType[];
 
@@ -88,6 +88,9 @@ export function validateDealInput(input: unknown): DealValidation {
     : { ok: false, errors: fieldErrors(parsed.error) };
 }
 
+/** The clock the admin types the dates in: Israel time, or Pacific time as AliExpress announces. */
+export type DateZone = "israel" | "pacific";
+
 /** What the admin typed, echoed back so a rejected form keeps its values. */
 export interface DealFormValues {
   type: string;
@@ -96,9 +99,11 @@ export interface DealFormValues {
   /** Product id or pasted AliExpress URL. */
   product: string;
   coupon_code: string;
-  /** datetime-local values, Israel time. */
+  /** datetime-local values, in the zone of `date_zone`. */
   starts_at: string;
   ends_at: string;
+  /** A DateZone: "pacific" for Pacific time; anything else reads as Israel time. */
+  date_zone: string;
 }
 
 /** useActionState state of the admin deal form. */
@@ -115,6 +120,7 @@ export const FORM_FIELDS = [
   "coupon_code",
   "starts_at",
   "ends_at",
+  "date_zone",
 ] as const satisfies readonly (keyof DealFormValues)[];
 
 export function formValuesFromDeal(deal: Deal | null): DealFormValues {
@@ -126,7 +132,13 @@ export function formValuesFromDeal(deal: Deal | null): DealFormValues {
     coupon_code: deal?.coupon_code ?? "",
     starts_at: isoToIsraelLocal(deal?.starts_at),
     ends_at: isoToIsraelLocal(deal?.ends_at),
+    date_zone: "israel" satisfies DateZone,
   };
+}
+
+/** The IANA zone the form's dates were typed in. */
+export function formTimeZone(values: Pick<DealFormValues, "date_zone">): string {
+  return values.date_zone === "pacific" ? PACIFIC_TIME_ZONE : ISRAEL_TIME_ZONE;
 }
 
 export function readFormValues(formData: FormData): DealFormValues {
@@ -140,7 +152,9 @@ export function readFormValues(formData: FormData): DealFormValues {
 
 /**
  * Admin form → DealInput. Empty optional fields become null, a pasted AliExpress link becomes its
- * product id, and datetime-local values are read as Israel time.
+ * product id, and datetime-local values are read in the zone they were typed in (date_zone), so a
+ * Pacific time is converted once, straight to an instant. (Going through Israel wall-clock time
+ * would lose an hour in Israel's repeated fall-back hour.)
  */
 export function parseDealForm(values: DealFormValues): DealValidation {
   const errors: FieldErrors = {};
@@ -154,10 +168,11 @@ export function parseDealForm(values: DealFormValues): DealValidation {
     else errors.product_id = PRODUCT_ID_ERRORS[extracted.error];
   }
 
+  const timeZone = formTimeZone(values);
   const date = (field: "starts_at" | "ends_at") => {
     const local = optional(values[field]);
     if (!local) return null;
-    const iso = israelLocalToIso(local);
+    const iso = zonedLocalToIso(local, timeZone);
     if (!iso) errors[field] = DEAL_ERRORS.date;
     return iso;
   };

@@ -2,16 +2,18 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parseEnvelope, parseJsonKeepingIds } from "./client";
 import {
+  mediaUrl,
   parseAmount,
   parseCategories,
   parsePercent,
   parseProductPage,
   parsePromotionLinks,
+  parseSkuDetails,
   productSchema,
 } from "./schemas";
 
-function fixtureResult(method: string) {
-  const text = readFileSync(`fixtures/aliexpress/${method}.json`, "utf8");
+function fixtureResult(method: string, file = method) {
+  const text = readFileSync(`fixtures/aliexpress/${file}.json`, "utf8");
   return parseEnvelope(method, parseJsonKeepingIds(text)).result;
 }
 
@@ -115,5 +117,171 @@ describe("productSchema edge cases", () => {
     const page = parseProductPage({ products: { product: [base, { product_id: "1" }] } });
     expect(page.products).toHaveLength(1);
     expect(page.skipped).toBe(1);
+  });
+
+  it("reads a missing video and promo code as null, and a bad one never sinks the product", () => {
+    expect(productSchema.parse(base)).toMatchObject({ videoUrl: null, promoCode: null });
+    const odd = productSchema.parse({
+      ...base,
+      product_video_url: { url: "x" },
+      promo_code_info: "AJO7RM0ITRX2",
+    });
+    expect(odd).toMatchObject({ productId: base.product_id, videoUrl: null, promoCode: null });
+  });
+});
+
+describe("product videos (probe of 2026-09-28)", () => {
+  const page = parseProductPage(
+    fixtureResult(
+      "aliexpress.affiliate.productdetail.get",
+      "probe-extras/aliexpress.affiliate.productdetail.get.fields",
+    ),
+  );
+
+  it('keeps a real video URL and reads "" as none', () => {
+    const byId = Object.fromEntries(page.products.map((p) => [p.productId, p.videoUrl]));
+    expect(byId).toEqual({
+      "1005006338829917": null,
+      "1005006861238003":
+        "https://video.aliexpress-media.com/play/u/ae_sg_item/2673771774/p/1/e/6/t/10301/1100149788409.mp4",
+    });
+  });
+
+  it("accepts only https on *.aliexpress-media.com", () => {
+    const mp4 = "https://video.aliexpress-media.com/play/u/1.mp4";
+    expect(mediaUrl(mp4)).toBe(mp4);
+    expect(mediaUrl(` ${mp4} `)).toBe(mp4);
+    expect(mediaUrl("http://video.aliexpress-media.com/play/u/1.mp4")).toBeNull();
+    expect(mediaUrl("https://video.aliexpress-media.com.evil.test/1.mp4")).toBeNull();
+    expect(mediaUrl("https://aliexpress-media.com/1.mp4")).toBeNull();
+    expect(mediaUrl("https://example.com/1.mp4")).toBeNull();
+    expect(mediaUrl("javascript:alert(1)")).toBeNull();
+    expect(mediaUrl("")).toBeNull();
+    expect(mediaUrl(42)).toBeNull();
+  });
+});
+
+describe("promo codes (featuredpromo.products.get, 2026-09-28)", () => {
+  const page = parseProductPage(
+    fixtureResult(
+      "aliexpress.affiliate.featuredpromo.products.get",
+      "probe-extras/aliexpress.affiliate.featuredpromo.products.get",
+    ),
+  );
+
+  it("parses every product and attaches the one promo code to its product", () => {
+    expect(page.products).toHaveLength(5);
+    expect(page.skipped).toBe(0);
+    const withCode = page.products.filter((p) => p.promoCode);
+    expect(withCode).toHaveLength(1);
+    expect(withCode[0].promoCode).toMatchObject({
+      code: "AJO7RM0ITRX2",
+      offer: { kind: "amount", off: 3.11, minSpend: 62.2, currency: "ILS" },
+    });
+    expect(page.products.filter((p) => p.videoUrl)).toHaveLength(3);
+  });
+});
+
+// Hand-written from the documented fields and demo response of product.sku.detail.get (doc 1795,
+// read 2026-09-28). NOT a live response: the app has no permission for the method yet.
+const DOCUMENTED_SKU_RESULT = {
+  result: {
+    ae_item_info: {
+      product_id: "1005004757833857",
+      title: "Documented demo title",
+      review_number: "2",
+      product_score: "5.0",
+      brand: "FLHJLWOC",
+      original_link: "https://de.aliexpress.com/item/1005004757833857.html",
+    },
+    ae_item_sku_info: [
+      {
+        sku_id: "12000030358585276",
+        color: "WHITE",
+        size: "S",
+        sku_image_link: "https://ae-pic-a1.aliexpress-media.com/kf/white.jpg",
+        sale_price_with_tax: "17.19",
+        price_with_tax: "22.32",
+        discount_rate: "22",
+        currency: "ILS",
+        min_delivery_days: "3",
+        max_delivery_days: "7",
+        delivery_days: "5",
+        ship_from_country: "CN",
+        shipping_fees: "20.03",
+        tax_rate: "0.190000",
+        link: "https://de.aliexpress.com/item/1005004757833857.html",
+        sku_properties: '[{"Color": "WHITE"}]',
+      },
+      {
+        sku_id: "12000030358585277",
+        color: "BLACK",
+        size: "M",
+        sku_image_link: "http://insecure.example/black.jpg",
+        sale_price_with_tax: "",
+        currency: "ILS",
+        min_delivery_days: "4.5",
+        max_delivery_days: "9",
+        ship_from_country: "",
+      },
+      { color: "no sku id" },
+    ],
+  },
+  code: "200",
+  success: "true",
+};
+
+describe("parseSkuDetails (documented shape, not live)", () => {
+  const ID = "1005004757833857";
+
+  it("maps the documented fields and never keeps the per-SKU link", () => {
+    const details = parseSkuDetails(DOCUMENTED_SKU_RESULT, ID);
+    expect(details).toEqual({
+      reviewCount: 2,
+      score: 5,
+      skus: [
+        {
+          skuId: "12000030358585276",
+          color: "WHITE",
+          size: "S",
+          imageUrl: "https://ae-pic-a1.aliexpress-media.com/kf/white.jpg",
+          price: 17.19,
+          currency: "ILS",
+          minDeliveryDays: 3,
+          maxDeliveryDays: 7,
+          shipFrom: "CN",
+        },
+        {
+          skuId: "12000030358585277",
+          color: "BLACK",
+          size: "M",
+          imageUrl: null,
+          price: null,
+          currency: "ILS",
+          minDeliveryDays: null,
+          maxDeliveryDays: 9,
+          shipFrom: null,
+        },
+      ],
+    });
+    expect(JSON.stringify(details)).not.toContain("de.aliexpress.com");
+  });
+
+  it("accepts the inner result, a one-item ae_item_info array and a wrapped SKU list", () => {
+    const inner = DOCUMENTED_SKU_RESULT.result;
+    expect(parseSkuDetails(inner, ID)?.skus).toHaveLength(2);
+    const variant = {
+      ae_item_info: [inner.ae_item_info],
+      ae_item_sku_info: { traffic_sku_info_list: inner.ae_item_sku_info },
+    };
+    expect(parseSkuDetails(variant, ID)?.reviewCount).toBe(2);
+    expect(parseSkuDetails(variant, ID)?.skus).toHaveLength(2);
+  });
+
+  it("returns null for another product, no SKUs or junk", () => {
+    expect(parseSkuDetails(DOCUMENTED_SKU_RESULT, "1005000000000001")).toBeNull();
+    expect(parseSkuDetails({ result: { ae_item_sku_info: [] } }, ID)).toBeNull();
+    expect(parseSkuDetails(undefined, ID)).toBeNull();
+    expect(parseSkuDetails("nope", ID)).toBeNull();
   });
 });

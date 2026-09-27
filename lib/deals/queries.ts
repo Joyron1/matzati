@@ -15,6 +15,8 @@ import {
   selectDeal,
   selectNextSale,
   selectPublishedDeals,
+  selectPublishedSale,
+  selectSalesCalendar,
   updateDeal,
   updatePublished,
 } from "./db";
@@ -54,6 +56,19 @@ export async function listPublishedDeals(now: Date): Promise<Deal[]> {
 /** The next published 'holiday' deal that has not ended, for the home countdown. Null if none. */
 export async function nextSale(now: Date): Promise<Deal | null> {
   return selectNextSale(publicClient(), now);
+}
+
+/**
+ * Published holidays for /sales: not ended, starting within 12 months or already running,
+ * earliest start first.
+ */
+export async function salesCalendar(now: Date): Promise<Deal[]> {
+  return selectSalesCalendar(publicClient(), now);
+}
+
+/** One published holiday by id, for its calendar file. Null if none (ids are checked first). */
+export async function publishedSale(id: string): Promise<Deal | null> {
+  return selectPublishedSale(publicClient(), id);
 }
 
 /** A published, current deal with a coupon for this product (shown on /p). Null if none. */
@@ -100,5 +115,21 @@ export const hasPublishedDeals = unstable_cache(
     }
   },
   ["has-published-deals"],
+  { revalidate: 300, tags: [DEALS_TAG] },
+);
+
+/**
+ * Whether /sales has an upcoming or running sale, for the menu, footer and sitemap links. Cached
+ * like hasPublishedDeals; failures read as "no sales".
+ */
+export const hasUpcomingSales = unstable_cache(
+  async () => {
+    try {
+      return (await salesCalendar(new Date())).length > 0;
+    } catch {
+      return false;
+    }
+  },
+  ["has-upcoming-sales"],
   { revalidate: 300, tags: [DEALS_TAG] },
 );

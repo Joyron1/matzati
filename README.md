@@ -16,6 +16,8 @@ Production: https://matzati-il.vercel.app (Vercel project `matzati-il`).
 - **M6 – Deploy: live** on Vercel (Git-connected).
 - **Phase 2 (part 1): done.** SEO landing pages `/s/[slug]` (managed in `/admin/seo`, ISR daily, real results from the 14-day cache), `sitemap.xml` and `robots.txt`; `/admin/stats` (searches per day, cache hit rate, LLM cost from `llm_usage`, top and zero-result queries, top clicked products); stricter accessory gate and shorter LLM prompts. Price cron and analytics are still open.
 - **Recent searches: done.** `/searches` lists visitor searches that found products (one card per normalized query, with photos, chips, category and text filters; privacy filter in `lib/recent/privacy.ts`, admin hide in `/admin/searches`, `noindex`), plus a strip on the home page. Results older than 24h show when prices were checked.
+- **Phase 2 (part 2): done** (plan approved 2026-09-28). `/p` shows the AliExpress video, AliExpress promo codes and our coupons, and a reviews card (no review text: a link to the reviews on AliExpress through `/go?src=reviews`); `/go` regenerates affiliate links older than `LINK_MAX_AGE_DAYS`; SKU variants are built behind `SKU_DETAILS_ENABLED`, off until AliExpress grants `product.sku.detail.get`. Coupons: `coupons` table, `/admin/coupons`, public `/coupons`. Sales calendar `/sales`: countdowns, upcoming sales, a 12-month calendar and add-to-calendar `.ics` files. Coupons and sale dates are the owner's and labelled as ours. Apply `supabase/migrations/20260928090000_coupons.sql` before deploying.
+- **Tracking id hygiene: done.** Committed fixtures hold `<ALIEXPRESS_TRACKING_ID>` instead of the real id, `check:ali -- --save` masks every `.env.local` value, and `lib/fixtures-secrets.test.ts` guards `fixtures/` locally. The id stays in git history (commit 5b698fc); see [docs/aliexpress-api.md](docs/aliexpress-api.md#open-items).
 
 Local dev needs Node 22+, or Node 20.10+ with `--experimental-websocket` (set in the `dev` and `start` scripts) because supabase-js needs a WebSocket global.
 
@@ -36,17 +38,17 @@ npm run lint
 npm run typecheck
 npm test             # vitest
 npm run format       # prettier
-npm run check:ali    # AliExpress credential & API check (3 calls; add -- --save to refresh fixtures)
+npm run check:ali    # AliExpress credential & API check (3 calls; -- --save refreshes masked fixtures)
 ```
 
 ## Layout
 
-| Path                    | What                                                                                |
-| ----------------------- | ----------------------------------------------------------------------------------- |
-| `app/`                  | Routes: `/`, `/search`, `/p/[productId]`, `/go/[productId]`, `/deals`, static pages |
-| `components/`           | UI. Shared button/card classes in `components/styles.ts`                            |
-| `app/globals.css`       | Design tokens (light/dark on `[data-theme]`) mapped into Tailwind                   |
-| `lib/config/`           | Brand name and site flags (`USING_MOCK_DATA`)                                       |
-| `lib/ranking/config.ts` | Filter thresholds, also shown in the UI                                             |
-| `lib/mock/`             | M1 sample data, replaced by the real pipeline in M4                                 |
-| `lib/types.ts`          | Wire types shared by the API and the UI                                             |
+| Path                    | What                                                                                                      |
+| ----------------------- | --------------------------------------------------------------------------------------------------------- |
+| `app/`                  | Routes: `/`, `/search`, `/p/[productId]`, `/go/[productId]`, `/deals`, `/coupons`, `/sales`, static pages |
+| `components/`           | UI. Shared button/card classes in `components/styles.ts`                                                  |
+| `app/globals.css`       | Design tokens (light/dark on `[data-theme]`) mapped into Tailwind                                         |
+| `lib/config/`           | Brand name and site flags (`USING_MOCK_DATA`)                                                             |
+| `lib/ranking/config.ts` | Filter thresholds, also shown in the UI                                                                   |
+| `lib/mock/`             | M1 sample data, replaced by the real pipeline in M4                                                       |
+| `lib/types.ts`          | Wire types shared by the API and the UI                                                                   |
