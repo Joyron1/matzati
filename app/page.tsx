@@ -18,6 +18,8 @@ import { nextSale } from "@/lib/deals/queries";
 import { FILTERS } from "@/lib/ranking/config";
 import { searchHref } from "@/lib/search-url";
 import { examplePreview } from "@/lib/search/server";
+import { popularSearches } from "@/lib/seo/queries";
+import { seoPath } from "@/lib/seo/slug";
 
 // A fresh search (parse, up to 3 AliExpress calls, explain) takes 7-15 s; give it room.
 export const maxDuration = 60;
@@ -73,6 +75,34 @@ async function NextSale() {
       endsAt={sale.ends_at}
       renderedAt={now.getTime()}
     />
+  );
+}
+
+/**
+ * Links to the published landing pages (/s/<slug>, admin-managed). Read with the anon key, so
+ * RLS shows published pages only; hidden when there are none or the read fails.
+ */
+async function PopularSearches() {
+  const pages = await popularSearches();
+  if (pages.length === 0) return null;
+  return (
+    <section aria-labelledby="popular-title" className="mx-auto mt-16 max-w-6xl px-4 sm:px-6">
+      <h2 id="popular-title" className="font-display text-3xl">
+        חיפושים פופולריים
+      </h2>
+      <ul className="mt-5 flex flex-wrap gap-2">
+        {pages.map((page) => (
+          <li key={page.slug}>
+            <Link
+              href={seoPath(page.slug)}
+              className="inline-flex min-h-11 items-center rounded-full border border-line bg-surface px-4 text-sm font-medium text-ink hover:border-accent hover:text-accent-ink"
+            >
+              {page.title_he}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -171,6 +201,10 @@ export default function HomePage() {
           </Link>
         </section>
       </div>
+
+      <Suspense fallback={null}>
+        <PopularSearches />
+      </Suspense>
     </>
   );
 }

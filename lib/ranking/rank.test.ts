@@ -1,8 +1,10 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parseEnvelope, parseJsonKeepingIds } from "@/lib/aliexpress/client";
-import { parseProductPage, type AliProduct } from "@/lib/aliexpress/schemas";
-import type { Requirement, SearchFilters } from "@/lib/search/filters";
+import { parseCategories, parseProductPage, type AliProduct } from "@/lib/aliexpress/schemas";
+import type { ParsedQuery, Requirement, SearchFilters } from "@/lib/search/filters";
+import { CATEGORY_LABELS, FILL_TIER, FILTERS } from "./config";
+import { tokenize } from "./match";
 import {
   dedupeListings,
   effectiveFeedbackPct,
@@ -60,6 +62,36 @@ function fixtureProducts(): AliProduct[] {
     parseEnvelope("aliexpress.affiliate.product.query", parseJsonKeepingIds(text)).result,
   ).products;
 }
+
+/** A round-2 eval record: the stored parse and the results shown (at most 3). */
+interface EvalV2Record {
+  id: string;
+  parsed: ParsedQuery;
+  response: {
+    results: {
+      product_id: string;
+      title_en: string;
+      price_ils: number;
+      positive_feedback_pct: number | null;
+      units_sold: number | null;
+    }[];
+  };
+}
+
+function evalV2Records(): EvalV2Record[] {
+  return JSON.parse(readFileSync("fixtures/llm/eval-v2-2026-09-27.json", "utf8")).records;
+}
+
+/**
+ * Round-2 results that were not the requested product (docs/eval-m3.md). The explain step
+ * labelled each one "אביזר משלים"; every other result shown in round 2 was right.
+ */
+const V2_MISSES: Record<string, string> = {
+  "1005010439353509": "ho-gift-garden: a padlock pick set tagged 'Home Garden Tools'",
+  "1005007306682299": "kids-bottle: a bike bottle holder",
+  "1005006860850404": "ho-powerbank: a bike light that also charges a phone",
+  "1005009582248966": "ho-speaker: a shower phone holder with a speaker",
+};
 
 describe("passesFilters", () => {
   const f = filters({ max_price_ils: 100 });
@@ -331,6 +363,180 @@ describe("product type check", () => {
       isRequestedProduct("Cable Organizer Clips", { keywords_en: "usb", product_terms: [] }),
     ).toBe(true);
   });
+
+  it("drops a product named only as what the listing fits ('for X') or comes with ('with X')", () => {
+    const speaker = {
+      keywords_en: "waterproof bluetooth speaker",
+      product_terms: ["bluetooth speaker", "wireless speaker"],
+    };
+    // Recorded round-2 miss.
+    const shower =
+      'Shower Phone Holder with Bluetooth Speaker 360 Rotation Wall Phone Mount for Shower Waterproof Anti Fog for 4-6.9" Phones';
+    expect(isRequestedProduct(shower, speaker)).toBe(false);
+    expect(isRequestedProduct("Desk Stand for Bluetooth Speaker Aluminum Alloy", speaker)).toBe(
+      false,
+    );
+    expect(isRequestedProduct("Beanie Hat with Wireless Speaker Headphones", speaker)).toBe(false);
+    // The product itself, with a bundled part or a compatibility note after it.
+    expect(isRequestedProduct("Waterproof Bluetooth Speaker with Mic IPX7", speaker)).toBe(true);
+    expect(isRequestedProduct("Mini Bluetooth Speaker for Phone Shower", speaker)).toBe(true);
+  });
+
+  it("keeps a title that restates the product after 'with', and a model after 'for'", () => {
+    const sensorLight = {
+      keywords_en: "motion sensor light",
+      product_terms: ["motion sensor light"],
+    };
+    expect(
+      isRequestedProduct("LED Night Light With Motion Sensor Light EU Plug", sensorLight),
+    ).toBe(true);
+    // "for" only claims the words right after it: here the charger is the product.
+    const charger = { keywords_en: "wireless charger", product_terms: ["wireless charger"] };
+    expect(
+      isRequestedProduct(
+        "Car For Magsafe Wireless Charger Pad Air Vent Phone Holder Stand For iPhone 17~12",
+        charger,
+      ),
+    ).toBe(true);
+    expect(
+      isRequestedProduct("For iPhone 15 Case Silicone", {
+        keywords_en: "iphone case",
+        product_terms: ["case"],
+      }),
+    ).toBe(true);
+  });
+
+  it("does not read an AliExpress category label pasted into a title as the product", () => {
+    const garden = {
+      keywords_en: "gardening tools set",
+      product_terms: ["gardening tools", "garden tools"],
+    };
+    // Recorded round-2 miss: "Home Garden" is the Home & Garden category, not a garden tool.
+    expect(
+      isRequestedProduct(
+        "10PCS Padlock Shim Picks Set Accessories Set Tools Home Garden Tools",
+        garden,
+      ),
+    ).toBe(false);
+    expect(
+      isRequestedProduct("Stainless Steel Garden Tools Set 3pcs for Home Garden Planting", garden),
+    ).toBe(true);
+    expect(
+      isRequestedProduct(
+        "Garden Tool Hand Trowel,Rake,Cultivator,Weeder Tools With Ergonomic Handle,Garden Lawn Farmland Transplant Gardening Bonsai Tool",
+        garden,
+      ),
+    ).toBe(true);
+  });
+
+  it("takes every category label from the real category list", () => {
+    const text = readFileSync("fixtures/aliexpress/aliexpress.affiliate.category.get.json", "utf8");
+    const firstLevel = parseCategories(
+      parseEnvelope("aliexpress.affiliate.category.get", parseJsonKeepingIds(text)).result,
+    )
+      .filter((c) => c.parentId === null)
+      .map((c) => tokenize(c.name).join(" "));
+    for (const label of CATEGORY_LABELS) expect(firstLevel).toContain(tokenize(label).join(" "));
+  });
+
+  it("drops a product term that only describes the noun after it", () => {
+    // Recorded round-2 misses: a bottle holder and a bike light that also charges a phone.
+    const bottle = {
+      keywords_en: "leak proof water bottle",
+      product_terms: ["water bottle", "garden bottle"],
+    };
+    expect(
+      isRequestedProduct(
+        "Bike Water Bottle Holder, Durable Leak Proof Non Slip, Lightweight Premium Bike Cup Holder, Adjustable Bicycle Accessories",
+        bottle,
+      ),
+    ).toBe(false);
+    expect(isRequestedProduct("Kids Water Bottle With Straw Holder Strap", bottle)).toBe(true);
+    const bank = {
+      keywords_en: "power bank 10000mah",
+      product_terms: ["power bank", "portable charger"],
+    };
+    expect(
+      isRequestedProduct(
+        "Bicycle Light 10000mAh Bike Light Power Bank Flashlight USB Charging MTB Mountain Bicycle Cycling Headlight Lamp Accessories",
+        bank,
+      ),
+    ).toBe(false);
+    expect(isRequestedProduct("Baseus 10000mAh Power Bank 22.5W with Flashlight", bank)).toBe(true);
+    // A holder the shopper asked for is the product.
+    expect(
+      isRequestedProduct("Bike Water Bottle Holder Aluminum", {
+        keywords_en: "bike bottle holder",
+        product_terms: ["bottle holder", "bottle cage"],
+      }),
+    ).toBe(true);
+  });
+
+  it("keeps a light followed by 'Flashlight' or 'Torch': it is still a light", () => {
+    const bike = { keywords_en: "bike light", product_terms: ["bike light", "bicycle light"] };
+    expect(
+      isRequestedProduct("Bicycle Light Flashlight USB Rechargeable LED Bike Front Light", bike),
+    ).toBe(true);
+    expect(isRequestedProduct("Bike Light Torch Waterproof 3 Modes", bike)).toBe(true);
+    const head = { keywords_en: "led headlamp", product_terms: ["headlamp", "head lamp"] };
+    expect(
+      isRequestedProduct("LED Headlamp Flashlight USB Rechargeable Camping Head Lamp", head),
+    ).toBe(true);
+    const night = { keywords_en: "night light motion sensor", product_terms: ["night light"] };
+    expect(isRequestedProduct("LED Night Light Flashlight 2 in 1 Motion Sensor", night)).toBe(true);
+  });
+
+  it("keeps a category label that opens the title: it is the product's own name", () => {
+    const hose = { keywords_en: "garden hose", product_terms: ["garden hose"] };
+    expect(isRequestedProduct("Home Garden Hose Expandable 50FT Magic Hose", hose)).toBe(true);
+    const garden = { keywords_en: "garden tools", product_terms: ["garden tools"] };
+    expect(isRequestedProduct("Home Garden Tools Set 3pcs Trowel Rake", garden)).toBe(true);
+  });
+
+  it("keeps 'X with <term>' when the shopper searched for X too", () => {
+    const holder = {
+      keywords_en: "wireless charging car phone holder",
+      product_terms: ["phone holder", "car phone holder", "phone mount"],
+    };
+    expect(
+      isRequestedProduct("Car Wireless Charger with Phone Holder Air Vent Mount", holder),
+    ).toBe(true);
+    // Nobody searched for a charger here, so the cable is only what it comes with.
+    expect(
+      isRequestedProduct("65W USB-C Wall Charger with Retractable Cable Super Fast Charging", {
+        keywords_en: "usb c cable",
+        product_terms: ["cable", "cord"],
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("recorded eval round 2 (fixtures/llm/eval-v2-2026-09-27.json)", () => {
+  const records = evalV2Records();
+
+  it("covers the 20 queries", () => {
+    expect(records).toHaveLength(20);
+    const shown = new Set(records.flatMap((r) => r.response.results.map((x) => x.product_id)));
+    for (const id of Object.keys(V2_MISSES)) expect(shown).toContain(id);
+  });
+
+  it.each(records.map((r) => [r.id, r] as const))(
+    "%s: keeps every right result and drops the misses",
+    (_id, r) => {
+      for (const x of r.response.results) {
+        const p = recorded(
+          x.product_id,
+          x.title_en,
+          x.price_ils,
+          x.positive_feedback_pct ?? 0,
+          x.units_sold ?? 0,
+        );
+        const trust = trustTierOf(p) === "standard" ? FILTERS : FILL_TIER;
+        const expected = x.product_id in V2_MISSES ? "type" : null;
+        expect([x.title_en, rejectReason(p, r.parsed, trust)]).toEqual([x.title_en, expected]);
+      }
+    },
+  );
 });
 
 describe("recorded eval queries", () => {

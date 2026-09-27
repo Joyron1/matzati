@@ -2,6 +2,7 @@
 import type { AliProduct } from "@/lib/aliexpress/schemas";
 import type { SearchFilters, SortPreference } from "@/lib/search/filters";
 import {
+  CATEGORY_LABELS,
   DEDUP,
   FEEDBACK_PRIOR,
   FILL_TIER,
@@ -16,8 +17,9 @@ import { phraseSpans, requirementMatches, stem, tokenize, type Span } from "./ma
 export type RejectReason = "feedback" | "volume" | "currency" | "price" | "type" | "requirement";
 
 /**
- * Nouns that make a listing an accessory for the product rather than the product itself:
- * "Cable Organizer", "Wireless Charging Ring", "Power Bank ... Cable". Singular, unstemmed.
+ * Nouns that make a listing an accessory for the product rather than the product itself, before
+ * or right after the product term: "Cable Organizer", "Wireless Charging Ring", "Bike Water Bottle
+ * Holder", "Shower Phone Holder with Bluetooth Speaker". Singular, unstemmed.
  */
 const ACCESSORY_NOUNS = new Set([
   "organizer",
@@ -43,28 +45,94 @@ const ACCESSORY_NOUNS = new Set([
   "sheet",
   "replacement",
   "film",
+  "holder",
+]);
+
+/** Words that already name a light, so a flashlight after them is the same kind of product. */
+const LIGHT_WORDS = new Set([
+  "light",
+  "lamp",
+  "headlamp",
+  "headlight",
+  "lantern",
+  "flashlight",
+  "torch",
+]);
+
+/**
+ * Devices that take another product as a feature, named last because the last noun of a
+ * compound is what the listing is: "Bike Light Power Bank Flashlight" is a flashlight. Only
+ * after the product term: "Flashlight" first is a feature list, not a compound. Each device maps
+ * to the words that already name its kind: "Headlamp Flashlight" and "Bike Light Torch" stay
+ * lights.
+ */
+const DEVICE_HEADS = new Map<string, ReadonlySet<string>>([
+  ["flashlight", LIGHT_WORDS],
+  ["torch", LIGHT_WORDS],
 ]);
 
 /** Words that end a compound: in "Earbuds With Charging Case" the case is not the head noun. */
 const LINK_WORDS = new Set(["with", "for", "and", "plus", "include", "included", "including"]);
 
-function hasAccessoryHead(
-  words: string[],
-  span: Span,
-  isAccessory: (i: number) => boolean,
-): boolean {
+/** Words that open a part naming what comes with the listing: "... with Bluetooth Speaker". */
+const BUNDLE_WORDS = new Set(["with", "include", "including"]);
+
+/** True when a head noun follows the span within the compound: the term is only a modifier. */
+function hasHeadAfter(words: string[], span: Span, isHead: (i: number) => boolean): boolean {
   const last = Math.min(words.length - 1, span.end + TYPE_GATE.headGap);
   for (let i = span.end + 1; i <= last; i++) {
     if (LINK_WORDS.has(words[i])) return false;
-    if (isAccessory(i)) return true;
+    if (isHead(i)) return true;
   }
   return false;
 }
 
 /**
+ * True when the span only says what the listing fits or comes with, after the title named
+ * something else: "Stand for Bluetooth Speaker" ("for" right before the term) or "Phone Holder
+ * with Bluetooth Speaker" ("with" up to TYPE_GATE.bundleGap tokens before it). A title that
+ * already said the term's last word restates the product ("Night Light With Motion Sensor
+ * Light"), and a title that opens with "for" has named nothing yet. When the noun before "with"
+ * is one the shopper searched for (`searchedStems`), the listing is the combination they asked
+ * for: "Car Wireless Charger with Phone Holder" for a phone holder with wireless charging.
+ */
+function namesFitOrPart(words: string[], span: Span, searchedStems: ReadonlySet<string>): boolean {
+  const from = Math.max(1, span.start - 1 - TYPE_GATE.bundleGap);
+  for (let i = span.start - 1; i >= from; i--) {
+    const bundle = BUNDLE_WORDS.has(words[i]);
+    if (!bundle && !(words[i] === "for" && i === span.start - 1)) continue;
+    if (bundle && searchedStems.has(stem(words[i - 1]))) return false;
+    return !words.slice(0, i).includes(words[span.end]);
+  }
+  return false;
+}
+
+let labelTokens: string[][] | undefined;
+
+/**
+ * Title positions inside a pasted category label, after its first word ("garden" in "Home
+ * Garden"). A label that opens the title names the product ("Home Garden Hose ..."), so only
+ * labels after the first word count.
+ */
+function labelTails(words: string[]): Set<number> {
+  labelTokens ??= CATEGORY_LABELS.map((label) => tokenize(label));
+  const tails = new Set<number>();
+  for (const label of labelTokens) {
+    for (let i = 1; i + label.length <= words.length; i++) {
+      if (label.every((w, k) => words[i + k] === w)) {
+        for (let k = 1; k < label.length; k++) tails.add(i + k);
+      }
+    }
+  }
+  return tails;
+}
+
+/**
  * True when the title names the requested product itself: a product term within the first
- * TYPE_GATE.windowTokens tokens, no accessory noun before it, and none right after it. An
- * accessory noun the user searched for ("phone case") is allowed. No product terms: no check.
+ * TYPE_GATE.windowTokens tokens that is not only what the listing fits or comes with
+ * (namesFitOrPart) and does not borrow a word from a category label (CATEGORY_LABELS); no
+ * accessory noun before it, and no head noun right after it. An accessory noun the user searched
+ * for ("phone case") is allowed. No product terms: no check.
  * Product terms match whole singular words, not stems: a stem would let "charger" match
  * "Charging Cable", "light" match "Lighter" and "mount" match "Mounting Tape".
  */
@@ -75,14 +143,23 @@ export function isRequestedProduct(
   if (!f.product_terms.length) return true;
   const words = tokenize(title);
   const opening = words.slice(0, TYPE_GATE.windowTokens);
-  const spans = f.product_terms.flatMap((term) => phraseSpans(opening, term, tokenize));
+  const searched = new Set(tokenize([f.keywords_en, ...f.product_terms].join(" ")));
+  const searchedStems = new Set([...searched].map(stem));
+  const tails = labelTails(words);
+  const spans = f.product_terms
+    .flatMap((term) => phraseSpans(opening, term, tokenize))
+    .filter((s) => !tails.has(s.start) && !namesFitOrPart(words, s, searchedStems));
   if (!spans.length) return false;
 
-  const searched = new Set(tokenize([f.keywords_en, ...f.product_terms].join(" ")));
   const isAccessory = (i: number) => ACCESSORY_NOUNS.has(words[i]) && !searched.has(words[i]);
+  // A device of another kind: a flashlight after "Power Bank", not after "Bike Light".
+  const isDeviceFor = (i: number, s: Span) => {
+    const kind = DEVICE_HEADS.get(words[i]);
+    return kind !== undefined && !kind.has(words[s.end]) && !searched.has(words[i]);
+  };
   const first = Math.min(...spans.map((s) => s.start));
   for (let i = 0; i < first; i++) if (isAccessory(i)) return false;
-  return !spans.some((s) => hasAccessoryHead(words, s, isAccessory));
+  return !spans.some((s) => hasHeadAfter(words, s, (i) => isAccessory(i) || isDeviceFor(i, s)));
 }
 
 /** Missing trust data fails (never treated as good); prices are never compared across currencies. */

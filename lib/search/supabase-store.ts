@@ -3,9 +3,10 @@
 // writes that fail are logged and skipped.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AliProduct } from "@/lib/aliexpress/schemas";
+import { usageRow, type LlmUsageRecord } from "@/lib/stats/usage";
 import { isFresh } from "./cache-key";
 import type { ParsedQuery } from "./filters";
-import type { CachedResults, SearchStore } from "./store";
+import type { CachedResults, SearchLogEntry, SearchStore } from "./store";
 
 export interface StoredProduct {
   product: AliProduct;
@@ -162,18 +163,24 @@ export class SupabaseStore implements SearchStore {
     );
   }
 
-  async logSearch(entry: {
-    query: string;
-    parsed: ParsedQuery;
-    resultIds: string[];
-  }): Promise<void> {
+  async logSearch(entry: SearchLogEntry): Promise<void> {
     await this.write("logSearch", () =>
       this.db.from("search_log").insert({
         query: entry.query,
+        query_norm: entry.queryNorm,
         parsed: entry.parsed,
         result_ids: entry.resultIds,
+        cache: entry.cache,
+        results_count: entry.resultsCount,
+        source: entry.source,
       }),
     );
+  }
+
+  /** One llm_usage row per call, in a single insert. Token counts and cost only. */
+  async logUsage(records: LlmUsageRecord[]): Promise<void> {
+    if (!records.length) return;
+    await this.write("logUsage", () => this.db.from("llm_usage").insert(records.map(usageRow)));
   }
 
   async saveProducts(

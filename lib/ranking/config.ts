@@ -41,12 +41,33 @@ export const PRICE_FIT = { floorPercentile: 0.1 } as const;
 
 /**
  * Product-type check: a product term must appear within the first `windowTokens` title tokens,
- * and an accessory noun up to `headGap` tokens after it ("Cable Organizer") marks an accessory.
+ * and a head noun up to `headGap` tokens after it ("Cable Organizer", "Power Bank Flashlight")
+ * makes it describe another product. A term up to `bundleGap` tokens after "with" names a part
+ * that comes with another product ("Phone Holder with Bluetooth Speaker").
  */
-export const TYPE_GATE = { windowTokens: 12, headGap: 2 } as const;
+export const TYPE_GATE = { windowTokens: 12, headGap: 2, bundleGap: 2 } as const;
+
+/**
+ * AliExpress first-level category names that sellers paste into titles as tags ("... Tools Home
+ * Garden Tools"). A product term may not borrow a word from one: "garden tools" does not match
+ * "... Tools Home Garden Tools". A label that opens the title is the product's own name ("Home
+ * Garden Hose ..."), not a tag. Only broad two-domain names: "Luggage & Bags" or "Computer &
+ * Office" also name products ("Luggage Bag", "Computer Office Chair"). A test checks each against
+ * the real category list (fixtures/aliexpress/aliexpress.affiliate.category.get.json).
+ */
+export const CATEGORY_LABELS = [
+  "Home & Garden",
+  "Home Improvement",
+  "Sports & Entertainment",
+  "Toys & Hobbies",
+  "Mother & Kids",
+  "Beauty & Health",
+  "Consumer Electronics",
+  "Weddings & Events",
+] as const;
 
 /** Near-duplicate listings: same shop and this token overlap, or a model token this close to the start. */
 export const DEDUP = { sameShopJaccard: 0.7, modelTokenWindow: 4 } as const;
 
 /** Bump when any filter or ranking rule changes, so cached results ranked the old way are not reused. */
-export const RANKING_VERSION = 3;
+export const RANKING_VERSION = 4;

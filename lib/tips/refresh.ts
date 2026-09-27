@@ -4,6 +4,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { LlmProvider } from "@/lib/llm/provider";
 import { generateCategoryTips } from "@/lib/llm/tips";
+import type { LlmUsageRecord } from "@/lib/stats/usage";
 import type { TipsCategory } from "./category";
 import { readCategoryTips, writeCategoryTips } from "./store";
 
@@ -12,6 +13,8 @@ export interface TipsJobDeps {
   llm: LlmProvider;
   /** Counts one unit of today's LLM budget; false once the daily cap is used up. */
   chargeBudget: () => Promise<boolean>;
+  /** Writes the call's llm_usage row (kind "tips"). A failure is logged, never fails the job. */
+  recordUsage?: (record: LlmUsageRecord) => Promise<void>;
 }
 
 /** After a failed refresh (API error, budget used up, invalid output) this instance waits this long. */
@@ -71,7 +74,7 @@ export class TipsRefresher {
 
   /** True when the category now has a current entry (possibly an empty one). */
   private async run(category: TipsCategory, makeDeps: () => TipsJobDeps): Promise<boolean> {
-    const { db, llm, chargeBudget } = makeDeps();
+    const { db, llm, chargeBudget, recordUsage } = makeDeps();
     const now = new Date(this.clock());
     // Another instance (or an earlier view) may have written it since the page read it.
     const current = await readCategoryTips(category.id, now, db);
@@ -84,6 +87,12 @@ export class TipsRefresher {
       category: category.nameEn,
       parent_category: category.parentEn,
     });
+    // Recorded first: the call is paid for whatever happens to its output.
+    try {
+      await recordUsage?.({ kind: "tips", model: res.model, usage: res.usage });
+    } catch (err) {
+      this.log(`${category.id}: usage not recorded: ${errorText(err)}`);
+    }
     if (res.outcome === "invalid_output") {
       // At temperature 0 the same request would most likely fail the same way; retrying every
       // 30 minutes could cost dozens of calls a day for one category. Store an empty entry

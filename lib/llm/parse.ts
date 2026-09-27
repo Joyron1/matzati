@@ -7,7 +7,7 @@ import type { LlmProvider, LlmUsage } from "./provider";
 // Part of the parse cache key (lib/search/cache-key.ts). Bump it on any change to PARSE_SYSTEM,
 // parsedQuerySchema, normalizeParsed or the parse model, so cached parses from the old version are
 // never served.
-export const PARSE_VERSION = 2;
+export const PARSE_VERSION = 5;
 
 const MAX_KEYWORD_WORDS = 6;
 const MAX_PRODUCT_TERMS = 4;
@@ -18,61 +18,48 @@ const MAX_ALT = 3;
 // simple. Counts are not enforced here: the SDK would validate them client-side and throw, so
 // normalizeParsed() caps them instead. Property order is generation order: the model names the
 // product before it writes the search words.
+// No .describe() on purpose: PARSE_SYSTEM explains every field, and a description makes zod emit
+// $defs/$ref/anyOf, which cost ~390 input tokens per call (countTokens, 2026-09-27).
 export const parsedQuerySchema = z.object({
-  product_he: z.string().describe("Short Hebrew product label, spelled correctly"),
-  product_terms: z
-    .array(z.string())
-    .describe("1-4 lowercase English phrases sellers use for the product itself"),
-  requirements: z
-    .array(
-      z.object({
-        en: z.string().describe("One lowercase English seller phrase for the whole requirement"),
-        alt: z.array(z.string()).describe("0-3 other seller phrasings of the same requirement"),
-        he: z.string().describe("Short Hebrew chip label"),
-      }),
-    )
-    .describe("0-3 hard requirements the user stated; a product must meet every one"),
-  keywords_en: z
-    .string()
-    .describe("2-4 English words naming the product the way AliExpress sellers title it"),
-  min_price_ils: z.number().nullable().describe("Lower budget bound in shekels, or null"),
-  max_price_ils: z.number().nullable().describe("Upper budget bound in shekels, or null"),
+  product_he: z.string(),
+  product_terms: z.array(z.string()),
+  requirements: z.array(
+    z.object({
+      en: z.string(),
+      alt: z.array(z.string()),
+      he: z.string(),
+    }),
+  ),
+  keywords_en: z.string(),
+  min_price_ils: z.number().nullable(),
+  max_price_ils: z.number().nullable(),
   sort_preference: z.enum(["best_value", "cheapest", "most_popular"]),
-  category_hint: z.string().nullable().describe("Broader 2-3 word English search phrase, or null"),
+  category_hint: z.string().nullable(),
 });
 
 export type ParsedQueryRaw = z.infer<typeof parsedQuerySchema>;
 
 // Examples are deliberately different from the eval queries (fixtures/llm/), so the eval keeps
 // measuring generalization.
-export const PARSE_SYSTEM = `You turn an Israeli shopper's free-Hebrew request into search filters for the AliExpress product search API. You do not search or recommend products.
+export const PARSE_SYSTEM = `Turn a Hebrew shopping request into AliExpress search filters. keywords_en is the search query; a product is kept only if its English title has a product_terms phrase and, per requirement, its en or an alt. A one-word spelling ("powerbank") matches only itself; add it if sellers use it.
 
-How the code uses your output: keywords_en is sent as is to the AliExpress keyword search. A product is kept only when its English title contains one product_terms phrase AND, for every requirement, its en phrase or one of its alt phrases. Case and hyphens do not matter, so "non slip" also matches "Non-Slip". A spelling written as one word ("nonslip", "powerbank") is a different word, so add it as another phrase when sellers use it.
+Fix typos and slang (רמקל=רמקול). "גן ילדים", or "לגן"/"בגן" with something a child takes or wears there (bottle, bag, shoes), is a kindergarten, not a garden ("בקבוק לגן" is a kids water bottle): write "kids" or nothing, never "garden". With plants, lighting, furniture or tools, "לגן" is a garden.
 
-Read the request as a native speaker first: fix typos and expand slang (טאבלאט = טאבלט, רמקל = רמקול, מיקרופן = מיקרופון, פאוור בנק = סוללה ניידת). Praise such as "אחלה", "מגניב", "טוב" or "איכותי" adds no filter.
+- product_he: the product in short Hebrew (≤20 chars) with its named use ("מנורת שולחן למשרד"), no requirements.
+- product_terms: 1-4 seller phrases for the product itself (not features), with synonyms. Two words when the noun alone names other things ("yoga mat", not "mat"). Never gift, occasion or audience words: when no product is named ("מתנה למישהי שאוהבת לצייר"), use the most common fitting product type ("drawing set"), never a brand or model.
+- requirements: 0-3 hard requirements the user stated. A product must meet every one, so never add your own.
+  - en: ONE short phrase for the whole requirement, the way sellers write it in titles ("foldable", "noise cancelling"). Never split into words, never a description.
+  - alt: 0-3 other seller phrasings, each whole ("anc", "noise reduction").
+  - Numeric spec: number+unit, no space ("65w"), alt empty.
+  - Not requirements: the product itself; what nearly all such products have ("bluetooth" for a speaker); a device it fits or works with, unless many such products would not ("s24" for a phone case); who it is for, the occasion, a general use ("למשרד", "לקמפינג") and praise.
+- keywords_en: 2-4 words as sellers title it: a product_terms phrase plus the main requirement or a use word ("camping"). No gift, occasion, audience or praise words (gift, mom, best) unless part of the product name ("kids scooter"); no synonym pairs ("foldable folding").
+- min/max_price_ils: a shekel budget only (ש״ח, ₪ or a bare number): עד/בפחות מ/מתחת ל X -> max; מ/מעל/לפחות X -> min; בין X ל־Y -> both. Ages, sizes, specs and models (בת 5, 2 מטר, S24) are not prices. Otherwise null.
+- sort_preference: cheapest for הכי זול, most_popular for popular or best-selling, else best_value.
+- category_hint: broader 2-3 word English phrase or null.
 
-Fill the schema:
-- product_he: the product in short, correctly spelled Hebrew (up to 20 characters), with the use the user named ("מנורת שולחן", "פנס לקמפינג"). No price and no requirements in it; those get their own labels.
-- product_terms: 1-4 lowercase English phrases sellers use in titles for the product itself (not its features), including common seller synonyms. Use one noun when it only names this product (["lantern"]), and two words when the noun alone also names other things (["yoga mat", "exercise mat"], since "mat" alone matches car mats and mouse pads).
-- requirements: 0-3 hard requirements the user stated beyond the product itself. A product must meet every one, so add only what the user asked for, never your own ideas.
-  - en: ONE lowercase phrase for the whole requirement, the way sellers write it in titles ("foldable", "noise cancelling", "non slip"). Never split a phrase into words: ["noise", "cancelling"] or ["non", "slip"] would match almost any title.
-  - alt: 0-3 other seller phrasings of the same requirement, each carrying it whole on its own (["folding", "collapsible"], ["anc", "noise reduction"], ["anti slip"]).
-  - he: a short Hebrew chip label ("מתקפל", "סינון רעשים", "נגד החלקה").
-  - A numeric spec is one requirement written as number and unit with no space ("20000mah", "144hz", "1tb"), with alt empty.
-  - Never use the product itself, or something almost every product of this type has ("bluetooth" for a bluetooth speaker, "portable" for a power bank).
-  - A device the product must fit or work with is a requirement only when many products of this type would not ("s24" for a case for גלקסי S24). Leave it out when almost any product of this type works with it.
-  - Who it is for, the occasion, a general use ("למשרד", "לקמפינג") and praise are not requirements.
-- keywords_en: 2-4 English words naming the product the way AliExpress sellers title it, usually a product_terms phrase, plus the main requirement's phrase or a use word sellers put in titles ("camping", "office") when it fits in 4 words.
-  Leave out who it is for or the occasion (gift, mom, boyfriend, men, women, birthday), praise (good, quality, best, durable, premium), a second word with the same meaning ("foldable folding"), and the user's own paraphrase when sellers use a set phrase ("non slip", not "no slipping"). Keep an age or audience word only when sellers make it part of the product name ("baby carrier", "kids scooter").
-  When the user names no product ("מתנה למישהי שאוהבת לצייר"), choose the most common product type that fits ("drawing set"), never a brand or one specific model.
-- min_price_ils / max_price_ils: only for a budget in shekels (ש״ח, שקל, שקלים, ₪, or a bare number after עד, בפחות מ, מתחת ל, בין or מ). "עד 60", "בפחות מ־300", "מתחת ל־300" -> max. "מ־250", "לפחות 250", "מעל 250" -> min. "בין 40 ל־90" -> min 40 and max 90. Numbers that are specs, sizes, ages or models (20000mAh, 144Hz, 2 מטר, בת 5, גלקסי S24) are never prices. A budget in another currency, or no budget -> both null.
-- sort_preference: "cheapest" when the user asks for the cheapest option ("הכי זול", "הזול ביותר"), "most_popular" when they ask for popular or best-selling products ("הכי נמכר", "רב מכר", "פופולרי"), and "best_value" otherwise, including praise ("אחלה", "משתלם").
-- category_hint: a broader 2-3 word English search phrase for the same need ("camping lights", "home fitness"), used when the main keywords find too little; or null.
+Hebrew labels (product_he, requirement he): short and spelled right, the usual phrase ("אטום לדליפות"), with ״ ׳ never ASCII quotes (ס״מ). Never a price.
 
-Hebrew labels (product_he and each requirement's he): spell them correctly even when the user wrote a typo or slang, keep the user's meaning exactly, and write abbreviations with ״ and ׳, never ASCII quotes (ס״מ, אינץ׳). Never mention a price; the code shows the budget.
-
-Example. Request: "מנורת שולחן מתקפלת נטענת למשרד עד 120 ש״ח"
-{"product_he":"מנורת שולחן למשרד","product_terms":["desk lamp","table lamp"],"requirements":[{"en":"foldable","alt":["folding"],"he":"מתקפלת"},{"en":"rechargeable","alt":["usb charging","built-in battery"],"he":"נטענת"}],"keywords_en":"foldable desk lamp","min_price_ils":null,"max_price_ils":120,"sort_preference":"best_value","category_hint":"office lighting"}`;
+Example: "מנורת שולחן מתקפלת נטענת למשרד עד 120 ש״ח" -> {"product_he":"מנורת שולחן למשרד","product_terms":["desk lamp","table lamp"],"requirements":[{"en":"foldable","alt":["folding"],"he":"מתקפלת"},{"en":"rechargeable","alt":["usb charging","built-in battery"],"he":"נטענת"}],"keywords_en":"foldable desk lamp","min_price_ils":null,"max_price_ils":120,"sort_preference":"best_value","category_hint":"office lighting"}`;
 
 // Sent on a retry. The parse runs at temperature 0, so repeating the same request would mostly
 // repeat the same unusable answer.
@@ -90,14 +77,49 @@ function english(text: string): string {
     .replace(UNIT_GAP, "$1$2");
 }
 
+/** Misspelled words the model wrote in Hebrew labels, and their spelling ("אטום לדיסות", eval round 2). */
+const MISSPELLINGS: [string, string][] = [["דיסות", "דליפות"]];
+const misspelled = MISSPELLINGS.map(
+  ([wrong, right]) =>
+    [new RegExp(`(^|[^א-ת])([ובלהמש]?)${wrong}(?![א-ת])`, "g"), `$1$2${right}`] as const,
+);
+
 // Hebrew abbreviations take ״ and ׳; the model sometimes types ASCII quotes (ס"מ, אינץ').
 function hebrew(text: string): string {
-  return text
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/([א-ת])"(?=[א-ת])/g, "$1״")
-    .replace(/([א-ת])'/g, "$1׳");
+  return misspelled.reduce(
+    (s, [re, fix]) => s.replace(re, fix),
+    text
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/([א-ת])"(?=[א-ת])/g, "$1״")
+      .replace(/([א-ת])'/g, "$1׳"),
+  );
 }
+
+// "לגן" and "בגן" are a kindergarten when the request is about kids; the model once made "בקבוק
+// מים לגן" a "garden bottle" (eval round 2). They are a garden too ("תאורה סולארית לגן"), so the
+// guard needs a kids context: a Hebrew kids word in the request, or one in the model's own English
+// (that parse's category_hint was "children water bottles"). A garden is also גינה, a gardener
+// גנן, and "גן ירק" really is a garden.
+const KINDERGARTEN =
+  /(^|[^א-ת])(ו?[לב]גן(?![א-ת])(?!\s+(?:ירק|ירקות|בוטני|ורדים)(?![א-ת]))|גן\s+ילדים)/;
+const GARDENING = /(^|[^א-ת])[ובלהמש]{0,2}(?:גינה|גינות|גינון|גנן)(?![א-ת])/;
+const KIDS_HE =
+  /(^|[^א-ת])[ובלהמש]{0,2}(?:ילד|ילדה|ילדים|ילדות|תינוק|תינוקת|תינוקות|פעוט|פעוטה|פעוטות|גננת)(?![א-ת])|(^|[^א-ת])[ולה]?(?:בן|בת)\s+\d/;
+const KIDS_EN =
+  /\b(?:kids?|child|children|childrens|toddlers?|bab(?:y|ies)|preschool|kindergarten|school|boys?|girls?)\b/;
+const GARDEN_WORD = /^garden(?:ing|s)?$/;
+
+function saysKindergarten(query: string, raw: ParsedQueryRaw): boolean {
+  if (!KINDERGARTEN.test(query) || GARDENING.test(query)) return false;
+  const modelText = [raw.keywords_en, ...raw.product_terms, raw.category_hint ?? ""].join(" ");
+  return KIDS_HE.test(query) || KIDS_EN.test(modelText.toLowerCase());
+}
+const withoutGarden = (phrase: string) =>
+  phrase
+    .split(" ")
+    .filter((w) => !GARDEN_WORD.test(w))
+    .join(" ");
 
 // "Non-Slip" and "non slip" are the same words. A one-word spelling ("nonslip") stays a separate
 // phrase, because a word-based title match treats it differently.
@@ -151,17 +173,29 @@ function normalizeRequirements(
 
 const budget = (n: number | null) => (n !== null && Number.isFinite(n) && n > 0 ? n : undefined);
 
-/** Cleans the model output into the shared contract, or null when it cannot drive a search. */
-export function normalizeParsed(raw: ParsedQueryRaw): ParsedQuery | null {
-  const words = [...new Set(english(raw.keywords_en).split(" ").filter(Boolean))];
+/**
+ * Cleans the model output into the shared contract, or null when it cannot drive a search.
+ * `query` is the shopper's request; when it says "לגן" about kids (a kindergarten), garden words
+ * the model added are removed, as long as a product term and a keyword remain.
+ */
+export function normalizeParsed(raw: ParsedQueryRaw, query = ""): ParsedQuery | null {
+  const noGarden = saysKindergarten(query, raw);
+  let words = [...new Set(english(raw.keywords_en).split(" ").filter(Boolean))];
+  if (noGarden && words.some((w) => !GARDEN_WORD.test(w))) {
+    words = words.filter((w) => !GARDEN_WORD.test(w));
+  }
   if (words.length === 0 || words.length > MAX_KEYWORD_WORDS) return null;
-  const productTerms = uniquePhrases(raw.product_terms.map(english)).slice(0, MAX_PRODUCT_TERMS);
+  let productTerms = uniquePhrases(raw.product_terms.map(english)).slice(0, MAX_PRODUCT_TERMS);
+  if (noGarden && productTerms.some((t) => withoutGarden(t) === t)) {
+    productTerms = productTerms.filter((t) => withoutGarden(t) === t);
+  }
   if (productTerms.length === 0) return null;
 
   let min = budget(raw.min_price_ils);
   let max = budget(raw.max_price_ils);
   if (min !== undefined && max !== undefined && min > max) [min, max] = [max, min];
-  const category = raw.category_hint === null ? "" : english(raw.category_hint);
+  const hint = raw.category_hint === null ? "" : english(raw.category_hint);
+  const category = noGarden ? withoutGarden(hint) : hint;
 
   return {
     keywords_en: words.join(" "),
@@ -200,7 +234,7 @@ export async function parseQuery(
     });
     usage.push(res.usage);
     model = res.model;
-    const parsed = res.data ? normalizeParsed(res.data) : null;
+    const parsed = res.data ? normalizeParsed(res.data, query) : null;
     if (parsed) return { parsed, usage, model };
   }
   return { parsed: null, usage, model };

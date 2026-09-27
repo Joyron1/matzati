@@ -5,6 +5,7 @@ import { LogOut, ShieldCheck } from "lucide-react";
 import { btnSecondary } from "@/components/styles";
 import { requireAdmin } from "@/lib/admin/auth";
 import { BRAND } from "@/lib/config/brand";
+import { AdminNav } from "./admin-nav";
 import { signOutAdmin } from "./logout/actions";
 
 // /admin/login lives outside this folder (app/(admin-public)/admin/login), so it is not guarded
@@ -22,13 +23,16 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     <>
       <div className="border-b border-line bg-surface">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2 sm:px-6">
-          <Link
-            href="/admin"
-            className="flex min-h-11 items-center gap-2 rounded-full font-semibold text-ink hover:text-accent-ink"
-          >
-            <ShieldCheck aria-hidden className="size-5 text-accent" />
-            ניהול האתר
-          </Link>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <Link
+              href="/admin"
+              className="flex min-h-11 items-center gap-2 rounded-full font-semibold text-ink hover:text-accent-ink"
+            >
+              <ShieldCheck aria-hidden className="size-5 text-accent" />
+              ניהול האתר
+            </Link>
+            <AdminNav />
+          </div>
           <div className="flex min-w-0 items-center gap-3">
             <p className="min-w-0 truncate text-sm text-muted">
               <span className="sr-only">מחוברים בתור </span>

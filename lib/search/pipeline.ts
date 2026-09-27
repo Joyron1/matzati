@@ -6,7 +6,7 @@ import { AliExpressError } from "@/lib/aliexpress/errors";
 import type { AliProduct } from "@/lib/aliexpress/schemas";
 import { explainContextFrom, explainProducts, type ExplainInput } from "@/lib/llm/explain";
 import { parseQuery } from "@/lib/llm/parse";
-import type { LlmProvider, LlmUsage } from "@/lib/llm/provider";
+import type { LlmProvider } from "@/lib/llm/provider";
 import {
   rankProducts,
   rankWithFill,
@@ -15,11 +15,19 @@ import {
   type RejectReason,
 } from "@/lib/ranking/rank";
 import { RESULTS_PER_PAGE } from "@/lib/config/site";
+import type { LlmCallKind, LlmUsageRecord } from "@/lib/stats/usage";
 import type { ResultProduct, SearchResponse } from "@/lib/types";
 import { filtersKey, normalizeQuery, queryKey } from "./cache-key";
 import { applyOverrides, buildChips } from "./chips";
 import type { ParsedQuery, SortPreference } from "./filters";
-import type { CachedResults, Explanation, SearchStore } from "./store";
+import type {
+  CachedResults,
+  CacheLevel,
+  Explanation,
+  SearchLogEntry,
+  SearchSource,
+  SearchStore,
+} from "./store";
 
 export const MAX_QUERY_LENGTH = 200;
 /** How many ranked products we keep per search: the first 3 plus "show 3 more", with spares. */
@@ -65,11 +73,18 @@ export interface SearchInput {
   without?: string[];
   /** Sort chosen with the refine buttons; overrides the parsed preference without a new parse. */
   sort?: SortPreference;
+  /** Written to search_log (default "search"); "preview" is examplePreview (home page, SEO pages). */
+  source?: Exclude<SearchSource, "more">;
 }
 
-export interface SearchMeta {
-  cache: "none" | "parse" | "results";
-  llmUsage: { kind: "parse" | "explain"; usage: LlmUsage; model: string }[];
+/** An LLM call recorded by the pipeline; K narrows the jobs one entry point can make. */
+export type UsageOf<K extends LlmCallKind> = Omit<LlmUsageRecord, "kind"> & { kind: K };
+
+/** A search makes parse and explain calls; "show more" (loadMore) makes explain_more calls. */
+export interface SearchMeta<K extends LlmCallKind = "parse" | "explain"> {
+  cache: CacheLevel;
+  /** Every LLM call made, also written to llm_usage (SearchStore.logUsage). */
+  llmUsage: UsageOf<K>[];
   aliCalls: number;
   rejected: Record<RejectReason, number> | null;
   keywordsTried: string[];
@@ -80,6 +95,40 @@ export interface SearchMeta {
 export interface SearchOutcome {
   response: SearchResponse;
   meta: SearchMeta;
+  /** The search_log row written for this search. */
+  log: SearchLogEntry;
+}
+
+const newMeta = <K extends LlmCallKind>(cache: CacheLevel): SearchMeta<K> => ({
+  cache,
+  llmUsage: [],
+  aliCalls: 0,
+  rejected: null,
+  keywordsTried: [],
+  explainRejected: [],
+});
+
+/** Logging and stats writes must never fail a search: errors are logged and swallowed. */
+async function quietly(op: string, run: () => Promise<void>): Promise<void> {
+  try {
+    await run();
+  } catch (err) {
+    const text = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+    console.error(`[search] ${op} failed: ${text.slice(0, 300)}`);
+  }
+}
+
+/** Writes the LLM usage recorded since the last call, so every call is stored exactly once. */
+function usageWriter(
+  store: SearchStore,
+  meta: { llmUsage: readonly LlmUsageRecord[] },
+): () => Promise<void> {
+  let written = 0;
+  return () => {
+    const pending = meta.llmUsage.slice(written);
+    written = meta.llmUsage.length;
+    return pending.length ? quietly("logUsage", () => store.logUsage(pending)) : Promise.resolve();
+  };
 }
 
 // Always fetch established products; "cheapest" is applied by our own ranking.
@@ -204,15 +253,17 @@ async function ensureLinks(ali: AliExpressClient, products: AliProduct[]): Promi
     .filter((p) => p.promotionLink); // never show a product we cannot link to
 }
 
+/** Explains `products` with one LLM call, which it passes to `recordCall`. */
 async function explainRange(
   llm: LlmProvider,
   parsed: ParsedQuery,
   products: AliProduct[],
-  meta: SearchMeta,
+  meta: Pick<SearchMeta, "explainRejected">,
+  recordCall: (call: Omit<LlmUsageRecord, "kind">) => void,
 ): Promise<Record<string, Explanation>> {
   if (!products.length) return {};
   const res = await explainProducts(llm, explainContextFrom(parsed), products.map(toExplainInput));
-  meta.llmUsage.push({ kind: "explain", usage: res.usage, model: res.model });
+  recordCall({ usage: res.usage, model: res.model });
   for (const i of res.items) {
     if (i.rejected) meta.explainRejected.push({ product_id: i.product_id, rejected: i.rejected });
   }
@@ -242,26 +293,60 @@ function respond(
   };
 }
 
+function searchLogEntry(
+  q: string,
+  filters: ParsedQuery,
+  products: AliProduct[],
+  response: SearchResponse,
+  cache: CacheLevel,
+  source: SearchSource,
+): SearchLogEntry {
+  return {
+    query: q,
+    queryNorm: normalizeQuery(q),
+    parsed: filters,
+    resultIds: products.map((p) => p.productId),
+    cache,
+    resultsCount: response.results.length,
+    source,
+  };
+}
+
+/**
+ * Runs one search. Every search that returns a response (cached or not, with or without results)
+ * writes a search_log row, and every LLM call writes an llm_usage row, also when the search then
+ * fails. Neither write can fail the search.
+ */
 export async function runSearch(input: SearchInput, deps: SearchDeps): Promise<SearchOutcome> {
-  const now = deps.now ?? (() => new Date());
-  const sleep = deps.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
   const q = input.q.trim();
   if (!q || q.length > MAX_QUERY_LENGTH) {
     throw new SearchError("invalid_query", `query must be 1-${MAX_QUERY_LENGTH} characters`);
   }
+  const meta = newMeta<"parse" | "explain">("none");
+  const writeUsage = usageWriter(deps.store, meta);
+  try {
+    return await search(q, input, deps, meta, writeUsage);
+  } finally {
+    // A parse that failed twice, or an upstream error after the parse, was still paid for.
+    await writeUsage();
+  }
+}
+
+async function search(
+  q: string,
+  input: SearchInput,
+  deps: SearchDeps,
+  meta: SearchMeta,
+  writeUsage: () => Promise<void>,
+): Promise<SearchOutcome> {
+  const now = deps.now ?? (() => new Date());
+  const sleep = deps.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
+  const source = input.source ?? "search";
   let charged = false;
   const chargeOnce = async () => {
     if (charged) return;
     charged = true;
     await deps.beforeLlmWork?.();
-  };
-  const meta: SearchMeta = {
-    cache: "none",
-    llmUsage: [],
-    aliCalls: 0,
-    rejected: null,
-    keywordsTried: [],
-    explainRejected: [],
   };
 
   // 1. Parse, from the 48h parse cache when possible.
@@ -287,7 +372,10 @@ export async function runSearch(input: SearchInput, deps: SearchDeps): Promise<S
   const hit = await deps.store.getResults(fk, now());
   if (hit) {
     meta.cache = "results";
-    return { response: respond(q, filters, hit, fk, true), meta };
+    const response = respond(q, filters, hit, fk, true);
+    const log = searchLogEntry(q, filters, hit.products, response, meta.cache, source);
+    await Promise.all([quietly("logSearch", () => deps.store.logSearch(log)), writeUsage()]);
+    return { response, meta, log };
   }
 
   // 3. Fetch, filter, rank, link, explain the first page.
@@ -311,6 +399,7 @@ export async function runSearch(input: SearchInput, deps: SearchDeps): Promise<S
     filters,
     ranked.slice(0, RESULTS_PER_PAGE),
     meta,
+    (call) => meta.llmUsage.push({ kind: "explain", ...call }),
   );
 
   const results: CachedResults = {
@@ -321,50 +410,81 @@ export async function runSearch(input: SearchInput, deps: SearchDeps): Promise<S
     explanations,
     createdAt: now().toISOString(),
   };
+  const response = respond(q, filters, results, fk, false);
+  const log = searchLogEntry(q, filters, ranked, response, meta.cache, source);
   await Promise.all([
     deps.store.putResults(fk, q, results),
-    deps.store.logSearch({ query: q, parsed: filters, resultIds: ranked.map((p) => p.productId) }),
+    quietly("logSearch", () => deps.store.logSearch(log)),
+    writeUsage(),
     deps.store.saveProducts(
       ranked.slice(0, RESULTS_PER_PAGE),
       Object.fromEntries(Object.entries(explanations).map(([id, e]) => [id, e.title_he])),
     ),
   ]);
-  return { response: respond(q, filters, results, fk, false), meta };
+  return { response, meta, log };
 }
 
-/** "עוד 3 אפשרויות": explains the next page of an existing cached result set. */
+export interface MoreOutcome {
+  results: ResultProduct[];
+  more_available: boolean;
+  meta: SearchMeta<"explain_more">;
+  /** The search_log row written for this page, or null for an empty page (nothing is logged). */
+  log: SearchLogEntry | null;
+}
+
+/**
+ * "עוד 3 אפשרויות": explains the next page of an existing cached result set. A page with results
+ * writes a search_log row (source "more"; the request carries only the filters key, so the query
+ * column holds the result set's Hebrew product label). Its explain call goes to llm_usage as
+ * "explain_more".
+ */
 export async function loadMore(
   fk: string,
   page: number,
   deps: Pick<SearchDeps, "llm" | "store" | "now" | "beforeLlmWork">,
-): Promise<{ results: ResultProduct[]; more_available: boolean; meta: SearchMeta } | null> {
+): Promise<MoreOutcome | null> {
   const now = deps.now ?? (() => new Date());
   const cached = await deps.store.getResults(fk, now());
   if (!cached) return null;
-  const meta: SearchMeta = {
-    cache: "results",
-    llmUsage: [],
-    aliCalls: 0,
-    rejected: null,
-    keywordsTried: [],
-    explainRejected: [],
-  };
-  const start = page * RESULTS_PER_PAGE;
-  const slice = cached.products.slice(start, start + RESULTS_PER_PAGE);
-  const missing = slice.filter((p) => !cached.explanations[p.productId]);
-  if (missing.length) {
-    await deps.beforeLlmWork?.();
-    const added = await explainRange(deps.llm, cached.filters, missing, meta);
-    Object.assign(cached.explanations, added);
-    await deps.store.updateResults(fk, cached);
-    await deps.store.saveProducts(
-      missing,
-      Object.fromEntries(Object.entries(added).map(([id, e]) => [id, e.title_he])),
-    );
+  const meta = newMeta<"explain_more">("results");
+  const writeUsage = usageWriter(deps.store, meta);
+  try {
+    const start = page * RESULTS_PER_PAGE;
+    const slice = cached.products.slice(start, start + RESULTS_PER_PAGE);
+    const missing = slice.filter((p) => !cached.explanations[p.productId]);
+    if (missing.length) {
+      await deps.beforeLlmWork?.();
+      const added = await explainRange(deps.llm, cached.filters, missing, meta, (call) =>
+        meta.llmUsage.push({ kind: "explain_more", ...call }),
+      );
+      Object.assign(cached.explanations, added);
+      await deps.store.updateResults(fk, cached);
+      await deps.store.saveProducts(
+        missing,
+        Object.fromEntries(Object.entries(added).map(([id, e]) => [id, e.title_he])),
+      );
+    }
+    const results = slice.map((p) => toResultProduct(p, cached.explanations[p.productId]));
+    const label = cached.filters.product_he;
+    const log: SearchLogEntry | null = results.length
+      ? {
+          query: label,
+          queryNorm: normalizeQuery(label),
+          parsed: cached.filters,
+          resultIds: slice.map((p) => p.productId),
+          cache: "results",
+          resultsCount: results.length,
+          source: "more",
+        }
+      : null;
+    await Promise.all([log && quietly("logSearch", () => deps.store.logSearch(log)), writeUsage()]);
+    return {
+      results,
+      more_available: cached.products.length > start + RESULTS_PER_PAGE,
+      meta,
+      log,
+    };
+  } finally {
+    await writeUsage();
   }
-  return {
-    results: slice.map((p) => toResultProduct(p, cached.explanations[p.productId])),
-    more_available: cached.products.length > start + RESULTS_PER_PAGE,
-    meta,
-  };
 }

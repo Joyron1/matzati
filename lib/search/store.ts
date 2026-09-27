@@ -1,8 +1,33 @@
 // Persistence used by the search pipeline. Supabase in production (lib/search/supabase-store.ts),
 // in memory for the eval script and tests.
 import type { AliProduct } from "@/lib/aliexpress/schemas";
+import type { LlmUsageRecord } from "@/lib/stats/usage";
 import type { ParsedQuery } from "./filters";
 import { isFresh } from "./cache-key";
+
+/** What the 48h cache saved: nothing, the parse call, or everything (CLAUDE.md §6.2). */
+export type CacheLevel = "none" | "parse" | "results";
+
+/**
+ * Who asked: a visitor's search (including chip removals and sort changes), examplePreview (the
+ * home page example and the SEO landing pages), or "עוד 3 אפשרויות". Only "search" rows count as
+ * searches in the stats.
+ */
+export type SearchSource = "search" | "preview" | "more";
+
+/** One search_log row. No IP and no user data (CLAUDE.md §6.9). */
+export interface SearchLogEntry {
+  query: string;
+  /** normalizeQuery(query), so trivially different spellings count as one query in the stats. */
+  queryNorm: string;
+  parsed: ParsedQuery;
+  /** Every product kept for the search (up to RESULTS_KEPT), or the page shown for "more". */
+  resultIds: string[];
+  cache: CacheLevel;
+  /** Results in this response (0-3). 0 is a zero-result search. */
+  resultsCount: number;
+  source: SearchSource;
+}
 
 export interface Explanation {
   title_he: string | null;
@@ -35,7 +60,9 @@ export interface SearchStore {
   /** Saves added explanations without touching the query that created the entry. */
   updateResults(filtersKey: string, results: CachedResults): Promise<void>;
   /** No IP and no user data (CLAUDE.md §6.9). */
-  logSearch(entry: { query: string; parsed: ParsedQuery; resultIds: string[] }): Promise<void>;
+  logSearch(entry: SearchLogEntry): Promise<void>;
+  /** One llm_usage row per LLM call, with its token usage and cost. */
+  logUsage(records: LlmUsageRecord[]): Promise<void>;
   /** Upserts products and appends a price_history row for each. */
   saveProducts(products: AliProduct[], titlesHe: Record<string, string | null>): Promise<void>;
 }
@@ -43,7 +70,8 @@ export interface SearchStore {
 export class MemoryStore implements SearchStore {
   parses = new Map<string, { parsed: ParsedQuery; at: Date }>();
   results = new Map<string, CachedResults>();
-  logs: { query: string; parsed: ParsedQuery; resultIds: string[] }[] = [];
+  logs: SearchLogEntry[] = [];
+  usage: LlmUsageRecord[] = [];
   products = new Map<string, { product: AliProduct; titleHe: string | null }>();
 
   async getParse(key: string, now: Date) {
@@ -63,8 +91,11 @@ export class MemoryStore implements SearchStore {
   async updateResults(key: string, results: CachedResults) {
     this.results.set(key, results);
   }
-  async logSearch(entry: { query: string; parsed: ParsedQuery; resultIds: string[] }) {
+  async logSearch(entry: SearchLogEntry) {
     this.logs.push(entry);
+  }
+  async logUsage(records: LlmUsageRecord[]) {
+    this.usage.push(...records);
   }
   async saveProducts(products: AliProduct[], titlesHe: Record<string, string | null>) {
     for (const p of products) {

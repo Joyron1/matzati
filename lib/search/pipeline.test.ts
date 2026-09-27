@@ -232,6 +232,174 @@ describe("loadMore budget", () => {
   });
 });
 
+describe("search_log (stats)", () => {
+  it("logs every search that returns a response: fresh, cached parse and full cache hit", async () => {
+    const { deps, store } = setup();
+    const fresh = await runSearch({ q: Q }, deps);
+    const cached = await runSearch({ q: 'כבל usb  עד 40 ש"ח' }, deps);
+    const refined = await runSearch({ q: Q, without: ["max"] }, deps);
+
+    expect(store.logs.map((l) => [l.cache, l.source])).toEqual([
+      ["none", "search"],
+      ["results", "search"],
+      ["parse", "search"],
+    ]);
+    const [first, second] = store.logs;
+    expect(first).toEqual(fresh.log);
+    expect(first).toMatchObject({
+      query: Q,
+      queryNorm: "כבל usb עד ₪40",
+      resultsCount: fresh.response.results.length,
+    });
+    expect(first.resultsCount).toBeGreaterThan(0);
+    expect(first.resultIds.length).toBeGreaterThanOrEqual(first.resultsCount);
+    expect(first.parsed.max_price_ils).toBe(40);
+    // The cache hit logs its own spelling and the same results.
+    expect(second).toMatchObject({ query: 'כבל usb  עד 40 ש"ח', queryNorm: first.queryNorm });
+    expect(second.resultIds).toEqual(first.resultIds);
+    expect(cached.log).toEqual(second);
+    expect(refined.log.parsed.max_price_ils).toBeUndefined();
+    // Never anything about the visitor.
+    for (const log of store.logs) {
+      expect(Object.keys(log).sort()).toEqual(
+        ["cache", "parsed", "query", "queryNorm", "resultIds", "resultsCount", "source"].sort(),
+      );
+    }
+  });
+
+  it("logs a zero-result search with resultsCount 0", async () => {
+    const { deps, store } = setup({ ...PARSE, max_price_ils: 0.5 });
+    const { response } = await runSearch({ q: "כבל USB עד חצי שקל" }, deps);
+    expect(response.results).toEqual([]);
+    expect(store.logs).toHaveLength(1);
+    expect(store.logs[0]).toMatchObject({ resultsCount: 0, resultIds: [], cache: "none" });
+  });
+
+  it("marks the home page example as a preview", async () => {
+    const { deps, store } = setup();
+    await runSearch({ q: Q, source: "preview" }, deps);
+    await runSearch({ q: Q, source: "preview" }, deps);
+    expect(store.logs.map((l) => [l.source, l.cache])).toEqual([
+      ["preview", "none"],
+      ["preview", "results"],
+    ]);
+  });
+
+  it("logs nothing for a search that fails", async () => {
+    const { deps, store } = setup(null);
+    await expect(runSearch({ q: "משהו" }, deps)).rejects.toMatchObject({ code: "parse_failed" });
+    expect(store.logs).toEqual([]);
+  });
+});
+
+describe("llm_usage (stats)", () => {
+  it("records one row per LLM call with its model and token usage", async () => {
+    const { deps, store } = setup();
+    await runSearch({ q: Q }, deps);
+    expect(store.usage).toEqual([
+      {
+        kind: "parse",
+        model: "claude-haiku-4-5",
+        usage: expect.objectContaining({ inputTokens: 900 }),
+      },
+      {
+        kind: "explain",
+        model: "claude-haiku-4-5",
+        usage: expect.objectContaining({ outputTokens: 100 }),
+      },
+    ]);
+    await runSearch({ q: Q }, deps); // full cache hit: no LLM call, no usage row
+    expect(store.usage).toHaveLength(2);
+  });
+
+  it("records the paid attempts of a parse that failed twice", async () => {
+    const { deps, store, llm } = setup(null);
+    await expect(runSearch({ q: "משהו" }, deps)).rejects.toMatchObject({ code: "parse_failed" });
+    expect(llm.calls).toEqual(["parse", "parse"]);
+    expect(store.usage.map((u) => u.kind)).toEqual(["parse", "parse"]);
+  });
+
+  it("records the parse when AliExpress fails after it", async () => {
+    const { deps, store, fetchMock } = setup();
+    fetchMock.mockImplementation(async () => new Response("not json"));
+    await expect(runSearch({ q: Q }, deps)).rejects.toMatchObject({ code: "upstream" });
+    expect(store.usage.map((u) => u.kind)).toEqual(["parse"]);
+    expect(store.logs).toEqual([]);
+  });
+
+  it("never records usage for a refused search", async () => {
+    const { deps, store } = setup();
+    await expect(runSearch({ q: Q }, { ...deps, beforeLlmWork: refuse() })).rejects.toMatchObject({
+      code: "capacity",
+    });
+    expect(store.usage).toEqual([]);
+  });
+});
+
+describe("stats writes never fail a search", () => {
+  class BrokenLogStore extends MemoryStore {
+    override async logSearch(): Promise<void> {
+      throw new Error("search_log is down");
+    }
+    override async logUsage(): Promise<void> {
+      throw new Error("llm_usage is down");
+    }
+  }
+
+  it("returns results when logSearch and logUsage throw", async () => {
+    const { deps } = setup();
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const store = new BrokenLogStore();
+      const fresh = await runSearch({ q: Q }, { ...deps, store });
+      expect(fresh.response.results.length).toBeGreaterThan(0);
+      const cached = await runSearch({ q: Q }, { ...deps, store });
+      expect(cached.meta.cache).toBe("results");
+      const more = await loadMore(fresh.response.filters_key!, 1, { ...deps, store });
+      expect(more).not.toBeNull();
+      expect(errors.mock.calls.map(([m]) => String(m))).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining("[search] logSearch failed"),
+          expect.stringContaining("[search] logUsage failed"),
+        ]),
+      );
+    } finally {
+      errors.mockRestore();
+    }
+  });
+});
+
+describe("loadMore stats", () => {
+  it("logs each page served as source 'more' and its explain call as explain_more", async () => {
+    const { deps, store } = setup({ ...PARSE, max_price_ils: null });
+    const { response } = await runSearch({ q: "כבל USB" }, deps);
+    const fk = response.filters_key!;
+    store.logs.length = 0;
+    store.usage.length = 0;
+
+    const more = await loadMore(fk, 1, deps);
+    expect(more?.log).toEqual({
+      query: "כבל USB",
+      queryNorm: "כבל usb",
+      parsed: expect.objectContaining({ product_he: "כבל USB" }),
+      resultIds: expect.any(Array),
+      cache: "results",
+      resultsCount: more?.results.length,
+      source: "more",
+    });
+    expect(store.logs).toEqual([more?.log]);
+    expect(store.usage.map((u) => u.kind)).toEqual(["explain_more"]);
+
+    await loadMore(fk, 1, deps); // already explained: logged, no LLM call
+    expect(store.logs).toHaveLength(2);
+    expect(store.usage).toHaveLength(1);
+
+    const past = await loadMore(fk, 99, deps); // an empty page is not logged
+    expect(past?.log).toBeNull();
+    expect(store.logs).toHaveLength(2);
+  });
+});
+
 describe("keywordLadder", () => {
   it("falls back to shorter keywords without requirement or filler words", () => {
     expect(

@@ -257,6 +257,121 @@ describe("checkExplanation", () => {
   });
 });
 
+describe("'הכותרת לא מציינת' caveats name only a requirement from the search", () => {
+  // Recorded round-2 lines (fixtures/llm/eval-v2-2026-09-27.json).
+  const vent: ExplainInput = {
+    product_id: "1005011822823662",
+    title_en:
+      "Car For Magsafe Wireless Charger Pad Air Vent Phone Holder Stand For iPhone 17~12 Samsung Xiaomi Fast Charging Cellphone Bracket",
+    price_ils: 15.43,
+    original_price_ils: 30.87,
+    discount_pct: 50,
+    positive_feedback_pct: 98,
+    units_sold_30d: 2726,
+  };
+  const wall: ExplainInput = {
+    product_id: "1005010376516082",
+    title_en:
+      "65W USB-C Wall Charger with Retractable Cable Super Fast Charging QC 3.0 USB PD for iPhone 17/16 POCO Xiaomi - Phone Chargers",
+    price_ils: 15.59,
+    original_price_ils: 32.47,
+    discount_pct: 52,
+    positive_feedback_pct: 98,
+    units_sold_30d: 11698,
+  };
+  const holderContext: ExplainContext = {
+    product_he: "מחזיק טלפון לרכב",
+    requirements_he: ["טעינה אלחוטית"],
+    sort_preference: "best_value",
+  };
+  const check = (why: string, p: ExplainInput, ctx: ExplainContext) =>
+    checkExplanation({ title_he: TITLE, why_he: why }, p, [p], ctx);
+
+  it("drops a trailing caveat about a feature nobody asked for", () => {
+    const out = check(
+      "מחזיק טעינה אלחוטית מהירה ל־iPhone וטלפונים נוספים, 98% משוב חיובי, אבל הכותרת לא מציינת ידית הרכבה.",
+      vent,
+      holderContext,
+    );
+    expect(out.why_problem).toBeNull();
+    expect(out.why_he).toBe("מחזיק טעינה אלחוטית מהירה ל־iPhone וטלפונים נוספים, 98% משוב חיובי.");
+    const garbled = check(
+      "מטען 65W עם טעינה מהירה וכבל נשלף, 98% משוב חיובי, אבל הכותרת לא מציינת שיחוק קוויק.",
+      wall,
+      {
+        product_he: "מטען מהיר 65W",
+        requirements_he: ["65W", "טעינה מהירה"],
+        sort_preference: "best_value",
+      },
+    );
+    expect(garbled.why_he).toBe("מטען 65W עם טעינה מהירה וכבל נשלף, 98% משוב חיובי.");
+  });
+
+  it("drops a caveat when the search stated no requirements at all", () => {
+    const pad: ExplainInput = {
+      product_id: "1005010439353509",
+      title_en: "10PCS Padlock Shim Picks Set Accessories Set Tools Home Garden Tools",
+      price_ils: 7,
+      original_price_ils: 14,
+      discount_pct: 50,
+      positive_feedback_pct: 98,
+      units_sold_30d: 577,
+    };
+    const out = check(
+      "אביזר משלים, לא כלי גינה: סט 10 שימים לנעילות לשימוש בבית וגינה, אבל הכותרת לא מציינת שימוש בגינון.",
+      pad,
+      { product_he: "כלים לגינון", requirements_he: [], sort_preference: "best_value" },
+    );
+    expect(out.why_he).toBe("אביזר משלים, לא כלי גינה: סט 10 שימים לנעילות לשימוש בבית וגינה.");
+  });
+
+  it("keeps a caveat about a stated requirement, in any prefix form", () => {
+    for (const why of [
+      "אוזניות צוואר אלחוטיות לריצה, אבל הכותרת לא מציינת עמידות למים.",
+      "אוזניות צוואר אלחוטיות לריצה, אך הכותרת לא מציינת עמידות במים.",
+    ]) {
+      const out = check(why, input, context);
+      expect([why, out.why_problem]).toEqual([why, null]);
+      expect(out.why_he).toBe(why);
+    }
+    const latin = check(
+      "מטען GaN מהיר לטלפון ולמחשב נייד, אבל הכותרת לא מציינת USB-C.",
+      chargers[1],
+      {
+        ...chargerContext,
+        requirements_he: ["USB-C"],
+      },
+    );
+    expect(latin.why_problem).toBeNull();
+  });
+
+  it("rejects an unrequested caveat it cannot cut off cleanly", () => {
+    const out = check(
+      "הכותרת לא מציינת התאמה לכל הטלפונים, אבל זהו מחזיק עם טעינה אלחוטית מהירה.",
+      vent,
+      holderContext,
+    );
+    expect(out.why_he).toBeNull();
+    expect(out.why_problem).toBe("unrequested_caveat");
+    // Two caveats: cutting the last one would keep the unrequested first one.
+    const two = check(
+      "מחזיק לרכב, הכותרת לא מציינת ידית הרכבה, אבל הכותרת לא מציינת טעינה אלחוטית.",
+      vent,
+      holderContext,
+    );
+    expect(two.why_problem).toBe("unrequested_caveat");
+  });
+
+  it("falls back when nothing but the caveat was written", () => {
+    const out = check("הכותרת לא מציינת ידית הרכבה למחזיק ברכב.", vent, holderContext);
+    expect(out.why_he).toBeNull();
+  });
+
+  it("tells the model to write caveats only about requirements_he", () => {
+    expect(EXPLAIN_SYSTEM).toMatch(/הכותרת לא מציינת[^\n]*requirements_he/);
+  });
+});
+
 describe("whyFromData", () => {
   it("builds a true sentence from the trust data", () => {
     expect(whyFromData(chargers[0])).toBe("98.7% משוב חיובי ו־1,928 נמכרו ב־30 הימים האחרונים.");

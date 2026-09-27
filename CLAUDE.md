@@ -167,8 +167,9 @@ Share buttons share **our** page URL (e.g. via `https://wa.me/?text=`), never th
 - `category_tips(category_id text pk, tips_he jsonb, updated_at)`
 - `rate_limits(ip_hash text, window_start timestamptz, count int, primary key(ip_hash, window_start))`, incremented atomically by `bump_counter()`; keys `h:<hash>`, `d:<hash>`, `llm:day`
 - `fx_rates(date date pk, usd_ils numeric)`
+- Phase 2: `seo_pages(slug text pk, query text, title_he text, intro_he text, published bool, created_at, updated_at)`; `llm_usage(id, created_at, kind in ('parse','explain','explain_more','tips'), model, input/output/cache tokens, cost_usd)`; `search_log` gained `cache`, `results_count`, `query_norm`, `source`; the admin stats read report functions granted to the service role only.
 
-RLS on everything. Public (anon) may only `select` from `deals where published = true`. Everything else is server-side with the service role key.
+RLS on everything. Public (anon) may only `select` from `deals where published = true` and `seo_pages where published = true`. Everything else is server-side with the service role key.
 
 ## 9. Design system (match the approved mockup)
 
@@ -239,6 +240,7 @@ Map these into Tailwind (`theme.extend.colors` using `var(--…)`), never hard-c
 - **M6 – Deploy**: Supabase migrations applied, Vercel env vars set by the owner, production deploy after the owner approves.
   Status 2026-09-27: live at https://matzati-il.vercel.app (Vercel project matzati-il, Git-connected, env vars set).
 - **Phase 2**: price cron, SEO pages for popular queries (`/s/[slug]`, statically generated), sitemap, analytics (only with a cookie notice).
+  Status 2026-09-27: SEO pages (`seo_pages` table, `/admin/seo`, `/s/[slug]` ISR), sitemap and robots done; admin stats (`/admin/stats`, `llm_usage` table, report functions) done; price cron and analytics open.
 
 ## 12. Working rules for Claude Code
 

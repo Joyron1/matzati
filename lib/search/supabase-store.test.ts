@@ -2,8 +2,9 @@ import { readFileSync } from "node:fs";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 import { parseProductPage, type AliProduct } from "@/lib/aliexpress/schemas";
+import type { LlmUsageRecord } from "@/lib/stats/usage";
 import type { ParsedQuery } from "./filters";
-import type { CachedResults } from "./store";
+import type { CachedResults, SearchLogEntry } from "./store";
 import { SupabaseStore } from "./supabase-store";
 
 type Row = Record<string, unknown>;
@@ -149,6 +150,22 @@ function results(createdAt: string, products = PRODUCTS.slice(0, 4)): CachedResu
   };
 }
 
+const LOG: SearchLogEntry = {
+  query: "כבל USB",
+  queryNorm: "כבל usb",
+  parsed: PARSED,
+  resultIds: [],
+  cache: "results",
+  resultsCount: 3,
+  source: "search",
+};
+
+const USAGE: LlmUsageRecord = {
+  kind: "parse",
+  model: "claude-haiku-4-5",
+  usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 },
+};
+
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
 let errors: MockInstance<typeof console.error>;
@@ -266,14 +283,63 @@ describe("SupabaseStore", () => {
 
   it("logs a search without any IP or user data", async () => {
     const db = new FakeDb();
-    await new SupabaseStore(db.client()).logSearch({
-      query: "כבל",
-      parsed: PARSED,
-      resultIds: ["1", "2"],
-    });
+    await new SupabaseStore(db.client()).logSearch({ ...LOG, resultIds: ["1", "2"] });
     expect(db.rows("search_log")).toEqual([
-      { query: "כבל", parsed: PARSED, result_ids: ["1", "2"] },
+      {
+        query: "כבל USB",
+        query_norm: "כבל usb",
+        parsed: PARSED,
+        result_ids: ["1", "2"],
+        cache: "results",
+        results_count: 3,
+        source: "search",
+      },
     ]);
+  });
+
+  describe("llm usage", () => {
+    it("writes one row per call with tokens and cost, in a single insert", async () => {
+      const db = new FakeDb();
+      await new SupabaseStore(db.client()).logUsage([
+        {
+          kind: "parse",
+          model: "claude-haiku-4-5-20251001",
+          usage: { inputTokens: 900, outputTokens: 100, cacheReadTokens: 0, cacheWriteTokens: 0 },
+        },
+        {
+          kind: "explain_more",
+          model: "some-unknown-model",
+          usage: { inputTokens: 10, outputTokens: 5, cacheReadTokens: 2, cacheWriteTokens: 1 },
+        },
+      ]);
+      expect(db.calls.filter((c) => c.table === "llm_usage")).toHaveLength(1);
+      expect(db.rows("llm_usage")).toEqual([
+        {
+          kind: "parse",
+          model: "claude-haiku-4-5-20251001",
+          input_tokens: 900,
+          output_tokens: 100,
+          cache_read_tokens: 0,
+          cache_write_tokens: 0,
+          cost_usd: 0.0014, // (900 * $1 + 100 * $5) per million tokens
+        },
+        {
+          kind: "explain_more",
+          model: "some-unknown-model",
+          input_tokens: 10,
+          output_tokens: 5,
+          cache_read_tokens: 2,
+          cache_write_tokens: 1,
+          cost_usd: null, // never a guessed price
+        },
+      ]);
+    });
+
+    it("does nothing for an empty list", async () => {
+      const db = new FakeDb();
+      await new SupabaseStore(db.client()).logUsage([]);
+      expect(db.calls).toHaveLength(0);
+    });
   });
 
   describe("products", () => {
@@ -361,7 +427,8 @@ describe("SupabaseStore", () => {
           store.putParse("qk", "q", PARSED),
           store.putResults("fk", "q", r),
           store.updateResults("fk", r),
-          store.logSearch({ query: "q", parsed: PARSED, resultIds: [] }),
+          store.logSearch(LOG),
+          store.logUsage([USAGE]),
           store.saveProducts(PRODUCTS.slice(0, 2), {}),
           store.logClick("1", "search"),
         ]),
@@ -371,15 +438,20 @@ describe("SupabaseStore", () => {
 
     it("write errors are logged, not thrown", async () => {
       const db = new FakeDb();
-      ["parse_cache:upsert", "search_cache:upsert", "search_log:insert", "clicks:insert"].forEach(
-        (f) => db.failing.add(f),
-      );
+      [
+        "parse_cache:upsert",
+        "search_cache:upsert",
+        "search_log:insert",
+        "llm_usage:insert",
+        "clicks:insert",
+      ].forEach((f) => db.failing.add(f));
       const store = new SupabaseStore(db.client());
       await store.putParse("qk", "q", PARSED);
       await store.putResults("fk", "q", results(new Date().toISOString()));
-      await store.logSearch({ query: "q", parsed: PARSED, resultIds: [] });
+      await store.logSearch(LOG);
+      await store.logUsage([USAGE]);
       await store.logClick("1", "search");
-      expect(errors).toHaveBeenCalledTimes(4);
+      expect(errors).toHaveBeenCalledTimes(5);
     });
   });
 });

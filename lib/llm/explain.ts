@@ -18,7 +18,7 @@ import {
 import type { LlmProvider, LlmUsage } from "./provider";
 
 /** Part of the results cache key: bump it whenever the prompt or the checks change. */
-export const EXPLAIN_VERSION = 2;
+export const EXPLAIN_VERSION = 4;
 
 export const WHY_MAX = 120;
 export const WHY_MIN = 25;
@@ -63,43 +63,33 @@ export function explainContextFrom(filters: ParsedQuery): ExplainContext {
   };
 }
 
+// No .describe(): EXPLAIN_SYSTEM covers every field, and descriptions are paid input tokens.
 export const explainSchema = z.object({
   items: z.array(
     z.object({
-      id: z.string().describe("The product's id from the input"),
+      id: z.string(),
       title_he: z.string(),
       why_he: z.string(),
     }),
   ),
 });
 
-export const EXPLAIN_SYSTEM = `You write short Hebrew copy for an Israeli shopping site. The input JSON has "search" (the shopper's filters: product_he, requirements_he, an optional budget min_price_ils / max_price_ils, and sort_preference) and "products" (up to 3, each with a short id and the fields shown on its card). Return exactly one item for every product in the input, in the same order and with the same id, even when sort_preference is "cheapest".
+export const EXPLAIN_SYSTEM = `Write Hebrew copy for an Israeli shopping site. Return one item per input product, same id and order, even when sort_preference is "cheapest".
 
-title_he: a short, natural Hebrew name for what the product actually is, at most 60 characters.
-- Base it only on title_en. If title_en shows an accessory or part (a replacement head, a protective cover, a refill, a mounting bracket), name that item, not the product it belongs to.
-- Keep brand names, model names and specs exactly as written (IP67, 20000mAh, 1080P, M8, 1.5M). Do not convert units.
-- Never add a feature that is not in title_en, even if the search asked for it.
+title_he (≤60 chars): what the product is, from title_en only; an accessory or part (replacement head, cover) is named as that item. Keep brands, models and specs exactly (IP67, 20000mAh), no unit conversion, no feature missing from title_en.
 
-why_he: one complete Hebrew sentence of 40 to ${WHY_MAX} characters, ending with a period, saying how this product fits the search.
-- State a feature only if title_en states it. If the search asked for something title_en does not mention, do not claim it; end with "אבל הכותרת לא מציינת <the feature>".
-- If the product only partly fits (an accessory, a different item, a part that fits one model only), say so at the start, for example "אביזר משלים, לא המכשיר עצמו:".
-- Do not write the price or the budget, and never write ₪, ש״ח or שקל; the card shows the price. You may write "מתחת לתקציב שלכם" when a budget was given.
-- Trust data only in these exact forms: "<positive_feedback_pct>% משוב חיובי" and "<units_sold_30d> נמכרו ב־30 הימים האחרונים". Never "ביקורות", "דירוג", "הערכה" or "בחודש".
-- Numbers: at most two, copied digit for digit from the input. No rounding, no arithmetic, no differences, no unit conversions.
-- Comparisons only when true across the products in this input, phrased with "מבין השלושה" (or "מבין השניים"): "הזול מבין השלושה", "הנמכר ביותר מבין השלושה", "המשוב החיובי הגבוה ביותר מבין השלושה". No comparisons when there is only one product. Never "הכי טוב", "משתלם", "מושלם", "לכל" or "אוניברסלי" unless title_en says universal.
-- Do not repeat personal details (age, who it is for, names). The same line is shown to other shoppers whose search had the same filters.
+why_he: one sentence of 40-${WHY_MAX} chars ending with a period: how it fits the search, from the input data only.
+- A feature only if title_en states it. End with "אבל הכותרת לא מציינת <requirement>" only for a requirements_he item title_en lacks; never about anything else.
+- Partial fit (accessory, other item, one-model part): say so first ("אביזר משלים, לא המכשיר עצמו:").
+- No price, budget or currency; "מתחת לתקציב שלכם" is fine if a budget was given.
+- Trust data only as "<positive_feedback_pct>% משוב חיובי" and "<units_sold_30d> נמכרו ב־30 הימים האחרונים".
+- At most two numbers, copied exactly, no rounding or arithmetic.
+- Comparisons only when true in this input: "הזול", "הנמכר ביותר" or "המשוב החיובי הגבוה ביותר" + "מבין השלושה" ("מבין השניים" for two, none for one). No other superlatives (הכי טוב, משתלם, מושלם).
+- No personal details (age, recipient, names): the line is reused for other shoppers.
 
-Hebrew style for both fields:
-- Plural, gender-neutral address: "שלכם", "לכם", "תוכלו". Never "שלך", "לך", "אתה", "תוכל".
-- Natural Israeli Hebrew, not word-for-word translation: "נירוסטה" (not "פלדה ללא כתמים"), "חזק ועמיד" for heavy duty (not "חובה כבדה"), "נגד אדים" for anti-fog (not "אנטי ערפל"), "עמיד בפני שריטות" (not "התנגדות לשריטות").
-- Hebrew letters only; Latin only for brand names, model names and specs. Put a maqaf between a one-letter Hebrew prefix and Latin or digits: "ו־HDMI", "ב־4K".
-- In abbreviations use the Hebrew marks ״ and ׳, never the ASCII characters " or ': "ס״מ", "מ״ל", "ק״ג".
-- No emoji, no exclamation marks.
+Both fields: plural gender-neutral address (שלכם, תוכלו; never שלך, אתה). Natural Israeli Hebrew. Hebrew letters; Latin only for brands, models and specs, with a maqaf after a prefix (ב־4K). Abbreviations with ״ ׳ never ASCII quotes (ס״מ). No emoji or exclamation marks.
 
-Examples:
-search {"product_he":"מזרן יוגה","requirements_he":["נגד החלקה"]}, title_en "TPE Yoga Mat 6mm Non Slip Double Layer Fitness Exercise Pad With Carry Strap" (the cheapest of three, 97.5% feedback) -> title_he "מזרן יוגה TPE דו־שכבתי 6mm", why_he "מזרן דו־שכבתי נגד החלקה עם רצועת נשיאה, 97.5% משוב חיובי והזול מבין השלושה."
-search {"product_he":"מברשת לכלבים ארוכי שיער"}, title_en "Pet Grooming Brush Self Cleaning Slicker Brush for Dogs Cats Hair Removal Comb" -> title_he "מברשת טיפוח לכלבים וחתולים", why_he "מברשת טיפוח לכלבים וחתולים עם ניקוי עצמי, אבל הכותרת לא מציינת התאמה לשיער ארוך."
-search {"product_he":"מברשת שיניים חשמלית"}, title_en "4pcs Replacement Brush Heads Compatible with Oral-B Electric Toothbrush Soft Bristles" -> title_he "4 ראשי החלפה למברשת שיניים חשמלית Oral-B", why_he "אביזר משלים, לא המברשת עצמה: 4 ראשי החלפה רכים שמתאימים למברשות Oral-B."`;
+Example: search {"product_he":"מזרן יוגה","requirements_he":["נגד החלקה"]}, title_en "TPE Yoga Mat 6mm Non Slip", cheapest of three, 97.5% feedback -> title_he "מזרן יוגה TPE 6mm", why_he "מזרן נגד החלקה, 97.5% משוב חיובי והזול מבין השלושה."`;
 
 export type CopyProblem =
   | "missing"
@@ -111,7 +101,9 @@ export type CopyProblem =
   | "singular_address"
   | "price_written"
   | "ungrounded_number"
-  | "false_superlative";
+  | "false_superlative"
+  /** "הכותרת לא מציינת ..." about something the search did not require, not at the end. */
+  | "unrequested_caveat";
 
 export interface Explained {
   product_id: string;
@@ -211,6 +203,68 @@ export interface CheckedCopy {
   why_problem: CopyProblem | null;
 }
 
+const CAVEAT = /ו?הכותרת\s+(?:לא|אינה)\s+מציינת\s+/;
+/** The caveat as the line's last clause, with its lead-in: ", אבל הכותרת לא מציינת ידית הרכבה." */
+const TRAILING_CAVEAT =
+  /(?:[,;]\s*|\s+)?(?:(?:ו?אבל|אך)\s+)?ו?הכותרת\s+(?:לא|אינה)\s+מציינת\s+[^.,;:]+\.?\s*$/;
+/** Words that say nothing about which requirement a caveat names. */
+const FUNCTION_WORDS = new Set([
+  "עם",
+  "ללא",
+  "בלי",
+  "נגד",
+  "של",
+  "את",
+  "או",
+  "גם",
+  "לא",
+  "כל",
+  "על",
+]);
+
+/**
+ * A text's words, each also without up to two one-letter prefixes, so "עמידות למים" and "עמידות
+ * במים" share "מים". Forms shorter than 3 letters are dropped ("ים" would match "לים").
+ */
+function wordForms(text: string): Set<string> {
+  const forms = new Set<string>();
+  for (const word of text.toLowerCase().split(/[^\p{L}\p{N}]+/u)) {
+    if (FUNCTION_WORDS.has(word)) continue;
+    let w = word;
+    for (let k = 0; k <= 2 && w.length >= 3; k++) {
+      forms.add(w);
+      if (!/^[ובהלמשכ]/.test(w)) break;
+      w = w.slice(1);
+    }
+  }
+  return forms;
+}
+
+/**
+ * "הכותרת לא מציינת X" may only name a requirement the search stated (requirements_he), never
+ * a feature nobody asked for ("ידית הרכבה"). Such a caveat is cut off when it is the last clause;
+ * anywhere else the line fails with "unrequested_caveat".
+ */
+function withoutUnrequestedCaveat(
+  why: string,
+  requirements: readonly string[],
+): { why: string; cut: boolean; problem: CopyProblem | null } {
+  const found = CAVEAT.exec(why);
+  if (!found) return { why, cut: false, problem: null };
+  const named = wordForms(why.slice(found.index + found[0].length).split(/[.,;:]/)[0]);
+  if (requirements.some((r) => [...wordForms(r)].some((f) => named.has(f)))) {
+    return { why, cut: false, problem: null };
+  }
+  const trailing = TRAILING_CAVEAT.exec(why);
+  // Only the caveat just checked may be cut: a later one ("..., אבל הכותרת לא מציינת עמידות
+  // למים.") may be the requested caveat, and cutting it would keep the unrequested one.
+  if (!trailing || trailing.index > found.index) {
+    return { why, cut: false, problem: "unrequested_caveat" };
+  }
+  const rest = why.slice(0, trailing.index).replace(/[\s,;:־-]+$/, "");
+  return { why: rest ? `${rest}.` : "", cut: true, problem: null };
+}
+
 /** Checks one item against its product and the batch it was written with (for comparisons). */
 export function checkExplanation(
   item: { title_he: string; why_he: string },
@@ -218,9 +272,12 @@ export function checkExplanation(
   batch: readonly ExplainInput[],
   context: ExplainContext,
 ): CheckedCopy {
-  const why = tidyHebrew(item.why_he.trim());
+  const caveat = withoutUnrequestedCaveat(tidyHebrew(item.why_he.trim()), context.requirements_he);
+  const why = caveat.why;
   const title = tidyHebrew(item.title_he.trim());
-  const wp = whyProblem(why, p, batch, context);
+  let wp = caveat.problem ?? whyProblem(why, p, batch, context);
+  // Too little left after our own cut is not a line the model cut off, so the title stays.
+  if (caveat.cut && (wp === "empty" || wp === "truncated")) wp = "unrequested_caveat";
   // A cut-off line usually means the title was cut at the same ASCII quote ("מארגן סכו").
   const tp = wp === "truncated" ? "truncated" : titleProblem(title, p);
   return {

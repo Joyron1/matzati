@@ -34,6 +34,7 @@ import {
   type SearchOutcome,
 } from "./pipeline";
 import { normalizeQuery } from "./cache-key";
+import type { SearchLogEntry, SearchStore } from "./store";
 import { SupabaseStore, type StoredProduct } from "./supabase-store";
 
 export type SearchFailure =
@@ -111,13 +112,30 @@ function toFailure(err: unknown, where: string): SearchFailure {
   return "unavailable"; // config, database and anything unexpected
 }
 
+/** DAILY_SEARCH_CAP (units of LLM work per Israel day), for the admin stats. Throws ConfigError. */
+export function dailySearchCap(): number {
+  return guardEnv().dailyCap;
+}
+
+/**
+ * A request that joined another request's run was served without any new work, so it is logged
+ * like a cache hit: its own query, cache "results". Never throws.
+ */
+async function logShared(store: () => SearchStore, log: SearchLogEntry, q: string) {
+  try {
+    await store().logSearch({ ...log, query: q, queryNorm: normalizeQuery(q), cache: "results" });
+  } catch (err) {
+    logError("search-log", err);
+  }
+}
+
 /** Runs a search for a request. `headers` are the incoming request headers (for the IP). */
 // Identical searches that arrive while one is still running share its result instead of paying
 // for a second parse, fetch and explain (seen in testing: a refresh during a 10 s search ran it
 // twice). Per server instance; the 48h cache covers everything after the first run completes.
 const inFlight = new Map<string, Promise<SearchOutcome>>();
 
-function sharedRun(
+async function sharedRun(
   q: string,
   without: string[],
   sort: SortPreference | undefined,
@@ -125,7 +143,11 @@ function sharedRun(
 ): Promise<SearchOutcome> {
   const key = JSON.stringify([normalizeQuery(q), [...without].sort(), sort ?? null]);
   const running = inFlight.get(key);
-  if (running) return running;
+  if (running) {
+    const outcome = await running;
+    await logShared(() => deps.store, outcome.log, q);
+    return outcome;
+  }
   const run = runSearch({ q, without, sort }, deps).finally(() => inFlight.delete(key));
   inFlight.set(key, run);
   return run;
@@ -283,10 +305,12 @@ const tipsRefresher = new TipsRefresher();
 function tipsJobDeps(): TipsJobDeps {
   const db = serviceClient();
   const { dailyCap } = guardEnv();
+  const store = new SupabaseStore(db);
   return {
     db,
     llm: llmProvider(),
     chargeBudget: () => consumeDailyLlmBudget(db, new Date(), dailyCap),
+    recordUsage: (record) => store.logUsage([record]),
   };
 }
 
@@ -362,11 +386,11 @@ export const productForPage = cache(async (productId: string): Promise<ProductPa
 });
 
 const PREVIEW_RETRY_MS = 10 * 60_000;
-const previews = new Map<string, { run: Promise<SearchResponse | null>; failedAt?: number }>();
+const previews = new Map<string, { run: Promise<SearchOutcome | null>; failedAt?: number }>();
 
-async function runPreview(q: string): Promise<SearchResponse | null> {
+async function runPreview(q: string): Promise<SearchOutcome | null> {
   try {
-    return (await runSearch({ q }, searchDeps(guardEnv().dailyCap).deps)).response;
+    return await runSearch({ q, source: "preview" }, searchDeps(guardEnv().dailyCap).deps);
   } catch (err) {
     toFailure(err, "preview");
     return null;
@@ -377,6 +401,8 @@ async function runPreview(q: string): Promise<SearchResponse | null> {
  * Real results for the home page example. Not counted against the visitor's rate limit (it is
  * not their search), still subject to the daily LLM budget, and served from the 48h cache after
  * the first run. Null on any failure, so the home page simply hides the preview.
+ * Logged with source "preview", so home page views and SEO landing page renders
+ * (lib/seo/page-view.ts) never count as searches in the stats.
  */
 export async function examplePreview(q: string): Promise<SearchResponse | null> {
   // Visitors arriving together while the cache is cold share one paid run per instance. A failure
@@ -385,14 +411,18 @@ export async function examplePreview(q: string): Promise<SearchResponse | null> 
   const key = q.trim();
   const entry = previews.get(key);
   const retry = entry?.failedAt !== undefined && Date.now() - entry.failedAt >= PREVIEW_RETRY_MS;
-  if (entry && !retry) return entry.run;
-  const run: Promise<SearchResponse | null> = runPreview(key).then((response) => {
-    if (response) previews.delete(key);
+  if (entry && !retry) {
+    const shared = await entry.run;
+    if (shared) await logShared(() => new SupabaseStore(serviceClient()), shared.log, key);
+    return shared?.response ?? null;
+  }
+  const run: Promise<SearchOutcome | null> = runPreview(key).then((outcome) => {
+    if (outcome) previews.delete(key);
     else previews.set(key, { run, failedAt: Date.now() });
-    return response;
+    return outcome;
   });
   previews.set(key, { run });
-  return run;
+  return (await run)?.response ?? null;
 }
 
 /**

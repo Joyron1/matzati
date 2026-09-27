@@ -304,6 +304,115 @@ describe("normalizeParsed", () => {
         expect(normalizeParsed(raw({ sort_preference: s }))?.sort_preference).toBe(s);
       }
     });
+
+    it("fixes the Hebrew misspelling the model produced (eval round 2)", () => {
+      const p = normalizeParsed(
+        raw({
+          product_he: "בקבוק אטום לדיסות",
+          requirements: [req("leak proof", ["no leak"], "אטום לדיסות")],
+        }),
+      );
+      expect(p?.product_he).toBe("בקבוק אטום לדליפות");
+      expect(p?.requirements[0].he).toBe("אטום לדליפות");
+      // Only the whole word: a word that merely contains the letters stays as it is.
+      expect(normalizeParsed(raw({ product_he: "פרדיסות" }))?.product_he).toBe("פרדיסות");
+    });
+  });
+
+  describe("גן means kindergarten", () => {
+    // Recorded round 2: "בקבוק מים לגן שלא נוזל" gave the product term "garden bottle".
+    const bottle = raw({
+      product_he: "בקבוק מים לגן",
+      product_terms: ["water bottle", "garden bottle"],
+      requirements: [req("leak proof", ["no leak"], "אטום לדליפות")],
+      keywords_en: "leak proof water bottle",
+      max_price_ils: null,
+      category_hint: "children water bottles",
+    });
+
+    it("drops garden phrases from a request about a kindergarten", () => {
+      const p = normalizeParsed(bottle, "בקבוק מים לגן שלא נוזל");
+      expect(p?.product_terms).toEqual(["water bottle"]);
+      expect(p?.keywords_en).toBe("leak proof water bottle");
+      const worse = normalizeParsed(
+        { ...bottle, keywords_en: "garden water bottle", category_hint: "garden bottles" },
+        "בקבוק לגן הילדים",
+      );
+      expect(worse?.keywords_en).toBe("water bottle");
+      expect(worse?.category_hint).toBe("bottles");
+      expect(normalizeParsed(bottle, "תיק גב קטן לגן ילדים")?.product_terms).toEqual([
+        "water bottle",
+      ]);
+    });
+
+    it("keeps garden when the request is about a garden", () => {
+      const tools = raw({
+        product_terms: ["gardening tools", "garden tools"],
+        keywords_en: "gardening tools set",
+      });
+      for (const q of [
+        "מתנה לסבתא שאוהבת לגנן עד 120 ש״ח",
+        "כלים לגינה",
+        "ריהוט גן מעץ",
+        "זרעים לגן ירק",
+      ]) {
+        expect([q, normalizeParsed(tools, q)?.product_terms]).toEqual([
+          q,
+          ["gardening tools", "garden tools"],
+        ]);
+      }
+      // "להגן" (to protect) is not a kindergarten.
+      expect(normalizeParsed(bottle, "כיסוי להגן על הבקבוק")?.product_terms).toEqual([
+        "water bottle",
+        "garden bottle",
+      ]);
+    });
+
+    it("keeps garden for 'לגן' without a kids context: it is a garden too", () => {
+      const lights = raw({
+        product_he: "תאורה סולארית לגן",
+        product_terms: ["solar garden light", "garden light", "solar light"],
+        requirements: [],
+        keywords_en: "solar garden lights",
+        category_hint: "outdoor garden lighting",
+      });
+      const p = normalizeParsed(lights, "תאורה סולארית לגן");
+      expect(p?.keywords_en).toBe("solar garden lights");
+      expect(p?.product_terms).toEqual(["solar garden light", "garden light", "solar light"]);
+      expect(p?.category_hint).toBe("outdoor garden lighting");
+      const tools = raw({
+        product_terms: ["garden tools"],
+        requirements: [],
+        keywords_en: "garden tools set",
+        category_hint: "garden hand tools",
+      });
+      expect(normalizeParsed(tools, "כלי עבודה לגן")?.keywords_en).toBe("garden tools set");
+    });
+
+    it("takes the kids context from the request or from the model's own words", () => {
+      const plain = { ...bottle, category_hint: "water bottles" };
+      // No kids word anywhere: "לגן" could be a garden, so nothing is removed.
+      expect(normalizeParsed(plain, "בקבוק מים לגן")?.product_terms).toEqual([
+        "water bottle",
+        "garden bottle",
+      ]);
+      for (const q of ["בקבוק מים לגן לילד", "בקבוק לגן לבת 4", "בקבוק לתינוק בגן"]) {
+        expect([q, normalizeParsed(plain, q)?.product_terms]).toEqual([q, ["water bottle"]]);
+      }
+    });
+
+    it("never drops the last product term, and needs the query to act", () => {
+      const only = { ...bottle, product_terms: ["garden bottle"] };
+      expect(normalizeParsed(only, "בקבוק לגן")?.product_terms).toEqual(["garden bottle"]);
+      expect(normalizeParsed(bottle)?.product_terms).toEqual(["water bottle", "garden bottle"]);
+    });
+  });
+});
+
+describe("PARSE_SYSTEM", () => {
+  it("spells out the labels and the meaning of גן that the model got wrong", () => {
+    expect(PARSE_SYSTEM).toContain("אטום לדליפות");
+    expect(PARSE_SYSTEM).toMatch(/גן[^\n]*kindergarten/);
   });
 });
 
@@ -368,6 +477,17 @@ describe("parseQuery", () => {
     expect(requests[1].system.startsWith(PARSE_SYSTEM)).toBe(true);
     expect(requests[1].system.length).toBeGreaterThan(PARSE_SYSTEM.length);
     expect(requests[1].temperature).toBe(0);
+  });
+
+  it("reads גן in the query as a kindergarten", async () => {
+    const { llm } = fakeLlm([
+      raw({
+        product_terms: ["water bottle", "garden bottle"],
+        category_hint: "children water bottles",
+      }),
+    ]);
+    const res = await parseQuery(llm, "בקבוק מים לגן שלא נוזל");
+    expect(res.parsed?.product_terms).toEqual(["water bottle"]);
   });
 
   it("retries when the provider returns no data", async () => {
