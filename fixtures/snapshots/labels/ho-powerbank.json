@@ -1,0 +1,572 @@
+[
+  {
+    "productId": "1005007984360235",
+    "label": "exact",
+    "note": "Ultra-thin magnetic 10000mAh power bank"
+  },
+  {
+    "productId": "1005011546364090",
+    "label": "exact",
+    "note": "Magnetic 10000mAh Qi2.2 power bank, pricey"
+  },
+  {
+    "productId": "1005006670126685",
+    "label": "weak",
+    "note": "20000mAh, larger than the small 10000mAh asked"
+  },
+  {
+    "productId": "1005009418411818",
+    "label": "weak",
+    "note": "20000mAh, larger than the small 10000mAh asked"
+  },
+  {
+    "productId": "1005006134380779",
+    "label": "exact",
+    "note": "Magnetic 10000mAh power bank"
+  },
+  {
+    "productId": "1005007445455502",
+    "label": "weak",
+    "note": "20000mAh, larger than the small 10000mAh asked"
+  },
+  {
+    "productId": "1005007634697941",
+    "label": "exact",
+    "note": "Magnetic 10000mAh Qi2 power bank"
+  },
+  {
+    "productId": "1005007860996686",
+    "label": "weak",
+    "note": "20000mAh laptop power bank, too large"
+  },
+  {
+    "productId": "1005010775263810",
+    "label": "exact",
+    "note": "Mini 10000mAh power bank"
+  },
+  {
+    "productId": "1005006572332287",
+    "label": "weak",
+    "note": "5000mAh, half the requested capacity"
+  },
+  {
+    "productId": "1005005852631816",
+    "label": "wrong",
+    "note": "Bike light with built-in power bank"
+  },
+  {
+    "productId": "1005008249818662",
+    "label": "weak",
+    "note": "25000mAh laptop power bank, far from small"
+  },
+  {
+    "productId": "1005005108782490",
+    "label": "wrong",
+    "note": "Camping fan with power bank"
+  },
+  {
+    "productId": "1005008058965763",
+    "label": "exact",
+    "note": "Mini 10000mAh power bank"
+  },
+  {
+    "productId": "1005007977968607",
+    "label": "exact",
+    "note": "Magnetic 10000mAh power bank, 5000mAh variant too"
+  },
+  {
+    "productId": "1005007956125217",
+    "label": "reasonable",
+    "note": "10000mAh power bank, no size cue"
+  },
+  {
+    "productId": "1005010606760672",
+    "label": "exact",
+    "note": "Mini 10000mAh power bank with built-in cable"
+  },
+  {
+    "productId": "1005006860850404",
+    "label": "wrong",
+    "note": "Bike light with built-in power bank"
+  },
+  {
+    "productId": "1005007295821577",
+    "label": "weak",
+    "note": "25000mAh laptop power bank, far from small"
+  },
+  {
+    "productId": "1005010649975131",
+    "label": "exact",
+    "note": "Magnetic 10000mAh power bank"
+  },
+  {
+    "productId": "1005008792343298",
+    "label": "weak",
+    "note": "30000mAh, much larger than asked"
+  },
+  {
+    "productId": "1005007621221008",
+    "label": "weak",
+    "note": "20000mAh laptop power bank, too large"
+  },
+  {
+    "productId": "1005007663609627",
+    "label": "exact",
+    "note": "Magnetic 10000mAh Qi2 power bank"
+  },
+  {
+    "productId": "1005008967961497",
+    "label": "weak",
+    "note": "20000mAh, larger than the small 10000mAh asked"
+  },
+  {
+    "productId": "1005008595790262",
+    "label": "weak",
+    "note": "20000mAh, larger than the small 10000mAh asked"
+  },
+  {
+    "productId": "1005009703807498",
+    "label": "weak",
+    "note": "5000mAh, half the requested capacity"
+  },
+  {
+    "productId": "1005007443357573",
+    "label": "weak",
+    "note": "12000/20000mAh laptop power bank, not 10000mAh"
+  },
+  {
+    "productId": "1005010361537333",
+    "label": "weak",
+    "note": "20000mAh laptop power bank, too large"
+  },
+  {
+    "productId": "1005007129374365",
+    "label": "wrong",
+    "note": "Camping fan with power bank"
+  },
+  {
+    "productId": "1005006901709875",
+    "label": "wrong",
+    "note": "Bike light with built-in power bank"
+  },
+  {
+    "productId": "1005006495562624",
+    "label": "exact",
+    "note": "Slim magnetic 10000mAh power bank"
+  },
+  {
+    "productId": "1005008448321383",
+    "label": "weak",
+    "note": "20000mAh laptop power bank, too large"
+  },
+  {
+    "productId": "1005008094289372",
+    "label": "weak",
+    "note": "5000mAh, half the requested capacity"
+  },
+  {
+    "productId": "1005006287670753",
+    "label": "exact",
+    "note": "Magnetic 10000mAh Qi2.2 power bank"
+  },
+  {
+    "productId": "1005009127238944",
+    "label": "reasonable",
+    "note": "Magnetic power bank, 10000mAh is one variant"
+  },
+  {
+    "productId": "1005008446541075",
+    "label": "weak",
+    "note": "20000mAh, larger than the small 10000mAh asked"
+  },
+  {
+    "productId": "1005007344789751",
+    "label": "wrong",
+    "note": "Bike light with built-in power bank"
+  },
+  {
+    "productId": "1005006713514328",
+    "label": "weak",
+    "note": "5000mAh, half the requested capacity"
+  },
+  {
+    "productId": "1005006237553524",
+    "label": "weak",
+    "note": "20000mAh, larger than the small 10000mAh asked"
+  },
+  {
+    "productId": "1005010524759727",
+    "label": "weak",
+    "note": "25000mAh laptop power bank, far from small"
+  },
+  {
+    "productId": "1005006974245321",
+    "label": "weak",
+    "note": "20000mAh laptop power bank, too large"
+  },
+  {
+    "productId": "1005010354323473",
+    "label": "exact",
+    "note": "Card-sized magnetic 10000mAh power bank"
+  },
+  {
+    "productId": "1005010425880598",
+    "label": "exact",
+    "note": "Thin 10000mAh power bank with built-in cables"
+  },
+  {
+    "productId": "1005005642344316",
+    "label": "weak",
+    "note": "25000/20000mAh laptop power bank, far from small"
+  },
+  {
+    "productId": "1005011773041416",
+    "label": "weak",
+    "note": "20000mAh laptop power bank, too large"
+  },
+  {
+    "productId": "1005005704794297",
+    "label": "exact",
+    "note": "Mini 10000mAh power bank with built-in cable"
+  },
+  {
+    "productId": "1005012100739085",
+    "label": "weak",
+    "note": "5000mAh, half the requested capacity"
+  },
+  {
+    "productId": "1005005024577713",
+    "label": "wrong",
+    "note": "Camping fan with power bank"
+  },
+  {
+    "productId": "1005006134491427",
+    "label": "weak",
+    "note": "5000mAh, half the requested capacity"
+  },
+  {
+    "productId": "1005011790221382",
+    "label": "exact",
+    "note": "Magnetic 10000mAh power bank"
+  },
+  {
+    "productId": "1005012530783585",
+    "label": "weak",
+    "note": "Implausible 500000mAh claim, not small"
+  },
+  {
+    "productId": "1005007187716904",
+    "label": "wrong",
+    "note": "Bike light with built-in power bank"
+  },
+  {
+    "productId": "1005011949168697",
+    "label": "exact",
+    "note": "Slim magnetic 10000mAh power bank"
+  },
+  {
+    "productId": "1005008962763239",
+    "label": "wrong",
+    "note": "Bike light with built-in power bank"
+  },
+  {
+    "productId": "1005008178200170",
+    "label": "reasonable",
+    "note": "Magnetic power bank, 10000mAh is a secondary variant"
+  },
+  {
+    "productId": "1005008531147300",
+    "label": "weak",
+    "note": "20000mAh, larger than the small 10000mAh asked"
+  },
+  {
+    "productId": "1005009806583967",
+    "label": "wrong",
+    "note": "Bike light with built-in power bank"
+  },
+  {
+    "productId": "1005009383138000",
+    "label": "wrong",
+    "note": "Solar camping flood light"
+  },
+  {
+    "productId": "1005006987968852",
+    "label": "weak",
+    "note": "5000mAh, half the requested capacity"
+  },
+  {
+    "productId": "1005007906808218",
+    "label": "exact",
+    "note": "Ultra-slim magnetic 10000mAh power bank"
+  },
+  {
+    "productId": "1005006611918344",
+    "label": "wrong",
+    "note": "Camping fan with power bank"
+  },
+  {
+    "productId": "1005010626912441",
+    "label": "exact",
+    "note": "Pocket-sized 10000mAh power bank with built-in cable"
+  },
+  {
+    "productId": "1005006860838272",
+    "label": "wrong",
+    "note": "Bike light with built-in power bank"
+  },
+  {
+    "productId": "1005011768370783",
+    "label": "wrong",
+    "note": "Cordless air duster"
+  },
+  {
+    "productId": "1005011830728704",
+    "label": "wrong",
+    "note": "Waist fan with power bank"
+  },
+  {
+    "productId": "1005008284955707",
+    "label": "wrong",
+    "note": "Bike light with built-in power bank"
+  },
+  {
+    "productId": "1005008692727049",
+    "label": "exact",
+    "note": "Ultra-slim magnetic 10000mAh power bank"
+  },
+  {
+    "productId": "1005006276623093",
+    "label": "reasonable",
+    "note": "10000mAh power bank, 20000mAh variant, no size cue"
+  },
+  {
+    "productId": "1005011711389867",
+    "label": "exact",
+    "note": "Mini 10000mAh power bank with cable"
+  },
+  {
+    "productId": "1005005814179114",
+    "label": "weak",
+    "note": "25000mAh laptop power bank, far from small"
+  },
+  {
+    "productId": "1005012526914062",
+    "label": "exact",
+    "note": "Card-slim magnetic 10000mAh power bank"
+  },
+  {
+    "productId": "1005007184869220",
+    "label": "weak",
+    "note": "20000mAh, larger than the small 10000mAh asked"
+  },
+  {
+    "productId": "1005007252032226",
+    "label": "weak",
+    "note": "20000/25000mAh laptop power bank, far from small"
+  },
+  {
+    "productId": "1005006118904725",
+    "label": "weak",
+    "note": "20000mAh laptop power bank, too large"
+  },
+  {
+    "productId": "1005007182206007",
+    "label": "weak",
+    "note": "25000mAh laptop power bank, far from small"
+  },
+  {
+    "productId": "1005003463618698",
+    "label": "wrong",
+    "note": "Car jump starter"
+  },
+  {
+    "productId": "1005011644238963",
+    "label": "exact",
+    "note": "Ultra-light 10000mAh power bank, pricey"
+  },
+  {
+    "productId": "1005010209067965",
+    "label": "reasonable",
+    "note": "10000mAh power bank, no size cue"
+  },
+  {
+    "productId": "1005011779570913",
+    "label": "weak",
+    "note": "20000mAh, larger than the small 10000mAh asked"
+  },
+  {
+    "productId": "1005009082662050",
+    "label": "reasonable",
+    "note": "30000mAh lead listing, 10000mAh variant available"
+  },
+  {
+    "productId": "1005006509962815",
+    "label": "wrong",
+    "note": "Bike light with built-in power bank"
+  },
+  {
+    "productId": "1005012130956724",
+    "label": "weak",
+    "note": "20000mAh, larger than the small 10000mAh asked"
+  },
+  {
+    "productId": "1005001869146137",
+    "label": "reasonable",
+    "note": "10000mAh power bank, no size cue"
+  },
+  {
+    "productId": "1005009236049716",
+    "label": "weak",
+    "note": "50000mAh power station, far from small"
+  },
+  {
+    "productId": "1005008870680136",
+    "label": "reasonable",
+    "note": "10000mAh power bank, 20000mAh variant, built-in cables"
+  },
+  {
+    "productId": "1005012627701656",
+    "label": "reasonable",
+    "note": "10000mAh power bank with watch charger, no size cue"
+  },
+  {
+    "productId": "1005011692576359",
+    "label": "wrong",
+    "note": "USB-C terminal adapters"
+  },
+  {
+    "productId": "1005006494964393",
+    "label": "wrong",
+    "note": "Cable storage bag"
+  },
+  {
+    "productId": "1005008660378295",
+    "label": "wrong",
+    "note": "Short USB-C cable"
+  },
+  {
+    "productId": "1005006995804920",
+    "label": "wrong",
+    "note": "18650 battery holder box"
+  },
+  {
+    "productId": "1005006996356511",
+    "label": "wrong",
+    "note": "USB power tester"
+  },
+  {
+    "productId": "1005007605600719",
+    "label": "wrong",
+    "note": "LED work light"
+  },
+  {
+    "productId": "1005010487373443",
+    "label": "wrong",
+    "note": "Keychain LED flashlight"
+  },
+  {
+    "productId": "1005005473161632",
+    "label": "weak",
+    "note": "25000mAh laptop power bank, far from small"
+  },
+  {
+    "productId": "1005009404937354",
+    "label": "wrong",
+    "note": "USB4 cable"
+  },
+  {
+    "productId": "1005007345913153",
+    "label": "wrong",
+    "note": "Cable storage bag"
+  },
+  {
+    "productId": "1005013255525639",
+    "label": "wrong",
+    "note": "Short USB-C cable"
+  },
+  {
+    "productId": "1005012736747578",
+    "label": "wrong",
+    "note": "Case for a MagSafe power bank"
+  },
+  {
+    "productId": "1005010706593799",
+    "label": "wrong",
+    "note": "Magnetic LED work light bar"
+  },
+  {
+    "productId": "1005010498549222",
+    "label": "wrong",
+    "note": "Magnetic LED work light bar"
+  },
+  {
+    "productId": "1005009874295213",
+    "label": "wrong",
+    "note": "Waist fan with power bank"
+  },
+  {
+    "productId": "1005009277939387",
+    "label": "wrong",
+    "note": "Keychain USB-C cable"
+  },
+  {
+    "productId": "1005007232700320",
+    "label": "wrong",
+    "note": "DIY 18650 power bank box, no cells"
+  },
+  {
+    "productId": "1005007484673961",
+    "label": "wrong",
+    "note": "LED flashlight"
+  },
+  {
+    "productId": "1005006494873644",
+    "label": "wrong",
+    "note": "Cable storage bag"
+  },
+  {
+    "productId": "1005010757932530",
+    "label": "wrong",
+    "note": "USB-C terminal adapters"
+  },
+  {
+    "productId": "1005008248066647",
+    "label": "wrong",
+    "note": "LED work light"
+  },
+  {
+    "productId": "1005007308252354",
+    "label": "wrong",
+    "note": "DIY 18650 power bank box, no cells"
+  },
+  {
+    "productId": "1005010724501614",
+    "label": "exact",
+    "note": "Pocket-sized mini 10000mAh power bank"
+  },
+  {
+    "productId": "1005003118120456",
+    "label": "wrong",
+    "note": "Car jump starter"
+  },
+  {
+    "productId": "1005012986556891",
+    "label": "wrong",
+    "note": "Keychain USB-C cable"
+  },
+  {
+    "productId": "1005010496942021",
+    "label": "weak",
+    "note": "MagSafe power bank, capacity not stated"
+  },
+  {
+    "productId": "1005006966491096",
+    "label": "wrong",
+    "note": "18650 battery charger"
+  },
+  {
+    "productId": "1005008660345417",
+    "label": "wrong",
+    "note": "Short USB-C cable"
+  }
+]

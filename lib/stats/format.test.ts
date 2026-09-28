@@ -1,12 +1,18 @@
 import { describe, expect, it } from "vitest";
+import { SEARCH_ORIGINS } from "@/lib/search/store";
 import {
+  clickPositionLabel,
+  failureLabel,
   formatIlsAmount,
   formatIsraelDay,
+  formatSeconds,
   formatShare,
   formatUsd,
   llmKindLabel,
   NO_SHARE,
+  originLabel,
 } from "./format";
+import { CLICK_POSITION_GROUPS } from "./report";
 
 describe("formatUsd", () => {
   it("keeps fractions of a cent visible for small amounts", () => {
@@ -57,5 +63,33 @@ describe("llmKindLabel", () => {
   it("names every job in Hebrew", () => {
     expect(llmKindLabel("parse")).toBe("הבנת החיפוש");
     expect(llmKindLabel("tips")).toBe("טיפים לקטגוריה");
+  });
+});
+
+describe("formatSeconds", () => {
+  it("shows seconds with one decimal, and a missing median as NO_SHARE", () => {
+    expect(formatSeconds(6240)).toBe("6.2 שניות");
+    expect(formatSeconds(380)).toBe("0.4 שניות");
+    expect(formatSeconds(null)).toBe(NO_SHARE);
+  });
+});
+
+describe("origin, failure and click position labels", () => {
+  const hebrew = /[א-ת]/;
+
+  it("names every origin in Hebrew, and the total row", () => {
+    for (const origin of SEARCH_ORIGINS) expect(originLabel(origin)).toMatch(hebrew);
+    expect(originLabel(null)).toBe("סה״כ");
+  });
+
+  it("names the known failure codes, and leaves an unknown one to be shown as is", () => {
+    expect(failureLabel("parse_failed")).toBe("החיפוש לא הובן");
+    expect(failureLabel("capacity")).toBe("תקציב ה־LLM היומי נוצל");
+    expect(failureLabel("brand_new")).toBeNull();
+    expect(failureLabel("toString")).toBeNull();
+  });
+
+  it("names every click position group", () => {
+    for (const group of CLICK_POSITION_GROUPS) expect(clickPositionLabel(group)).toMatch(hebrew);
   });
 });

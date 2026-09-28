@@ -8,9 +8,12 @@ import { dailySearchCap } from "@/lib/search/server";
 import { loadAdminStats, STATS_DAYS, type AdminStats } from "@/lib/stats/queries";
 import { serviceClient } from "@/lib/supabase/server";
 import {
+  ClickPositionsTable,
   DailyTable,
+  FailuresTable,
   FxNote,
   LlmByKindTable,
+  OriginTable,
   TodaySummary,
   TopProductsTable,
   TopQueriesTable,
@@ -69,7 +72,10 @@ export default async function StatsPage() {
       !stats.topQueries &&
       !stats.zeroResultQueries &&
       !stats.topProducts &&
-      !stats.llmByKind);
+      !stats.llmByKind &&
+      !stats.byOrigin &&
+      !stats.failures &&
+      !stats.clickPositions);
 
   return (
     <div className="mx-auto max-w-6xl space-y-10 px-4 pt-8 sm:px-6 sm:pt-12">
@@ -77,7 +83,9 @@ export default async function StatsPage() {
         <h1 className="font-display text-4xl">נתונים</h1>
         <p className="text-muted">
           מה קורה באתר ומה זה עולה: {STATS_DAYS} הימים האחרונים לפי שעון ישראל, נכון לרגע טעינת הדף.
-          בלי כתובות IP ובלי פרטים על המבקרים.
+          רק האתר החי: בדיקות מסביבת הפיתוח ומגרסאות תצוגה מקדימה לא נספרות, וגם לא חיפושים וקליקים
+          שנעשו כשהייתם מחוברים לניהול. עלות מודל השפה כוללת את כל הקריאות באתר החי. בלי כתובות IP
+          ובלי פרטים על המבקרים.
         </p>
       </div>
 
@@ -100,6 +108,9 @@ export default async function StatsPage() {
             fx={stats.fx}
           />
           <DailyTable days={stats.daily} fx={stats.fx} windowDays={STATS_DAYS} />
+          <OriginTable rows={stats.byOrigin} />
+          <FailuresTable rows={stats.failures} />
+          <ClickPositionsTable rows={stats.clickPositions} />
           <LlmByKindTable rows={stats.llmByKind} fx={stats.fx} />
           <TopQueriesTable rows={stats.topQueries} />
           <ZeroResultTable rows={stats.zeroResultQueries} />

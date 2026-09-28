@@ -1,12 +1,18 @@
 // Pure shapes and arithmetic behind /admin/stats. Loading is in ./queries.ts, display text in
-// ./format.ts. Every number here comes from our own tables; nothing is estimated.
+// ./format.ts. Every number here comes from our own tables; nothing is estimated. Every report
+// reads production rows only (search_log.env and friends, 20260928140000_search_telemetry.sql):
+// dev and preview traffic writes to the same database but never shows up here.
+import type { SearchOriginKind } from "@/lib/search/store";
 import type { LlmCallKind } from "./usage";
 
 /** One Asia/Jerusalem calendar day (stats_daily in supabase/migrations/phase2_stats.sql). */
 export interface DailyStats {
   /** "YYYY-MM-DD", an Israel date. */
   day: string;
-  /** Visitor searches (source "search"), including chip removals and sort changes. */
+  /**
+   * Visitor searches (source "search"), including chip removals and sort changes. Failed and
+   * shared requests are not counted here (see OriginStats and FailureStats).
+   */
   searches: number;
   /** Results fetched for this search (cache "none" or "parse"). */
   fresh: number;
@@ -59,6 +65,48 @@ export interface LlmKindStats {
   cacheWriteTokens: number;
   costUsd: number;
   unpricedCalls: number;
+}
+
+/**
+ * Requests of one search_log.origin over the window (stats_by_origin); origin null is the total.
+ * Shared requests (joined an identical search in flight) are left out.
+ */
+export interface OriginStats {
+  origin: SearchOriginKind | null;
+  /** Requests that returned a response. */
+  searches: number;
+  /** Of those, with no results. */
+  zeroResults: number;
+  /** Of those, with 1 or 2 results. */
+  partialResults: number;
+  /** Requests that ended in an error (not in `searches`). */
+  failures: number;
+  /** Responses with at least one chip removed. */
+  chipsRemoved: number;
+  /** Responses with at least one click on their result cards. */
+  clicked: number;
+  /** Median total_ms of responses that fetched results; null when there were none. */
+  medianMsFresh: number | null;
+  /** Median total_ms of full cache hits; null when there were none. */
+  medianMsCached: number | null;
+}
+
+/** Failed requests with one search_log.failure code (stats_failures). */
+export interface FailureStats {
+  failure: string;
+  failures: number;
+  /** Of those, visitor searches (the rest are "עוד 3 אפשרויות" and SEO page runs). */
+  searches: number;
+  lastSeen: string;
+}
+
+/** Result-card positions: 1 (featured), 2-3, and 4 and up ("עוד 3 אפשרויות"). */
+export const CLICK_POSITION_GROUPS = ["featured", "top3", "more"] as const;
+export type ClickPositionGroup = (typeof CLICK_POSITION_GROUPS)[number];
+
+export interface ClickPositionStats {
+  group: ClickPositionGroup;
+  clicks: number;
 }
 
 /** part / whole, or null when there is nothing to divide by (shown as a dash, never as 0%). */

@@ -9,9 +9,10 @@
 import { createHash } from "node:crypto";
 import { EXPLAIN_VERSION } from "@/lib/llm/explain";
 import { PARSE_VERSION } from "@/lib/llm/parse";
+import { fixSpelling } from "@/lib/llm/text-checks";
 import { RANKING_VERSION } from "@/lib/ranking/config";
 import { normalizePhrase, tokenize } from "@/lib/ranking/match";
-import type { SearchFilters } from "./filters";
+import type { ParsedQuery, SearchFilters } from "./filters";
 
 /** How long parses and results are reused (owner decision 2026-09-27: 14 days, was 48h). */
 export const CACHE_TTL_DAYS = 14;
@@ -47,34 +48,54 @@ const words = (s: string) =>
     .filter(Boolean);
 const sortedUnique = (xs: string[]) => [...new Set(xs.filter(Boolean))].sort();
 
+const unique = (xs: string[]) => [...new Set(xs.filter(Boolean))];
+/** A Hebrew label as explain reads it (explainContextFrom): known misspellings fixed. */
+const label = (he: string) => fixSpelling(he.replace(/\s+/g, " ").trim());
+
 /**
  * Everything that changes which products are fetched, kept, ordered and explained, normalized the
  * way the matcher reads it: "wireless charger" and "wireless charging" or "65 W" and "65w" are the
  * same requirement, so they share a key; product terms are compared as tokens, like the type gate.
+ * Order counts where the code reads it: the first product term (relevance, broader keyword steps,
+ * chip removal) and the first requirement's own phrase (keyword steps), so product terms and
+ * requirements keep the parse's order and a requirement its en before its sorted alts. The
+ * category hint (the last keyword step), the preference words (relevance) and the Hebrew labels
+ * the explanations are written with (plan item 9: a label typed differently never shares another
+ * query's lines) are part of the key too. Keyword words are a set: AliExpress ignores their order.
  */
-export function canonicalFilters(f: SearchFilters) {
+export function canonicalFilters(
+  f: SearchFilters & Partial<Pick<ParsedQuery, "category_hint" | "product_he">>,
+) {
   const round = (n: number | undefined) => (n === undefined ? null : Math.round(n));
   return {
     rv: RANKING_VERSION,
     ev: EXPLAIN_VERSION,
     k: sortedUnique(words(f.keywords_en)),
-    t: sortedUnique(f.product_terms.map((t) => tokenize(t).join(" "))),
-    r: f.requirements
-      .map((r) => sortedUnique([r.en, ...r.alt].map(normalizePhrase)))
-      .sort((a, b) => a.join("|").localeCompare(b.join("|"))),
+    t: unique(f.product_terms.map((t) => tokenize(t).join(" "))),
+    r: f.requirements.map((r) => [
+      normalizePhrase(r.en),
+      ...sortedUnique(r.alt.map(normalizePhrase)).filter((a) => a !== normalizePhrase(r.en)),
+    ]),
+    p: (f.preferences ?? []).map((p) => sortedUnique(p.words.map((w) => w.toLowerCase()))),
+    h: words(f.category_hint ?? "").join(" "),
+    l: [label(f.product_he ?? ""), ...f.requirements.map((r) => label(r.he))],
     min: round(f.min_price_ils),
     max: round(f.max_price_ils),
     s: f.sort_preference,
   };
 }
 
-export function filtersKey(f: SearchFilters): string {
+export function filtersKey(
+  f: SearchFilters & Partial<Pick<ParsedQuery, "category_hint" | "product_he">>,
+): string {
   return sha256(`f2:${JSON.stringify(canonicalFilters(f))}`);
 }
 
 /**
  * How long a result set with no products is reused: the 48h of before the 14-day decision, so a
- * momentary gap in the AliExpress catalog does not say "nothing found" for two weeks.
+ * momentary gap in the AliExpress catalog does not say "nothing found" for two weeks. The same
+ * holds for a result set whose explain call failed (lines built from the data, `degraded`) and for
+ * the parse of a search whose own filters found nothing (emptyParseCreatedAt in ./pipeline.ts).
  */
 export const EMPTY_RESULTS_TTL_HOURS = 48;
 
@@ -82,7 +103,16 @@ export function isFresh(createdAt: Date, now: Date, ttlHours: number = CACHE_TTL
   return now.getTime() - createdAt.getTime() < ttlHours * 3_600_000;
 }
 
-/** Freshness of a cached result set: CACHE_TTL_HOURS, or EMPTY_RESULTS_TTL_HOURS when empty. */
-export function isFreshResults(createdAt: Date, productCount: number, now: Date): boolean {
-  return isFresh(createdAt, now, productCount === 0 ? EMPTY_RESULTS_TTL_HOURS : CACHE_TTL_HOURS);
+/**
+ * Freshness of a cached result set: CACHE_TTL_HOURS, or EMPTY_RESULTS_TTL_HOURS when it is empty
+ * or `degraded` (CachedResults.degraded).
+ */
+export function isFreshResults(
+  createdAt: Date,
+  productCount: number,
+  now: Date,
+  degraded = false,
+): boolean {
+  const short = productCount === 0 || degraded;
+  return isFresh(createdAt, now, short ? EMPTY_RESULTS_TTL_HOURS : CACHE_TTL_HOURS);
 }

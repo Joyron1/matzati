@@ -84,6 +84,37 @@ const RPC: Record<string, unknown> = {
       unpriced_calls: 0,
     },
   ],
+  stats_by_origin: [
+    {
+      origin: "typed",
+      searches: 10,
+      zero_results: 1,
+      partial_results: 2,
+      failures: 1,
+      chips_removed: 3,
+      clicked: 4,
+      median_ms_fresh: 6240,
+      median_ms_cached: "380",
+    },
+    {
+      origin: null,
+      searches: 10,
+      zero_results: 1,
+      partial_results: 2,
+      failures: 1,
+      chips_removed: 3,
+      clicked: 4,
+      median_ms_fresh: null,
+      median_ms_cached: null,
+    },
+  ],
+  stats_failures: [
+    { failure: "upstream", failures: 2, searches: 1, last_seen: "2026-09-27T08:00:00+00:00" },
+  ],
+  stats_click_positions: [
+    { position_group: "featured", clicks: 5 },
+    { position_group: "top3", clicks: 2 },
+  ],
 };
 
 const FX: UsdIlsRate = { rate: 3.7, publishedAt: "2026-09-25T12:00:00Z", source: "boi" };
@@ -126,6 +157,9 @@ describe("loadAdminStats", () => {
         { fn: "stats_zero_result_queries", args: { p_days: STATS_DAYS, p_limit: 20 } },
         { fn: "stats_top_products", args: { p_days: STATS_DAYS, p_limit: 10 } },
         { fn: "stats_llm_by_kind", args: { p_days: STATS_DAYS } },
+        { fn: "stats_by_origin", args: { p_days: STATS_DAYS } },
+        { fn: "stats_failures", args: { p_days: STATS_DAYS } },
+        { fn: "stats_click_positions", args: { p_days: STATS_DAYS } },
       ]),
     );
     expect(stats.daily).toEqual([
@@ -169,6 +203,27 @@ describe("loadAdminStats", () => {
         costUsd: 0.0084,
         unpricedCalls: 0,
       },
+    ]);
+    expect(stats.byOrigin).toEqual([
+      {
+        origin: "typed",
+        searches: 10,
+        zeroResults: 1,
+        partialResults: 2,
+        failures: 1,
+        chipsRemoved: 3,
+        clicked: 4,
+        medianMsFresh: 6240,
+        medianMsCached: 380,
+      },
+      expect.objectContaining({ origin: null, medianMsFresh: null, medianMsCached: null }),
+    ]);
+    expect(stats.failures).toEqual([
+      { failure: "upstream", failures: 2, searches: 1, lastSeen: "2026-09-27T08:00:00+00:00" },
+    ]);
+    expect(stats.clickPositions).toEqual([
+      { group: "featured", clicks: 5 },
+      { group: "top3", clicks: 2 },
     ]);
     expect(stats).toMatchObject({ budgetCounter: 1234, budgetCap: 2000, fx: FX });
     // Today's global LLM counter: the Israel day that started at 21:00Z (IDT).
@@ -215,5 +270,23 @@ describe("loadAdminStats", () => {
     });
     const stats = await loadAdminStats({ db, now: NOW, cap: 1, fx: async () => FX, log: () => {} });
     expect(stats.llmByKind).toBeNull();
+  });
+});
+
+describe("loadAdminStats: telemetry parts", () => {
+  it("rejects an unknown origin, failure code or position group rather than mislabelling it", async () => {
+    const first = (fn: string) => (RPC[fn] as object[])[0];
+    const { db } = fakeDb({
+      rpc: {
+        stats_by_origin: ok([{ ...first("stats_by_origin"), origin: "email" }]),
+        stats_failures: ok([{ ...first("stats_failures"), failure: "<b>boom</b>" }]),
+        stats_click_positions: ok([{ position_group: "sidebar", clicks: 1 }]),
+      },
+    });
+    const stats = await loadAdminStats({ db, now: NOW, cap: 1, fx: async () => FX, log: () => {} });
+    expect(stats.byOrigin).toBeNull();
+    expect(stats.failures).toBeNull();
+    expect(stats.clickPositions).toBeNull();
+    expect(stats.daily).not.toBeNull();
   });
 });

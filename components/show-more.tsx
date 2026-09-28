@@ -4,7 +4,7 @@ import { LoaderCircle, Plus, RotateCcw } from "lucide-react";
 import { useRef, useState } from "react";
 import { RESULTS_PER_PAGE } from "@/lib/config/site";
 import { APPROX_PRICE_NOTE } from "@/lib/copy";
-import type { ResultProduct } from "@/lib/types";
+import type { LoggedResult } from "@/lib/search-url";
 import { CompactProductCard } from "./product-cards";
 import { btnLg, btnMd, btnSecondary } from "./styles";
 
@@ -17,7 +17,8 @@ const ERROR_TEXT: Record<MoreError, string> = {
   unavailable: "לא הצלחנו לטעון עוד אפשרויות. נסו שוב.",
 };
 
-type MoreResponse = { results: ResultProduct[]; more_available: boolean };
+// Each result carries the uid of the page's own search_log row (source "more"), for its /go link.
+type MoreResponse = { results: LoggedResult[]; more_available: boolean };
 
 async function fetchMore(filtersKey: string, page: number): Promise<MoreResponse | MoreError> {
   try {
@@ -42,7 +43,7 @@ async function fetchMore(filtersKey: string, page: number): Promise<MoreResponse
 
 /** "עוד 3 אפשרויות": loads the next ranked page of the cached result set and focuses it. */
 export function ShowMore({ filtersKey, q }: { filtersKey: string; q: string }) {
-  const [pages, setPages] = useState<ResultProduct[][]>([]);
+  const [pages, setPages] = useState<LoggedResult[][]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<MoreError | null>(null);
   const [exhausted, setExhausted] = useState(false);

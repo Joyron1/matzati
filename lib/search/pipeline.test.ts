@@ -5,7 +5,18 @@ import { EXPLAIN_SYSTEM } from "@/lib/llm/explain";
 import type { ParsedQueryRaw } from "@/lib/llm/parse";
 import type { LlmProvider, StructuredRequest } from "@/lib/llm/provider";
 import type { z } from "zod";
-import { isListableSearch, keywordLadder, loadMore, runSearch, SearchError } from "./pipeline";
+import { queryKey } from "./cache-key";
+import {
+  emptyParseCreatedAt,
+  FETCH_BUDGET_MS,
+  isListableSearch,
+  keywordLadder,
+  LLM_STAGE_LIMITS,
+  loadMore,
+  runSearch,
+  SearchError,
+  searchFailureCode,
+} from "./pipeline";
 import { MemoryStore } from "./store";
 
 // Real product.query response ("usb cable", ILS), captured by check:ali.
@@ -25,20 +36,36 @@ const PARSE: ParsedQueryRaw = {
   category_hint: null,
 };
 
+// One line per card, all different: a batch with two identical lines may be rejected.
+const WHYS = [
+  "עבר את הסינון עם משוב חיובי גבוה ומכירות רבות בחודש האחרון.",
+  "מתאים לחיפוש ונמכר הרבה בחודש האחרון, עם משוב חיובי גבוה.",
+  "בחירה פופולרית שעברה את הסינון, עם משוב חיובי גבוה.",
+];
+
 class FakeLlm implements LlmProvider {
   readonly name = "anthropic" as const;
   readonly model = "claude-haiku-4-5";
   calls: string[] = [];
+  /** Per call: its kind and the limits it was sent with. */
+  limits: { kind: string; timeoutMs?: number; maxRetries?: number }[] = [];
+  /** Set to make that kind of call throw, as a timeout or an API error does. */
+  failing = new Set<"parse" | "explain">();
+  /** The why_he of the i-th product of an explain batch. */
+  why: (i: number) => string = (i) => WHYS[i % WHYS.length];
   constructor(private parse: ParsedQueryRaw | null = PARSE) {}
   async generateStructured<T extends z.ZodType>(req: StructuredRequest<T>) {
     const usage = { inputTokens: 900, outputTokens: 100, cacheReadTokens: 0, cacheWriteTokens: 0 };
-    if (req.system === EXPLAIN_SYSTEM) {
+    const kind = req.system === EXPLAIN_SYSTEM ? "explain" : "parse";
+    this.limits.push({ kind, timeoutMs: req.timeoutMs, maxRetries: req.maxRetries });
+    if (this.failing.has(kind)) throw new Error(`${kind}: request timed out`);
+    if (kind === "explain") {
       this.calls.push("explain");
       const { products } = JSON.parse(req.user) as { products: { id: string }[] };
-      const items = products.map((p) => ({
+      const items = products.map((p, i) => ({
         id: p.id,
         title_he: "כבל טעינה מהיר",
-        why_he: "עבר את הסינון עם משוב חיובי גבוה ומכירות רבות בחודש האחרון.",
+        why_he: this.why(i),
       }));
       return { data: { items } as z.infer<T>, usage, model: this.model };
     }
@@ -279,25 +306,36 @@ describe("search_log (stats)", () => {
     });
     expect(first.resultsCount).toBeGreaterThan(0);
     expect(first.resultIds.length).toBeGreaterThanOrEqual(first.resultsCount);
-    expect(first.parsed.max_price_ils).toBe(40);
+    expect(first.parsed?.max_price_ils).toBe(40);
     // The cache hit logs its own spelling and the same results.
     expect(second).toMatchObject({ query: 'כבל usb  עד 40 ש"ח', queryNorm: first.queryNorm });
     expect(second.resultIds).toEqual(first.resultIds);
     expect(cached.log).toEqual(second);
-    expect(refined.log.parsed.max_price_ils).toBeUndefined();
+    expect(refined.log.parsed?.max_price_ils).toBeUndefined();
     // Never anything about the visitor.
     for (const log of store.logs) {
       expect(Object.keys(log).sort()).toEqual(
         [
+          "aliCalls",
           "cache",
           "categoryId",
+          "diag",
+          "failure",
           "listable",
+          "origin",
+          "owner",
           "parsed",
           "query",
           "queryNorm",
+          "rejected",
           "resultIds",
           "resultsCount",
+          "searchUid",
+          "shared",
+          "sortOverride",
           "source",
+          "timings",
+          "without",
         ].sort(),
       );
     }
@@ -362,10 +400,31 @@ describe("search_log (stats)", () => {
     ]);
   });
 
-  it("logs nothing for a search that fails", async () => {
+  it("logs a search that fails with its failure code and what it knew", async () => {
     const { deps, store } = setup(null);
     await expect(runSearch({ q: "משהו" }, deps)).rejects.toMatchObject({ code: "parse_failed" });
-    expect(store.logs).toEqual([]);
+    expect(store.logs).toEqual([
+      expect.objectContaining({
+        query: "משהו",
+        parsed: null,
+        cache: "none",
+        resultsCount: 0,
+        resultIds: [],
+        categoryId: null,
+        listable: false,
+        origin: "typed",
+        failure: "parse_failed",
+        aliCalls: 0,
+        rejected: null,
+        shared: false,
+      }),
+    ]);
+    expect(store.logs[0].timings).toEqual({
+      parse_ms: expect.any(Number),
+      fetch_ms: null,
+      explain_ms: null,
+      total_ms: expect.any(Number),
+    });
   });
 });
 
@@ -401,7 +460,12 @@ describe("llm_usage (stats)", () => {
     fetchMock.mockImplementation(async () => new Response("not json"));
     await expect(runSearch({ q: Q }, deps)).rejects.toMatchObject({ code: "upstream" });
     expect(store.usage.map((u) => u.kind)).toEqual(["parse"]);
-    expect(store.logs).toEqual([]);
+    // Logged once, with the filters it ran with and the call it made.
+    expect(store.logs).toEqual([
+      expect.objectContaining({ failure: "upstream", cache: "none", resultsCount: 0, aliCalls: 1 }),
+    ]);
+    expect(store.logs[0].parsed?.max_price_ils).toBe(40);
+    expect(store.logs[0].timings.fetch_ms).toEqual(expect.any(Number));
   });
 
   it("never records usage for a refused search", async () => {
@@ -465,6 +529,23 @@ describe("loadMore stats", () => {
       source: "more",
       categoryId: more?.results[0].category_id,
       listable: false, // never on /searches
+      origin: "more",
+      without: [],
+      sortOverride: null,
+      timings: {
+        parse_ms: null,
+        fetch_ms: null,
+        explain_ms: expect.any(Number),
+        total_ms: expect.any(Number),
+      },
+      aliCalls: 0,
+      rejected: null,
+      failure: null,
+      searchUid: expect.any(String),
+      shared: false,
+      owner: false,
+      // Explained without a fallback line: nothing to diagnose.
+      diag: null,
     });
     expect(more?.log?.categoryId).toEqual(expect.any(String));
     expect(store.logs).toEqual([more?.log]);
@@ -499,7 +580,7 @@ describe("isListableSearch", () => {
 });
 
 describe("keywordLadder", () => {
-  it("falls back to shorter keywords without requirement or filler words", () => {
+  it("broadens without audience and praise words, then without requirement words", () => {
     expect(
       keywordLadder({
         ...PARSE,
@@ -511,6 +592,452 @@ describe("keywordLadder", () => {
         max_price_ils: undefined,
         category_hint: "drinkware bottles",
       }),
-    ).toEqual(["kids water bottle leak proof durable", "kids water bottle", "drinkware bottles"]);
+    ).toEqual([
+      "kids water bottle leak proof durable",
+      "water bottle leak proof",
+      "water bottle",
+      "drinkware bottles",
+    ]);
+  });
+});
+
+describe("search_log telemetry (origin, timings, calls, uid, failures)", () => {
+  it("records how each search was asked for", async () => {
+    const { deps, store } = setup();
+    await runSearch({ q: Q }, deps);
+    await runSearch({ q: Q, arrival: "example" }, deps);
+    await runSearch({ q: Q, arrival: "recent" }, deps);
+    await runSearch({ q: Q, arrival: "ad" }, deps);
+    await runSearch({ q: Q, without: ["max"], sort: "cheapest" }, deps);
+    await runSearch({ q: Q, sort: "cheapest" }, deps);
+    await runSearch({ q: Q, source: "preview" }, deps);
+    expect(store.logs.map((l) => [l.origin, l.listable])).toEqual([
+      ["typed", true],
+      ["example", false],
+      ["recent", false],
+      ["ad", false],
+      ["chip", false],
+      ["sort", false],
+      ["preview", false],
+    ]);
+    expect(store.logs[0]).toMatchObject({ without: [], sortOverride: null });
+    expect(store.logs[4]).toMatchObject({ without: ["max"], sortOverride: "cheapest" });
+    expect(store.logs[5]).toMatchObject({ without: [], sortOverride: "cheapest" });
+  });
+
+  it("times each step that ran and counts every AliExpress call", async () => {
+    const { deps, fetchMock } = setup();
+    let t = 0;
+    const clockMs = () => (t += 5);
+    const fresh = await runSearch({ q: Q }, { ...deps, clockMs });
+    // One clock reading at the start, two per step, one when the row is written.
+    expect(fresh.log.timings).toEqual({ parse_ms: 5, fetch_ms: 5, explain_ms: 5, total_ms: 35 });
+    expect(fresh.log.aliCalls).toBe(fetchMock.mock.calls.length);
+    expect(fresh.log.aliCalls).toBeGreaterThanOrEqual(1);
+    expect(fresh.log.rejected).not.toBeNull();
+    expect(fresh.log.rejected).toEqual(fresh.meta.rejected);
+
+    const cached = await runSearch({ q: Q }, { ...deps, clockMs });
+    expect(cached.log).toMatchObject({
+      aliCalls: 0,
+      rejected: null,
+      timings: { parse_ms: null, fetch_ms: null, explain_ms: null },
+    });
+    const refined = await runSearch({ q: Q, without: ["max"] }, { ...deps, clockMs });
+    expect(refined.log.timings).toMatchObject({ parse_ms: null, fetch_ms: 5, explain_ms: 5 });
+  });
+
+  it("gives every row its own search uid, a random UUID by default", async () => {
+    const { deps, store } = setup();
+    let n = 0;
+    const newSearchUid = () => "uid-" + String(++n);
+    const a = await runSearch({ q: Q }, { ...deps, newSearchUid });
+    const b = await runSearch({ q: Q }, { ...deps, newSearchUid });
+    expect([a.log.searchUid, b.log.searchUid]).toEqual(["uid-1", "uid-2"]);
+    const c = await runSearch({ q: Q }, deps);
+    expect(c.log.searchUid).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+    expect(store.logs.every((l) => l.shared === false && l.failure === null)).toBe(true);
+  });
+
+  it("logs a search refused by the daily budget as a capacity failure", async () => {
+    const { deps, store } = setup();
+    await expect(runSearch({ q: Q }, { ...deps, beforeLlmWork: refuse() })).rejects.toMatchObject({
+      code: "capacity",
+    });
+    expect(store.logs).toEqual([
+      expect.objectContaining({ failure: "capacity", parsed: null, aliCalls: 0 }),
+    ]);
+  });
+
+  it("logs the code the server answers with, or no row when it says so", async () => {
+    const { deps, store } = setup(null);
+    const q = { q: "משהו" };
+    await expect(runSearch(q, { ...deps, failureOf: () => "llm" })).rejects.toBeInstanceOf(
+      SearchError,
+    );
+    await expect(runSearch(q, { ...deps, failureOf: () => null })).rejects.toBeInstanceOf(
+      SearchError,
+    );
+    expect(store.logs.map((l) => l.failure)).toEqual(["llm"]);
+  });
+
+  it("fails with the original error when the failure row cannot be written", async () => {
+    class BrokenLog extends MemoryStore {
+      override async logSearch(): Promise<void> {
+        throw new Error("search_log is down");
+      }
+    }
+    const { deps } = setup(null);
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      await expect(
+        runSearch({ q: "משהו" }, { ...deps, store: new BrokenLog() }),
+      ).rejects.toMatchObject({ code: "parse_failed" });
+    } finally {
+      errors.mockRestore();
+    }
+  });
+
+  it("logs a 'more' page that fails after the result set was found", async () => {
+    const { deps, store } = setup({ ...PARSE, max_price_ils: null });
+    const { response } = await runSearch({ q: "כבל USB" }, deps);
+    store.logs.length = 0;
+    await expect(
+      loadMore(response.filters_key!, 1, { ...deps, beforeLlmWork: refuse() }),
+    ).rejects.toMatchObject({ code: "capacity" });
+    expect(store.logs).toEqual([
+      expect.objectContaining({
+        query: "כבל USB",
+        source: "more",
+        origin: "more",
+        failure: "capacity",
+        resultsCount: 0,
+        listable: false,
+      }),
+    ]);
+  });
+});
+
+describe("searchFailureCode", () => {
+  it("maps what the pipeline throws to the codes the server answers with", () => {
+    expect(searchFailureCode(new SearchError("parse_failed", "x"))).toBe("parse_failed");
+    expect(searchFailureCode(new SearchError("capacity", "x"))).toBe("capacity");
+    expect(searchFailureCode(new Error("boom"))).toBe("unavailable");
+  });
+});
+
+/** product.query request fields, from the form body the client posts. */
+const sent = (call: Parameters<typeof fetch>, field: string) =>
+  new URLSearchParams(String(call[1]?.body)).get(field);
+const queries = (fetchMock: ReturnType<typeof setup>["fetchMock"]) =>
+  fetchMock.mock.calls
+    .filter((c) => sent(c, "method") === "aliexpress.affiliate.product.query")
+    .map((c) => `${sent(c, "keywords")} p${sent(c, "page_no")}`);
+
+/** Few titles of the fixture state 240W, so fewer than 6 pass and the search keeps fetching. */
+const PARSE_240W: ParsedQueryRaw = {
+  ...PARSE,
+  keywords_en: "240w usb cable",
+  requirements: [{ en: "240w", alt: [], he: "240W" }],
+  max_price_ils: null,
+};
+
+const T0 = new Date("2026-09-27T10:00:00Z");
+const at = (hours: number) => new Date(T0.getTime() + hours * 3_600_000);
+
+describe("fetch until enough pass (plan item 5)", () => {
+  it("stops after one call once 6 pass", async () => {
+    const { deps, fetchMock } = setup();
+    const { meta } = await runSearch({ q: Q }, deps);
+    expect(meta).toMatchObject({ aliCalls: 1, fetchStop: "enough" });
+    expect(queries(fetchMock)).toEqual(["usb cable p1"]);
+  });
+
+  it("fetches page 2, then another product phrase while fewer than 6 pass, at most 3 calls", async () => {
+    const { deps, fetchMock } = setup(PARSE_240W);
+    const { meta, response } = await runSearch({ q: "כבל 240W" }, deps);
+    expect(queries(fetchMock)).toEqual(["240w usb cable p1", "240w usb cable p2", "240w cable p1"]);
+    expect(meta).toMatchObject({ aliCalls: 3, fetchStop: "calls" });
+    expect(response.results.every((r) => /240w/i.test(r.title_en))).toBe(true);
+  });
+
+  it("keeps what it found when a call after the first fails", async () => {
+    const { deps, fetchMock, store } = setup(PARSE_240W);
+    let n = 0;
+    fetchMock.mockImplementation(async () =>
+      n++ === 0 ? new Response(PRODUCTS) : new Response("busy", { status: 503 }),
+    );
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const { response, meta, log } = await runSearch({ q: "כבל 240W" }, deps);
+      expect(meta).toMatchObject({ aliCalls: 2, fetchStop: "failed" });
+      expect(response.results.length).toBeGreaterThan(0);
+      expect(log.failure).toBeNull();
+      expect(store.results.get(response.filters_key!)?.products.length).toBe(
+        response.results.length,
+      );
+      expect(errors.mock.calls.map(([m]) => String(m))).toEqual([
+        expect.stringContaining("[search] product.query 2 failed"),
+      ]);
+    } finally {
+      errors.mockRestore();
+    }
+  });
+
+  it("starts no call after the first once the fetch step has run FETCH_BUDGET_MS", async () => {
+    const { deps, fetchMock } = setup(PARSE_240W);
+    let t = T0.getTime();
+    const now = () => new Date((t += FETCH_BUDGET_MS));
+    const { meta } = await runSearch({ q: "כבל 240W" }, { ...deps, now });
+    expect(meta).toMatchObject({ aliCalls: 1, fetchStop: "time" });
+    expect(queries(fetchMock)).toHaveLength(1);
+  });
+});
+
+describe("LLM failures and limits (plan item 7)", () => {
+  it("fails a search whose parse call fails with 'llm', not 'upstream', before AliExpress", async () => {
+    const { deps, llm, fetchMock, store } = setup();
+    llm.failing.add("parse");
+    await expect(runSearch({ q: Q }, deps)).rejects.toMatchObject({ code: "llm" });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(store.logs.map((l) => l.failure)).toEqual(["llm"]);
+    expect(searchFailureCode(new SearchError("llm", "x"))).toBe("llm");
+  });
+
+  it("sends each step's time limit and retries with every call", async () => {
+    const { deps, llm } = setup();
+    await runSearch({ q: Q }, deps);
+    expect(LLM_STAGE_LIMITS).toEqual({
+      parse: { timeoutMs: 10_000, maxRetries: 1 },
+      explain: { timeoutMs: 10_000, maxRetries: 0 },
+    });
+    expect(llm.limits).toEqual([
+      { kind: "parse", ...LLM_STAGE_LIMITS.parse },
+      { kind: "explain", ...LLM_STAGE_LIMITS.explain },
+    ]);
+  });
+
+  it("shows the products with lines from the data when explain fails, and keeps them 48 h", async () => {
+    const { deps, llm, store } = setup();
+    llm.failing.add("explain");
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const { response, meta } = await runSearch({ q: Q }, { ...deps, now: () => T0 });
+      expect(meta.explainFailed).toBe(true);
+      expect(response.results.length).toBeGreaterThan(0);
+      for (const r of response.results) {
+        expect(r.title_he).toBe(r.title_en);
+        expect(r.why_he).toMatch(/^[\d.]+% משוב חיובי ו־[\d,]+ נמכרו ב־30 הימים האחרונים\.$/);
+      }
+      expect(store.results.get(response.filters_key!)?.degraded).toBe(true);
+      expect(store.usage.map((u) => u.kind)).toEqual(["parse"]);
+    } finally {
+      errors.mockRestore();
+    }
+    llm.failing.clear();
+    const within = await runSearch({ q: Q }, { ...deps, now: () => at(47) });
+    expect(within.meta.cache).toBe("results");
+    const later = await runSearch({ q: Q }, { ...deps, now: () => at(48) });
+    expect(later.meta.cache).toBe("parse");
+    expect(later.response.results[0].why_he).toBe(WHYS[0]);
+  });
+
+  it("shows a 'more' page with lines from the data when explain fails, without saving them", async () => {
+    const { deps, llm, store } = setup({ ...PARSE, max_price_ils: null });
+    const { response } = await runSearch({ q: "כבל USB" }, deps);
+    const fk = response.filters_key!;
+    llm.failing.add("explain");
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const more = await loadMore(fk, 1, deps);
+      expect(more?.results.length).toBeGreaterThan(0);
+      for (const r of more!.results) {
+        expect(r.why_he).toMatch(/נמכרו ב־30 הימים האחרונים\.$/);
+        expect(store.products.has(r.product_id)).toBe(true); // its /go link works
+      }
+      expect(Object.keys(store.results.get(fk)!.explanations)).toHaveLength(3);
+    } finally {
+      errors.mockRestore();
+    }
+    llm.failing.clear();
+    const again = await loadMore(fk, 1, deps);
+    expect(again?.results[0].why_he).toBe(WHYS[0]);
+  });
+});
+
+describe("zero and partial results (plan items 8 and 12)", () => {
+  it("keeps the parse of a search whose own filters found nothing for 48 hours only", async () => {
+    const q = "כבל USB עד חצי שקל";
+    const { deps, llm, store } = setup({ ...PARSE, max_price_ils: 0.5 });
+    await runSearch({ q }, { ...deps, now: () => T0 });
+    expect(store.parses.get(queryKey(q))?.at).toEqual(emptyParseCreatedAt(T0));
+    expect((await runSearch({ q }, { ...deps, now: () => at(47) })).meta.cache).toBe("results");
+    await runSearch({ q }, { ...deps, now: () => at(48) });
+    expect(llm.calls).toEqual(["parse", "parse"]);
+  });
+
+  it("keeps the parse 14 days when the empty results came with a chip removed", async () => {
+    const q = "כבל USB בין 5000 ל־6000 ש״ח";
+    const { deps, store } = setup({ ...PARSE, min_price_ils: 5000, max_price_ils: 6000 });
+    const { response } = await runSearch({ q, without: ["max"] }, { ...deps, now: () => T0 });
+    expect(response.results).toEqual([]);
+    expect(store.parses.get(queryKey(q))?.at).toEqual(T0);
+  });
+
+  it("says which filter kept the checked products out, and never shows those products", async () => {
+    const q = "כבל מגסייף";
+    const { deps } = setup({
+      ...PARSE,
+      requirements: [{ en: "magsafe", alt: [], he: "מגסייף" }],
+      max_price_ils: null,
+    });
+    const { response } = await runSearch({ q }, deps);
+    expect(response.results).toEqual([]);
+    expect(response.passed_count).toBe(0);
+    expect(response.blockers).toEqual([
+      { chip_id: "req:magsafe", would_pass: expect.any(Number), title_matches: 0 },
+    ]);
+    expect(response.blockers![0].would_pass).toBeGreaterThan(0);
+    const cached = await runSearch({ q }, deps);
+    expect(cached.response).toMatchObject({ cached: true, blockers: response.blockers });
+  });
+
+  it("has no blockers once a page passes", async () => {
+    const { deps } = setup();
+    expect((await runSearch({ q: Q }, deps)).response.blockers).toBeUndefined();
+  });
+
+  it("drops a removed requirement's words from the AliExpress keywords", async () => {
+    const { deps, fetchMock } = setup({
+      ...PARSE,
+      keywords_en: "magsafe usb cable",
+      requirements: [{ en: "magsafe", alt: ["magnetic"], he: "מגסייף" }],
+      max_price_ils: null,
+    });
+    await runSearch({ q: "כבל מגסייף", without: ["req:magsafe"] }, deps);
+    expect(queries(fetchMock)[0]).toBe("usb cable p1");
+  });
+});
+
+describe("affiliate links (plan item 7)", () => {
+  // The fixture without promotion links, and a link.generate answer that brings none back.
+  const NO_LINKS = PRODUCTS.replace(/"promotion_link": "[^"]*"/g, '"promotion_link": ""');
+  const EMPTY_LINKS = JSON.stringify({
+    aliexpress_affiliate_link_generate_response: {
+      resp_result: {
+        result: { total_result_count: 0, promotion_links: { promotion_link: [] } },
+        resp_code: 200,
+        resp_msg: "Call succeeds",
+      },
+    },
+  });
+
+  function unlinked() {
+    const { deps, store } = setup();
+    const fetchMock = vi.fn<typeof fetch>(async (_input, init) => {
+      const method = new URLSearchParams(String(init?.body)).get("method");
+      return new Response(method === "aliexpress.affiliate.link.generate" ? EMPTY_LINKS : NO_LINKS);
+    });
+    const ali = new AliExpressClient(
+      { appKey: "k", appSecret: "s", trackingId: "t", gateway: "https://g.test/sync" },
+      { fetch: fetchMock, sleep: async () => {} },
+    );
+    const gaps: number[] = [];
+    const sleep = async (ms: number) => {
+      gaps.push(ms);
+    };
+    return { deps: { ...deps, ali, sleep, aliSpacingMs: 1_100 }, store, fetchMock, gaps };
+  }
+
+  it("fails as upstream, never as 'none passed', when no product that passed can be linked", async () => {
+    const { deps, store } = unlinked();
+    await expect(runSearch({ q: Q }, deps)).rejects.toMatchObject({ code: "upstream" });
+    expect(store.results.size).toBe(0);
+    expect(store.logs[0]).toMatchObject({ failure: "upstream", resultsCount: 0 });
+  });
+
+  it("waits the AliExpress gap before link.generate too", async () => {
+    const { deps, store, fetchMock, gaps } = unlinked();
+    await expect(runSearch({ q: Q }, deps)).rejects.toThrow();
+    const methods = fetchMock.mock.calls.map((c) => sent(c, "method"));
+    expect(methods.at(-1)).toBe("aliexpress.affiliate.link.generate");
+    // One gap before every call after the first, link.generate included.
+    expect(gaps).toEqual(Array(methods.length - 1).fill(1_100));
+    expect(store.logs[0].aliCalls).toBe(methods.length);
+  });
+});
+
+describe("search_log owner and diag (plan item 10)", () => {
+  it("logs the owner's search with owner true and never lists it", async () => {
+    const { deps, store } = setup();
+    await runSearch({ q: Q, owner: true }, deps);
+    expect(store.logs[0]).toMatchObject({ owner: true, listable: false });
+    await runSearch({ q: Q }, deps);
+    expect(store.logs[1]).toMatchObject({ owner: false, listable: true });
+  });
+
+  it("records how a fresh search went, and nothing for a full cache hit", async () => {
+    const { deps, store } = setup();
+    await runSearch({ q: Q }, deps);
+    expect(store.logs[0].diag).toEqual({
+      fetch_stop: "enough",
+      keywords_tried: ["usb cable"],
+      demoted: [],
+      explain_failed: false,
+      explain_rejected: expect.any(Number),
+    });
+    await runSearch({ q: Q }, deps);
+    expect(store.logs[1].diag).toBeNull();
+  });
+
+  it("marks the owner's 'more' page too", async () => {
+    const { deps, store } = setup();
+    const { response } = await runSearch({ q: Q }, deps);
+    await loadMore(response.filters_key!, 1, deps, { owner: true });
+    expect(store.logs.at(-1)).toMatchObject({ source: "more", owner: true });
+  });
+});
+
+describe("stated needs no title can show (plan item 8)", () => {
+  it("names them under the chips instead of dropping them silently", async () => {
+    const { deps } = setup({
+      ...PARSE,
+      requirements: [
+        { en: "multi-device", alt: ["laptop and phone", "universal"], he: "לטלפון ולמחשב נייד" },
+      ],
+      max_price_ils: null,
+    });
+    const { response } = await runSearch({ q: "כבל לטלפון ולמחשב נייד" }, deps);
+    expect(response.not_filtered).toEqual(["לטלפון ולמחשב נייד"]);
+    expect(response.chips.map((c) => c.id)).toEqual(["product"]);
+    expect(response.results.length).toBeGreaterThan(0);
+    // A cached answer says it too: the note comes from the parse, like the chips.
+    const cached = await runSearch({ q: "כבל לטלפון ולמחשב נייד" }, deps);
+    expect(cached.response).toMatchObject({ cached: true, not_filtered: ["לטלפון ולמחשב נייד"] });
+  });
+
+  it("adds nothing to a search without them", async () => {
+    const { deps } = setup();
+    expect((await runSearch({ q: Q }, deps)).response).not.toHaveProperty("not_filtered");
+  });
+});
+
+describe("first-page safety net (plan item 2, demoteFlaggedLeads)", () => {
+  it("moves a first-page product whose line says it is another product off the first page", async () => {
+    const { deps, llm, store } = setup({ ...PARSE, product_he: "כבל טעינה", max_price_ils: null });
+    llm.why = (i) =>
+      i === 0 ? "אביזר משלים, לא המכשיר עצמו: מארגן לכבלים שעבר את הסינון שלנו." : WHYS[i];
+    const { response, meta } = await runSearch({ q: "כבל טעינה" }, deps);
+    expect(meta.demoted).toHaveLength(1);
+    const [demoted] = meta.demoted!;
+    expect(response.results.map((r) => r.product_id)).not.toContain(demoted);
+    expect(store.results.get(response.filters_key!)?.products.at(-1)?.productId).toBe(demoted);
+    // The product that moved up gets the sentence from the data, with no extra call.
+    expect(response.results[2].why_he).toMatch(/נמכרו ב־30 הימים האחרונים\.$/);
+    expect(llm.calls).toEqual(["parse", "explain"]);
+    // Saved, so its card on a later page can still go through /go.
+    expect(store.products.has(demoted)).toBe(true);
   });
 });

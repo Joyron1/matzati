@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { Requirement } from "@/lib/search/filters";
 import {
+  isCapacitySpec,
   normalizePhrase,
   parseSpec,
   phraseMatches,
+  phraseSpans,
   requirementMatches,
   requirementPhrases,
+  specValue,
+  statedSpecValues,
   stem,
   tokenize,
   titleMeetsSpec,
@@ -14,6 +18,23 @@ import {
 const req = (en: string, alt: string[] = []): Requirement => ({ en, alt, he: "דרישה" });
 
 describe("tokenize", () => {
+  it("drops a possessive 's instead of making it a word", () => {
+    expect(tokenize("Children's Bottle")).toEqual(["children", "bottle"]);
+    expect(tokenize("Women’s Winter Slippers")).toEqual(["women", "winter", "slipper"]);
+  });
+
+  it("reads the earphone style 'Ear Hook' as one word, and 'mice' as 'mouse'", () => {
+    expect(tokenize("Ear Hook Headphones, Ear-hook Earphones Earhooks")).toEqual([
+      "earhook",
+      "headphone",
+      "earhook",
+      "earphone",
+      "earhook",
+    ]);
+    expect(tokenize("Wall Hook")).toEqual(["wall", "hook"]);
+    expect(tokenize("Silent Computer Mice")).toEqual(["silent", "computer", "mouse"]);
+  });
+
   it("unifies every USB-C spelling", () => {
     expect(tokenize("USB-C to Type-C")).toEqual(["usbc", "to", "usbc"]);
     expect(tokenize("USB Type C Cable")).toEqual(["usb", "usbc", "cable"]);
@@ -158,6 +179,34 @@ describe("parseSpec and titleMeetsSpec", () => {
     expect(titleMeetsSpec("Gaming Monitor 165Hz 1ms", { value: 144, unit: "hz" })).toBe(true);
     expect(titleMeetsSpec("Office Monitor 75Hz", { value: 144, unit: "hz" })).toBe(false);
     expect(titleMeetsSpec("Wireless Mouse 2.4GHz", { value: 2, unit: "hz" })).toBe(false);
+  });
+
+  it("lists every stated value of the spec's quantity, in its base unit", () => {
+    const mah = { value: 10000, unit: "mah" } as const;
+    expect(statedSpecValues("Baseus 20000mAh 10,000 mAh Power Bank 22.5W", mah)).toEqual([
+      20000, 10000,
+    ]);
+    expect(statedSpecValues("Portable SSD 1TB 512GB", { value: 512, unit: "gb" }).sort()).toEqual([
+      1000, 512,
+    ]);
+    expect(statedSpecValues("Power Bank 22.5W", mah)).toEqual([]);
+    expect(specValue({ value: 2, unit: "tb" })).toBe(2000);
+  });
+
+  it("treats storage and battery capacity as capacity, not power or size", () => {
+    expect(isCapacitySpec({ value: 10000, unit: "mah" })).toBe(true);
+    expect(isCapacitySpec({ value: 512, unit: "gb" })).toBe(true);
+    expect(isCapacitySpec({ value: 1, unit: "tb" })).toBe(true);
+    expect(isCapacitySpec({ value: 65, unit: "w" })).toBe(false);
+    expect(isCapacitySpec({ value: 27, unit: "inch" })).toBe(false);
+  });
+});
+
+describe("phraseSpans", () => {
+  it("allows at most the given gap between the words", () => {
+    const title = tokenize("Garden Kitchen BBQ Tool Tong");
+    expect(phraseSpans(title, "garden tool", tokenize)).toEqual([{ start: 0, end: 3 }]);
+    expect(phraseSpans(title, "garden tool", tokenize, 1)).toEqual([]);
   });
 });
 

@@ -1,0 +1,537 @@
+[
+  {
+    "productId": "1005010044206112",
+    "label": "reasonable",
+    "note": "Tripod lawn sprinkler; garden watering gear, less personal gift"
+  },
+  {
+    "productId": "1005005209533452",
+    "label": "reasonable",
+    "note": "Succulent watering squeeze bottles; cheap plant-care item"
+  },
+  {
+    "productId": "1005010764443415",
+    "label": "wrong",
+    "note": "Manual siphon pump for drainage, not a gardening gift"
+  },
+  {
+    "productId": "1005006863883159",
+    "label": "reasonable",
+    "note": "Plant watering squeeze bottle; small cheap plant-care item"
+  },
+  {
+    "productId": "1005007805667144",
+    "label": "wrong",
+    "note": "Sharpening stone, accessory for garden tools"
+  },
+  {
+    "productId": "1005007771676607",
+    "label": "wrong",
+    "note": "Garage wall hooks for storing tools"
+  },
+  {
+    "productId": "1005006967545292",
+    "label": "wrong",
+    "note": "Car wash foam sprayer"
+  },
+  {
+    "productId": "1005007038379675",
+    "label": "weak",
+    "note": "Car wash pressure sprayer, usable for misting plants"
+  },
+  {
+    "productId": "1005007245622338",
+    "label": "reasonable",
+    "note": "Tripod lawn sprinkler; garden watering gear"
+  },
+  {
+    "productId": "1005006930114445",
+    "label": "wrong",
+    "note": "Roof gutter cleaning scoop"
+  },
+  {
+    "productId": "1005006993936964",
+    "label": "exact",
+    "note": "Hand garden hoe for weeding"
+  },
+  {
+    "productId": "1005008896594643",
+    "label": "reasonable",
+    "note": "L-shaped crack weeding hand tool; useful but plain"
+  },
+  {
+    "productId": "1005008144722917",
+    "label": "exact",
+    "note": "Decorative bird-shaped self-watering globes, fits a plant lover"
+  },
+  {
+    "productId": "1005008248060685",
+    "label": "wrong",
+    "note": "Wall rack for storing garden tools"
+  },
+  {
+    "productId": "1005007054748524",
+    "label": "wrong",
+    "note": "Garage wall hook for bikes and ladders"
+  },
+  {
+    "productId": "1005007898386774",
+    "label": "wrong",
+    "note": "Wall-mounted hose storage rack"
+  },
+  {
+    "productId": "1005007476643595",
+    "label": "wrong",
+    "note": "Brass faucet splitter, plumbing fitting"
+  },
+  {
+    "productId": "1005008554582601",
+    "label": "reasonable",
+    "note": "Garden hose spray nozzle"
+  },
+  {
+    "productId": "1005006966279568",
+    "label": "wrong",
+    "note": "Roof gutter cleaning scoop"
+  },
+  {
+    "productId": "1005007805608471",
+    "label": "wrong",
+    "note": "Disposable latex/nitrile cleaning gloves"
+  },
+  {
+    "productId": "1005011572100709",
+    "label": "weak",
+    "note": "Plant aeration tubes, minor plant supply"
+  },
+  {
+    "productId": "1005009754011847",
+    "label": "wrong",
+    "note": "Wall bracket for hose storage"
+  },
+  {
+    "productId": "1005010333651659",
+    "label": "exact",
+    "note": "Pruning shears for garden and bonsai"
+  },
+  {
+    "productId": "1005005094365983",
+    "label": "weak",
+    "note": "Spray head for drink bottles, accessory-ish"
+  },
+  {
+    "productId": "1005006996615741",
+    "label": "weak",
+    "note": "Auger drill bits, need a power drill"
+  },
+  {
+    "productId": "1005009616558855",
+    "label": "weak",
+    "note": "Garden cable ties, minor supply"
+  },
+  {
+    "productId": "1005009508968051",
+    "label": "exact",
+    "note": "Hand weeding set: sickle, crack weeder, hand shovel"
+  },
+  {
+    "productId": "1005010050281663",
+    "label": "reasonable",
+    "note": "Garden hose spray nozzle"
+  },
+  {
+    "productId": "1005007369511923",
+    "label": "weak",
+    "note": "Bulk plant support clips, minor supply"
+  },
+  {
+    "productId": "1005004845048064",
+    "label": "weak",
+    "note": "Fruit picker head only, needs a pole"
+  },
+  {
+    "productId": "1005010487361367",
+    "label": "reasonable",
+    "note": "Garden hose spray nozzle"
+  },
+  {
+    "productId": "1005006994160425",
+    "label": "wrong",
+    "note": "Chainsaw carburetor primer bulbs, engine parts"
+  },
+  {
+    "productId": "1005010769393699",
+    "label": "weak",
+    "note": "Car wash pressure sprayer, usable for misting plants"
+  },
+  {
+    "productId": "1005006982774640",
+    "label": "wrong",
+    "note": "Garage wall hook for bikes and ladders"
+  },
+  {
+    "productId": "1005009446943958",
+    "label": "wrong",
+    "note": "Hook-and-loop storage strap for hoses"
+  },
+  {
+    "productId": "1005010797718486",
+    "label": "weak",
+    "note": "Mini hand saw, general purpose"
+  },
+  {
+    "productId": "1005010305715352",
+    "label": "wrong",
+    "note": "Water barrel adapter valve"
+  },
+  {
+    "productId": "1005012993863717",
+    "label": "exact",
+    "note": "Thorn-proof gardening gloves"
+  },
+  {
+    "productId": "1005007533183066",
+    "label": "wrong",
+    "note": "Cheese gauze kitchen cloth"
+  },
+  {
+    "productId": "1005008248160242",
+    "label": "wrong",
+    "note": "Cheese gauze kitchen cloth"
+  },
+  {
+    "productId": "1005009409373113",
+    "label": "wrong",
+    "note": "Cement and ash scraper shovel, construction tool"
+  },
+  {
+    "productId": "1005012060230578",
+    "label": "wrong",
+    "note": "Scissors sharpener, accessory for tools"
+  },
+  {
+    "productId": "1005009146805974",
+    "label": "wrong",
+    "note": "Brass faucet ball valve, plumbing part"
+  },
+  {
+    "productId": "1005012967982223",
+    "label": "weak",
+    "note": "ZigBee soil sensor, needs a smart-home hub"
+  },
+  {
+    "productId": "1005007345457326",
+    "label": "wrong",
+    "note": "Brush cutter safety helmet, forestry gear"
+  },
+  {
+    "productId": "1005012218241613",
+    "label": "wrong",
+    "note": "Hose quick-connect adapter fitting"
+  },
+  {
+    "productId": "1005010650300738",
+    "label": "wrong",
+    "note": "Pressure washer inlet filter connector"
+  },
+  {
+    "productId": "1005009400661849",
+    "label": "reasonable",
+    "note": "L-shaped crack weeding hand tool"
+  },
+  {
+    "productId": "1005008144990131",
+    "label": "reasonable",
+    "note": "Iron hoe rake, heavy farm-style tool"
+  },
+  {
+    "productId": "1005005773713258",
+    "label": "wrong",
+    "note": "BBQ food tongs"
+  },
+  {
+    "productId": "1005010037180870",
+    "label": "wrong",
+    "note": "Knife and scissors sharpener"
+  },
+  {
+    "productId": "1005009050302387",
+    "label": "reasonable",
+    "note": "Hand hole puncher and seed dispenser"
+  },
+  {
+    "productId": "1005006823471413",
+    "label": "weak",
+    "note": "Tile worker knee pads, only loosely for gardening"
+  },
+  {
+    "productId": "1005010285997899",
+    "label": "wrong",
+    "note": "Chainsaw wall hanger"
+  },
+  {
+    "productId": "1005012304293432",
+    "label": "reasonable",
+    "note": "Ceramic drip waterers for pots"
+  },
+  {
+    "productId": "1005005962002048",
+    "label": "weak",
+    "note": "Tile worker knee pads, only loosely for gardening"
+  },
+  {
+    "productId": "1005008932431667",
+    "label": "reasonable",
+    "note": "Soil sieve for potting"
+  },
+  {
+    "productId": "1005010228880296",
+    "label": "wrong",
+    "note": "Garage storage hook"
+  },
+  {
+    "productId": "1005007805886355",
+    "label": "exact",
+    "note": "Soil moisture meter, handy gardener gadget"
+  },
+  {
+    "productId": "1005012594420216",
+    "label": "wrong",
+    "note": "Hose hook storage rack"
+  },
+  {
+    "productId": "1005007345208987",
+    "label": "wrong",
+    "note": "Pressure washer nozzle connector"
+  },
+  {
+    "productId": "1005012061755643",
+    "label": "reasonable",
+    "note": "Small hand sickle"
+  },
+  {
+    "productId": "1005009916252124",
+    "label": "reasonable",
+    "note": "Bluetooth soil moisture tester, app needed"
+  },
+  {
+    "productId": "1005010759509630",
+    "label": "wrong",
+    "note": "Electric fly trap, pest control device"
+  },
+  {
+    "productId": "1005006290652572",
+    "label": "weak",
+    "note": "Auger drill bit, needs a power drill"
+  },
+  {
+    "productId": "1005008500493766",
+    "label": "wrong",
+    "note": "Fuel hose and filter, trimmer parts"
+  },
+  {
+    "productId": "1005009045274447",
+    "label": "reasonable",
+    "note": "Iron hoe rake, heavy farm-style tool"
+  },
+  {
+    "productId": "1005009501481086",
+    "label": "wrong",
+    "note": "Garage storage hooks"
+  },
+  {
+    "productId": "1005007751488876",
+    "label": "reasonable",
+    "note": "Dual-head weeding rake"
+  },
+  {
+    "productId": "1005007862290570",
+    "label": "weak",
+    "note": "Plant labels, minor supply"
+  },
+  {
+    "productId": "1005012010813955",
+    "label": "wrong",
+    "note": "Grass trimmer replacement blades"
+  },
+  {
+    "productId": "1005007228374203",
+    "label": "weak",
+    "note": "Tile worker knee pads, only loosely for gardening"
+  },
+  {
+    "productId": "1005010044186445",
+    "label": "wrong",
+    "note": "Fuel line filter kit, trimmer parts"
+  },
+  {
+    "productId": "1005010590949626",
+    "label": "reasonable",
+    "note": "Garden hose spray nozzle"
+  },
+  {
+    "productId": "1005006982884299",
+    "label": "wrong",
+    "note": "Grass trimmer line"
+  },
+  {
+    "productId": "1005013266214151",
+    "label": "wrong",
+    "note": "Fuel hose and filter, trimmer parts"
+  },
+  {
+    "productId": "1005006884480033",
+    "label": "wrong",
+    "note": "Beach umbrella ground anchor"
+  },
+  {
+    "productId": "1005009874244538",
+    "label": "wrong",
+    "note": "Wall-mounted tool rack"
+  },
+  {
+    "productId": "1005009259824987",
+    "label": "reasonable",
+    "note": "Garden hose spray nozzle"
+  },
+  {
+    "productId": "1005009414674397",
+    "label": "reasonable",
+    "note": "Bonsai root hook tool"
+  },
+  {
+    "productId": "1005009886737407",
+    "label": "wrong",
+    "note": "Trimmer head adapter nut kit, parts"
+  },
+  {
+    "productId": "1005012043155809",
+    "label": "weak",
+    "note": "Auger drill bit, needs a power drill"
+  },
+  {
+    "productId": "1005012053713030",
+    "label": "reasonable",
+    "note": "Soil sieve for potting"
+  },
+  {
+    "productId": "1005008303304219",
+    "label": "wrong",
+    "note": "Grass trimmer line spool"
+  },
+  {
+    "productId": "1005009398833927",
+    "label": "exact",
+    "note": "Bonsai pruning shears"
+  },
+  {
+    "productId": "1005011857061645",
+    "label": "wrong",
+    "note": "Garage storage hooks"
+  },
+  {
+    "productId": "1005008679023167",
+    "label": "reasonable",
+    "note": "Iron hoe rake, heavy farm-style tool"
+  },
+  {
+    "productId": "1005007306719373",
+    "label": "weak",
+    "note": "Pot drainage mesh pads, minor supply"
+  },
+  {
+    "productId": "1005009054768697",
+    "label": "reasonable",
+    "note": "Dual-head weeding rake"
+  },
+  {
+    "productId": "1005007635274260",
+    "label": "wrong",
+    "note": "Grass trimmer replacement blades"
+  },
+  {
+    "productId": "1005006861709687",
+    "label": "weak",
+    "note": "Work knee pads, only loosely for gardening"
+  },
+  {
+    "productId": "1005006904985367",
+    "label": "weak",
+    "note": "Plant support clips, minor supply"
+  },
+  {
+    "productId": "1005005961961280",
+    "label": "weak",
+    "note": "Tile worker knee pads, only loosely for gardening"
+  },
+  {
+    "productId": "1005007457602961",
+    "label": "wrong",
+    "note": "Faucet tap adapters, plumbing parts"
+  },
+  {
+    "productId": "1005006323236296",
+    "label": "exact",
+    "note": "Hand weeder for garden beds"
+  },
+  {
+    "productId": "1005007099249413",
+    "label": "weak",
+    "note": "Auger drill bit, needs a power drill"
+  },
+  {
+    "productId": "1005010417910219",
+    "label": "wrong",
+    "note": "Hose hook for tank filling"
+  },
+  {
+    "productId": "1005009649268122",
+    "label": "reasonable",
+    "note": "Drip irrigation kit"
+  },
+  {
+    "productId": "1005008542260888",
+    "label": "wrong",
+    "note": "Grass trimmer head replacement"
+  },
+  {
+    "productId": "1005005932311516",
+    "label": "weak",
+    "note": "Greenhouse film repair tape, minor supply"
+  },
+  {
+    "productId": "1005010089186332",
+    "label": "weak",
+    "note": "Utility tool belt, mainly for trades"
+  },
+  {
+    "productId": "1005008735465590",
+    "label": "weak",
+    "note": "Tool belt apron, mainly for carpenters"
+  },
+  {
+    "productId": "1005010096193814",
+    "label": "exact",
+    "note": "Bypass pruning shears"
+  },
+  {
+    "productId": "1005007818146963",
+    "label": "reasonable",
+    "note": "Crack weeding hand shovel"
+  },
+  {
+    "productId": "1005012011135488",
+    "label": "reasonable",
+    "note": "Seedling transplanter tool"
+  },
+  {
+    "productId": "1005012172803442",
+    "label": "exact",
+    "note": "Bypass pruning shears"
+  },
+  {
+    "productId": "1005007539894681",
+    "label": "wrong",
+    "note": "BBQ and kitchen tweezer tongs"
+  }
+]

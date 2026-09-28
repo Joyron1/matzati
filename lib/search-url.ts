@@ -1,4 +1,6 @@
-import type { SortPreference } from "./types";
+// Used by client components too (ShowMore renders result cards): no zod here. The /go parameters
+// are validated on the server (clickRefFrom in lib/search/server.ts).
+import type { ResultProduct, SortPreference } from "./types";
 
 type Param = string | string[] | undefined;
 
@@ -36,6 +38,25 @@ export function parseFrom(value: Param): SearchFrom | undefined {
   return (FROMS as readonly string[]).includes(v) ? (v as SearchFrom) : undefined;
 }
 
+/**
+ * How a visitor reached a /search URL whose query they did not type: one of our links (SearchFrom)
+ * or an ad or campaign link. Logged as search_log.origin; such a search is never listed on
+ * /searches.
+ */
+export type SearchArrival = SearchFrom | "ad";
+
+/** Parameters an ad or campaign link adds (Google Ads auto-tagging, or UTM tags). */
+const AD_PARAMS = ["gclid", "gbraid", "wbraid", "utm_source"] as const;
+
+/**
+ * The arrival of a /search request from its search params: "ad" when an ad or campaign parameter
+ * is present (a landing never counts as typed, even when it also says `from`), else `from`.
+ */
+export function parseArrival(params: Record<string, Param>): SearchArrival | undefined {
+  if (AD_PARAMS.some((key) => firstParam(params[key]).trim() !== "")) return "ad";
+  return parseFrom(params.from);
+}
+
 export interface SearchHrefInput {
   q: string;
   /** Explicit sort override; omitted, the search uses the sort parsed from the query. */
@@ -53,4 +74,34 @@ export function searchHref({ q, sort, without = [], from }: SearchHrefInput): st
   if (unique.length) params.set("without", unique.join(","));
   if (from) params.set("from", from);
   return `/search?${params.toString()}`;
+}
+
+// --- Click-out links (/go) -----------------------------------------------------------------------
+
+/** Positions a click can report: the cards of one search (RESULTS_KEPT is 12), with room to spare. */
+export const MAX_CLICK_POSITION = 100;
+
+/**
+ * A result as the server sends it to /search and "עוד 3 אפשרויות": tagged with the search_log row
+ * it was logged under (search_log.search_uid), so its buy button can tell /go which search the
+ * click came from. Absent on results that were not logged for this visitor (SEO landing pages).
+ */
+export type LoggedResult = ResultProduct & { search_uid?: string };
+
+/** Which search and card a click came from (clicks.search_uid, clicks.position). Logging only. */
+export interface ClickRef {
+  searchUid: string | null;
+  /** 1-based rank of the card: 1 is the featured result, 4 and up "עוד 3 אפשרויות". */
+  position: number | null;
+}
+
+/**
+ * /go/<id>?src=<button>, plus s=<search uid> and pos=<position> when the button sits on a result
+ * card (pos) of a logged search (s).
+ */
+export function goHref(productId: string, src: string, ref: Partial<ClickRef> = {}): string {
+  const params = new URLSearchParams({ src });
+  if (ref.searchUid) params.set("s", ref.searchUid);
+  if (ref.position) params.set("pos", String(ref.position));
+  return `/go/${encodeURIComponent(productId)}?${params.toString()}`;
 }

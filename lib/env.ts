@@ -73,6 +73,21 @@ export function usdIlsFallback(source: NodeJS.ProcessEnv = process.env): number 
   return fxSchema.parse(source).USD_ILS_FALLBACK;
 }
 
+/** Where the code runs, as Vercel names it (VERCEL_ENV). */
+export const DEPLOY_ENVS = ["production", "preview", "development"] as const;
+export type DeployEnv = (typeof DEPLOY_ENVS)[number];
+
+/**
+ * VERCEL_ENV (a Vercel system variable, set at build and run time), or "development" when it is
+ * absent or unknown: `next dev`, `next start` on a laptop, scripts and tests. Every search_log,
+ * llm_usage and clicks row is tagged with it, the stats and /searches read "production" rows only,
+ * and outside production the search caches use their own keys (lib/search/supabase-store.ts).
+ */
+export function deployEnv(source: NodeJS.ProcessEnv = process.env): DeployEnv {
+  const value = source.VERCEL_ENV?.trim() ?? "";
+  return (DEPLOY_ENVS as readonly string[]).includes(value) ? (value as DeployEnv) : "development";
+}
+
 /** Lowercased admin emails from ADMIN_EMAILS (comma separated). Empty means nobody is admin. */
 export function adminEmails(source: NodeJS.ProcessEnv = process.env): string[] {
   return (source.ADMIN_EMAILS ?? "")

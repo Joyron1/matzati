@@ -1,0 +1,652 @@
+[
+  {
+    "productId": "1005009713111164",
+    "label": "wrong",
+    "note": "Sealant/caulking tool, not a cooking gift"
+  },
+  {
+    "productId": "1005008083774937",
+    "label": "wrong",
+    "note": "Drill cleaning brushes, not a cooking gift"
+  },
+  {
+    "productId": "1005007170813797",
+    "label": "wrong",
+    "note": "Children's kitchen set, not for dad"
+  },
+  {
+    "productId": "1005008144701938",
+    "label": "weak",
+    "note": "Grill cleaning brush, not a cooking gift"
+  },
+  {
+    "productId": "1005007039723399",
+    "label": "weak",
+    "note": "Silicone egg poacher, cheap gadget"
+  },
+  {
+    "productId": "1005007038081308",
+    "label": "weak",
+    "note": "Burger press mold, small gadget"
+  },
+  {
+    "productId": "1005008077701103",
+    "label": "wrong",
+    "note": "Cleaning supplies, not a cooking gift"
+  },
+  {
+    "productId": "1005008483979704",
+    "label": "wrong",
+    "note": "Bottle cleaning brush, not a cooking gift"
+  },
+  {
+    "productId": "1005013262555028",
+    "label": "exact",
+    "note": "Rechargeable electric pepper grinder set, giftable for cooks"
+  },
+  {
+    "productId": "1005002485661887",
+    "label": "weak",
+    "note": "Sushi rice mold, niche cheap gadget"
+  },
+  {
+    "productId": "1005009194997819",
+    "label": "weak",
+    "note": "Pickle fork and spoon, minor utensil"
+  },
+  {
+    "productId": "1005010285509424",
+    "label": "weak",
+    "note": "Spiralizer set, cheap gadget"
+  },
+  {
+    "productId": "1005008035967706",
+    "label": "weak",
+    "note": "Mesh strainers, basic cheap tool"
+  },
+  {
+    "productId": "1005012370767334",
+    "label": "weak",
+    "note": "Peeler, cheap basic tool"
+  },
+  {
+    "productId": "1005004122287627",
+    "label": "weak",
+    "note": "Baking tool, not a cooking gift"
+  },
+  {
+    "productId": "1005007439653722",
+    "label": "weak",
+    "note": "Mesh strainers, basic cheap tool"
+  },
+  {
+    "productId": "1005007437987426",
+    "label": "wrong",
+    "note": "Cleaning supplies, not a cooking gift"
+  },
+  {
+    "productId": "1005008077524666",
+    "label": "exact",
+    "note": "Fixed-angle knife sharpening system, enthusiast gift"
+  },
+  {
+    "productId": "1005008660130787",
+    "label": "wrong",
+    "note": "Fridge deodorizer, not a cooking gift"
+  },
+  {
+    "productId": "1005012333021520",
+    "label": "weak",
+    "note": "Ice cube molds, not a cooking gift"
+  },
+  {
+    "productId": "1005007663259910",
+    "label": "weak",
+    "note": "Measuring cups or spoons, basic item"
+  },
+  {
+    "productId": "1005008144816690",
+    "label": "weak",
+    "note": "Mesh strainers, basic cheap tool"
+  },
+  {
+    "productId": "1005007038467394",
+    "label": "wrong",
+    "note": "Bottle cleaning brush, not a cooking gift"
+  },
+  {
+    "productId": "1005009916287051",
+    "label": "reasonable",
+    "note": "Stainless mixing bowl set, useful but plain gift"
+  },
+  {
+    "productId": "1005009948664766",
+    "label": "weak",
+    "note": "Matcha whisk, tea accessory not cooking"
+  },
+  {
+    "productId": "1005008660156781",
+    "label": "weak",
+    "note": "Kitchen timer, cheap gadget"
+  },
+  {
+    "productId": "1005007540161325",
+    "label": "weak",
+    "note": "Measuring cups or spoons, basic item"
+  },
+  {
+    "productId": "1005006309147985",
+    "label": "weak",
+    "note": "Peeler, cheap basic tool"
+  },
+  {
+    "productId": "1005007533183066",
+    "label": "weak",
+    "note": "Cheese cloth, cheap consumable"
+  },
+  {
+    "productId": "1005007811194179",
+    "label": "exact",
+    "note": "Fixed-angle knife sharpening system, enthusiast gift"
+  },
+  {
+    "productId": "1005008248160242",
+    "label": "weak",
+    "note": "Cheese cloth, cheap consumable"
+  },
+  {
+    "productId": "1005010653557200",
+    "label": "weak",
+    "note": "Single spatula, too basic for a gift"
+  },
+  {
+    "productId": "1005008248012879",
+    "label": "weak",
+    "note": "Kitchen timer, cheap gadget"
+  },
+  {
+    "productId": "1005009760338835",
+    "label": "weak",
+    "note": "Mini whisk, cheap single tool"
+  },
+  {
+    "productId": "1005007060865075",
+    "label": "weak",
+    "note": "Baking tool, not a cooking gift"
+  },
+  {
+    "productId": "1005006266391917",
+    "label": "wrong",
+    "note": "Bottle cleaning brush, not a cooking gift"
+  },
+  {
+    "productId": "1005007635090428",
+    "label": "reasonable",
+    "note": "Mortar and pestle, useful cooking tool gift"
+  },
+  {
+    "productId": "1005008660310361",
+    "label": "exact",
+    "note": "Electric salt and pepper grinder set, classic cook gift"
+  },
+  {
+    "productId": "1005007038618351",
+    "label": "weak",
+    "note": "Measuring cups or spoons, basic item"
+  },
+  {
+    "productId": "1005007038272864",
+    "label": "wrong",
+    "note": "Bottle cleaning brush, not a cooking gift"
+  },
+  {
+    "productId": "1005011743690630",
+    "label": "weak",
+    "note": "Pickle fork and spoon, minor utensil"
+  },
+  {
+    "productId": "1005005518036123",
+    "label": "weak",
+    "note": "Baking tool, not a cooking gift"
+  },
+  {
+    "productId": "1005012095019026",
+    "label": "wrong",
+    "note": "Sponge mop, cleaning tool"
+  },
+  {
+    "productId": "1005006230396207",
+    "label": "wrong",
+    "note": "Sealant/caulking tool, not a cooking gift"
+  },
+  {
+    "productId": "1005007169766992",
+    "label": "weak",
+    "note": "Cheap nylon utensils, partly for children"
+  },
+  {
+    "productId": "1005010044103077",
+    "label": "weak",
+    "note": "Mini snack tongs, cheap gadget"
+  },
+  {
+    "productId": "1005008248066591",
+    "label": "weak",
+    "note": "Tofu press mold, niche gadget"
+  },
+  {
+    "productId": "1005005200571002",
+    "label": "weak",
+    "note": "Measuring cups or spoons, basic item"
+  },
+  {
+    "productId": "1005010155243733",
+    "label": "wrong",
+    "note": "Bag sealing clips, storage not cooking"
+  },
+  {
+    "productId": "1005005736576121",
+    "label": "weak",
+    "note": "Novelty egg timer, cheap gadget"
+  },
+  {
+    "productId": "1005011717779648",
+    "label": "reasonable",
+    "note": "Kitchen knife, low price likely a single knife"
+  },
+  {
+    "productId": "1005007540088003",
+    "label": "weak",
+    "note": "Measuring cups or spoons, basic item"
+  },
+  {
+    "productId": "1005005831086753",
+    "label": "weak",
+    "note": "Single pair of tongs, too basic for a gift"
+  },
+  {
+    "productId": "1005009751349013",
+    "label": "reasonable",
+    "note": "Stainless mixing bowl set, useful but plain gift"
+  },
+  {
+    "productId": "1005010653236819",
+    "label": "wrong",
+    "note": "Hardware or plumbing part, unrelated"
+  },
+  {
+    "productId": "1005007617392431",
+    "label": "weak",
+    "note": "Mooncake mold, niche baking tool"
+  },
+  {
+    "productId": "1005008809823679",
+    "label": "wrong",
+    "note": "Children's kitchen set, not for dad"
+  },
+  {
+    "productId": "1005007103056507",
+    "label": "weak",
+    "note": "Cheap nylon utensils, partly for children"
+  },
+  {
+    "productId": "1005012013942710",
+    "label": "wrong",
+    "note": "Pretend play kitchen toy"
+  },
+  {
+    "productId": "1005006904735405",
+    "label": "weak",
+    "note": "Novelty egg timer, cheap gadget"
+  },
+  {
+    "productId": "1005006997354157",
+    "label": "exact",
+    "note": "12-piece utensil set with holder, solid cook gift"
+  },
+  {
+    "productId": "1005007016051853",
+    "label": "exact",
+    "note": "Dual-side whetstone set, good gift for cooks"
+  },
+  {
+    "productId": "1005008542264469",
+    "label": "weak",
+    "note": "Microwave egg poacher, cheap gadget"
+  },
+  {
+    "productId": "1005007345674088",
+    "label": "weak",
+    "note": "Single spatula, too basic for a gift"
+  },
+  {
+    "productId": "1005008471261782",
+    "label": "weak",
+    "note": "Novelty egg timer, cheap gadget"
+  },
+  {
+    "productId": "1005010530057499",
+    "label": "weak",
+    "note": "Sushi rice mold, niche cheap gadget"
+  },
+  {
+    "productId": "1005010044199064",
+    "label": "weak",
+    "note": "Measuring cups or spoons, basic item"
+  },
+  {
+    "productId": "1005007501745558",
+    "label": "weak",
+    "note": "Plastic funnels, basic item"
+  },
+  {
+    "productId": "1005010057141191",
+    "label": "weak",
+    "note": "Single spatula, too basic for a gift"
+  },
+  {
+    "productId": "1005011849980901",
+    "label": "reasonable",
+    "note": "Budget knife block set with scissors and peeler"
+  },
+  {
+    "productId": "1005008248140308",
+    "label": "reasonable",
+    "note": "Bamboo utensil set, modest but usable gift"
+  },
+  {
+    "productId": "1005007014308647",
+    "label": "wrong",
+    "note": "Barista cleaning towels, not a cooking gift"
+  },
+  {
+    "productId": "1005007611485410",
+    "label": "weak",
+    "note": "Sandwich cutter, cheap gadget"
+  },
+  {
+    "productId": "1005010170720884",
+    "label": "wrong",
+    "note": "Hardware or plumbing part, unrelated"
+  },
+  {
+    "productId": "1005006916640911",
+    "label": "wrong",
+    "note": "Children's kitchen set, not for dad"
+  },
+  {
+    "productId": "1005010428299345",
+    "label": "wrong",
+    "note": "Sealant/caulking tool, not a cooking gift"
+  },
+  {
+    "productId": "1005009054990325",
+    "label": "reasonable",
+    "note": "Silicone spatula set, useful cooking tools"
+  },
+  {
+    "productId": "1005012743006539",
+    "label": "reasonable",
+    "note": "Budget knife block set with scissors and peeler"
+  },
+  {
+    "productId": "1005007016165738",
+    "label": "weak",
+    "note": "Baking tool, not a cooking gift"
+  },
+  {
+    "productId": "1005008248085449",
+    "label": "wrong",
+    "note": "Power scrubber attachments, cleaning"
+  },
+  {
+    "productId": "1005006318751947",
+    "label": "wrong",
+    "note": "Fridge deodorizer, not a cooking gift"
+  },
+  {
+    "productId": "1005013195027869",
+    "label": "wrong",
+    "note": "Carpentry clamp, hardware"
+  },
+  {
+    "productId": "1005008239033716",
+    "label": "reasonable",
+    "note": "Silicone spatula set, useful cooking tools"
+  },
+  {
+    "productId": "1005007580624045",
+    "label": "wrong",
+    "note": "Power scrubber attachments, cleaning"
+  },
+  {
+    "productId": "1005006994560658",
+    "label": "reasonable",
+    "note": "Kitchen knife, low price likely a single knife"
+  },
+  {
+    "productId": "1005006904728187",
+    "label": "exact",
+    "note": "Electric salt and pepper grinder set, classic cook gift"
+  },
+  {
+    "productId": "1005012705511099",
+    "label": "wrong",
+    "note": "Sealant/caulking tool, not a cooking gift"
+  },
+  {
+    "productId": "1005007987848214",
+    "label": "wrong",
+    "note": "Stove gap sealing strip, kitchen fixture"
+  },
+  {
+    "productId": "1005007805507895",
+    "label": "wrong",
+    "note": "Fly swatter, unrelated"
+  },
+  {
+    "productId": "1005009719153353",
+    "label": "wrong",
+    "note": "Kitchen storage organizer, not a cooking gift"
+  },
+  {
+    "productId": "1005006976205392",
+    "label": "wrong",
+    "note": "Drain or sink fixture, unrelated"
+  },
+  {
+    "productId": "1005008248059551",
+    "label": "wrong",
+    "note": "Hardware or plumbing part, unrelated"
+  },
+  {
+    "productId": "1005006803046498",
+    "label": "wrong",
+    "note": "Disposable air fryer liners, consumable"
+  },
+  {
+    "productId": "1005008990986876",
+    "label": "wrong",
+    "note": "Disposable food covers, storage consumable"
+  },
+  {
+    "productId": "1005009054885039",
+    "label": "wrong",
+    "note": "Mesh food cover tent, not a cooking gift"
+  },
+  {
+    "productId": "1005007822477913",
+    "label": "wrong",
+    "note": "Bathroom shelf, unrelated"
+  },
+  {
+    "productId": "1005010759619141",
+    "label": "weak",
+    "note": "Lemon squeezer, cheap single gadget"
+  },
+  {
+    "productId": "1005013255703049",
+    "label": "wrong",
+    "note": "Bag sealing clips, storage not cooking"
+  },
+  {
+    "productId": "1005008147883190",
+    "label": "wrong",
+    "note": "Kitchen storage organizer, not a cooking gift"
+  },
+  {
+    "productId": "1005013255353477",
+    "label": "wrong",
+    "note": "Adhesive hooks, unrelated"
+  },
+  {
+    "productId": "1005007457602961",
+    "label": "wrong",
+    "note": "Hardware or plumbing part, unrelated"
+  },
+  {
+    "productId": "1005005203146510",
+    "label": "wrong",
+    "note": "Disposable food covers, storage consumable"
+  },
+  {
+    "productId": "1005013002594349",
+    "label": "wrong",
+    "note": "Paper towel holder, not a cooking gift"
+  },
+  {
+    "productId": "1005008054155711",
+    "label": "wrong",
+    "note": "Teaspoons, tableware not a cooking gift"
+  },
+  {
+    "productId": "1005008725648953",
+    "label": "wrong",
+    "note": "Drain or sink fixture, unrelated"
+  },
+  {
+    "productId": "1005012374498488",
+    "label": "wrong",
+    "note": "Disposable food covers, storage consumable"
+  },
+  {
+    "productId": "1005006995240788",
+    "label": "weak",
+    "note": "Cheap folding pocket knife, poor gift"
+  },
+  {
+    "productId": "1005012258619279",
+    "label": "wrong",
+    "note": "Disposable popsicle bags, consumable"
+  },
+  {
+    "productId": "1005007380217159",
+    "label": "weak",
+    "note": "Baking tool, not a cooking gift"
+  },
+  {
+    "productId": "1005012986662448",
+    "label": "wrong",
+    "note": "Bag sealing clips, storage not cooking"
+  },
+  {
+    "productId": "1005007987710373",
+    "label": "weak",
+    "note": "Garlic press, cheap single gadget"
+  },
+  {
+    "productId": "1005009759780480",
+    "label": "wrong",
+    "note": "Kitchen storage organizer, not a cooking gift"
+  },
+  {
+    "productId": "1005006997604268",
+    "label": "wrong",
+    "note": "Kitchen storage organizer, not a cooking gift"
+  },
+  {
+    "productId": "1005005875581953",
+    "label": "wrong",
+    "note": "Kitchen storage organizer, not a cooking gift"
+  },
+  {
+    "productId": "1005006995411009",
+    "label": "wrong",
+    "note": "Disposable air fryer liners, consumable"
+  },
+  {
+    "productId": "1005011838665106",
+    "label": "wrong",
+    "note": "Disposable food covers, storage consumable"
+  },
+  {
+    "productId": "1005006534641841",
+    "label": "weak",
+    "note": "Cheap folding pocket knife, poor gift"
+  },
+  {
+    "productId": "1005007640040490",
+    "label": "wrong",
+    "note": "Drain or sink fixture, unrelated"
+  },
+  {
+    "productId": "1005006368729169",
+    "label": "weak",
+    "note": "Rotary shredder, cheap gadget"
+  },
+  {
+    "productId": "1005011624799021",
+    "label": "weak",
+    "note": "Manual pull chopper, cheap gadget"
+  },
+  {
+    "productId": "1005006059681385",
+    "label": "weak",
+    "note": "Garlic press, cheap single gadget"
+  },
+  {
+    "productId": "1005007674433589",
+    "label": "wrong",
+    "note": "Disposable air fryer liners, consumable"
+  },
+  {
+    "productId": "1005012479784201",
+    "label": "wrong",
+    "note": "Foil bowl covers, consumable"
+  },
+  {
+    "productId": "1005007308218571",
+    "label": "wrong",
+    "note": "Adhesive hooks, unrelated"
+  },
+  {
+    "productId": "1005011653794805",
+    "label": "wrong",
+    "note": "Pet food can opener, unrelated"
+  },
+  {
+    "productId": "1005006117687386",
+    "label": "wrong",
+    "note": "Sealing tape, unrelated"
+  },
+  {
+    "productId": "1005007038342906",
+    "label": "weak",
+    "note": "Peeler, cheap basic tool"
+  },
+  {
+    "productId": "1005008253500940",
+    "label": "weak",
+    "note": "Oil sprayer bottle, cheap gadget"
+  },
+  {
+    "productId": "1005007857100711",
+    "label": "wrong",
+    "note": "Hardware or plumbing part, unrelated"
+  },
+  {
+    "productId": "1005007007183707",
+    "label": "wrong",
+    "note": "Adhesive hooks, unrelated"
+  }
+]

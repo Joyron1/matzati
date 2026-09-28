@@ -22,14 +22,20 @@ export class AnthropicProvider implements LlmProvider {
     // create() rather than parse(): parse() throws on output that does not validate (for example
     // JSON cut off at max_tokens), which would lose the usage we paid for and skip the caller's
     // retry. The interface promises data: null instead.
-    const response = await this.client.messages.create({
-      model: this.model,
-      max_tokens: req.maxTokens,
-      system: req.system,
-      messages: [{ role: "user", content: req.user }],
-      output_config: { format },
-      ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
-    });
+    const response = await this.client.messages.create(
+      {
+        model: this.model,
+        max_tokens: req.maxTokens,
+        system: req.system,
+        messages: [{ role: "user", content: req.user }],
+        output_config: { format },
+        ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
+      },
+      {
+        ...(req.timeoutMs !== undefined ? { timeout: req.timeoutMs } : {}),
+        ...(req.maxRetries !== undefined ? { maxRetries: req.maxRetries } : {}),
+      },
+    );
     const u = response.usage;
     return {
       data: response.stop_reason === "end_turn" ? parseText(format, response.content) : null,

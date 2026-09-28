@@ -1,8 +1,13 @@
 // Per-IP rate limits (20/hour, 100/day on a salted IP hash; the raw IP is never stored) and the
 // global daily LLM budget (DAILY_SEARCH_CAP), both counted atomically in Postgres by
 // public.bump_counter (supabase/migrations/m4_rate_limit.sql).
+//
+// Dev and production share the database (owner decision 2026-09-28), so outside production every
+// counter key gets its env's prefix ("dev:llm:day", "dev:h:<hash>"): a dev or preview run never
+// uses up production's daily budget or a visitor's limits, and /admin/stats reads production's.
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { deployEnv, type DeployEnv } from "@/lib/env";
 
 export const SEARCHES_PER_HOUR = 20;
 export const SEARCHES_PER_DAY = 100;
@@ -10,6 +15,13 @@ export const SEARCHES_PER_DAY = 100;
 const TIME_ZONE = "Asia/Jerusalem";
 const HOUR_MS = 3_600_000;
 const LLM_BUDGET_KEY = "llm:day";
+
+/** Counter key prefix per env; production keeps the bare keys the stats read. */
+const COUNTER_PREFIX: Record<DeployEnv, string> = {
+  production: "",
+  preview: "preview:",
+  development: "dev:",
+};
 
 /** The counter store could not be reached. Callers decide how to answer (the guard fails closed). */
 export class GuardUnavailableError extends Error {
@@ -116,13 +128,15 @@ export async function checkSearchRate(
   db: SupabaseClient,
   ipHash: string,
   now: Date,
+  env: DeployEnv = deployEnv(),
 ): Promise<RateLimitResult> {
+  const prefix = COUNTER_PREFIX[env];
   const hour = hourWindow(now);
-  if ((await bump(db, `h:${ipHash}`, hour.start)) > SEARCHES_PER_HOUR) {
+  if ((await bump(db, `${prefix}h:${ipHash}`, hour.start)) > SEARCHES_PER_HOUR) {
     return { ok: false, retryAfterSec: secondsUntil(hour.end, now) };
   }
   const day = israelDayWindow(now);
-  if ((await bump(db, `d:${ipHash}`, day.start)) > SEARCHES_PER_DAY) {
+  if ((await bump(db, `${prefix}d:${ipHash}`, day.start)) > SEARCHES_PER_DAY) {
     return { ok: false, retryAfterSec: secondsUntil(day.end, now) };
   }
   return { ok: true };
@@ -136,7 +150,9 @@ export async function consumeDailyLlmBudget(
   db: SupabaseClient,
   now: Date,
   cap: number,
+  env: DeployEnv = deployEnv(),
 ): Promise<boolean> {
   if (!(cap > 0)) return false;
-  return (await bump(db, LLM_BUDGET_KEY, israelDayWindow(now).start)) <= cap;
+  const key = COUNTER_PREFIX[env] + LLM_BUDGET_KEY;
+  return (await bump(db, key, israelDayWindow(now).start)) <= cap;
 }

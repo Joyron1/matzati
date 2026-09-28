@@ -1,0 +1,582 @@
+[
+  {
+    "productId": "1005013266296245",
+    "label": "exact",
+    "note": "Waterproof hiking/trekking rucksack"
+  },
+  {
+    "productId": "1005006863734928",
+    "label": "wrong",
+    "note": "Camping tarp, not a backpack"
+  },
+  {
+    "productId": "1005005614494250",
+    "label": "wrong",
+    "note": "Foam seat pad, not a backpack"
+  },
+  {
+    "productId": "1005007966230353",
+    "label": "wrong",
+    "note": "Crossbody chest bag, not a backpack"
+  },
+  {
+    "productId": "1005007857181136",
+    "label": "reasonable",
+    "note": "Small 10-20L waterproof daypack; small for hikes"
+  },
+  {
+    "productId": "1005007539727975",
+    "label": "wrong",
+    "note": "Backpack rain cover, accessory not a backpack"
+  },
+  {
+    "productId": "1005006863752835",
+    "label": "wrong",
+    "note": "Backpack rain cover, accessory not a backpack"
+  },
+  {
+    "productId": "1005011644141718",
+    "label": "wrong",
+    "note": "Camping lantern, not a backpack"
+  },
+  {
+    "productId": "1005007144329294",
+    "label": "wrong",
+    "note": "Dry bag set, not a backpack"
+  },
+  {
+    "productId": "1005007707640828",
+    "label": "weak",
+    "note": "Casual laptop backpack, not a hiking pack"
+  },
+  {
+    "productId": "1005013255555079",
+    "label": "reasonable",
+    "note": "Packable foldable daypack; waterproof, little support"
+  },
+  {
+    "productId": "1005007402692778",
+    "label": "weak",
+    "note": "Laptop/business backpack, not a hiking pack"
+  },
+  {
+    "productId": "1005011542372692",
+    "label": "weak",
+    "note": "Running hydration vest, not a hiking backpack"
+  },
+  {
+    "productId": "1005007170232910",
+    "label": "weak",
+    "note": "Laptop/business backpack, not a hiking pack"
+  },
+  {
+    "productId": "1005011739629334",
+    "label": "weak",
+    "note": "Small hydration pack for running and cycling"
+  },
+  {
+    "productId": "1005008308391568",
+    "label": "wrong",
+    "note": "Foam seat pad, not a backpack"
+  },
+  {
+    "productId": "1005007010389116",
+    "label": "wrong",
+    "note": "Compass, not a backpack"
+  },
+  {
+    "productId": "1005008146433077",
+    "label": "reasonable",
+    "note": "Packable foldable daypack; waterproof, little support"
+  },
+  {
+    "productId": "1005006997632307",
+    "label": "reasonable",
+    "note": "Packable foldable daypack; waterproof, little support"
+  },
+  {
+    "productId": "1005006727708320",
+    "label": "wrong",
+    "note": "Backpack rain cover, accessory not a backpack"
+  },
+  {
+    "productId": "1005007170412764",
+    "label": "reasonable",
+    "note": "Packable foldable daypack; waterproof, little support"
+  },
+  {
+    "productId": "1005008224329613",
+    "label": "exact",
+    "note": "Waterproof hiking/trekking rucksack"
+  },
+  {
+    "productId": "1005007204710234",
+    "label": "wrong",
+    "note": "Backpack rain cover, accessory not a backpack"
+  },
+  {
+    "productId": "1005009916206776",
+    "label": "weak",
+    "note": "Basketball/gym sports backpack, not for hiking"
+  },
+  {
+    "productId": "1005010155043321",
+    "label": "wrong",
+    "note": "Backpack liner bag, accessory"
+  },
+  {
+    "productId": "1005009727702804",
+    "label": "weak",
+    "note": "Laptop/business backpack, not a hiking pack"
+  },
+  {
+    "productId": "1005013266358009",
+    "label": "weak",
+    "note": "One-shoulder sling pack, not a full backpack"
+  },
+  {
+    "productId": "1005007345643156",
+    "label": "wrong",
+    "note": "Sleeping bag, not a backpack"
+  },
+  {
+    "productId": "1005009955237181",
+    "label": "wrong",
+    "note": "Backpack liner bag, accessory"
+  },
+  {
+    "productId": "1005006678223064",
+    "label": "reasonable",
+    "note": "Packable foldable daypack; waterproof, little support"
+  },
+  {
+    "productId": "1005005888954862",
+    "label": "reasonable",
+    "note": "Hydration backpack with bladder; small but hiking-ready"
+  },
+  {
+    "productId": "1005006904713190",
+    "label": "wrong",
+    "note": "Compass, not a backpack"
+  },
+  {
+    "productId": "1005008112477409",
+    "label": "exact",
+    "note": "Waterproof tactical rucksack suited to hiking"
+  },
+  {
+    "productId": "1005007477064002",
+    "label": "wrong",
+    "note": "Crossbody chest bag, not a backpack"
+  },
+  {
+    "productId": "1005006966132945",
+    "label": "reasonable",
+    "note": "Packable foldable daypack; waterproof, little support"
+  },
+  {
+    "productId": "1005009193676829",
+    "label": "wrong",
+    "note": "Backpack rain cover, accessory not a backpack"
+  },
+  {
+    "productId": "1005007838770264",
+    "label": "weak",
+    "note": "Vacuum travel/laptop backpack, not for hiking"
+  },
+  {
+    "productId": "1005005268325988",
+    "label": "wrong",
+    "note": "Backpack rain cover, accessory not a backpack"
+  },
+  {
+    "productId": "1005006475087630",
+    "label": "wrong",
+    "note": "Camping tarp, not a backpack"
+  },
+  {
+    "productId": "1005006727643778",
+    "label": "weak",
+    "note": "Drawstring gym sack, poor hiking backpack"
+  },
+  {
+    "productId": "1005008234583208",
+    "label": "weak",
+    "note": "One-shoulder sling pack, not a full backpack"
+  },
+  {
+    "productId": "1005010792302898",
+    "label": "wrong",
+    "note": "Strap-mounted pouch, backpack accessory"
+  },
+  {
+    "productId": "1005011822719812",
+    "label": "wrong",
+    "note": "Strap-mounted pouch, backpack accessory"
+  },
+  {
+    "productId": "1005013092462383",
+    "label": "reasonable",
+    "note": "Packable foldable daypack; waterproof, little support"
+  },
+  {
+    "productId": "1005006246502110",
+    "label": "weak",
+    "note": "Drawstring gym sack, poor hiking backpack"
+  },
+  {
+    "productId": "1005007009976927",
+    "label": "reasonable",
+    "note": "Packable foldable daypack; waterproof, little support"
+  },
+  {
+    "productId": "1005012727903022",
+    "label": "weak",
+    "note": "Running hydration vest, not a hiking backpack"
+  },
+  {
+    "productId": "1005006352682543",
+    "label": "reasonable",
+    "note": "Packable foldable daypack; waterproof, little support"
+  },
+  {
+    "productId": "1005010089235156",
+    "label": "wrong",
+    "note": "Backpack rain cover, accessory not a backpack"
+  },
+  {
+    "productId": "1005008040719555",
+    "label": "exact",
+    "note": "Waterproof 25-45L tactical rucksack for hiking"
+  },
+  {
+    "productId": "1005008234493648",
+    "label": "reasonable",
+    "note": "Hiking/tactical backpack; waterproof not stated"
+  },
+  {
+    "productId": "1005010089139525",
+    "label": "reasonable",
+    "note": "Packable foldable daypack; waterproof, little support"
+  },
+  {
+    "productId": "1005010615751207",
+    "label": "weak",
+    "note": "Basketball/gym sports backpack, not for hiking"
+  },
+  {
+    "productId": "1005009874238485",
+    "label": "wrong",
+    "note": "Backpack rain cover, accessory not a backpack"
+  },
+  {
+    "productId": "1005006860931684",
+    "label": "weak",
+    "note": "Laptop/business backpack, not a hiking pack"
+  },
+  {
+    "productId": "1005007805618542",
+    "label": "exact",
+    "note": "Waterproof 38L MOLLE rucksack for hiking"
+  },
+  {
+    "productId": "1005012748250096",
+    "label": "wrong",
+    "note": "Arm/strap storage pouch, accessory"
+  },
+  {
+    "productId": "1005012644144268",
+    "label": "wrong",
+    "note": "Backpack lid pouch, accessory"
+  },
+  {
+    "productId": "1005010572611974",
+    "label": "weak",
+    "note": "Basketball/gym sports backpack, not for hiking"
+  },
+  {
+    "productId": "1005007080904495",
+    "label": "wrong",
+    "note": "First aid kit, not a backpack"
+  },
+  {
+    "productId": "1005005776336490",
+    "label": "weak",
+    "note": "Laptop/business backpack, not a hiking pack"
+  },
+  {
+    "productId": "1005011669288508",
+    "label": "wrong",
+    "note": "First aid kit, not a backpack"
+  },
+  {
+    "productId": "1005008051437779",
+    "label": "wrong",
+    "note": "Backpack rain cover, accessory not a backpack"
+  },
+  {
+    "productId": "1005012218225648",
+    "label": "wrong",
+    "note": "Strap-mounted pouch, backpack accessory"
+  },
+  {
+    "productId": "1005008377848939",
+    "label": "weak",
+    "note": "Laptop/business backpack, not a hiking pack"
+  },
+  {
+    "productId": "1005011653685970",
+    "label": "reasonable",
+    "note": "Packable foldable daypack; waterproof, little support"
+  },
+  {
+    "productId": "1005008406262345",
+    "label": "weak",
+    "note": "Insulated meal-prep cooler backpack, not a hiking pack"
+  },
+  {
+    "productId": "1005008176004887",
+    "label": "wrong",
+    "note": "Backpack rain cover, accessory not a backpack"
+  },
+  {
+    "productId": "1005006366819519",
+    "label": "reasonable",
+    "note": "40L travel/hiking pack; water resistant, laptop sleeve"
+  },
+  {
+    "productId": "1005009453638075",
+    "label": "weak",
+    "note": "Casual mini backpack; waterproof not stated"
+  },
+  {
+    "productId": "1005010037288602",
+    "label": "wrong",
+    "note": "Backpack rain cover, accessory not a backpack"
+  },
+  {
+    "productId": "1005006995360170",
+    "label": "exact",
+    "note": "Waterproof 40L hiking rucksack"
+  },
+  {
+    "productId": "1005006650338354",
+    "label": "weak",
+    "note": "Drawstring gym sack, poor hiking backpack"
+  },
+  {
+    "productId": "1005007170315788",
+    "label": "wrong",
+    "note": "Solar panel charger, not a backpack"
+  },
+  {
+    "productId": "1005011782276523",
+    "label": "wrong",
+    "note": "Trekking pole bag, accessory"
+  },
+  {
+    "productId": "1005006904741344",
+    "label": "wrong",
+    "note": "Cycling water bladder bag, not a backpack"
+  },
+  {
+    "productId": "1005008144995091",
+    "label": "exact",
+    "note": "Waterproof 40L hiking rucksack"
+  },
+  {
+    "productId": "1005007805500630",
+    "label": "wrong",
+    "note": "Backpack rain cover, accessory not a backpack"
+  },
+  {
+    "productId": "1005012148062832",
+    "label": "wrong",
+    "note": "Strap-mounted pouch, backpack accessory"
+  },
+  {
+    "productId": "1005006288793139",
+    "label": "reasonable",
+    "note": "Packable foldable daypack; waterproof, little support"
+  },
+  {
+    "productId": "1005009719742900",
+    "label": "exact",
+    "note": "Waterproof 38L MOLLE rucksack for hiking"
+  },
+  {
+    "productId": "1005013110932763",
+    "label": "wrong",
+    "note": "Backpack lid pouch, accessory"
+  },
+  {
+    "productId": "1005008053214461",
+    "label": "wrong",
+    "note": "Water bladder, not a backpack"
+  },
+  {
+    "productId": "1005012594110932",
+    "label": "weak",
+    "note": "Small 3L cycling backpack, not a hiking pack"
+  },
+  {
+    "productId": "1005003245146132",
+    "label": "wrong",
+    "note": "Backpack rain cover, accessory not a backpack"
+  },
+  {
+    "productId": "1005012172875120",
+    "label": "wrong",
+    "note": "First aid kit, not a backpack"
+  },
+  {
+    "productId": "1005007267332446",
+    "label": "reasonable",
+    "note": "Packable foldable daypack; waterproof, little support"
+  },
+  {
+    "productId": "1005006904740089",
+    "label": "reasonable",
+    "note": "Packable foldable daypack; waterproof, little support"
+  },
+  {
+    "productId": "1005010792720441",
+    "label": "wrong",
+    "note": "Strap-mounted pouch, backpack accessory"
+  },
+  {
+    "productId": "1005008913617336",
+    "label": "weak",
+    "note": "Laptop/business backpack, not a hiking pack"
+  },
+  {
+    "productId": "1005005651412698",
+    "label": "reasonable",
+    "note": "45L tactical rucksack; waterproof not stated"
+  },
+  {
+    "productId": "1005012474909457",
+    "label": "wrong",
+    "note": "Inflatable pillows, not a backpack"
+  },
+  {
+    "productId": "1005007180212708",
+    "label": "wrong",
+    "note": "Towel, not a backpack"
+  },
+  {
+    "productId": "1005012705580885",
+    "label": "weak",
+    "note": "Running hydration vest, not a hiking backpack"
+  },
+  {
+    "productId": "1005007109412057",
+    "label": "wrong",
+    "note": "Camping stove, not a backpack"
+  },
+  {
+    "productId": "1005010653402475",
+    "label": "wrong",
+    "note": "Umbrella clip, backpack accessory"
+  },
+  {
+    "productId": "1005010596296065",
+    "label": "wrong",
+    "note": "Carabiner/clip, not a backpack"
+  },
+  {
+    "productId": "1005007328200672",
+    "label": "wrong",
+    "note": "MOLLE webbing straps, not a backpack"
+  },
+  {
+    "productId": "1005011653696959",
+    "label": "weak",
+    "note": "Running hydration vest, not a hiking backpack"
+  },
+  {
+    "productId": "1005007345078903",
+    "label": "wrong",
+    "note": "Camping burner, not a backpack"
+  },
+  {
+    "productId": "1005009916264117",
+    "label": "wrong",
+    "note": "Carabiner/clip, not a backpack"
+  },
+  {
+    "productId": "1005010141428942",
+    "label": "wrong",
+    "note": "Umbrella clip, backpack accessory"
+  },
+  {
+    "productId": "1005010706722587",
+    "label": "wrong",
+    "note": "Carabiner/clip, not a backpack"
+  },
+  {
+    "productId": "1005012009266945",
+    "label": "weak",
+    "note": "Running hydration vest, not a hiking backpack"
+  },
+  {
+    "productId": "1005012743076299",
+    "label": "wrong",
+    "note": "External attachment strap, accessory"
+  },
+  {
+    "productId": "1005007531197241",
+    "label": "wrong",
+    "note": "Camping trowel, not a backpack"
+  },
+  {
+    "productId": "1005007170100098",
+    "label": "weak",
+    "note": "10L cycling backpack with bladder, not a hiking pack"
+  },
+  {
+    "productId": "1005011696952939",
+    "label": "weak",
+    "note": "Running hydration vest, not a hiking backpack"
+  },
+  {
+    "productId": "1005007009850814",
+    "label": "wrong",
+    "note": "Bike/motorcycle dry roll bag, not a backpack"
+  },
+  {
+    "productId": "1005008406130791",
+    "label": "wrong",
+    "note": "Camping trowel, not a backpack"
+  },
+  {
+    "productId": "1005008145046044",
+    "label": "wrong",
+    "note": "Crossbody chest bag, not a backpack"
+  },
+  {
+    "productId": "1005006996432383",
+    "label": "reasonable",
+    "note": "45L tactical rucksack; waterproof not stated"
+  },
+  {
+    "productId": "1005008144817678",
+    "label": "wrong",
+    "note": "Carabiner/clip, not a backpack"
+  },
+  {
+    "productId": "1005010376534020",
+    "label": "wrong",
+    "note": "Survival card tool, not a backpack"
+  },
+  {
+    "productId": "1005006904749050",
+    "label": "wrong",
+    "note": "MOLLE webbing straps, not a backpack"
+  },
+  {
+    "productId": "1005011930599791",
+    "label": "wrong",
+    "note": "Luggage straps, not a backpack"
+  }
+]

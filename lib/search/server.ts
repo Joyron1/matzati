@@ -34,6 +34,7 @@ import { LINK_MAX_AGE_DAYS, RESULTS_PER_PAGE, SKU_DETAILS_ENABLED } from "@/lib/
 import { couponsForProduct } from "@/lib/coupons/queries";
 import type { Coupon } from "@/lib/coupons/types";
 import { couponForProduct } from "@/lib/deals/queries";
+import { getAdminUser } from "@/lib/admin/auth";
 import { aliexpressConfig, ConfigError, llmConfig } from "@/lib/env";
 import { checkSearchRate, clientIp, consumeDailyLlmBudget, hashIp } from "@/lib/guard/rate-limit";
 import { AnthropicProvider } from "@/lib/llm/anthropic";
@@ -43,10 +44,17 @@ import { categoryLabelHe, tipsCategoryOf, type TipsCategory } from "@/lib/tips/c
 import { TipsRefresher, type TipsJobDeps } from "@/lib/tips/refresh";
 import { displayableTips, readCategoryTips } from "@/lib/tips/store";
 import type { Deal, ResultProduct, SearchResponse } from "@/lib/types";
+import {
+  MAX_CLICK_POSITION,
+  type ClickRef,
+  type LoggedResult,
+  type SearchArrival,
+} from "@/lib/search-url";
 import type { SortPreference } from "./filters";
 import {
   isListableSearch,
   loadMore,
+  logOrigin,
   MAX_QUERY_LENGTH,
   RESULTS_KEPT,
   runSearch,
@@ -61,11 +69,24 @@ import { normalizeQuery } from "./cache-key";
 import type { SearchLogEntry, SearchStore } from "./store";
 import { SupabaseStore, type StoredProduct } from "./supabase-store";
 
+/**
+ * Why a search request got no results page. "upstream" is AliExpress; "llm" is the model that
+ * parses the query (not reached or too slow), which the page names honestly (plan item 7).
+ */
 export type SearchFailure =
-  "invalid_query" | "rate_limited" | "capacity" | "parse_failed" | "upstream" | "unavailable";
+  | "invalid_query"
+  | "rate_limited"
+  | "capacity"
+  | "parse_failed"
+  | "upstream"
+  | "llm"
+  | "unavailable";
+
+/** A response to one visitor request: its results carry the uid of its search_log row. */
+export type LoggedSearchResponse = Omit<SearchResponse, "results"> & { results: LoggedResult[] };
 
 export type SearchPageResult =
-  | { ok: true; response: SearchResponse }
+  | { ok: true; response: LoggedSearchResponse }
   | { ok: false; error: SearchFailure; retryAfterSec?: number };
 
 const PRODUCT_ID = /^\d{1,20}$/;
@@ -138,6 +159,8 @@ function searchDeps(dailyCap: number) {
         throw new SearchError("capacity", "daily LLM budget is used up");
       }
     },
+    // search_log.failure holds the code the visitor was answered with.
+    failureOf: failureCode,
   };
   return { db, deps };
 }
@@ -153,14 +176,19 @@ function logError(where: string, err: unknown) {
   console.error(`[${where}] ${text.slice(0, 500)}`);
 }
 
-function toFailure(err: unknown, where: string): SearchFailure {
-  if (err instanceof SearchError) {
-    if (err.code === "upstream") logError(where, err);
-    return err.code;
-  }
-  logError(where, err);
-  if (err instanceof AliExpressError || err instanceof LlmApiError) return "upstream";
+/** The code a search failure is answered with (and logged under, search_log.failure). */
+export function failureCode(err: unknown): SearchFailure {
+  if (err instanceof SearchError) return err.code;
+  if (err instanceof AliExpressError) return "upstream";
+  if (err instanceof LlmApiError) return "llm";
   return "unavailable"; // config, database and anything unexpected
+}
+
+function toFailure(err: unknown, where: string): SearchFailure {
+  if (!(err instanceof SearchError) || err.code === "upstream" || err.code === "llm") {
+    logError(where, err);
+  }
+  return failureCode(err);
 }
 
 /** DAILY_SEARCH_CAP (units of LLM work per Israel day), for the admin stats. Throws ConfigError. */
@@ -170,28 +198,46 @@ export function dailySearchCap(): number {
 
 /**
  * A request that joined another request's run was served without any new work, so it is logged
- * like a cache hit: its own query, cache "results". Whether /searches may list it is decided again
- * for its own query and origin: the run it joined had the same source, chips removed and sort
- * (both part of the in-flight key) and showed the same results, but it may have been typed where
- * this one came from one of our links, or the other way round. Never throws.
+ * like a cache hit: its own query, cache "results", shared, no AliExpress calls and only its own
+ * wait as total_ms. Whether /searches may list it, and its origin, are decided again for its own
+ * query and origin: the run it joined had the same source, chips removed and sort (all part of the
+ * in-flight key) and showed the same results, but it may have been typed where this one came from
+ * one of our links, or the other way round. Returns the row's uid; never throws.
  */
 async function logShared(
   store: () => SearchStore,
   log: SearchLogEntry,
   q: string,
   origin: Omit<SearchOrigin, "source">,
-) {
+  waitedMs: number,
+): Promise<string> {
+  const joined: SearchOrigin = { ...origin, source: log.source };
+  const searchUid = crypto.randomUUID();
   try {
     await store().logSearch({
       ...log,
       query: q,
       queryNorm: normalizeQuery(q),
       cache: "results",
-      listable: isListableSearch(q, { ...origin, source: log.source }, log.resultsCount),
+      listable: isListableSearch(q, joined, log.resultsCount),
+      origin: logOrigin(joined),
+      timings: { parse_ms: null, fetch_ms: null, explain_ms: null, total_ms: waitedMs },
+      aliCalls: 0,
+      searchUid,
+      shared: true,
+      // Its own asker and no work of its own.
+      owner: joined.owner === true,
+      diag: null,
     });
   } catch (err) {
     logError("search-log", err);
   }
+  return searchUid;
+}
+
+/** The response for one request, its results tagged with that request's search_log uid. */
+function tagged(response: SearchResponse, searchUid: string): LoggedSearchResponse {
+  return { ...response, results: response.results.map((r) => ({ ...r, search_uid: searchUid })) };
 }
 
 /** Runs a search for a request. `headers` are the incoming request headers (for the IP). */
@@ -200,31 +246,71 @@ async function logShared(
 // twice). Per server instance; the 14-day cache covers everything after the first run completes.
 const inFlight = new Map<string, Promise<SearchOutcome>>();
 
-async function sharedRun(
-  q: string,
-  without: string[],
-  sort: SortPreference | undefined,
-  typed: boolean,
-  deps: SearchDeps,
-): Promise<SearchOutcome> {
-  const key = JSON.stringify([normalizeQuery(q), [...without].sort(), sort ?? null]);
-  const running = inFlight.get(key);
-  if (running) {
-    const outcome = await running;
-    await logShared(() => deps.store, outcome.log, q, { without, sort, typed });
-    return outcome;
-  }
-  const run = runSearch({ q, without, sort, typed }, deps).finally(() => inFlight.delete(key));
-  inFlight.set(key, run);
-  return run;
+interface SharedRunInput {
+  q: string;
+  without: string[];
+  sort?: SortPreference;
+  typed: boolean;
+  arrival?: SearchArrival;
+  /** A signed-in admin asked (requestIsOwner): the row is logged with owner true. */
+  owner: boolean;
 }
 
 /**
- * `typed` is false for a query from one of our own links (a recent-search card, an example): it is
- * searched and logged like any other, but never listed on /searches. Default true.
+ * True when a signed-in admin (the owner) made this request: their searches and clicks are logged
+ * with owner true, left out of the stats and never listed on /searches (plan item 10). Visitors
+ * have no auth cookie, so for them this makes no network call (lib/admin/auth.ts).
+ */
+async function requestIsOwner(): Promise<boolean> {
+  return (await getAdminUser()) !== null;
+}
+
+/**
+ * The run's outcome and the uid of this request's own search_log row. A joiner of a run that
+ * fails logs nothing: the run logged the failure once.
+ */
+async function sharedRun(
+  input: SharedRunInput,
+  deps: SearchDeps,
+): Promise<{ response: SearchResponse; searchUid: string }> {
+  const { q, without, sort } = input;
+  const key = JSON.stringify([normalizeQuery(q), [...without].sort(), sort ?? null]);
+  const running = inFlight.get(key);
+  if (running) {
+    const started = performance.now();
+    const outcome = await running;
+    const waited = Math.round(performance.now() - started);
+    const origin = {
+      without,
+      sort,
+      typed: input.typed,
+      arrival: input.arrival,
+      ...(input.owner ? { owner: true } : {}),
+    };
+    const searchUid = await logShared(() => deps.store, outcome.log, q, origin, waited);
+    return { response: outcome.response, searchUid };
+  }
+  const run = runSearch(input, deps).finally(() => inFlight.delete(key));
+  inFlight.set(key, run);
+  const outcome = await run;
+  return { response: outcome.response, searchUid: outcome.log.searchUid };
+}
+
+/**
+ * `typed` is false for a query from one of our own links (a recent-search card, an example) or an
+ * ad: it is searched and logged like any other, but never listed on /searches. It defaults to true
+ * unless `arrival` says where the visitor came from (parseArrival in lib/search-url.ts), which
+ * search_log.origin records. The results carry the uid of this request's search_log row, which
+ * their /go links pass on.
  */
 export async function searchForRequest(
-  input: { q: string; without?: string[]; sort?: SortPreference; typed?: boolean },
+  input: {
+    q: string;
+    without?: string[];
+    sort?: SortPreference;
+    typed?: boolean;
+    arrival?: SearchArrival;
+  },
   headers: Headers,
 ): Promise<SearchPageResult> {
   const q = input.q.trim();
@@ -237,23 +323,28 @@ export async function searchForRequest(
     // call, but the limit is against scripted abuse, which can hammer cached queries just as
     // well (each still costs DB reads). Chip removals and sort changes count too; 20/hour
     // leaves room for refining.
+    // A refused request is not logged: it did no work, and a flood of them would only add rows.
     const rate = await checkSearchRate(db, hashIp(clientIp(headers), env.ipHashSalt), new Date());
     if (!rate.ok) return { ok: false, error: "rate_limited", retryAfterSec: rate.retryAfterSec };
-    const { response } = await sharedRun(
-      q,
-      input.without ?? [],
-      input.sort,
-      input.typed ?? true,
+    const { response, searchUid } = await sharedRun(
+      {
+        q,
+        without: input.without ?? [],
+        sort: input.sort,
+        typed: input.typed ?? input.arrival === undefined,
+        ...(input.arrival ? { arrival: input.arrival } : {}),
+        owner: await requestIsOwner(),
+      },
       deps,
     );
-    return { ok: true, response };
+    return { ok: true, response: tagged(response, searchUid) };
   } catch (err) {
     return { ok: false, error: toFailure(err, "search") };
   }
 }
 
 export type MoreResult =
-  | { ok: true; results: ResultProduct[]; more_available: boolean }
+  | { ok: true; results: LoggedResult[]; more_available: boolean }
   | {
       ok: false;
       error: "not_found" | "capacity" | "rate_limited" | "unavailable";
@@ -294,9 +385,24 @@ export async function moreForRequest(
       }
       await chargeBudget?.();
     };
-    const out = await loadMore(filtersKey, page, { ...deps, beforeLlmWork });
+    const out = await loadMore(
+      filtersKey,
+      page,
+      {
+        ...deps,
+        beforeLlmWork,
+        // Like a refused search, a page refused by the per-IP limit is not logged.
+        failureOf: (err) => (err instanceof RateLimitedError ? null : failureCode(err)),
+      },
+      { owner: await requestIsOwner() },
+    );
     if (!out) return { ok: false, error: "not_found" };
-    return { ok: true, results: out.results, more_available: out.more_available };
+    // The page's own search_log row (source "more"): its cards' /go links carry that uid.
+    const searchUid = out.log?.searchUid;
+    const results = searchUid
+      ? out.results.map((r) => ({ ...r, search_uid: searchUid }))
+      : out.results;
+    return { ok: true, results, more_available: out.more_available };
   } catch (err) {
     if (err instanceof RateLimitedError) {
       return { ok: false, error: "rate_limited", retryAfterSec: err.retryAfterSec };
@@ -631,11 +737,15 @@ export async function examplePreview(q: string): Promise<SearchResponse | null> 
   const entry = previews.get(key);
   const retry = entry?.failedAt !== undefined && Date.now() - entry.failedAt >= PREVIEW_RETRY_MS;
   if (entry && !retry) {
+    const started = performance.now();
     const shared = await entry.run;
     if (shared) {
       const origin = { without: [], typed: false };
-      await logShared(() => new SupabaseStore(serviceClient()), shared.log, key, origin);
+      const waited = Math.round(performance.now() - started);
+      await logShared(() => new SupabaseStore(serviceClient()), shared.log, key, origin, waited);
     }
+    // Not tagged with a search uid: the landing page is static for a day (ISR), so its clicks
+    // would all name one render's row.
     return shared?.response ?? null;
   }
   const run: Promise<SearchOutcome | null> = runPreview(key).then((outcome) => {
@@ -730,8 +840,33 @@ async function affiliateLink(
   return (await run) ?? current;
 }
 
+const clickUidSchema = z.uuid();
+const clickPositionSchema = z.coerce.number().int().min(1).max(MAX_CLICK_POSITION);
+
+/**
+ * The s (search_log uid) and pos (card position) parameters of a /go request (goHref in
+ * lib/search-url.ts). Anyone can send any value, so each is checked on its own and a bad one is
+ * dropped while the click is still logged. They are written to clicks for the stats and never
+ * trusted for anything else.
+ */
+export function clickRefFrom(params: URLSearchParams): ClickRef {
+  const uid = clickUidSchema.safeParse(params.get("s") ?? "");
+  const pos = params.get("pos")?.trim();
+  const position = pos ? clickPositionSchema.safeParse(pos) : null;
+  return {
+    searchUid: uid.success ? uid.data.toLowerCase() : null,
+    position: position?.success ? position.data : null,
+  };
+}
+
+const NO_CLICK_REF: ClickRef = { searchUid: null, position: null };
+
 /** Logs a click and returns the affiliate link to redirect to, or null when there is none. */
-export async function clickOut(productId: string, src: string): Promise<string | null> {
+export async function clickOut(
+  productId: string,
+  src: string,
+  ref: ClickRef = NO_CLICK_REF,
+): Promise<string | null> {
   if (!PRODUCT_ID.test(productId)) return null;
   try {
     const db = serviceClient();
@@ -740,8 +875,8 @@ export async function clickOut(productId: string, src: string): Promise<string |
     if (!stored) return null;
     const [link] = await Promise.all([
       affiliateLink(db, stored, new Date()),
-      store
-        .logClick(productId, CLICK_SRC.test(src) ? src : "other")
+      requestIsOwner()
+        .then((owner) => store.logClick(productId, CLICK_SRC.test(src) ? src : "other", ref, owner))
         .catch((err) => logError("go", err)),
     ]);
     if (!link) return null;

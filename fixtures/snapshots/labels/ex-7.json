@@ -1,0 +1,397 @@
+[
+  {
+    "productId": "1005008144895479",
+    "label": "exact",
+    "note": "Smartwatch; health monitoring implies heart rate sensor"
+  },
+  {
+    "productId": "1005010530519591",
+    "label": "reasonable",
+    "note": "Rugged GPS smartwatch; heart rate not stated in title"
+  },
+  {
+    "productId": "1005009384181339",
+    "label": "exact",
+    "note": "Smartwatch; heart rate stated in title"
+  },
+  {
+    "productId": "1005011587378082",
+    "label": "exact",
+    "note": "Smartwatch; health monitoring implies heart rate sensor"
+  },
+  {
+    "productId": "1005007169454923",
+    "label": "exact",
+    "note": "Smartwatch; health monitoring implies heart rate sensor"
+  },
+  {
+    "productId": "1005012438476927",
+    "label": "exact",
+    "note": "Smartwatch; heart rate stated in title"
+  },
+  {
+    "productId": "1005008430113248",
+    "label": "exact",
+    "note": "Smartwatch; blood oxygen sensor implies heart rate"
+  },
+  {
+    "productId": "1005011822903460",
+    "label": "reasonable",
+    "note": "Smartwatch with sleep monitor; heart rate not stated"
+  },
+  {
+    "productId": "1005006981580342",
+    "label": "reasonable",
+    "note": "Fitness smartwatch; heart rate not stated in title"
+  },
+  {
+    "productId": "1005008830601930",
+    "label": "exact",
+    "note": "Smartwatch; heart rate stated in title"
+  },
+  {
+    "productId": "1005006860956768",
+    "label": "exact",
+    "note": "Smartwatch with ECG/PPG heart sensing"
+  },
+  {
+    "productId": "1005008315618487",
+    "label": "reasonable",
+    "note": "Smartwatch; heart rate not stated in title"
+  },
+  {
+    "productId": "1005007038070319",
+    "label": "reasonable",
+    "note": "Fitness smartwatch; heart rate not stated in title"
+  },
+  {
+    "productId": "1005010089086965",
+    "label": "exact",
+    "note": "Smartwatch; health monitoring implies heart rate sensor"
+  },
+  {
+    "productId": "1005012067452769",
+    "label": "reasonable",
+    "note": "Rugged GPS smartwatch; heart rate not stated in title"
+  },
+  {
+    "productId": "1005008525103005",
+    "label": "reasonable",
+    "note": "Smartwatch; heart rate not stated in title"
+  },
+  {
+    "productId": "1005005804746693",
+    "label": "exact",
+    "note": "Smartwatch; health monitoring implies heart rate sensor"
+  },
+  {
+    "productId": "1005010332332653",
+    "label": "exact",
+    "note": "Smartwatch; health monitoring implies heart rate sensor"
+  },
+  {
+    "productId": "1005010285556261",
+    "label": "reasonable",
+    "note": "Rugged GPS smartwatch; heart rate not stated in title"
+  },
+  {
+    "productId": "1005008584203545",
+    "label": "reasonable",
+    "note": "Smartwatch; heart rate not stated in title"
+  },
+  {
+    "productId": "1005009916174912",
+    "label": "reasonable",
+    "note": "Smartwatch; heart rate not stated in title"
+  },
+  {
+    "productId": "1005010470633671",
+    "label": "exact",
+    "note": "Smartwatch; health monitoring implies heart rate sensor"
+  },
+  {
+    "productId": "1005006593951067",
+    "label": "exact",
+    "note": "Smartwatch; health monitoring implies heart rate sensor"
+  },
+  {
+    "productId": "1005006997324750",
+    "label": "exact",
+    "note": "Smartwatch; heart rate stated in title"
+  },
+  {
+    "productId": "1005008908936664",
+    "label": "reasonable",
+    "note": "Fitness smartwatch; heart rate not stated in title"
+  },
+  {
+    "productId": "1005006982321656",
+    "label": "reasonable",
+    "note": "Fitness smartwatch; heart rate not stated in title"
+  },
+  {
+    "productId": "1005011587248629",
+    "label": "reasonable",
+    "note": "Rugged GPS smartwatch; heart rate not stated in title"
+  },
+  {
+    "productId": "1005006784511373",
+    "label": "exact",
+    "note": "Smartwatch; health monitoring implies heart rate sensor"
+  },
+  {
+    "productId": "1005011792273970",
+    "label": "exact",
+    "note": "ECG smartwatch; bold medical claims, heart sensing stated"
+  },
+  {
+    "productId": "1005011587172941",
+    "label": "reasonable",
+    "note": "Smartwatch; heart rate not stated in title"
+  },
+  {
+    "productId": "1005009234715670",
+    "label": "reasonable",
+    "note": "Fitness smartwatch; heart rate not stated in title"
+  },
+  {
+    "productId": "1005007043908778",
+    "label": "exact",
+    "note": "Smartwatch; heart rate stated in title"
+  },
+  {
+    "productId": "1005010439298612",
+    "label": "exact",
+    "note": "Smartwatch; heart rate stated in title"
+  },
+  {
+    "productId": "1005012474903432",
+    "label": "reasonable",
+    "note": "Rugged GPS smartwatch; heart rate not stated in title"
+  },
+  {
+    "productId": "1005006967413964",
+    "label": "reasonable",
+    "note": "Fitness smartwatch; heart rate not stated in title"
+  },
+  {
+    "productId": "1005008932711407",
+    "label": "reasonable",
+    "note": "Smartwatch; heart rate not stated in title"
+  },
+  {
+    "productId": "1005007344747738",
+    "label": "reasonable",
+    "note": "Fitness smartwatch; heart rate not stated in title"
+  },
+  {
+    "productId": "1005012814804552",
+    "label": "exact",
+    "note": "Smartwatch; heart rate stated in title"
+  },
+  {
+    "productId": "1005012095671406",
+    "label": "reasonable",
+    "note": "Rugged GPS smartwatch; heart rate not stated in title"
+  },
+  {
+    "productId": "1005011653714954",
+    "label": "exact",
+    "note": "Smartwatch; health monitoring implies heart rate sensor"
+  },
+  {
+    "productId": "1005009738233446",
+    "label": "reasonable",
+    "note": "Smartwatch; heart rate not stated in title"
+  },
+  {
+    "productId": "1005012013986562",
+    "label": "weak",
+    "note": "Fitness band, not a smartwatch; has heart rate"
+  },
+  {
+    "productId": "1005009737738873",
+    "label": "exact",
+    "note": "Smartwatch; health monitoring implies heart rate sensor"
+  },
+  {
+    "productId": "1005009460482765",
+    "label": "exact",
+    "note": "Smartwatch; heart rate stated in title"
+  },
+  {
+    "productId": "1005010109632433",
+    "label": "reasonable",
+    "note": "Fitness smartwatch; heart rate not stated in title"
+  },
+  {
+    "productId": "1005006070126570",
+    "label": "reasonable",
+    "note": "Fitness smartwatch; heart rate not stated in title"
+  },
+  {
+    "productId": "1005007989193874",
+    "label": "exact",
+    "note": "Smartwatch; blood oxygen sensor implies heart rate"
+  },
+  {
+    "productId": "1005009571522109",
+    "label": "exact",
+    "note": "Smartwatch; health monitoring implies heart rate sensor"
+  },
+  {
+    "productId": "1005009508738931",
+    "label": "reasonable",
+    "note": "Rugged GPS smartwatch; heart rate not stated in title"
+  },
+  {
+    "productId": "1005007043647896",
+    "label": "reasonable",
+    "note": "Smartwatch sold as smart band; heart rate not stated"
+  },
+  {
+    "productId": "1005009649177323",
+    "label": "reasonable",
+    "note": "Smartwatch; heart rate not stated in title"
+  },
+  {
+    "productId": "1005010653521211",
+    "label": "reasonable",
+    "note": "Rugged GPS smartwatch; heart rate not stated in title"
+  },
+  {
+    "productId": "1005010285484490",
+    "label": "reasonable",
+    "note": "Fitness smartwatch; heart rate not stated in title"
+  },
+  {
+    "productId": "1005010088946565",
+    "label": "exact",
+    "note": "Smartwatch; heart rate stated in title"
+  },
+  {
+    "productId": "1005006995151533",
+    "label": "exact",
+    "note": "Smartwatch; heart rate stated in title"
+  },
+  {
+    "productId": "1005007031883259",
+    "label": "reasonable",
+    "note": "Fitness smartwatch; heart rate not stated in title"
+  },
+  {
+    "productId": "1005006783114015",
+    "label": "reasonable",
+    "note": "Fitness smartwatch; heart rate not stated in title"
+  },
+  {
+    "productId": "1005008406453115",
+    "label": "exact",
+    "note": "Smartwatch with ECG/PPG heart sensing"
+  },
+  {
+    "productId": "1005008908975458",
+    "label": "weak",
+    "note": "Fitness band, not a smartwatch; has heart rate"
+  },
+  {
+    "productId": "1005010572696912",
+    "label": "weak",
+    "note": "4 ILS price implies accessory variant, not the watch"
+  },
+  {
+    "productId": "1005010759379888",
+    "label": "exact",
+    "note": "Smartwatch; health monitoring implies heart rate sensor"
+  },
+  {
+    "productId": "1005006994984080",
+    "label": "exact",
+    "note": "Smartwatch; heart rate stated in title"
+  },
+  {
+    "productId": "1005007635144936",
+    "label": "reasonable",
+    "note": "Gimmicky health diagnostics watch; heart rate not stated"
+  },
+  {
+    "productId": "1005010439451200",
+    "label": "exact",
+    "note": "Smartwatch; health monitoring implies heart rate sensor"
+  },
+  {
+    "productId": "1005009695753492",
+    "label": "exact",
+    "note": "Smartwatch; health monitoring implies heart rate sensor"
+  },
+  {
+    "productId": "1005011822835651",
+    "label": "reasonable",
+    "note": "Rugged GPS smartwatch; heart rate not stated in title"
+  },
+  {
+    "productId": "1005012369637764",
+    "label": "wrong",
+    "note": "Smart glasses, not a watch"
+  },
+  {
+    "productId": "1005012933367534",
+    "label": "wrong",
+    "note": "Smart glasses, not a watch"
+  },
+  {
+    "productId": "1005012943707592",
+    "label": "wrong",
+    "note": "Smart glasses, not a watch"
+  },
+  {
+    "productId": "1005012951155316",
+    "label": "wrong",
+    "note": "Smart glasses, not a watch"
+  },
+  {
+    "productId": "1005008384131391",
+    "label": "exact",
+    "note": "Smartwatch; heart rate stated in title"
+  },
+  {
+    "productId": "1005006840417083",
+    "label": "exact",
+    "note": "Smartwatch; heart rate stated in title"
+  },
+  {
+    "productId": "1005012768123350",
+    "label": "exact",
+    "note": "Smartwatch; heart rate stated in title"
+  },
+  {
+    "productId": "1005012933348553",
+    "label": "wrong",
+    "note": "Smart glasses, not a watch"
+  },
+  {
+    "productId": "1005012020809562",
+    "label": "exact",
+    "note": "Smartwatch; health monitoring implies heart rate sensor"
+  },
+  {
+    "productId": "1005012583008674",
+    "label": "wrong",
+    "note": "Smart glasses, not a watch"
+  },
+  {
+    "productId": "1005008896039198",
+    "label": "reasonable",
+    "note": "Fitness smartwatch; heart rate not stated in title"
+  },
+  {
+    "productId": "1005012734999791",
+    "label": "wrong",
+    "note": "Smart glasses, not a watch"
+  },
+  {
+    "productId": "1005012498862533",
+    "label": "reasonable",
+    "note": "Smartwatch; heart rate not stated in title"
+  }
+]

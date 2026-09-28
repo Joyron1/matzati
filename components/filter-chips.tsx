@@ -11,10 +11,36 @@ interface FilterChipsProps {
   without: string[];
   /** Chips to draw attention to, e.g. the price filter when nothing passed. */
   highlightIds?: string[];
+  /** Stated needs that are not filters (SearchResponse.not_filtered), named under the chips. */
+  notFiltered?: string[];
+}
+
+/** "״א״", "״א״ ו״ב״", "״א״, ״ב״ ו״ג״". */
+function quotedList(labels: string[]): string {
+  const quoted = labels.map((l) => `״${l}״`);
+  return quoted.length < 2
+    ? quoted.join("")
+    : `${quoted.slice(0, -1).join(", ")} ו${quoted.at(-1)}`;
+}
+
+/**
+ * A need the visitor stated that no title can show, so it is not a filter (plan item 8): said
+ * plainly, so the chips never imply it was checked.
+ */
+export function notFilteredNote(labels: string[]): string {
+  const them = labels.length === 1 ? "את זה" : "אותם";
+  return `את ${quotedList(labels)} לא סיננו, רק העדפנו מוצרים שהשם שלהם מזכיר ${them}.`;
 }
 
 /** "הבנתי ככה" row. Removing a chip re-runs the search without that filter. */
-export function FilterChips({ chips, q, sort, without, highlightIds = [] }: FilterChipsProps) {
+export function FilterChips({
+  chips,
+  q,
+  sort,
+  without,
+  highlightIds = [],
+  notFiltered = [],
+}: FilterChipsProps) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
       <span className="text-sm font-semibold text-muted">הבנתי ככה:</span>
@@ -51,6 +77,9 @@ export function FilterChips({ chips, q, sort, without, highlightIds = [] }: Filt
           <RotateCcw aria-hidden className="size-4" />
           החזרת כל הסינונים
         </Link>
+      )}
+      {notFiltered.length > 0 && (
+        <p className="w-full text-sm text-pretty text-muted">{notFilteredNote(notFiltered)}</p>
       )}
     </div>
   );

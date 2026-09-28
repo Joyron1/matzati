@@ -1,13 +1,24 @@
 // Loads /admin/stats with the service-role client: the report functions from
-// supabase/migrations/phase2_stats.sql (Asia/Jerusalem days), today's LLM budget counter and the
-// USD→ILS rate. Each part loads on its own; a part that fails is null (logged by name, never with
+// supabase/migrations/phase2_stats.sql and search_telemetry.sql (Asia/Jerusalem days, production
+// rows only), today's LLM budget counter and the USD→ILS rate. Each part loads on its own; a part that fails is null (logged by name, never with
 // values), so one broken query never hides the rest of the page.
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { UsdIlsRate } from "@/lib/fx/boi";
 import { israelDayWindow } from "@/lib/guard/rate-limit";
-import type { DailyStats, LlmKindStats, TopProduct, TopQuery, ZeroResultQuery } from "./report";
+import { SEARCH_ORIGINS } from "@/lib/search/store";
+import {
+  CLICK_POSITION_GROUPS,
+  type ClickPositionStats,
+  type DailyStats,
+  type FailureStats,
+  type LlmKindStats,
+  type OriginStats,
+  type TopProduct,
+  type TopQuery,
+  type ZeroResultQuery,
+} from "./report";
 import { LLM_CALL_KINDS } from "./usage";
 
 /** The dashboard window, in Israel days ending today. */
@@ -74,6 +85,30 @@ const llmKindSchema = z.object({
   unpriced_calls: count,
 });
 
+const originSchema = z.object({
+  origin: z.enum(SEARCH_ORIGINS).nullable(),
+  searches: count,
+  zero_results: count,
+  partial_results: count,
+  failures: count,
+  chips_removed: count,
+  clicked: count,
+  median_ms_fresh: count.nullable(),
+  median_ms_cached: count.nullable(),
+});
+
+const failureSchema = z.object({
+  failure: z.string().regex(/^[a-z_]{1,32}$/),
+  failures: count,
+  searches: count,
+  last_seen: timestamp,
+});
+
+const clickPositionSchema = z.object({
+  position_group: z.enum(CLICK_POSITION_GROUPS),
+  clicks: count,
+});
+
 export interface AdminStats {
   /** Newest first, one row per day of the window (days without activity included). */
   daily: DailyStats[] | null;
@@ -81,6 +116,10 @@ export interface AdminStats {
   zeroResultQueries: ZeroResultQuery[] | null;
   topProducts: TopProduct[] | null;
   llmByKind: LlmKindStats[] | null;
+  /** Per origin, the total (origin null) last; null when it could not be loaded. */
+  byOrigin: OriginStats[] | null;
+  failures: FailureStats[] | null;
+  clickPositions: ClickPositionStats[] | null;
   /** Today's 'llm:day' counter (0 before the first unit), or null when it could not be read. */
   budgetCounter: number | null;
   /** DAILY_SEARCH_CAP, or null when it is misconfigured. */
@@ -147,76 +186,109 @@ export async function loadAdminStats(deps: StatsDeps): Promise<AdminStats> {
   const rpc = (fn: string, args: Record<string, number>) => () => db.rpc(fn, args);
   const window = { p_days: STATS_DAYS };
 
-  const [daily, topQueries, zeroResultQueries, topProducts, llmByKind, counter, fx] =
-    await Promise.all([
-      part("daily", () =>
-        rows(rpc("stats_daily", window), dailySchema, (r) => ({
-          day: r.day,
+  const [
+    daily,
+    topQueries,
+    zeroResultQueries,
+    topProducts,
+    llmByKind,
+    byOrigin,
+    failures,
+    clickPositions,
+    counter,
+    fx,
+  ] = await Promise.all([
+    part("daily", () =>
+      rows(rpc("stats_daily", window), dailySchema, (r) => ({
+        day: r.day,
+        searches: r.searches,
+        fresh: r.searches_fresh,
+        cached: r.searches_cached,
+        zeroResults: r.searches_zero,
+        previews: r.previews,
+        moreLoads: r.more_loads,
+        clicks: r.clicks,
+        llmCalls: r.llm_calls,
+        llmCostUsd: r.llm_cost_usd,
+        llmUnpricedCalls: r.llm_unpriced_calls,
+      })),
+    ),
+    part("top queries", () =>
+      rows(rpc("stats_top_queries", { ...window, p_limit: TOP_QUERIES }), topQuerySchema, (r) => ({
+        queryNorm: r.query_norm,
+        sampleQuery: r.sample_query,
+        searches: r.searches,
+        zeroResults: r.zero_results,
+        lastSeen: r.last_seen,
+      })),
+    ),
+    part("zero-result queries", () =>
+      rows(
+        rpc("stats_zero_result_queries", { ...window, p_limit: ZERO_RESULT_QUERIES }),
+        zeroQuerySchema,
+        (r) => ({
+          queryNorm: r.query_norm,
+          sampleQuery: r.sample_query,
           searches: r.searches,
-          fresh: r.searches_fresh,
-          cached: r.searches_cached,
-          zeroResults: r.searches_zero,
-          previews: r.previews,
-          moreLoads: r.more_loads,
+          lastSeen: r.last_seen,
+        }),
+      ),
+    ),
+    part("top products", () =>
+      rows(
+        rpc("stats_top_products", { ...window, p_limit: TOP_PRODUCTS }),
+        topProductSchema,
+        (r) => ({
+          productId: r.product_id,
           clicks: r.clicks,
-          llmCalls: r.llm_calls,
-          llmCostUsd: r.llm_cost_usd,
-          llmUnpricedCalls: r.llm_unpriced_calls,
-        })),
+          lastClick: r.last_click,
+          titleHe: r.title_he,
+          titleEn: r.title_en,
+        }),
       ),
-      part("top queries", () =>
-        rows(
-          rpc("stats_top_queries", { ...window, p_limit: TOP_QUERIES }),
-          topQuerySchema,
-          (r) => ({
-            queryNorm: r.query_norm,
-            sampleQuery: r.sample_query,
-            searches: r.searches,
-            zeroResults: r.zero_results,
-            lastSeen: r.last_seen,
-          }),
-        ),
-      ),
-      part("zero-result queries", () =>
-        rows(
-          rpc("stats_zero_result_queries", { ...window, p_limit: ZERO_RESULT_QUERIES }),
-          zeroQuerySchema,
-          (r) => ({
-            queryNorm: r.query_norm,
-            sampleQuery: r.sample_query,
-            searches: r.searches,
-            lastSeen: r.last_seen,
-          }),
-        ),
-      ),
-      part("top products", () =>
-        rows(
-          rpc("stats_top_products", { ...window, p_limit: TOP_PRODUCTS }),
-          topProductSchema,
-          (r) => ({
-            productId: r.product_id,
-            clicks: r.clicks,
-            lastClick: r.last_click,
-            titleHe: r.title_he,
-            titleEn: r.title_en,
-          }),
-        ),
-      ),
-      part("llm by kind", () =>
-        rows(rpc("stats_llm_by_kind", window), llmKindSchema, (r) => ({
-          kind: r.kind,
-          calls: r.calls,
-          inputTokens: r.input_tokens,
-          outputTokens: r.output_tokens,
-          cacheReadTokens: r.cache_read_tokens,
-          cacheWriteTokens: r.cache_write_tokens,
-          costUsd: r.cost_usd,
-          unpricedCalls: r.unpriced_calls,
-        })),
-      ),
-      part("llm budget", () => budgetCounter(db, deps.now)),
-      deps.fx(),
-    ]);
+    ),
+    part("llm by kind", () =>
+      rows(rpc("stats_llm_by_kind", window), llmKindSchema, (r) => ({
+        kind: r.kind,
+        calls: r.calls,
+        inputTokens: r.input_tokens,
+        outputTokens: r.output_tokens,
+        cacheReadTokens: r.cache_read_tokens,
+        cacheWriteTokens: r.cache_write_tokens,
+        costUsd: r.cost_usd,
+        unpricedCalls: r.unpriced_calls,
+      })),
+    ),
+    part("by origin", () =>
+      rows(rpc("stats_by_origin", window), originSchema, (r) => ({
+        origin: r.origin,
+        searches: r.searches,
+        zeroResults: r.zero_results,
+        partialResults: r.partial_results,
+        failures: r.failures,
+        chipsRemoved: r.chips_removed,
+        clicked: r.clicked,
+        medianMsFresh: r.median_ms_fresh,
+        medianMsCached: r.median_ms_cached,
+      })),
+    ),
+    part("failures", () =>
+      rows(rpc("stats_failures", window), failureSchema, (r) => ({
+        failure: r.failure,
+        failures: r.failures,
+        searches: r.searches,
+        lastSeen: r.last_seen,
+      })),
+    ),
+    part("click positions", () =>
+      rows(rpc("stats_click_positions", window), clickPositionSchema, (r) => ({
+        group: r.position_group,
+        clicks: r.clicks,
+      })),
+    ),
+    part("llm budget", () => budgetCounter(db, deps.now)),
+    deps.fx(),
+  ]);
 
   return {
     daily,
@@ -224,6 +296,9 @@ export async function loadAdminStats(deps: StatsDeps): Promise<AdminStats> {
     zeroResultQueries,
     topProducts,
     llmByKind,
+    byOrigin,
+    failures,
+    clickPositions,
     budgetCounter: counter,
     budgetCap: deps.cap,
     fx,

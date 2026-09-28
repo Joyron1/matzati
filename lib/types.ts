@@ -32,6 +32,24 @@ export interface ResultProduct {
   category_id: string | null;
 }
 
+/**
+ * A removable filter that kept products out of a search showing fewer than 3 results
+ * (lib/ranking/blockers.ts). Only the count is shown; a product that failed a filter never is.
+ */
+export interface FilterBlocker {
+  /** The chip that removes it (FilterChip.id), for the usual without= link. */
+  chip_id: string;
+  /** Checked products that pass every other filter: "Y עברו" without this one. */
+  would_pass: number;
+  /** A requirement only: checked products whose title mentions it at all; null for a price. */
+  title_matches: number | null;
+  /**
+   * A capacity requirement of a "small" search: products that state a capacity over the size cap
+   * (SMALL_CAPACITY_FACTOR) fail it too, so "no title mentions it" may be false. Absent otherwise.
+   */
+  size_cap?: true;
+}
+
 export interface SearchResponse {
   query: string;
   chips: FilterChip[];
@@ -49,6 +67,17 @@ export interface SearchResponse {
    * response itself when served from the cache. Absent on mock data.
    */
   fetched_at?: string;
+  /**
+   * With fewer than 3 results: the filters whose removal lets more of the checked products
+   * through, most useful first ([] when none would). Absent with 3 or more results, and on
+   * results cached before it existed.
+   */
+  blockers?: FilterBlocker[];
+  /**
+   * Hebrew labels of stated needs that are not filters (SearchFilters.preferences): titles that
+   * mention them rank higher, and the page says they were not checked. Absent when there are none.
+   */
+  not_filtered?: string[];
 }
 
 export type DealType = "deal" | "holiday" | "dont_buy";

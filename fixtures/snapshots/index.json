@@ -1,0 +1,1275 @@
+{
+  "format": 1,
+  "setDate": "2026-09-28",
+  "caps": {
+    "llmCalls": 8,
+    "aliRequests": 100
+  },
+  "versions": {
+    "parse": 5,
+    "ranking": 5,
+    "explain": 4
+  },
+  "totals": {
+    "llmCalls": 5,
+    "llmUsd": 0.010057,
+    "aliRequests": 86
+  },
+  "runs": [
+    {
+      "startedAt": "2026-09-28T08:49:44.990Z",
+      "finishedAt": "2026-09-28T08:49:51.478Z",
+      "llmCalls": 1,
+      "llmUsd": 0.001915,
+      "aliRequests": 2,
+      "ids": [
+        "ex-3"
+      ]
+    },
+    {
+      "startedAt": "2026-09-28T08:51:45.804Z",
+      "finishedAt": "2026-09-28T08:51:55.070Z",
+      "llmCalls": 0,
+      "llmUsd": 0,
+      "aliRequests": 3,
+      "ids": [
+        "ex-3"
+      ]
+    },
+    {
+      "startedAt": "2026-09-28T08:52:08.833Z",
+      "finishedAt": "2026-09-28T08:55:35.242Z",
+      "llmCalls": 4,
+      "llmUsd": 0.008142,
+      "aliRequests": 81,
+      "ids": [
+        "gift-cook",
+        "kids-toy",
+        "car-holder",
+        "home-drawer",
+        "tech-charger",
+        "price-watch",
+        "typo-earbuds",
+        "slang-mouse",
+        "kids-bottle",
+        "home-nightlight",
+        "price-range-bag",
+        "cheapest-cable",
+        "pair-a",
+        "pair-a2",
+        "pair-b2",
+        "ho-neck-pillow",
+        "ho-gift-garden",
+        "ho-powerbank",
+        "ho-slippers",
+        "ho-speaker",
+        "ex-6",
+        "ex-7",
+        "ex-8",
+        "ex-9",
+        "live-soundbar",
+        "live-drawer-organizer",
+        "live-sonic-doll",
+        "ex-1",
+        "ex-2",
+        "ex-4",
+        "ex-5"
+      ]
+    }
+  ],
+  "queries": [
+    {
+      "id": "ex-3",
+      "group": "example",
+      "query": "מארגנים למגירות במטבח",
+      "file": "fixtures/snapshots/ex-3.json",
+      "sameQueryAs": null,
+      "parseSource": "live",
+      "parseVersion": 5,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 148,
+        "trustStandard": 127,
+        "trustFill": 0,
+        "passFilters": 33,
+        "passFillOnly": 0,
+        "ranked": 28,
+        "rejected": {
+          "feedback": 21,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 94,
+          "requirement": 0
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1"
+        ],
+        "missing": null,
+        "checked": 49,
+        "passed": 15,
+        "fill": 0,
+        "shown": 3
+      }
+    },
+    {
+      "id": "gift-cook",
+      "group": "eval",
+      "query": "מתנה לאבא שאוהב לבשל עד 200 ש״ח",
+      "file": "fixtures/snapshots/gift-cook.json",
+      "sameQueryAs": null,
+      "parseSource": "recorded",
+      "parseVersion": 5,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 149,
+        "trustStandard": 130,
+        "trustFill": 0,
+        "passFilters": 3,
+        "passFillOnly": 0,
+        "ranked": 2,
+        "rejected": {
+          "feedback": 19,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 127,
+          "requirement": 0
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1",
+          "primary-p2",
+          "ladder-1"
+        ],
+        "missing": null,
+        "checked": 149,
+        "passed": 2,
+        "fill": 0,
+        "shown": 2
+      }
+    },
+    {
+      "id": "kids-toy",
+      "group": "eval",
+      "query": "צעצוע לילד בן 3 שמלמד צבעים",
+      "file": "fixtures/snapshots/kids-toy.json",
+      "sameQueryAs": null,
+      "parseSource": "recorded",
+      "parseVersion": 4,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 146,
+        "trustStandard": 134,
+        "trustFill": 0,
+        "passFilters": 21,
+        "passFillOnly": 0,
+        "ranked": 16,
+        "rejected": {
+          "feedback": 12,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 113,
+          "requirement": 0
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1"
+        ],
+        "missing": null,
+        "checked": 49,
+        "passed": 6,
+        "fill": 0,
+        "shown": 3
+      }
+    },
+    {
+      "id": "car-holder",
+      "group": "eval",
+      "query": "מחזיק טלפון לרכב עם טעינה אלחוטית",
+      "file": "fixtures/snapshots/car-holder.json",
+      "sameQueryAs": null,
+      "parseSource": "recorded",
+      "parseVersion": 4,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 140,
+        "trustStandard": 115,
+        "trustFill": 0,
+        "passFilters": 34,
+        "passFillOnly": 0,
+        "ranked": 23,
+        "rejected": {
+          "feedback": 25,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 56,
+          "requirement": 25
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1"
+        ],
+        "missing": null,
+        "checked": 50,
+        "passed": 10,
+        "fill": 0,
+        "shown": 3
+      }
+    },
+    {
+      "id": "home-drawer",
+      "group": "eval",
+      "query": "מארגן מגירות למטבח",
+      "file": "fixtures/snapshots/home-drawer.json",
+      "sameQueryAs": null,
+      "parseSource": "recorded",
+      "parseVersion": 4,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 149,
+        "trustStandard": 128,
+        "trustFill": 0,
+        "passFilters": 33,
+        "passFillOnly": 0,
+        "ranked": 28,
+        "rejected": {
+          "feedback": 21,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 95,
+          "requirement": 0
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1"
+        ],
+        "missing": null,
+        "checked": 49,
+        "passed": 15,
+        "fill": 0,
+        "shown": 3
+      }
+    },
+    {
+      "id": "tech-charger",
+      "group": "eval",
+      "query": "מטען מהיר 65W לטלפון ולמחשב נייד",
+      "file": "fixtures/snapshots/tech-charger.json",
+      "sameQueryAs": null,
+      "parseSource": "recorded",
+      "parseVersion": 5,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 145,
+        "trustStandard": 120,
+        "trustFill": 0,
+        "passFilters": 0,
+        "passFillOnly": 0,
+        "ranked": 0,
+        "rejected": {
+          "feedback": 25,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 67,
+          "requirement": 53
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1",
+          "primary-p2",
+          "ladder-1"
+        ],
+        "missing": null,
+        "checked": 145,
+        "passed": 0,
+        "fill": 0,
+        "shown": 0
+      }
+    },
+    {
+      "id": "price-watch",
+      "group": "eval",
+      "query": "שעון חכם עם דופק בפחות מ־150 שקל",
+      "file": "fixtures/snapshots/price-watch.json",
+      "sameQueryAs": null,
+      "parseSource": "recorded",
+      "parseVersion": 4,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 139,
+        "trustStandard": 94,
+        "trustFill": 0,
+        "passFilters": 16,
+        "passFillOnly": 0,
+        "ranked": 15,
+        "rejected": {
+          "feedback": 45,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 10,
+          "requirement": 68
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1"
+        ],
+        "missing": null,
+        "checked": 49,
+        "passed": 6,
+        "fill": 0,
+        "shown": 3
+      }
+    },
+    {
+      "id": "typo-earbuds",
+      "group": "eval",
+      "query": "אוזניות בלוטות לריצה עמידות למיים",
+      "file": "fixtures/snapshots/typo-earbuds.json",
+      "sameQueryAs": null,
+      "parseSource": "recorded",
+      "parseVersion": 4,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 135,
+        "trustStandard": 88,
+        "trustFill": 10,
+        "passFilters": 18,
+        "passFillOnly": 1,
+        "ranked": 17,
+        "rejected": {
+          "feedback": 28,
+          "volume": 19,
+          "currency": 0,
+          "price": 0,
+          "type": 50,
+          "requirement": 20
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1"
+        ],
+        "missing": null,
+        "checked": 49,
+        "passed": 9,
+        "fill": 0,
+        "shown": 3
+      }
+    },
+    {
+      "id": "slang-mouse",
+      "group": "eval",
+      "query": "משהו שווה לגיימינג, עכבר שקט שלא מרעיש",
+      "file": "fixtures/snapshots/slang-mouse.json",
+      "sameQueryAs": null,
+      "parseSource": "recorded",
+      "parseVersion": 4,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 144,
+        "trustStandard": 129,
+        "trustFill": 0,
+        "passFilters": 35,
+        "passFillOnly": 0,
+        "ranked": 24,
+        "rejected": {
+          "feedback": 15,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 68,
+          "requirement": 26
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1"
+        ],
+        "missing": null,
+        "checked": 50,
+        "passed": 13,
+        "fill": 0,
+        "shown": 3
+      }
+    },
+    {
+      "id": "kids-bottle",
+      "group": "eval",
+      "query": "בקבוק מים לגן שלא נוזל",
+      "file": "fixtures/snapshots/kids-bottle.json",
+      "sameQueryAs": null,
+      "parseSource": "recorded",
+      "parseVersion": 4,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 133,
+        "trustStandard": 75,
+        "trustFill": 34,
+        "passFilters": 9,
+        "passFillOnly": 7,
+        "ranked": 6,
+        "rejected": {
+          "feedback": 15,
+          "volume": 43,
+          "currency": 0,
+          "price": 0,
+          "type": 63,
+          "requirement": 3
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1"
+        ],
+        "missing": null,
+        "checked": 49,
+        "passed": 6,
+        "fill": 0,
+        "shown": 3
+      }
+    },
+    {
+      "id": "home-nightlight",
+      "group": "eval",
+      "query": "מנורת לילה לחדר ילדים עם חיישן תנועה",
+      "file": "fixtures/snapshots/home-nightlight.json",
+      "sameQueryAs": null,
+      "parseSource": "recorded",
+      "parseVersion": 4,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 147,
+        "trustStandard": 38,
+        "trustFill": 3,
+        "passFilters": 5,
+        "passFillOnly": 3,
+        "ranked": 5,
+        "rejected": {
+          "feedback": 83,
+          "volume": 26,
+          "currency": 0,
+          "price": 0,
+          "type": 8,
+          "requirement": 25
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1"
+        ],
+        "missing": null,
+        "checked": 50,
+        "passed": 3,
+        "fill": 0,
+        "shown": 3
+      }
+    },
+    {
+      "id": "price-range-bag",
+      "group": "eval",
+      "query": "תיק גב לטיולים בין 80 ל־200 ש״ח עמיד למים",
+      "file": "fixtures/snapshots/price-range-bag.json",
+      "sameQueryAs": null,
+      "parseSource": "recorded",
+      "parseVersion": 4,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 133,
+        "trustStandard": 125,
+        "trustFill": 3,
+        "passFilters": 48,
+        "passFillOnly": 2,
+        "ranked": 37,
+        "rejected": {
+          "feedback": 5,
+          "volume": 3,
+          "currency": 0,
+          "price": 9,
+          "type": 43,
+          "requirement": 25
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1"
+        ],
+        "missing": null,
+        "checked": 49,
+        "passed": 20,
+        "fill": 0,
+        "shown": 3
+      }
+    },
+    {
+      "id": "cheapest-cable",
+      "group": "eval",
+      "query": "הכי זול: כבל USB-C לאייפון 15",
+      "file": "fixtures/snapshots/cheapest-cable.json",
+      "sameQueryAs": null,
+      "parseSource": "recorded",
+      "parseVersion": 4,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 140,
+        "trustStandard": 128,
+        "trustFill": 0,
+        "passFilters": 60,
+        "passFillOnly": 0,
+        "ranked": 36,
+        "rejected": {
+          "feedback": 12,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 46,
+          "requirement": 22
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1"
+        ],
+        "missing": null,
+        "checked": 50,
+        "passed": 19,
+        "fill": 0,
+        "shown": 3
+      }
+    },
+    {
+      "id": "pair-a",
+      "group": "eval",
+      "query": "אוזניות לריצה, עמידות למים, עד 100 ש״ח",
+      "file": "fixtures/snapshots/pair-a.json",
+      "sameQueryAs": null,
+      "parseSource": "parse_cache",
+      "parseVersion": 5,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 148,
+        "trustStandard": 52,
+        "trustFill": 12,
+        "passFilters": 3,
+        "passFillOnly": 0,
+        "ranked": 3,
+        "rejected": {
+          "feedback": 54,
+          "volume": 42,
+          "currency": 0,
+          "price": 0,
+          "type": 46,
+          "requirement": 3
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1"
+        ],
+        "missing": null,
+        "checked": 50,
+        "passed": 3,
+        "fill": 0,
+        "shown": 3
+      }
+    },
+    {
+      "id": "pair-a2",
+      "group": "eval",
+      "query": "אוזניות ריצה עמידות במים עד 100 שקל",
+      "file": "fixtures/snapshots/pair-a2.json",
+      "sameQueryAs": null,
+      "parseSource": "recorded",
+      "parseVersion": 4,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 126,
+        "trustStandard": 94,
+        "trustFill": 0,
+        "passFilters": 8,
+        "passFillOnly": 0,
+        "ranked": 7,
+        "rejected": {
+          "feedback": 32,
+          "volume": 0,
+          "currency": 0,
+          "price": 1,
+          "type": 78,
+          "requirement": 7
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1",
+          "ladder-1"
+        ],
+        "missing": "sports audio (p1)",
+        "checked": 76,
+        "passed": 2,
+        "fill": 0,
+        "shown": 2
+      }
+    },
+    {
+      "id": "pair-b2",
+      "group": "eval",
+      "query": "מעמד לפלאפון לאוטו עם טעינה אלחוטית",
+      "file": "fixtures/snapshots/pair-b2.json",
+      "sameQueryAs": null,
+      "parseSource": "recorded",
+      "parseVersion": 4,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 147,
+        "trustStandard": 119,
+        "trustFill": 0,
+        "passFilters": 32,
+        "passFillOnly": 0,
+        "ranked": 22,
+        "rejected": {
+          "feedback": 28,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 55,
+          "requirement": 32
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1"
+        ],
+        "missing": null,
+        "checked": 50,
+        "passed": 10,
+        "fill": 0,
+        "shown": 3
+      }
+    },
+    {
+      "id": "ho-neck-pillow",
+      "group": "eval",
+      "query": "כרית לצוואר לטיסות ארוכות",
+      "file": "fixtures/snapshots/ho-neck-pillow.json",
+      "sameQueryAs": null,
+      "parseSource": "recorded",
+      "parseVersion": 5,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 148,
+        "trustStandard": 139,
+        "trustFill": 0,
+        "passFilters": 69,
+        "passFillOnly": 0,
+        "ranked": 55,
+        "rejected": {
+          "feedback": 9,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 70,
+          "requirement": 0
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1"
+        ],
+        "missing": null,
+        "checked": 50,
+        "passed": 26,
+        "fill": 0,
+        "shown": 3
+      }
+    },
+    {
+      "id": "ho-gift-garden",
+      "group": "eval",
+      "query": "מתנה לסבתא שאוהבת לגנן עד 120 ש״ח",
+      "file": "fixtures/snapshots/ho-gift-garden.json",
+      "sameQueryAs": null,
+      "parseSource": "recorded",
+      "parseVersion": 4,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 120,
+        "trustStandard": 107,
+        "trustFill": 0,
+        "passFilters": 14,
+        "passFillOnly": 0,
+        "ranked": 13,
+        "rejected": {
+          "feedback": 13,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 93,
+          "requirement": 0
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1"
+        ],
+        "missing": null,
+        "checked": 50,
+        "passed": 7,
+        "fill": 0,
+        "shown": 3
+      }
+    },
+    {
+      "id": "ho-powerbank",
+      "group": "eval",
+      "query": "סוללת גיבוי קטנה לטלפון 10000 מיליאמפר",
+      "file": "fixtures/snapshots/ho-powerbank.json",
+      "sameQueryAs": null,
+      "parseSource": "recorded",
+      "parseVersion": 4,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 120,
+        "trustStandard": 114,
+        "trustFill": 0,
+        "passFilters": 67,
+        "passFillOnly": 0,
+        "ranked": 57,
+        "rejected": {
+          "feedback": 6,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 40,
+          "requirement": 7
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1"
+        ],
+        "missing": null,
+        "checked": 48,
+        "passed": 32,
+        "fill": 0,
+        "shown": 3
+      }
+    },
+    {
+      "id": "ho-slippers",
+      "group": "eval",
+      "query": "נעלי בית חמות לחורף",
+      "file": "fixtures/snapshots/ho-slippers.json",
+      "sameQueryAs": null,
+      "parseSource": "recorded",
+      "parseVersion": 4,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 120,
+        "trustStandard": 95,
+        "trustFill": 10,
+        "passFilters": 31,
+        "passFillOnly": 3,
+        "ranked": 24,
+        "rejected": {
+          "feedback": 11,
+          "volume": 14,
+          "currency": 0,
+          "price": 0,
+          "type": 61,
+          "requirement": 3
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1"
+        ],
+        "missing": null,
+        "checked": 50,
+        "passed": 11,
+        "fill": 0,
+        "shown": 3
+      }
+    },
+    {
+      "id": "ho-speaker",
+      "group": "eval",
+      "query": "רמקול בלוטוס עמיד למים לים בין 50 ל־150 שקל",
+      "file": "fixtures/snapshots/ho-speaker.json",
+      "sameQueryAs": null,
+      "parseSource": "recorded",
+      "parseVersion": 4,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 117,
+        "trustStandard": 101,
+        "trustFill": 2,
+        "passFilters": 48,
+        "passFillOnly": 0,
+        "ranked": 27,
+        "rejected": {
+          "feedback": 13,
+          "volume": 3,
+          "currency": 0,
+          "price": 2,
+          "type": 42,
+          "requirement": 9
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1"
+        ],
+        "missing": null,
+        "checked": 49,
+        "passed": 13,
+        "fill": 0,
+        "shown": 3
+      }
+    },
+    {
+      "id": "ex-6",
+      "group": "example",
+      "query": "רמקול בלוטות׳ עמיד למים בין 50 ל־150 ש״ח",
+      "file": "fixtures/snapshots/ex-6.json",
+      "sameQueryAs": null,
+      "parseSource": "live",
+      "parseVersion": 5,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 117,
+        "trustStandard": 101,
+        "trustFill": 2,
+        "passFilters": 48,
+        "passFillOnly": 0,
+        "ranked": 27,
+        "rejected": {
+          "feedback": 13,
+          "volume": 3,
+          "currency": 0,
+          "price": 2,
+          "type": 42,
+          "requirement": 9
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1"
+        ],
+        "missing": null,
+        "checked": 49,
+        "passed": 13,
+        "fill": 0,
+        "shown": 3
+      }
+    },
+    {
+      "id": "ex-7",
+      "group": "example",
+      "query": "שעון חכם עם מד דופק עד 150 ש״ח",
+      "file": "fixtures/snapshots/ex-7.json",
+      "sameQueryAs": null,
+      "parseSource": "live",
+      "parseVersion": 5,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 135,
+        "trustStandard": 79,
+        "trustFill": 0,
+        "passFilters": 16,
+        "passFillOnly": 0,
+        "ranked": 14,
+        "rejected": {
+          "feedback": 56,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 10,
+          "requirement": 53
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1"
+        ],
+        "missing": null,
+        "checked": 49,
+        "passed": 6,
+        "fill": 0,
+        "shown": 3
+      }
+    },
+    {
+      "id": "ex-8",
+      "group": "example",
+      "query": "תיק גב עמיד למים לטיולים",
+      "file": "fixtures/snapshots/ex-8.json",
+      "sameQueryAs": null,
+      "parseSource": "live",
+      "parseVersion": 5,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 126,
+        "trustStandard": 116,
+        "trustFill": 0,
+        "passFilters": 38,
+        "passFillOnly": 0,
+        "ranked": 28,
+        "rejected": {
+          "feedback": 10,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 71,
+          "requirement": 7
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1"
+        ],
+        "missing": null,
+        "checked": 50,
+        "passed": 9,
+        "fill": 0,
+        "shown": 3
+      }
+    },
+    {
+      "id": "ex-9",
+      "group": "example",
+      "query": "כרית צוואר לטיסות ארוכות",
+      "file": "fixtures/snapshots/ex-9.json",
+      "sameQueryAs": null,
+      "parseSource": "live",
+      "parseVersion": 5,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 148,
+        "trustStandard": 139,
+        "trustFill": 0,
+        "passFilters": 69,
+        "passFillOnly": 0,
+        "ranked": 55,
+        "rejected": {
+          "feedback": 9,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 70,
+          "requirement": 0
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1"
+        ],
+        "missing": null,
+        "checked": 50,
+        "passed": 26,
+        "fill": 0,
+        "shown": 3
+      }
+    },
+    {
+      "id": "live-soundbar",
+      "group": "live",
+      "query": "סאונד בר",
+      "file": "fixtures/snapshots/live-soundbar.json",
+      "sameQueryAs": null,
+      "parseSource": "parse_cache",
+      "parseVersion": 5,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 148,
+        "trustStandard": 127,
+        "trustFill": 0,
+        "passFilters": 10,
+        "passFillOnly": 0,
+        "ranked": 9,
+        "rejected": {
+          "feedback": 21,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 117,
+          "requirement": 0
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1",
+          "primary-p2"
+        ],
+        "missing": null,
+        "checked": 100,
+        "passed": 9,
+        "fill": 0,
+        "shown": 3
+      }
+    },
+    {
+      "id": "live-drawer-organizer",
+      "group": "live",
+      "query": "מארגן למגירות, עד 100 ש״ח",
+      "file": "fixtures/snapshots/live-drawer-organizer.json",
+      "sameQueryAs": null,
+      "parseSource": "parse_cache",
+      "parseVersion": 5,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 147,
+        "trustStandard": 117,
+        "trustFill": 0,
+        "passFilters": 25,
+        "passFillOnly": 0,
+        "ranked": 24,
+        "rejected": {
+          "feedback": 30,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 92,
+          "requirement": 0
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1"
+        ],
+        "missing": null,
+        "checked": 49,
+        "passed": 14,
+        "fill": 0,
+        "shown": 3
+      }
+    },
+    {
+      "id": "live-sonic-doll",
+      "group": "live",
+      "query": "בובת סוניק לילד",
+      "file": "fixtures/snapshots/live-sonic-doll.json",
+      "sameQueryAs": null,
+      "parseSource": "parse_cache",
+      "parseVersion": 5,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 131,
+        "trustStandard": 68,
+        "trustFill": 9,
+        "passFilters": 0,
+        "passFillOnly": 4,
+        "ranked": 0,
+        "rejected": {
+          "feedback": 34,
+          "volume": 29,
+          "currency": 0,
+          "price": 0,
+          "type": 68,
+          "requirement": 0
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1",
+          "ladder-1"
+        ],
+        "missing": null,
+        "checked": 87,
+        "passed": 3,
+        "fill": 3,
+        "shown": 3
+      }
+    },
+    {
+      "id": "ex-1",
+      "group": "example",
+      "query": "אוזניות לריצה, עמידות למים, עד 100 ש״ח",
+      "file": "fixtures/snapshots/ex-1.json",
+      "sameQueryAs": "pair-a",
+      "parseSource": "parse_cache",
+      "parseVersion": 5,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 148,
+        "trustStandard": 52,
+        "trustFill": 12,
+        "passFilters": 3,
+        "passFillOnly": 0,
+        "ranked": 3,
+        "rejected": {
+          "feedback": 54,
+          "volume": 42,
+          "currency": 0,
+          "price": 0,
+          "type": 46,
+          "requirement": 3
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1"
+        ],
+        "missing": null,
+        "checked": 50,
+        "passed": 3,
+        "fill": 0,
+        "shown": 3
+      }
+    },
+    {
+      "id": "ex-2",
+      "group": "example",
+      "query": "מתנה לאבא שאוהב לבשל עד 200 ש״ח",
+      "file": "fixtures/snapshots/ex-2.json",
+      "sameQueryAs": "gift-cook",
+      "parseSource": "recorded",
+      "parseVersion": 5,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 149,
+        "trustStandard": 130,
+        "trustFill": 0,
+        "passFilters": 3,
+        "passFillOnly": 0,
+        "ranked": 2,
+        "rejected": {
+          "feedback": 19,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 127,
+          "requirement": 0
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1",
+          "primary-p2",
+          "ladder-1"
+        ],
+        "missing": null,
+        "checked": 149,
+        "passed": 2,
+        "fill": 0,
+        "shown": 2
+      }
+    },
+    {
+      "id": "ex-4",
+      "group": "example",
+      "query": "מחזיק טלפון לרכב עם טעינה אלחוטית",
+      "file": "fixtures/snapshots/ex-4.json",
+      "sameQueryAs": "car-holder",
+      "parseSource": "recorded",
+      "parseVersion": 4,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 140,
+        "trustStandard": 115,
+        "trustFill": 0,
+        "passFilters": 34,
+        "passFillOnly": 0,
+        "ranked": 23,
+        "rejected": {
+          "feedback": 25,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 56,
+          "requirement": 25
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1"
+        ],
+        "missing": null,
+        "checked": 50,
+        "passed": 10,
+        "fill": 0,
+        "shown": 3
+      }
+    },
+    {
+      "id": "ex-5",
+      "group": "example",
+      "query": "מנורת לילה לחדר ילדים עם חיישן תנועה",
+      "file": "fixtures/snapshots/ex-5.json",
+      "sameQueryAs": "home-nightlight",
+      "parseSource": "recorded",
+      "parseVersion": 4,
+      "calls": 3,
+      "error": null,
+      "stats": {
+        "pool": 147,
+        "trustStandard": 38,
+        "trustFill": 3,
+        "passFilters": 5,
+        "passFillOnly": 3,
+        "ranked": 5,
+        "rejected": {
+          "feedback": 83,
+          "volume": 26,
+          "currency": 0,
+          "price": 0,
+          "type": 8,
+          "requirement": 25
+        }
+      },
+      "pipeline": {
+        "steps": [
+          "primary-p1"
+        ],
+        "missing": null,
+        "checked": 50,
+        "passed": 3,
+        "fill": 0,
+        "shown": 3
+      }
+    }
+  ]
+}

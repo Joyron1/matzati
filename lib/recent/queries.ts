@@ -1,6 +1,7 @@
 // Server-only reads for the recent-searches page (/searches) and the home strip, and the admin
 // hide/restore writes. Everything goes through the service role: search_log is not public, and
-// the SQL functions plus the checks in lib/recent/db.ts decide what may be shown. Public reads are
+// the SQL functions plus the checks in lib/recent/db.ts decide what may be shown (production
+// searches only, whichever environment reads them). Public reads are
 // cached for a minute (tag RECENT_TAG); /admin/searches reads fresh and calls updateTag after a
 // change. The query builders live in lib/recent/db.ts and are tested with a fake client.
 import "server-only";

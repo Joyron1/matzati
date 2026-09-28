@@ -2,8 +2,10 @@
 // taking the Supabase client as a parameter so tests can pass a fake. lib/recent/queries.ts binds
 // them to the service role (search_log is not public) and caches the public reads.
 // The SQL functions (supabase/migrations/20260927210000_recent_searches.sql) already keep only
-// listable, not hidden rows; every row is checked again here, and a row that fails a check (an
-// unexpected parse shape, a query isListableQuery rejects) is skipped, never shown half-built.
+// listable, not hidden rows, and only production ones (search_log.env, recent_search_cards in
+// 20260928140000_search_telemetry.sql: dev and preview searches share the database but are never
+// listed); every row is checked again here, and a row that fails a check (an unexpected parse
+// shape, a query isListableQuery rejects) is skipped, never shown half-built.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { isAllowedImage } from "@/lib/images";

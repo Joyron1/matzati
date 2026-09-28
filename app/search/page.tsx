@@ -12,6 +12,7 @@ import {
   SearchX,
   type LucideIcon,
 } from "lucide-react";
+import { BlockerHint, BlockerList, chipBlockers } from "@/components/filter-blockers";
 import { FilterChips } from "@/components/filter-chips";
 import { CompactProductCard, FeaturedProductCard } from "@/components/product-cards";
 import { SearchComposer } from "@/components/search-composer";
@@ -27,11 +28,12 @@ import { formatCount, formatDateTime, formatWait } from "@/lib/format";
 import { FILTERS } from "@/lib/ranking/config";
 import {
   firstParam,
+  parseArrival,
   parseFrom,
   parseSort,
   parseWithout,
   searchHref,
-  type SearchFrom,
+  type SearchArrival,
 } from "@/lib/search-url";
 import { staleFetchedAt } from "@/lib/search/freshness";
 import { MAX_QUERY_LENGTH } from "@/lib/search/pipeline";
@@ -55,6 +57,8 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
   const without = parseWithout(params.without);
   // A recent-search card or an example query: searched as usual, never listed on /searches.
   const from = parseFrom(params.from);
+  // The same, plus an ad or campaign landing (utm_source, gclid): logged as search_log.origin.
+  const arrival = parseArrival(params);
   const href = searchHref({ q, sort, without, from });
 
   // The wait is this boundary's fallback, keyed by the search: loading.tsx does not show again
@@ -68,7 +72,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
         key={href}
         fallback={<SearchWait query={q} reusesParse={without.length > 0 || sort !== undefined} />}
       >
-        <SearchResults q={q} sort={sort} without={without} from={from} retryHref={href} />
+        <SearchResults q={q} sort={sort} without={without} arrival={arrival} retryHref={href} />
       </Suspense>
     </div>
   );
@@ -78,19 +82,17 @@ async function SearchResults({
   q,
   sort,
   without,
-  from,
+  arrival,
   retryHref,
 }: {
   q: string;
   sort?: SortPreference;
   without: string[];
-  from?: SearchFrom;
+  arrival?: SearchArrival;
   retryHref: string;
 }) {
-  const result = await searchForRequest(
-    { q, without, sort, typed: from === undefined },
-    await headers(),
-  );
+  // The results carry this request's search_log uid, which their buy buttons pass to /go.
+  const result = await searchForRequest({ q, without, sort, arrival }, await headers());
   const outcome = !result.ok
     ? failureCopy(result.error, result.retryAfterSec).title
     : result.response.results.length > 0
@@ -127,18 +129,35 @@ function Results({
 }) {
   const [top, ...rest] = response.results;
   const priceChips = response.chips.filter((c) => c.kind === "max_price" || c.kind === "min_price");
+  // What kept the checked products out (item 12), most useful first; never a product that failed.
+  const blockers = chipBlockers(response.blockers, response.chips);
   const chips = (
     <FilterChips
       chips={response.chips}
       q={q}
       sort={sort}
       without={without}
-      highlightIds={top ? [] : priceChips.map((c) => c.id)}
+      highlightIds={
+        top ? [] : blockers.length ? [blockers[0].chip.id] : priceChips.map((c) => c.id)
+      }
+      notFiltered={response.not_filtered}
     />
   );
 
   if (!top) {
     const removable = response.chips.some((c) => c.removable);
+    const removableRequirement = response.chips.some((c) => c.removable && c.kind === "must_have");
+    // Without blockers, the price is the one filter worth suggesting: the price bounds limited
+    // what AliExpress sent, so the checked products cannot show what they kept out. Without a
+    // price, a requirement is: when two block only together no single one is a blocker, yet
+    // removing one also searches without its words. Results cached before blockers existed
+    // (response.blockers absent) get the older advice.
+    const advice =
+      priceChips.length > 0
+        ? "נסו להוריד את סינון המחיר."
+        : removableRequirement || (removable && response.blockers === undefined)
+          ? "נסו להסיר את אחד הסינונים שלמעלה."
+          : "נסו לכתוב את החיפוש במילים אחרות או בצורה כללית יותר.";
     return (
       <>
         {chips}
@@ -147,26 +166,30 @@ function Results({
             {response.checked_count > 0 ? (
               <>
                 בדקנו <bdi dir="ltr">{formatCount(response.checked_count)}</bdi> מוצרים ואף אחד לא
-                עבר.{" "}
+                עבר.
               </>
             ) : (
-              "אלי אקספרס לא החזירה מוצרים לחיפוש הזה. "
+              "אלי אקספרס לא החזירה מוצרים לחיפוש הזה."
             )}
-            {priceChips.length > 0
-              ? "נסו להוריד את סינון המחיר."
-              : removable
-                ? "נסו להסיר את אחד הסינונים שלמעלה."
-                : "נסו לכתוב את החיפוש במילים אחרות או בצורה כללית יותר."}
+            {blockers.length === 0 && <> {advice}</>}
           </p>
-          {priceChips.length > 0 && (
-            <Link
-              href={searchHref({ q, sort, without: [...without, ...priceChips.map((c) => c.id)] })}
-              className={`${btnPrimary} ${btnMd}`}
-            >
-              {priceChips.length === 1
-                ? `הסרת הסינון: ${priceChips[0].label_he}`
-                : "הסרת סינון המחיר"}
-            </Link>
+          {blockers.length > 0 ? (
+            <BlockerList blockers={blockers} q={q} sort={sort} without={without} />
+          ) : (
+            priceChips.length > 0 && (
+              <Link
+                href={searchHref({
+                  q,
+                  sort,
+                  without: [...without, ...priceChips.map((c) => c.id)],
+                })}
+                className={`${btnPrimary} ${btnMd}`}
+              >
+                {priceChips.length === 1
+                  ? `הסרת הסינון: ${priceChips[0].label_he}`
+                  : "הסרת סינון המחיר"}
+              </Link>
+            )
           )}
         </StateCard>
       </>
@@ -229,6 +252,9 @@ function Results({
       </div>
 
       <div className="flex flex-col items-center gap-4 pt-2">
+        {blockers.length > 0 && (
+          <BlockerHint blocker={blockers[0]} q={q} sort={sort} without={without} />
+        )}
         {response.more_available && response.filters_key && (
           <ShowMore key={response.filters_key} filtersKey={response.filters_key} q={q} />
         )}
@@ -282,6 +308,13 @@ function failureCopy(error: SearchFailure, retryAfterSec?: number): FailureCopy 
         Icon: CloudOff,
         title: "אלי אקספרס לא עונה כרגע",
         body: "לא הצלחנו לקבל מוצרים מאלי אקספרס. נסו שוב בעוד כמה דקות.",
+        retry: true,
+      };
+    case "llm":
+      return {
+        Icon: CloudOff,
+        title: "לא הצלחנו לעבד את החיפוש כרגע",
+        body: "השירות שמבין את החיפוש לא ענה בזמן. זו תקלה זמנית שלנו, לא של אלי אקספרס. נסו שוב בעוד כמה דקות.",
         retry: true,
       };
     case "unavailable":

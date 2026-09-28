@@ -2,192 +2,60 @@
 import type { AliProduct } from "@/lib/aliexpress/schemas";
 import type { SearchFilters, SortPreference } from "@/lib/search/filters";
 import {
-  CATEGORY_LABELS,
-  DEDUP,
+  CATEGORY_CONSISTENCY,
   FEEDBACK_PRIOR,
   FILL_TIER,
   FILTERS,
   PRICE_FIT,
-  TYPE_GATE,
+  SMALL_CAPACITY_FACTOR,
   WEIGHTS,
   type TrustThresholds,
 } from "./config";
-import { phraseSpans, requirementMatches, stem, tokenize, type Span } from "./match";
+import { dedupeBy, diversifyShops } from "./diversity";
+import {
+  isCapacitySpec,
+  parseSpec,
+  requirementMatches,
+  specValue,
+  statedSpecValues,
+  tokenize,
+  type Spec,
+} from "./match";
+import { asksForSmall, coverageWords, relevance } from "./relevance";
+import { isRequestedProduct } from "./type-gate";
+
+export { dedupeListings, diversifyShops } from "./diversity";
+export { isRequestedProduct, productMatch } from "./type-gate";
+export { relevance } from "./relevance";
 
 export type RejectReason = "feedback" | "volume" | "currency" | "price" | "type" | "requirement";
 
-/**
- * Nouns that make a listing an accessory for the product rather than the product itself, before
- * or right after the product term: "Cable Organizer", "Wireless Charging Ring", "Bike Water Bottle
- * Holder", "Shower Phone Holder with Bluetooth Speaker". Singular, unstemmed.
- */
-const ACCESSORY_NOUNS = new Set([
-  "organizer",
-  "organiser",
-  "winder",
-  "clip",
-  "sticker",
-  "ring",
-  "protector",
-  "bag",
-  "strap",
-  "case",
-  "cover",
-  "tie",
-  "keeper",
-  "management",
-  "bank",
-  "adapter",
-  "adaptor",
-  "enclosure",
-  "socket",
-  "plate",
-  "sheet",
-  "replacement",
-  "film",
-  "holder",
-]);
-
-/** Words that already name a light, so a flashlight after them is the same kind of product. */
-const LIGHT_WORDS = new Set([
-  "light",
-  "lamp",
-  "headlamp",
-  "headlight",
-  "lantern",
-  "flashlight",
-  "torch",
-]);
-
-/**
- * Devices that take another product as a feature, named last because the last noun of a
- * compound is what the listing is: "Bike Light Power Bank Flashlight" is a flashlight. Only
- * after the product term: "Flashlight" first is a feature list, not a compound. Each device maps
- * to the words that already name its kind: "Headlamp Flashlight" and "Bike Light Torch" stay
- * lights.
- */
-const DEVICE_HEADS = new Map<string, ReadonlySet<string>>([
-  ["flashlight", LIGHT_WORDS],
-  ["torch", LIGHT_WORDS],
-]);
-
-/**
- * Search words that ask for children's products or toys. Without one of them, a toy replica of the
- * product ("Kids Kitchen Toys Pretend Play Cooking Utensils" for cooking utensils) is not it.
- */
-const KIDS_OR_TOY_WORDS = new Set([
-  "toy",
-  "kid",
-  "child",
-  "children",
-  "baby",
-  "toddler",
-  "boy",
-  "girl",
-  "montessori",
-]);
-
-/** True when the title sells a pretend-play replica: "Pretend Play", "Role Play", "Play House". */
-function isToyReplica(words: string[]): boolean {
-  return words.some(
-    (w, i) =>
-      w === "pretend" ||
-      w === "playhouse" ||
-      (w === "play" && (words[i - 1] === "role" || words[i + 1] === "house")),
-  );
-}
-
-/** Words that end a compound: in "Earbuds With Charging Case" the case is not the head noun. */
-const LINK_WORDS = new Set(["with", "for", "and", "plus", "include", "included", "including"]);
-
-/** Words that open a part naming what comes with the listing: "... with Bluetooth Speaker". */
-const BUNDLE_WORDS = new Set(["with", "include", "including"]);
-
-/** True when a head noun follows the span within the compound: the term is only a modifier. */
-function hasHeadAfter(words: string[], span: Span, isHead: (i: number) => boolean): boolean {
-  const last = Math.min(words.length - 1, span.end + TYPE_GATE.headGap);
-  for (let i = span.end + 1; i <= last; i++) {
-    if (LINK_WORDS.has(words[i])) return false;
-    if (isHead(i)) return true;
-  }
-  return false;
+/** The capacity each requirement asks for ("10000mah"), from its own phrase or an alternative. */
+export function capacitySpecs(f: Pick<SearchFilters, "requirements">): Spec[] {
+  return f.requirements.flatMap((r) => {
+    const spec = [r.en, ...r.alt].map(parseSpec).find((s) => s !== null && isCapacitySpec(s));
+    return spec ? [spec] : [];
+  });
 }
 
 /**
- * True when the span only says what the listing fits or comes with, after the title named
- * something else: "Stand for Bluetooth Speaker" ("for" right before the term) or "Phone Holder
- * with Bluetooth Speaker" ("with" up to TYPE_GATE.bundleGap tokens before it). A title that
- * already said the term's last word restates the product ("Night Light With Motion Sensor
- * Light"), and a title that opens with "for" has named nothing yet. When the noun before "with"
- * is one the shopper searched for (`searchedStems`), the listing is the combination they asked
- * for: "Car Wireless Charger with Phone Holder" for a phone holder with wireless charging.
+ * A search for something "small" ("mini", "compact") with a capacity spec: the title must state
+ * a capacity from the spec up to SMALL_CAPACITY_FACTOR times it. "At least" alone would let a
+ * 20000mAh brick answer "a small 10000mAh power bank".
  */
-function namesFitOrPart(words: string[], span: Span, searchedStems: ReadonlySet<string>): boolean {
-  const from = Math.max(1, span.start - 1 - TYPE_GATE.bundleGap);
-  for (let i = span.start - 1; i >= from; i--) {
-    const bundle = BUNDLE_WORDS.has(words[i]);
-    if (!bundle && !(words[i] === "for" && i === span.start - 1)) continue;
-    if (bundle && searchedStems.has(stem(words[i - 1]))) return false;
-    return !words.slice(0, i).includes(words[span.end]);
-  }
-  return false;
+function fitsSmallCapacity(title: string, f: SearchFilters): boolean {
+  if (!asksForSmall(f)) return true;
+  return capacitySpecs(f).every((spec) => {
+    const need = specValue(spec);
+    return statedSpecValues(title, spec).some(
+      (v) => v >= need && v <= need * SMALL_CAPACITY_FACTOR,
+    );
+  });
 }
 
-let labelTokens: string[][] | undefined;
-
-/**
- * Title positions inside a pasted category label, after its first word ("garden" in "Home
- * Garden"). A label that opens the title names the product ("Home Garden Hose ..."), so only
- * labels after the first word count.
- */
-function labelTails(words: string[]): Set<number> {
-  labelTokens ??= CATEGORY_LABELS.map((label) => tokenize(label));
-  const tails = new Set<number>();
-  for (const label of labelTokens) {
-    for (let i = 1; i + label.length <= words.length; i++) {
-      if (label.every((w, k) => words[i + k] === w)) {
-        for (let k = 1; k < label.length; k++) tails.add(i + k);
-      }
-    }
-  }
-  return tails;
-}
-
-/**
- * True when the title names the requested product itself: a product term within the first
- * TYPE_GATE.windowTokens tokens that is not only what the listing fits or comes with
- * (namesFitOrPart) and does not borrow a word from a category label (CATEGORY_LABELS); no
- * accessory noun before it, and no head noun right after it. An accessory noun the user searched
- * for ("phone case") is allowed. A pretend-play toy is kept only when the search is for kids or
- * toys. No product terms: no check.
- * Product terms match whole singular words, not stems: a stem would let "charger" match
- * "Charging Cable", "light" match "Lighter" and "mount" match "Mounting Tape".
- */
-export function isRequestedProduct(
-  title: string,
-  f: Pick<SearchFilters, "keywords_en" | "product_terms">,
-): boolean {
-  if (!f.product_terms.length) return true;
-  const words = tokenize(title);
-  const opening = words.slice(0, TYPE_GATE.windowTokens);
-  const searched = new Set(tokenize([f.keywords_en, ...f.product_terms].join(" ")));
-  const searchedStems = new Set([...searched].map(stem));
-  if (isToyReplica(words) && ![...searched].some((w) => KIDS_OR_TOY_WORDS.has(w))) return false;
-  const tails = labelTails(words);
-  const spans = f.product_terms
-    .flatMap((term) => phraseSpans(opening, term, tokenize))
-    .filter((s) => !tails.has(s.start) && !namesFitOrPart(words, s, searchedStems));
-  if (!spans.length) return false;
-
-  const isAccessory = (i: number) => ACCESSORY_NOUNS.has(words[i]) && !searched.has(words[i]);
-  // A device of another kind: a flashlight after "Power Bank", not after "Bike Light".
-  const isDeviceFor = (i: number, s: Span) => {
-    const kind = DEVICE_HEADS.get(words[i]);
-    return kind !== undefined && !kind.has(words[s.end]) && !searched.has(words[i]);
-  };
-  const first = Math.min(...spans.map((s) => s.start));
-  for (let i = 0; i < first; i++) if (isAccessory(i)) return false;
-  return !spans.some((s) => hasHeadAfter(words, s, (i) => isAccessory(i) || isDeviceFor(i, s)));
+/** The title states exactly the capacity asked for (a 10000mAh power bank for "10000mah"). */
+function statesExactCapacity(title: string, specs: readonly Spec[]): boolean {
+  return specs.every((spec) => statedSpecValues(title, spec).includes(specValue(spec)));
 }
 
 /** Missing trust data fails (never treated as good); prices are never compared across currencies. */
@@ -214,6 +82,7 @@ export function rejectReason(
   if (f.max_price_ils !== undefined && p.price > f.max_price_ils) return "price";
   if (!isRequestedProduct(p.title, f)) return "type";
   if (!f.requirements.every((r) => requirementMatches(p.title, r))) return "requirement";
+  if (!fitsSmallCapacity(p.title, f)) return "requirement";
   return null;
 }
 
@@ -262,130 +131,143 @@ export function priceRange(prices: number[]): { min: number; max: number } {
   };
 }
 
-interface ScoreContext {
-  sort: SortPreference;
+export interface ScoreContext {
+  filters: SearchFilters;
   priceRange: { min: number; max: number };
+  /** Search words for relevance (coverageWords of the filters). */
+  words: readonly string[];
 }
 
+export function scoreContext(filters: SearchFilters, passed: AliProduct[]): ScoreContext {
+  return {
+    filters,
+    priceRange: priceRange(passed.map((p) => p.price)),
+    words: coverageWords(filters),
+  };
+}
+
+/**
+ * Trust (feedback, volume), price fit and relevance. Within a maximum price the shopper stated,
+ * every price fits fully: being cheaper than the budget is no merit (owner decision, item 6). The
+ * discount is shown, never scored.
+ */
 export function score(p: AliProduct, ctx: ScoreContext): number {
+  const { filters } = ctx;
   // 90% → 0, 100% → 1
   const feedback = Math.max(0, (effectiveFeedbackPct(p) - FILTERS.minPositiveFeedbackPct) / 10);
   // 100 sales → 0.5, 10,000 → 1, capped so huge sellers don't drown everything else
   const volume = Math.min(1.25, Math.log10(Math.max(1, p.unitsSold ?? 0)) / 4);
   const { min, max } = ctx.priceRange;
+  const withinBudget = filters.max_price_ils !== undefined;
   // At or below the floor price → 1, most expensive → 0
-  const priceFit = max > min ? Math.min(1, Math.max(0, (max - p.price) / (max - min))) : 1;
-  const discount = (p.discountPct ?? 0) / 100;
+  const priceFit =
+    withinBudget || max <= min ? 1 : Math.min(1, Math.max(0, (max - p.price) / (max - min)));
 
   const w = WEIGHTS;
   return (
     feedback * w.feedback +
-    volume * (ctx.sort === "most_popular" ? w.volumeMostPopular : w.volume) +
+    volume * (filters.sort_preference === "most_popular" ? w.volumeMostPopular : w.volume) +
     priceFit * w.priceFit +
-    discount * w.discount
+    relevance(p.title, filters, ctx.words) * w.relevance
   );
 }
 
-interface Listing {
-  title: string;
-  first: string | undefined;
-  model: string | null;
-  shop: string | null;
-  tokens: Set<string>;
-}
-
-/** Leading letters of tokens that look like models but are specs or compatibility: ipx8, usb3, v5. */
-const SPEC_PREFIXES = new Set(["ip", "ipx", "usb", "pd", "qc", "v", "bt", "wifi", "hdmi", "gen"]);
+type CategoryRef = Pick<AliProduct, "productId" | "category">;
 
 /**
- * The listing's own model token near the start ("POLVCDG X9", "Original SP16"). Tokens after
- * "for" name what it fits, not what it is, and so does a model the shopper searched for ("s24"
- * in a search for a Galaxy S24 case, where "Samsung S24 Case ..." titles are all different cases).
+ * Passers from another first-level category than most (item 2): when at least
+ * CATEGORY_CONSISTENCY.minMembers passers, and at least minShare of those with a category, share
+ * a first-level category, the ids of passers from any other one. ("Car Under Seat Storage Box
+ * ... Drawer Organizer" among home storage organizers.) Empty when no category is that common.
  */
-function modelToken(tokens: string[], searched: ReadonlySet<string>): string | null {
-  for (const t of tokens.slice(0, DEDUP.modelTokenWindow)) {
-    if (t === "for") return null;
-    const m = /^([a-z]+)\d+[a-z]*$/.exec(t);
-    if (m && !SPEC_PREFIXES.has(m[1]) && !searched.has(t)) return t;
+export function categoryOutliers(passers: readonly CategoryRef[]): Set<string> {
+  const counts = new Map<string, number>();
+  for (const p of passers) {
+    const id = p.category.firstId;
+    if (id !== null) counts.set(id, (counts.get(id) ?? 0) + 1);
   }
-  return null;
-}
-
-function listing(p: AliProduct, searched: ReadonlySet<string>): Listing {
-  const tokens = tokenize(p.title).map(stem);
-  return {
-    title: tokens.join(" "),
-    first: tokens[0],
-    model: modelToken(tokens, searched),
-    shop: p.shop.id,
-    tokens: new Set(tokens),
-  };
-}
-
-function jaccard(a: Set<string>, b: Set<string>): number {
-  let shared = 0;
-  for (const t of a) if (b.has(t)) shared++;
-  return shared / (a.size + b.size - shared);
-}
-
-function isSameProduct(a: Listing, b: Listing): boolean {
-  if (a.title === b.title) return true;
-  if (a.model !== null && a.model === b.model && a.first === b.first) return true;
-  return (
-    a.shop !== null && a.shop === b.shop && jaccard(a.tokens, b.tokens) >= DEDUP.sameShopJaccard
+  const known = [...counts.values()].reduce((s, n) => s + n, 0);
+  const [mode, members] = [...counts.entries()].sort(
+    (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
+  )[0] ?? ["", 0];
+  const { minMembers, minShare } = CATEGORY_CONSISTENCY;
+  if (members < minMembers || members < known * minShare) return new Set();
+  return new Set(
+    passers
+      .filter((p) => p.category.firstId !== null && p.category.firstId !== mode)
+      .map((p) => p.productId),
   );
 }
 
-/**
- * Drops listings of a product already in the list; the earlier (higher-ranked) one stays.
- * `searched` holds the shopper's own words (see modelToken).
- */
-export function dedupeListings(
-  ranked: AliProduct[],
-  searched: ReadonlySet<string> = new Set(),
-): AliProduct[] {
-  const kept: { p: AliProduct; l: Listing }[] = [];
-  for (const p of ranked) {
-    const l = listing(p, searched);
-    if (!kept.some((k) => isSameProduct(k.l, l))) kept.push({ p, l });
-  }
-  return kept.map((k) => k.p);
+/** A passer with what orders it. */
+interface Ranked {
+  p: AliProduct;
+  score: number;
+  /** From another category than most passers (categoryOutliers): after all the others. */
+  outlier: boolean;
+  /** States the exact capacity asked for (or none was): before a bigger one. */
+  exactCapacity: boolean;
 }
 
 /**
- * Filters, ranks and removes duplicate listings. "cheapest" orders by price, then score. Commission
- * only breaks exact ties, and product id keeps the order deterministic after that. A worse
- * product never ranks higher because it pays more.
+ * Category outliers last (the default sort only: "cheapest" and "most_popular" order every passer
+ * by what their button says), then an exact capacity before a bigger one; then "cheapest" by
+ * price, "most_popular" by 30-day sales, and the score. Commission only breaks exact ties, and
+ * product id keeps the order deterministic after that: a worse product never ranks higher because
+ * it pays more.
+ */
+function byRank(sort: SortPreference) {
+  const byCategory = sort === "best_value";
+  return (a: Ranked, b: Ranked) =>
+    (byCategory ? Number(a.outlier) - Number(b.outlier) : 0) ||
+    Number(b.exactCapacity) - Number(a.exactCapacity) ||
+    (sort === "cheapest" ? a.p.price - b.p.price : 0) ||
+    (sort === "most_popular" ? (b.p.unitsSold ?? 0) - (a.p.unitsSold ?? 0) : 0) ||
+    b.score - a.score ||
+    (b.p.commissionRatePct ?? 0) - (a.p.commissionRatePct ?? 0) ||
+    a.p.productId.localeCompare(b.p.productId);
+}
+
+/** The shopper's own words, which never make a model token (see dedupeListings). */
+function searchedTokens(filters: SearchFilters): Set<string> {
+  const searched = [
+    filters.keywords_en,
+    ...filters.product_terms,
+    ...filters.requirements.flatMap((r) => [r.en, ...r.alt]),
+  ];
+  return new Set(tokenize(searched.join(" ")));
+}
+
+function rankEntries(
+  products: AliProduct[],
+  filters: SearchFilters,
+  trust: TrustThresholds,
+): Ranked[] {
+  const passed = products.filter((p) => passesFilters(p, filters, trust));
+  if (!passed.length) return [];
+  const ctx = scoreContext(filters, passed);
+  const outliers = categoryOutliers(passed);
+  const specs = capacitySpecs(filters);
+  const entries = passed.map((p) => ({
+    p,
+    score: score(p, ctx),
+    outlier: outliers.has(p.productId),
+    exactCapacity: statesExactCapacity(p.title, specs),
+  }));
+  entries.sort(byRank(filters.sort_preference));
+  return dedupeBy(entries, (e) => e.p, searchedTokens(filters));
+}
+
+/**
+ * Filters, ranks and removes duplicate listings (see byRank for the order). The shop cap is
+ * applied by rankWithFill, which makes the list that is shown.
  */
 export function rankProducts(
   products: AliProduct[],
   filters: SearchFilters,
   trust: TrustThresholds = FILTERS,
 ): AliProduct[] {
-  const passed = products.filter((p) => passesFilters(p, filters, trust));
-  if (!passed.length) return [];
-  const ctx: ScoreContext = {
-    sort: filters.sort_preference,
-    priceRange: priceRange(passed.map((p) => p.price)),
-  };
-  const byPrice = filters.sort_preference === "cheapest";
-  const scored = passed.map((p) => ({ p, s: score(p, ctx) }));
-  scored.sort(
-    (a, b) =>
-      (byPrice ? a.p.price - b.p.price : 0) ||
-      b.s - a.s ||
-      (b.p.commissionRatePct ?? 0) - (a.p.commissionRatePct ?? 0) ||
-      a.p.productId.localeCompare(b.p.productId),
-  );
-  const searched = [
-    filters.keywords_en,
-    ...filters.product_terms,
-    ...filters.requirements.flatMap((r) => [r.en, ...r.alt]),
-  ];
-  return dedupeListings(
-    scored.map((x) => x.p),
-    new Set(tokenize(searched.join(" "))),
-  );
+  return rankEntries(products, filters, trust).map((e) => e.p);
 }
 
 export type TrustTier = "standard" | "fill";
@@ -405,26 +287,36 @@ export function trustTierOf(
 }
 
 /**
- * Standard ranking, topped up to `target` results from FILL_TIER only when too few products meet
- * FILTERS. Standard products always come first; every other gate (price, type, requirements)
- * applies to both tiers unchanged.
+ * The list a search shows: standard ranking, topped up to `target` results from FILL_TIER only
+ * when too few products meet FILTERS, then one shop per page of `target` (diversifyShops).
+ * Standard products come first, except that "cheapest" orders the whole list by price, fill
+ * products included; every other gate (price, type, requirements) applies to both tiers unchanged.
  */
 export function rankWithFill(
   products: AliProduct[],
   filters: SearchFilters,
   target: number,
 ): { ranked: AliProduct[]; fillIds: string[] } {
-  const standard = rankProducts(products, filters);
-  if (standard.length >= target) return { ranked: standard, fillIds: [] };
-  const taken = new Set(standard.map((p) => p.productId));
-  const extra = rankProducts(products, filters, FILL_TIER).filter((p) => !taken.has(p.productId));
-  const searched = [
-    filters.keywords_en,
-    ...filters.product_terms,
-    ...filters.requirements.flatMap((r) => [r.en, ...r.alt]),
-  ];
-  // Dedupe across tiers too, keeping the standard listing when two are the same product.
-  const merged = dedupeListings([...standard, ...extra], new Set(tokenize(searched.join(" "))));
-  const fill = merged.filter((p) => !taken.has(p.productId)).slice(0, target - standard.length);
-  return { ranked: [...standard, ...fill], fillIds: fill.map((p) => p.productId) };
+  const standard = rankEntries(products, filters, FILTERS);
+  let merged = standard;
+  let fillIds: string[] = [];
+  if (standard.length < target) {
+    const taken = new Set(standard.map((e) => e.p.productId));
+    const extra = rankEntries(products, filters, FILL_TIER).filter(
+      (e) => !taken.has(e.p.productId),
+    );
+    // Dedupe across tiers too, keeping the standard listing when two are the same product.
+    const all = dedupeBy([...standard, ...extra], (e) => e.p, searchedTokens(filters));
+    const fill = all.filter((e) => !taken.has(e.p.productId)).slice(0, target - standard.length);
+    merged = [...standard, ...fill];
+    fillIds = fill.map((e) => e.p.productId);
+  }
+  if (filters.sort_preference === "cheapest") merged = [...merged].sort(byRank("cheapest"));
+  return {
+    ranked: diversifyShops(
+      merged.map((e) => e.p),
+      target,
+    ),
+    fillIds,
+  };
 }

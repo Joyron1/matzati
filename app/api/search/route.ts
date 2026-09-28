@@ -18,6 +18,7 @@ const STATUS: Record<SearchFailure, number> = {
   rate_limited: 429,
   capacity: 503,
   upstream: 503,
+  llm: 503,
   unavailable: 503,
 };
 

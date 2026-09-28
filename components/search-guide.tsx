@@ -5,16 +5,16 @@
 // are ours, so nobody needs to ask for them.
 import Link from "next/link";
 import {
-  Backpack,
   Baby,
+  BatteryCharging,
   Car,
   ChevronLeft,
   Compass,
+  Footprints,
   Gift,
   House,
   Plane,
   Speaker,
-  Watch,
   type LucideIcon,
 } from "lucide-react";
 import { keepPricesTogether } from "@/lib/format";
@@ -24,26 +24,36 @@ import { AddToSearch } from "./add-to-search";
 const TIPS_INTRO =
   "כתבו בעברית, כמו שמסבירים לחבר. לא צריך לבקש ״דירוג גבוה״: אנחנו בודקים משוב של קונים ומספר מכירות בכל חיפוש.";
 
+// The first example of each of the first three tips makes FULL_EXAMPLE.
 const TIPS: { title: string; examples: string[] }[] = [
-  { title: "כתבו מה צריך, במילים פשוטות", examples: ["אוזניות לריצה", "מארגן למגירות"] },
-  { title: "הוסיפו תקציב בשקלים", examples: ["עד 100 ש״ח", "בין 50 ל־150 ש״ח"] },
-  { title: "ציינו מה חשוב לכם", examples: ["עמיד למים", "שקט", "מתקפל"] },
+  { title: "כתבו מה צריך, במילים פשוטות", examples: ["שעון חכם", "מארגן למגירות"] },
+  { title: "הוסיפו תקציב בשקלים", examples: ["עד 150 ש״ח", "בין 50 ל־150 ש״ח"] },
+  { title: "ציינו מה חשוב לכם", examples: ["עם מד דופק", "עמיד למים", "שקט"] },
   { title: "מחפשים מתנה? כתבו למי ומה אוהבים", examples: ["מתנה לילדה בת 8", "לאבא שאוהב לבשל"] },
 ];
 
-/** The first three tips in one query (also the composer's placeholder). */
-const FULL_EXAMPLE = "אוזניות לריצה, עמידות למים, עד 100 ש״ח";
+/**
+ * The first three tips in one query, also the composer's placeholder (components/search-composer
+ * .tsx). Chosen on the product snapshots (docs/search-quality-plan.md item 0; fixtures/snapshots,
+ * ex-7): every product the live fetch policy passes (6) is labelled exact, and the first result has
+ * thousands of sales. Still to be signed off by the owner at the final check (A11,
+ * docs/search-quality-wave-a.md): its first result is a ₪14.49 listing of the store whose products
+ * almost all show exactly 98% positive feedback. The earlier "אוזניות לריצה, עמידות למים, עד 100
+ * ש״ח" showed weak products and stays out until it passes that check.
+ */
+const FULL_EXAMPLE = "שעון חכם עם מד דופק עד 150 ש״ח";
 
 // Mostly queries from the parse eval (fixtures/llm) and the earlier home page examples, so each
-// is known to parse well. One per topic: gifts, home, car, kids, tech, sport, trips, flights.
+// is known to parse well, and each one's first three results were checked on the snapshots. Not
+// FULL_EXAMPLE again. One per topic: gifts, home, car, kids, sound, tech, clothing, flights.
 const IDEAS: { Icon: LucideIcon; q: string }[] = [
   { Icon: Gift, q: "מתנה לאבא שאוהב לבשל עד 200 ש״ח" },
   { Icon: House, q: "מארגנים למגירות במטבח" },
   { Icon: Car, q: "מחזיק טלפון לרכב עם טעינה אלחוטית" },
   { Icon: Baby, q: "מנורת לילה לחדר ילדים עם חיישן תנועה" },
   { Icon: Speaker, q: "רמקול בלוטות׳ עמיד למים בין 50 ל־150 ש״ח" },
-  { Icon: Watch, q: "שעון חכם עם מד דופק עד 150 ש״ח" },
-  { Icon: Backpack, q: "תיק גב עמיד למים לטיולים" },
+  { Icon: BatteryCharging, q: "סוללת גיבוי קטנה לטלפון 10000 מיליאמפר" },
+  { Icon: Footprints, q: "נעלי בית חמות לחורף" },
   { Icon: Plane, q: "כרית צוואר לטיסות ארוכות" },
 ];
 

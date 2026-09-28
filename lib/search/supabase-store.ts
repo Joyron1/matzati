@@ -1,8 +1,15 @@
 // SearchStore backed by the Supabase tables in supabase/migrations (service-role client).
 // A store problem must never fail a user's search: reads that fail are cache misses (null) and
 // writes that fail are logged and skipped.
+//
+// Dev and production share one database (owner decision 2026-09-28), so every search_log,
+// llm_usage and clicks row carries the env it came from (deployEnv in lib/env.ts), and outside
+// production the two caches live under their own keys: a dev run can never write a parse or a
+// result set that production then serves. Production keys are the bare hashes, as before.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AliProduct } from "@/lib/aliexpress/schemas";
+import { deployEnv, type DeployEnv } from "@/lib/env";
+import type { ClickRef } from "@/lib/search-url";
 import { usageRow, type LlmUsageRecord } from "@/lib/stats/usage";
 import { isFresh, isFreshResults } from "./cache-key";
 import type { ParsedQuery } from "./filters";
@@ -50,8 +57,34 @@ function looksLikeResults(v: unknown): v is CachedResults {
 
 const CACHE_KEY = { parse_cache: "query_key", search_cache: "filters_key" } as const;
 
+/** Prefix of parse_cache and search_cache keys per env; production keeps the bare hashes. */
+export const CACHE_KEY_PREFIX: Record<DeployEnv, string> = {
+  production: "",
+  preview: "preview:",
+  development: "dev:",
+};
+
+export interface SupabaseStoreOptions {
+  /** The env its rows are tagged with and its cache keys belong to. Default deployEnv(). */
+  env?: DeployEnv;
+}
+
 export class SupabaseStore implements SearchStore {
-  constructor(private readonly db: SupabaseClient) {}
+  readonly env: DeployEnv;
+  private readonly prefix: string;
+  /**
+   * Result sets this instance read from production's key (see readCached), with the query their
+   * row was made for, so updateResults can save added explanations under this env's own key.
+   */
+  private readonly borrowed = new Map<string, string>();
+
+  constructor(
+    private readonly db: SupabaseClient,
+    { env = deployEnv() }: SupabaseStoreOptions = {},
+  ) {
+    this.env = env;
+    this.prefix = CACHE_KEY_PREFIX[env];
+  }
 
   /** Runs a read; any error or exception is logged and becomes null (a cache miss). */
   private async read<T>(op: string, run: () => PromiseLike<DbResult>): Promise<T | null> {
@@ -88,21 +121,47 @@ export class SupabaseStore implements SearchStore {
     );
   }
 
-  async getParse(queryKey: string, now: Date): Promise<ParsedQuery | null> {
-    const row = await this.read<{ parsed: unknown; created_at: string; hits: number }>(
-      "getParse",
-      () =>
-        this.db
-          .from("parse_cache")
-          .select("parsed, created_at, hits")
-          .eq("query_key", queryKey)
-          .maybeSingle(),
-    );
-    if (!row || !looksLikeParse(row.parsed) || !isFresh(new Date(row.created_at), now)) {
-      return null;
+  /** The key a cache row of this env is stored under. */
+  private own(key: string): string {
+    return this.prefix + key;
+  }
+
+  /**
+   * The first usable row (`usable`: well formed and fresh) under this env's key or, outside
+   * production, under production's bare key. Dev may read what production cached (reading changes
+   * nothing, and it saves paid calls), but it writes, and counts hits, under its own keys only.
+   * `borrowed` is true for a row read from production's key.
+   */
+  private async readCached<R extends { hits: number }>(
+    op: string,
+    table: keyof typeof CACHE_KEY,
+    columns: string,
+    key: string,
+    usable: (row: R) => boolean,
+  ): Promise<{ row: R; borrowed: boolean } | null> {
+    const keys = this.prefix ? [this.own(key), key] : [key];
+    for (const k of keys) {
+      const row = await this.read<R>(op, () =>
+        this.db.from(table).select(columns).eq(CACHE_KEY[table], k).maybeSingle(),
+      );
+      if (!row || !usable(row)) continue;
+      const borrowed = k !== this.own(key);
+      if (!borrowed) this.bumpHits(table, k, row.hits ?? 0);
+      return { row, borrowed };
     }
-    this.bumpHits("parse_cache", queryKey, row.hits ?? 0);
-    return row.parsed;
+    return null;
+  }
+
+  async getParse(queryKey: string, now: Date): Promise<ParsedQuery | null> {
+    type Row = { parsed: unknown; created_at: string; hits: number };
+    const found = await this.readCached<Row>(
+      "getParse",
+      "parse_cache",
+      "parsed, created_at, hits",
+      queryKey,
+      (row) => looksLikeParse(row.parsed) && isFresh(new Date(row.created_at), now),
+    );
+    return found ? (found.row.parsed as ParsedQuery) : null;
   }
 
   async putParse(
@@ -115,7 +174,7 @@ export class SupabaseStore implements SearchStore {
     await this.write("putParse", () =>
       this.db.from("parse_cache").upsert(
         {
-          query_key: queryKey,
+          query_key: this.own(queryKey),
           query_norm: queryNorm,
           parsed,
           created_at: createdAt.toISOString(),
@@ -126,31 +185,31 @@ export class SupabaseStore implements SearchStore {
   }
 
   async getResults(filtersKey: string, now: Date): Promise<CachedResults | null> {
-    const row = await this.read<{ response: unknown; created_at: string; hits: number }>(
+    type Row = { response: unknown; created_at: string; hits: number; query: string };
+    const found = await this.readCached<Row>(
       "getResults",
-      () =>
-        this.db
-          .from("search_cache")
-          .select("response, created_at, hits")
-          .eq("filters_key", filtersKey)
-          .maybeSingle(),
+      "search_cache",
+      "response, created_at, hits, query",
+      filtersKey,
+      (row) =>
+        looksLikeResults(row.response) &&
+        isFreshResults(
+          new Date(row.created_at),
+          row.response.products.length,
+          now,
+          row.response.degraded === true,
+        ),
     );
-    if (
-      !row ||
-      !looksLikeResults(row.response) ||
-      !isFreshResults(new Date(row.created_at), row.response.products.length, now)
-    ) {
-      return null;
-    }
-    this.bumpHits("search_cache", filtersKey, row.hits ?? 0);
-    return row.response;
+    if (!found) return null;
+    if (found.borrowed) this.borrowed.set(filtersKey, found.row.query ?? "");
+    return found.row.response as CachedResults;
   }
 
   async putResults(filtersKey: string, query: string, results: CachedResults): Promise<void> {
     await this.write("putResults", () =>
       this.db.from("search_cache").upsert(
         {
-          filters_key: filtersKey,
+          filters_key: this.own(filtersKey),
           query,
           parsed: results.filters,
           response: results,
@@ -161,9 +220,22 @@ export class SupabaseStore implements SearchStore {
     );
   }
 
+  /**
+   * Saves added explanations. A result set this instance read from production's key is copied to
+   * this env's key instead (with the query and time of production's row), never written back.
+   */
   async updateResults(filtersKey: string, results: CachedResults): Promise<void> {
+    const borrowedQuery = this.borrowed.get(filtersKey);
+    if (borrowedQuery !== undefined) {
+      await this.putResults(filtersKey, borrowedQuery, results);
+      this.borrowed.delete(filtersKey);
+      return;
+    }
     await this.write("updateResults", () =>
-      this.db.from("search_cache").update({ response: results }).eq("filters_key", filtersKey),
+      this.db
+        .from("search_cache")
+        .update({ response: results })
+        .eq("filters_key", this.own(filtersKey)),
     );
   }
 
@@ -179,6 +251,18 @@ export class SupabaseStore implements SearchStore {
         source: entry.source,
         category_id: entry.categoryId,
         listable: entry.listable,
+        env: this.env,
+        origin: entry.origin,
+        without: entry.without,
+        sort_override: entry.sortOverride,
+        timings: entry.timings,
+        ali_calls: entry.aliCalls,
+        rejected: entry.rejected,
+        failure: entry.failure,
+        search_uid: entry.searchUid,
+        shared: entry.shared,
+        owner: entry.owner === true,
+        diag: entry.diag ?? null,
       }),
     );
   }
@@ -186,7 +270,9 @@ export class SupabaseStore implements SearchStore {
   /** One llm_usage row per call, in a single insert. Token counts and cost only. */
   async logUsage(records: LlmUsageRecord[]): Promise<void> {
     if (!records.length) return;
-    await this.write("logUsage", () => this.db.from("llm_usage").insert(records.map(usageRow)));
+    await this.write("logUsage", () =>
+      this.db.from("llm_usage").insert(records.map((r) => ({ ...usageRow(r), env: this.env }))),
+    );
   }
 
   /**
@@ -224,6 +310,11 @@ export class SupabaseStore implements SearchStore {
    * touched at all. Its data came from a search in English, and a hot list's AliExpress Hebrew
    * title would replace the English original /p shows under our title; /p refreshes its price
    * after a day anyway. When the rows cannot be read, only new rows are written.
+   *
+   * Outside production (dev and preview share production's table) only rows production does not
+   * have yet are written, and no price_history: a dev run with another explain prompt must never
+   * change the Hebrew title, data or link /p, /go and /coupons serve; its own /go still finds the
+   * rows it added.
    */
   async saveProducts(
     products: AliProduct[],
@@ -234,6 +325,11 @@ export class SupabaseStore implements SearchStore {
     let unique = [...new Map(products.map((p) => [p.productId, p])).values()];
     if (!unique.length) return;
     const updatedAt = (checkedAt ?? new Date()).toISOString();
+    const production = this.env === "production";
+    if (!production) {
+      await this.insertNewProducts(unique, titlesHe, updatedAt);
+      return;
+    }
     let insertOnly = false;
     if (checkedAt) {
       // A failed read saves everything (with keepTitledRows: every new row); the rows then carry
@@ -302,6 +398,23 @@ export class SupabaseStore implements SearchStore {
     }
   }
 
+  /** Outside production: new rows only, never an update, and no price_history (saveProducts). */
+  private async insertNewProducts(
+    products: AliProduct[],
+    titlesHe: Record<string, string | null>,
+    updatedAt: string,
+  ): Promise<void> {
+    const rows = products.map((p) => ({
+      product_id: p.productId,
+      data: p,
+      updated_at: updatedAt,
+      title_he: titlesHe[p.productId] || null,
+    }));
+    await this.write("saveProducts (insert only)", () =>
+      this.db.from("products").upsert(rows, { onConflict: "product_id", ignoreDuplicates: true }),
+    );
+  }
+
   /** Product saved by a search (for /p and /go). Null when unknown. */
   async getProduct(productId: string): Promise<StoredProduct | null> {
     const row = await this.read<{ data: unknown; title_he: string | null; updated_at: string }>(
@@ -321,10 +434,26 @@ export class SupabaseStore implements SearchStore {
     };
   }
 
-  /** Click-out log: { product_id, src, created_at } only. No IP, no user data. */
-  async logClick(productId: string, src: string): Promise<void> {
+  /**
+   * Click-out log: product, button (src), env, whether a signed-in admin clicked (`owner`, left
+   * out of the stats) and, for a result card of a logged search, that search's uid and the card's
+   * position (already validated, clickRefFrom in ./server.ts). No IP, no user data.
+   */
+  async logClick(
+    productId: string,
+    src: string,
+    ref: ClickRef = { searchUid: null, position: null },
+    owner = false,
+  ): Promise<void> {
     await this.write("logClick", () =>
-      this.db.from("clicks").insert({ product_id: productId, src }),
+      this.db.from("clicks").insert({
+        product_id: productId,
+        src,
+        env: this.env,
+        search_uid: ref.searchUid,
+        position: ref.position,
+        owner,
+      }),
     );
   }
 }

@@ -17,6 +17,10 @@ export interface StructuredRequest<T extends z.ZodType> {
   /** Omitted means the provider default. Claude Haiku 4.5 accepts it; newer Opus, Sonnet and
    * Fable models reject sampling parameters, so revisit callers before changing LLM_MODEL. */
   temperature?: number;
+  /** Time limit for one attempt, in ms; omitted means the provider default. */
+  timeoutMs?: number;
+  /** Retries of a failed attempt (network, timeout, 5xx, rate limit); omitted means the default. */
+  maxRetries?: number;
 }
 
 export interface StructuredResult<T> {

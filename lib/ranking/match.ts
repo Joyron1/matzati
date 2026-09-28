@@ -4,7 +4,7 @@
 import type { Requirement } from "@/lib/search/filters";
 import { SYNONYM_GROUPS } from "./synonyms";
 
-/** Most other tokens allowed between two consecutive words of a phrase. */
+/** Most other tokens allowed between two consecutive words of a phrase (by default). */
 const MAX_GAP = 2;
 
 /** A phrase made only of these words would match almost any title ("non" hits "non-slip"). */
@@ -18,6 +18,7 @@ const IRREGULAR = new Map([
   ["leaves", "leaf"],
   ["lenses", "lens"],
   ["lens", "lens"],
+  ["mice", "mouse"],
 ]);
 
 function singular(word: string): string {
@@ -32,11 +33,17 @@ function singular(word: string): string {
   return word.slice(0, -1);
 }
 
-/** Lowercase singular words, with every USB-C spelling (usb-c, type-c, typec) as "usbc". */
+/**
+ * Lowercase singular words, with every USB-C spelling (usb-c, type-c, typec) as "usbc" and the
+ * earphone style "Ear Hook" as "earhook" (so the accessory noun "hook" does not read into it). A
+ * possessive "'s" is dropped: "Children's Bottle" is "children bottle", not "children s bottle".
+ */
 export function tokenize(text: string): string[] {
   return text
     .toLowerCase()
+    .replace(/['’]s\b/g, "")
     .replace(/\b(?:usb|type)[\s-]?c\b/g, "usbc")
+    .replace(/\bear[\s-]hook/g, "earhook")
     .split(/[^a-z0-9]+/)
     .filter(Boolean)
     .map(singular);
@@ -81,33 +88,40 @@ export interface Span {
   end: number;
 }
 
-function spanEnd(tokens: string[], words: string[], at: number, next: number): number {
+function spanEnd(
+  tokens: string[],
+  words: string[],
+  at: number,
+  next: number,
+  maxGap: number,
+): number {
   if (next === words.length) return at;
-  const last = Math.min(tokens.length - 1, at + MAX_GAP + 1);
+  const last = Math.min(tokens.length - 1, at + maxGap + 1);
   for (let j = at + 1; j <= last; j++) {
     if (!tokenMatches(tokens[j], words[next])) continue;
-    const end = spanEnd(tokens, words, j, next + 1);
+    const end = spanEnd(tokens, words, j, next + 1, maxGap);
     if (end >= 0) return end;
   }
   return -1;
 }
 
 /**
- * Every place `phrase` occurs in the title tokens: its words in order, with at most MAX_GAP
- * other tokens between them. `split` must normalize the phrase the way the title tokens were
- * (stems by default). Empty and weak-only phrases never occur.
+ * Every place `phrase` occurs in the title tokens: its words in order, with at most `maxGap`
+ * other tokens between them (MAX_GAP by default). `split` must normalize the phrase the way the
+ * title tokens were (stems by default). Empty and weak-only phrases never occur.
  */
 export function phraseSpans(
   titleTokens: string[],
   phrase: string,
   split: (text: string) => string[] = stems,
+  maxGap: number = MAX_GAP,
 ): Span[] {
   const words = split(phrase);
   if (words.every((w) => WEAK_WORDS.has(w))) return [];
   const spans: Span[] = [];
   for (let i = 0; i < titleTokens.length; i++) {
     if (!tokenMatches(titleTokens[i], words[0])) continue;
-    const end = spanEnd(titleTokens, words, i, 1);
+    const end = spanEnd(titleTokens, words, i, 1, maxGap);
     if (end >= 0) spans.push({ start: i, end });
   }
   return spans;
@@ -148,17 +162,29 @@ export function parseSpec(phrase: string): Spec | null {
   return { value: Number(m[1]), unit: unit as SpecUnit };
 }
 
+/** The spec's value in its base unit: "1tb" → 1000 (GB). */
+export const specValue = (spec: Spec): number => inBase(spec.value, spec.unit);
+
+/** Storage and battery capacity, where a bigger number is a bigger product (item 4). */
+export const isCapacitySpec = (spec: Spec): boolean => spec.unit === "mah" || spec.unit in GB_PER;
+
 /**
- * A spec means "at least": "65w" accepts a title that states 67W or 100W. Sellers glue units to
- * other text ("PD60W"), so the number needs no word boundary in front.
+ * Every value of the spec's quantity the title states, in the base unit: "10000mAh 20000mAh" →
+ * [10000, 20000]. Sellers glue units to other text ("PD60W"), so the number needs no word
+ * boundary in front.
  */
-export function titleMeetsSpec(title: string, spec: Spec): boolean {
+export function statedSpecValues(title: string, spec: Spec): number[] {
   const text = title.toLowerCase().replace(/(\d),(\d{3})/g, "$1$2");
-  const need = inBase(spec.value, spec.unit);
-  return sameQuantity(spec.unit).some((unit) => {
+  return sameQuantity(spec.unit).flatMap((unit) => {
     const re = new RegExp(`(\\d+(?:\\.\\d+)?)[\\s-]?(?:${SPEC_UNITS[unit]})(?![a-z])`, "g");
-    return [...text.matchAll(re)].some((m) => inBase(Number(m[1]), unit) >= need);
+    return [...text.matchAll(re)].map((m) => inBase(Number(m[1]), unit));
   });
+}
+
+/** A spec means "at least": "65w" accepts a title that states 67W or 100W. */
+export function titleMeetsSpec(title: string, spec: Spec): boolean {
+  const need = specValue(spec);
+  return statedSpecValues(title, spec).some((v) => v >= need);
 }
 
 /** Canonical form of a phrase, for comparing phrases and building cache keys. */

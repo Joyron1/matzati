@@ -169,6 +169,15 @@ const LOG: SearchLogEntry = {
   source: "search",
   categoryId: "44",
   listable: true,
+  origin: "typed",
+  without: [],
+  sortOverride: null,
+  timings: { parse_ms: null, fetch_ms: null, explain_ms: null, total_ms: 42 },
+  aliCalls: 0,
+  rejected: null,
+  failure: null,
+  searchUid: "0b7e6f55-2f0c-4a53-9d7c-3f7c1d1e2a10",
+  shared: false,
 };
 
 const USAGE: LlmUsageRecord = {
@@ -182,8 +191,13 @@ const flush = () => new Promise((r) => setTimeout(r, 0));
 let errors: MockInstance<typeof console.error>;
 beforeEach(() => {
   errors = vi.spyOn(console, "error").mockImplementation(() => {});
+  // A store built without an env reads VERCEL_ENV (deployEnv): most tests are about production.
+  vi.stubEnv("VERCEL_ENV", "production");
 });
-afterEach(() => errors.mockRestore());
+afterEach(() => {
+  errors.mockRestore();
+  vi.unstubAllEnvs();
+});
 
 describe("SupabaseStore", () => {
   it("has real products from the fixture", () => {
@@ -263,6 +277,14 @@ describe("SupabaseStore", () => {
       expect(await store.getResults("empty-day", new Date("2026-09-27T10:00:00Z"))).not.toBeNull();
       await store.putResults("empty-3d", "q", empty("2026-09-24T10:00:00.000Z"));
       expect(await store.getResults("empty-3d", new Date("2026-09-27T10:00:00Z"))).toBeNull();
+      // Lines from the data after a failed explain call: 48h only as well.
+      const degraded = (at: string) => ({ ...results(at), degraded: true });
+      await store.putResults("degraded-day", "q", degraded("2026-09-26T10:00:00.000Z"));
+      expect(
+        await store.getResults("degraded-day", new Date("2026-09-27T10:00:00Z")),
+      ).not.toBeNull();
+      await store.putResults("degraded-3d", "q", degraded("2026-09-24T10:00:00.000Z"));
+      expect(await store.getResults("degraded-3d", new Date("2026-09-27T10:00:00Z"))).toBeNull();
       db.rows("search_cache").push({
         filters_key: "bad",
         response: { nope: true },
@@ -306,6 +328,20 @@ describe("SupabaseStore", () => {
     const store = new SupabaseStore(db.client());
     await store.logSearch({ ...LOG, resultIds: ["1", "2"] });
     await store.logSearch({ ...LOG, source: "more", categoryId: null, listable: false });
+    const telemetry = {
+      env: "production",
+      origin: "typed",
+      without: [],
+      sort_override: null,
+      timings: { parse_ms: null, fetch_ms: null, explain_ms: null, total_ms: 42 },
+      ali_calls: 0,
+      rejected: null,
+      failure: null,
+      search_uid: "0b7e6f55-2f0c-4a53-9d7c-3f7c1d1e2a10",
+      shared: false,
+      owner: false,
+      diag: null,
+    };
     expect(db.rows("search_log")).toEqual([
       {
         query: "כבל USB",
@@ -317,6 +353,7 @@ describe("SupabaseStore", () => {
         source: "search",
         category_id: "44",
         listable: true,
+        ...telemetry,
       },
       {
         query: "כבל USB",
@@ -328,8 +365,52 @@ describe("SupabaseStore", () => {
         source: "more",
         category_id: null,
         listable: false,
+        ...telemetry,
       },
     ]);
+  });
+
+  it("logs the new telemetry columns of a failed, refined request as given", async () => {
+    const db = new FakeDb();
+    const rejected = { feedback: 3, volume: 10, currency: 0, price: 0, type: 20, requirement: 17 };
+    await new SupabaseStore(db.client(), { env: "preview" }).logSearch({
+      ...LOG,
+      parsed: null,
+      resultsCount: 0,
+      categoryId: null,
+      listable: false,
+      origin: "chip",
+      without: ["max"],
+      sortOverride: "cheapest",
+      timings: { parse_ms: null, fetch_ms: 2310, explain_ms: null, total_ms: 2400 },
+      aliCalls: 2,
+      rejected,
+      failure: "upstream",
+      shared: true,
+      owner: true,
+      diag: {
+        fetch_stop: "failed",
+        keywords_tried: ["usb cable", "usb cable (p2)"],
+        demoted: [],
+        explain_failed: false,
+        explain_rejected: 0,
+      },
+    });
+    expect(db.rows("search_log")[0]).toMatchObject({
+      env: "preview",
+      parsed: null,
+      results_count: 0,
+      origin: "chip",
+      without: ["max"],
+      sort_override: "cheapest",
+      timings: { parse_ms: null, fetch_ms: 2310, explain_ms: null, total_ms: 2400 },
+      ali_calls: 2,
+      rejected,
+      failure: "upstream",
+      shared: true,
+      owner: true,
+      diag: { fetch_stop: "failed", keywords_tried: ["usb cable", "usb cable (p2)"] },
+    });
   });
 
   describe("llm usage", () => {
@@ -357,6 +438,7 @@ describe("SupabaseStore", () => {
           cache_read_tokens: 0,
           cache_write_tokens: 0,
           cost_usd: 0.0014, // (900 * $1 + 100 * $5) per million tokens
+          env: "production",
         },
         {
           kind: "explain_more",
@@ -366,6 +448,7 @@ describe("SupabaseStore", () => {
           cache_read_tokens: 2,
           cache_write_tokens: 1,
           cost_usd: null, // never a guessed price
+          env: "production",
         },
       ]);
     });
@@ -577,10 +660,165 @@ describe("SupabaseStore", () => {
     });
   });
 
-  it("logs a click with product id and source only", async () => {
+  it("logs a click with product id, source, env and the result card it came from", async () => {
     const db = new FakeDb();
-    await new SupabaseStore(db.client()).logClick("100500", "search");
-    expect(db.rows("clicks")).toEqual([{ product_id: "100500", src: "search" }]);
+    const store = new SupabaseStore(db.client());
+    await store.logClick("100500", "product");
+    await store.logClick(
+      "100500",
+      "search_featured",
+      { searchUid: "0b7e6f55-2f0c-4a53-9d7c-3f7c1d1e2a10", position: 1 },
+      true,
+    );
+    expect(db.rows("clicks")).toEqual([
+      {
+        product_id: "100500",
+        src: "product",
+        env: "production",
+        search_uid: null,
+        position: null,
+        owner: false,
+      },
+      {
+        product_id: "100500",
+        src: "search_featured",
+        env: "production",
+        search_uid: "0b7e6f55-2f0c-4a53-9d7c-3f7c1d1e2a10",
+        position: 1,
+        owner: true,
+      },
+    ]);
+  });
+
+  it("outside production adds only products production does not have, and no price history", async () => {
+    // The finding on dev writes: a dev explain prompt must never change the title /p serves.
+    const db = new FakeDb();
+    const [a, b] = PRODUCTS;
+    db.rows("products").push({
+      product_id: a.productId,
+      data: a,
+      title_he: "שם של האתר החי",
+      updated_at: "2026-09-20T00:00:00.000Z",
+    });
+    const dev = new SupabaseStore(db.client(), { env: "development" });
+    await dev.saveProducts([{ ...a, price: 1 }, b], {
+      [a.productId]: "שם מסביבת פיתוח",
+      [b.productId]: "כבל חדש",
+    });
+    const rows = db.rows("products");
+    expect(rows.find((r) => r.product_id === a.productId)).toMatchObject({
+      title_he: "שם של האתר החי",
+      data: a,
+      updated_at: "2026-09-20T00:00:00.000Z",
+    });
+    expect(rows.find((r) => r.product_id === b.productId)).toMatchObject({ title_he: "כבל חדש" });
+    expect(db.rows("price_history")).toEqual([]);
+  });
+
+  describe("environments (one database for production, preview and dev)", () => {
+    const fresh = () => new Date().toISOString();
+
+    it("reads its env from VERCEL_ENV, and anything else is development", () => {
+      const db = new FakeDb();
+      expect(new SupabaseStore(db.client()).env).toBe("production");
+      vi.stubEnv("VERCEL_ENV", "preview");
+      expect(new SupabaseStore(db.client()).env).toBe("preview");
+      vi.stubEnv("VERCEL_ENV", "");
+      expect(new SupabaseStore(db.client()).env).toBe("development");
+      vi.stubEnv("VERCEL_ENV", "staging");
+      expect(new SupabaseStore(db.client()).env).toBe("development");
+    });
+
+    it("tags every search_log, llm_usage and clicks row with the env", async () => {
+      const db = new FakeDb();
+      const store = new SupabaseStore(db.client(), { env: "development" });
+      await store.logSearch(LOG);
+      await store.logUsage([USAGE]);
+      await store.logClick("1", "search");
+      for (const table of ["search_log", "llm_usage", "clicks"]) {
+        expect(db.rows(table)[0].env).toBe("development");
+      }
+    });
+
+    it("keeps production keys bare, so a deploy starts with the cache production wrote", async () => {
+      const db = new FakeDb();
+      const store = new SupabaseStore(db.client(), { env: "production" });
+      await store.putParse("qk", "q", PARSED);
+      await store.putResults("fk", "q", results(fresh()));
+      expect(db.rows("parse_cache")[0].query_key).toBe("qk");
+      expect(db.rows("search_cache")[0].filters_key).toBe("fk");
+    });
+
+    it("writes dev and preview entries under their own keys, which production never reads", async () => {
+      const db = new FakeDb();
+      const dev = new SupabaseStore(db.client(), { env: "development" });
+      const preview = new SupabaseStore(db.client(), { env: "preview" });
+      await dev.putParse("qk", "q", PARSED);
+      await dev.putResults("fk", "q", results(fresh()));
+      await preview.putParse("qk", "q", PARSED);
+      expect(db.rows("parse_cache").map((r) => r.query_key)).toEqual(["dev:qk", "preview:qk"]);
+      expect(db.rows("search_cache").map((r) => r.filters_key)).toEqual(["dev:fk"]);
+      // Dev reads its own entries back.
+      expect(await dev.getParse("qk", new Date())).toEqual(PARSED);
+      expect(await dev.getResults("fk", new Date())).not.toBeNull();
+      // Production never sees them.
+      const prod = new SupabaseStore(db.client(), { env: "production" });
+      expect(await prod.getParse("qk", new Date())).toBeNull();
+      expect(await prod.getResults("fk", new Date())).toBeNull();
+    });
+
+    it("lets dev read production entries without writing to them or counting their hits", async () => {
+      const db = new FakeDb();
+      const prod = new SupabaseStore(db.client(), { env: "production" });
+      const r = results(fresh());
+      await prod.putParse("qk", "q", PARSED);
+      await prod.putResults("fk", "the first query", r);
+      const dev = new SupabaseStore(db.client(), { env: "development" });
+      expect(await dev.getParse("qk", new Date())).toEqual(PARSED);
+      expect(await dev.getResults("fk", new Date())).toEqual(r);
+      await flush();
+      expect(db.rows("parse_cache")).toEqual([
+        expect.objectContaining({ query_key: "qk", hits: 0 }),
+      ]);
+      expect(db.rows("search_cache")).toEqual([
+        expect.objectContaining({ filters_key: "fk", hits: 0 }),
+      ]);
+      // Its own fresh entry wins over production's, which stays as it was.
+      const mine = { ...PARSED, keywords_en: "usb c cable" };
+      await dev.putParse("qk", "q", mine);
+      expect(await dev.getParse("qk", new Date())).toEqual(mine);
+      expect(await prod.getParse("qk", new Date())).toEqual(PARSED);
+    });
+
+    it("copies explanations added to a production entry into its own key", async () => {
+      const db = new FakeDb();
+      const prod = new SupabaseStore(db.client(), { env: "production" });
+      const r = results(fresh());
+      await prod.putResults("fk", "the first query", r);
+      const dev = new SupabaseStore(db.client(), { env: "development" });
+      const read = (await dev.getResults("fk", new Date()))!;
+      const more: CachedResults = {
+        ...read,
+        explanations: {
+          ...read.explanations,
+          [PRODUCTS[3].productId]: { title_he: null, why_he: "x" },
+        },
+      };
+      await dev.updateResults("fk", more);
+      expect(db.rows("search_cache")).toEqual([
+        expect.objectContaining({ filters_key: "fk", response: r }),
+        expect.objectContaining({
+          filters_key: "dev:fk",
+          query: "the first query",
+          response: more,
+          created_at: r.createdAt,
+        }),
+      ]);
+      // From then on it updates its own row only.
+      const again = { ...more, explanations: {} };
+      await dev.updateResults("fk", again);
+      expect(db.rows("search_cache").map((row) => row.response)).toEqual([r, again]);
+    });
   });
 
   describe("failures never break a search", () => {

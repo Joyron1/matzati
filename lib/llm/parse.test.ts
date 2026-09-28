@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { z } from "zod";
 import {
   normalizeParsed,
+  normalizeParsedWithFixes,
   PARSE_SYSTEM,
   parseQuery,
   parsedQuerySchema,
@@ -316,6 +317,240 @@ describe("normalizeParsed", () => {
       expect(p?.requirements[0].he).toBe("אטום לדליפות");
       // Only the whole word: a word that merely contains the letters stays as it is.
       expect(normalizeParsed(raw({ product_he: "פרדיסות" }))?.product_he).toBe("פרדיסות");
+    });
+
+    it("fixes the shopper's typo the model copied into a label (eval round 3, typo-earbuds)", () => {
+      const p = normalizeParsed(
+        raw({
+          product_he: "אוזניות בלוטות לריצה",
+          product_terms: ["running headphones"],
+          requirements: [req("waterproof", ["water resistant"], "עמידות למיים")],
+        }),
+        "אוזניות בלוטות לריצה עמידות למיים",
+      );
+      expect(p?.product_he).toBe("אוזניות בלוטוס לריצה");
+      expect(p?.requirements[0].he).toBe("עמידות למים");
+    });
+  });
+
+  describe("requirements a title can state (docs/search-quality-plan.md A8)", () => {
+    // Recorded parses: eval round 3 (fixtures/llm/eval-v3-2026-09-27*.json) and the snapshots.
+    it("drops an alt that means something else than its requirement", () => {
+      const holder = normalizeParsed(
+        raw({
+          product_terms: ["car phone holder", "phone mount"],
+          requirements: [
+            req("wireless charging", ["qi charging", "fast charging"], "טעינה אלחוטית"),
+          ],
+        }),
+      );
+      expect(holder?.requirements[0]).toMatchObject({
+        en: "wireless charging",
+        alt: ["qi charging"],
+      });
+      const mouse = normalizeParsed(
+        raw({
+          product_terms: ["gaming mouse"],
+          requirements: [req("silent", ["quiet", "noise cancelling"])],
+        }),
+      );
+      expect(mouse?.requirements[0].alt).toEqual(["quiet"]);
+      const slippers = normalizeParsed(
+        raw({
+          product_terms: ["house slippers"],
+          requirements: [req("warm", ["heated", "thermal"])],
+        }),
+      );
+      expect(slippers?.requirements[0].alt).toEqual(["thermal"]);
+    });
+
+    it("drops an alt that is one word of a longer requirement", () => {
+      const p = normalizeParsed(
+        raw({
+          product_terms: ["night light"],
+          requirements: [req("motion sensor", ["sensor", "pir"])],
+        }),
+      );
+      expect(p?.requirements[0]).toMatchObject({ en: "motion sensor", alt: ["pir"] });
+    });
+
+    it("keeps alts of the same meaning and phrases with no known group", () => {
+      const p = normalizeParsed(
+        raw({
+          product_terms: ["bluetooth speaker"],
+          requirements: [req("waterproof", ["water resistant", "ipx7", "water repellent"])],
+        }),
+      );
+      expect(p?.requirements[0].alt).toEqual(["water resistant", "ipx7", "water repellent"]);
+    });
+
+    it("turns a description no seller writes into a preference, without its chip", () => {
+      const charger = normalizeParsedWithFixes(
+        raw({
+          product_he: "מטען מהיר 65W",
+          product_terms: ["fast charger", "65w charger", "power adapter"],
+          requirements: [
+            req("65w", [], "65W"),
+            req("multi-device", ["laptop and phone", "universal"], "לטלפון ולמחשב נייד"),
+          ],
+          keywords_en: "65w fast charger",
+        }),
+      );
+      expect(charger.parsed?.requirements.map((r) => r.en)).toEqual(["65w"]);
+      expect(charger.fixes).toContainEqual({
+        kind: "requirement_dropped",
+        requirement: "multi-device",
+        he: "לטלפון ולמחשב נייד",
+      });
+      // Not a filter, but not lost: its title words raise relevance and the page names it.
+      expect(charger.parsed?.preferences).toEqual([
+        { words: ["laptop", "phone"], he: "לטלפון ולמחשב נייד" },
+      ]);
+      const pillow = normalizeParsed(
+        raw({
+          product_terms: ["neck pillow"],
+          requirements: [req("for long flights", [], "לטיסות ארוכות")],
+        }),
+      );
+      expect(pillow?.requirements).toEqual([]);
+      expect(pillow?.preferences).toEqual([{ words: ["long", "flights"], he: "לטיסות ארוכות" }]);
+      // A parse without such a need has no preferences field at all.
+      expect(normalizeParsed(raw({ product_terms: ["neck pillow"] }))).not.toHaveProperty(
+        "preferences",
+      );
+    });
+
+    it("keeps the seller phrase inside a description", () => {
+      const watch = normalizeParsed(
+        raw({
+          product_terms: ["smartwatch", "smart watch"],
+          requirements: [
+            req("heart rate monitor", ["heart rate sensor", "pulse monitor"], "מד דופק"),
+          ],
+        }),
+      );
+      expect(watch?.requirements).toEqual([
+        { en: "heart rate", alt: ["pulse monitor"], he: "מד דופק" },
+      ]);
+      const cable = normalizeParsed(
+        raw({
+          product_terms: ["usb-c cable"],
+          requirements: [
+            req("iphone 15 compatible", ["iphone 15", "for iphone 15"], "תואם אייפון 15"),
+          ],
+        }),
+      );
+      expect(cable?.requirements).toEqual([{ en: "iphone 15", alt: [], he: "תואם אייפון 15" }]);
+    });
+
+    it("keeps short seller phrases, numeric specs and two words joined by 'with'", () => {
+      const p = normalizeParsed(
+        raw({
+          product_terms: ["desk lamp"],
+          requirements: [
+            req("rechargeable", ["usb charging", "built-in battery"]),
+            req("20000 mAh"),
+            req("lamp with clamp"),
+          ],
+        }),
+      );
+      expect(p?.requirements.map((r) => [r.en, ...r.alt])).toEqual([
+        ["rechargeable", "usb charging", "built-in battery"],
+        ["20000mah"],
+        ["lamp with clamp"],
+      ]);
+    });
+  });
+
+  describe("product terms name the plain product", () => {
+    it("turns gift terms into a set of the named interest (eval round 3, gift-cook)", () => {
+      const { parsed, fixes } = normalizeParsedWithFixes(
+        raw({
+          product_he: "מתנה לאבא בישול",
+          product_terms: ["cooking gift", "kitchen gift", "chef gift set"],
+          requirements: [],
+          keywords_en: "cooking kitchen gift",
+        }),
+        "מתנה לאבא שאוהב לבשל עד 200 ש״ח",
+      );
+      expect(parsed?.product_terms).toEqual(["cooking set", "kitchen set", "chef set"]);
+      expect(parsed?.keywords_en).toBe("cooking kitchen set");
+      expect(fixes).toContainEqual({ kind: "gift_term", from: "cooking gift", to: "cooking set" });
+    });
+
+    it("drops a gift term that names no product, and keeps gift packaging", () => {
+      const p = normalizeParsed(
+        raw({ product_terms: ["gift for dad", "bbq tools set"], keywords_en: "bbq tools" }),
+      );
+      expect(p?.product_terms).toEqual(["bbq tools set"]);
+      const box = normalizeParsed(
+        raw({ product_terms: ["gift box", "gift bag"], keywords_en: "gift box" }),
+      );
+      expect(box?.product_terms).toEqual(["gift box", "gift bag"]);
+      expect(box?.keywords_en).toBe("gift box");
+      // Nothing left: the model's terms stay rather than failing the search.
+      const only = normalizeParsed(
+        raw({ product_terms: ["birthday gift"], keywords_en: "birthday gift" }),
+      );
+      expect(only?.product_terms).toEqual(["birthday gift"]);
+    });
+
+    it("adds the product without its audience when two words still name it", () => {
+      const p = normalizeParsed(
+        raw({
+          product_terms: ["kids water bottle", "children's bottle"],
+          keywords_en: "kids water bottle",
+        }),
+      );
+      expect(p?.product_terms).toEqual(["kids water bottle", "children's bottle", "water bottle"]);
+      expect(normalizeParsed(raw({ product_terms: ["baby monitor"] }))?.product_terms).toEqual([
+        "baby monitor",
+      ]);
+    });
+
+    it("adds a plain noun that names one kind of product", () => {
+      const p = normalizeParsed(
+        raw({
+          product_terms: ["running earbuds", "sports earbuds", "running headphones"],
+          requirements: [req("waterproof", ["water resistant"])],
+        }),
+      );
+      expect(p?.product_terms).toEqual([
+        "running earbuds",
+        "sports earbuds",
+        "running headphones",
+        "earbuds",
+        "headphones",
+      ]);
+      // Not a noun that names other things too.
+      expect(normalizeParsed(raw({ product_terms: ["travel pillow"] }))?.product_terms).toEqual([
+        "travel pillow",
+      ]);
+    });
+
+    it("keeps the audience of a plain product: kids headphones are not any headphones", () => {
+      // "אוזניות לילדים" and "שעון חכם לילדים": a plain noun would let every adult product pass.
+      expect(
+        normalizeParsed(
+          raw({ product_terms: ["kids headphones", "children's headphones"] }),
+          "אוזניות לילדים",
+        )?.product_terms,
+      ).toEqual(["kids headphones", "children's headphones"]);
+      expect(
+        normalizeParsed(raw({ product_terms: ["kids smartwatch"] }), "שעון חכם לילדים")
+          ?.product_terms,
+      ).toEqual(["kids smartwatch"]);
+    });
+
+    it("does not turn a word every model term says into a requirement", () => {
+      const p = normalizeParsed(
+        raw({
+          product_terms: ["wireless earbuds"],
+          requirements: [req("wireless", [], "אלחוטיות")],
+        }),
+      );
+      expect(p?.product_terms).toEqual(["wireless earbuds", "earbuds"]);
+      expect(p?.requirements).toEqual([]);
     });
   });
 

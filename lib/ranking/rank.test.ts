@@ -3,9 +3,10 @@ import { describe, expect, it } from "vitest";
 import { parseEnvelope, parseJsonKeepingIds } from "@/lib/aliexpress/client";
 import { parseCategories, parseProductPage, type AliProduct } from "@/lib/aliexpress/schemas";
 import type { ParsedQuery, Requirement, SearchFilters } from "@/lib/search/filters";
-import { CATEGORY_LABELS, FILL_TIER, FILTERS } from "./config";
+import { CATEGORY_LABELS, FILL_TIER, FILTERS, WEIGHTS } from "./config";
 import { tokenize } from "./match";
 import {
+  categoryOutliers,
   dedupeListings,
   effectiveFeedbackPct,
   isRequestedProduct,
@@ -14,6 +15,8 @@ import {
   rejectReason,
   rejectionCounts,
   rankWithFill,
+  score,
+  scoreContext,
   trustTierOf,
 } from "./rank";
 
@@ -91,6 +94,10 @@ const V2_MISSES: Record<string, string> = {
   "1005007306682299": "kids-bottle: a bike bottle holder",
   "1005006860850404": "ho-powerbank: a bike light that also charges a phone",
   "1005009582248966": "ho-speaker: a shower phone holder with a speaker",
+  // Shown as right in round 2; the plan's review (docs/search-quality-plan.md, item 2) and the
+  // snapshot labels (wrong, weak) disagree, and item 3's object rule drops them.
+  "1005010706919284": "ho-neck-pillow: a car seat headrest pillow ('Car' opens the title)",
+  "1005009582247884": "price-range-bag: a motorcycle backpack ('Motorcycle Backpack')",
 };
 
 describe("passesFilters", () => {
@@ -256,8 +263,8 @@ describe("product type check", () => {
           cases.map(([p]) => p),
           f,
         ),
-      ),
-    ).toEqual(["holder-magnetic", "holder-vent", "holder-infrared"]);
+      ).sort(),
+    ).toEqual(["holder-infrared", "holder-magnetic", "holder-vent"]);
   });
 
   it("drops the recorded egg box from a drawer-organizer search", () => {
@@ -321,11 +328,15 @@ describe("product type check", () => {
     expect(isRequestedProduct("Earbuds Charging Case Replacement For Pro 2", f)).toBe(false);
   });
 
-  it("needs the product term within the first 12 tokens", () => {
+  it("needs the product term within the first 12 words, not counting numbers", () => {
     const f = { keywords_en: "watch charger", product_terms: ["charger"] };
-    const late = "Portable Dock Station For Samsung Galaxy Watch 3 4 5 6 7 8 Pro Charger";
+    const late =
+      "Portable Magnetic Dock Station Fast Wireless Desktop Travel Samsung Galaxy Watch Pro Classic Charger";
     expect(isRequestedProduct(late, f)).toBe(false);
     expect(isRequestedProduct("Magnetic Watch Charger For Samsung Galaxy Watch 6", f)).toBe(true);
+    // A list of model numbers does not push the product name out of the opening.
+    const models = "Portable Dock Station For Samsung Galaxy Watch 3 4 5 6 7 8 Pro Charger";
+    expect(isRequestedProduct(models, f)).toBe(true);
   });
 
   it("matches product terms as whole words, not stems", () => {
@@ -390,8 +401,9 @@ describe("product type check", () => {
     expect(
       isRequestedProduct("LED Night Light With Motion Sensor Light EU Plug", sensorLight),
     ).toBe(true);
-    // "for" only claims the words right after it: here the charger is the product.
-    const charger = { keywords_en: "wireless charger", product_terms: ["wireless charger"] };
+    // "for" only claims the words right after it: here the charger is the product. (The search
+    // names the car: a title opening with "Car" is another product for a plain wireless charger.)
+    const charger = { keywords_en: "car wireless charger", product_terms: ["wireless charger"] };
     expect(
       isRequestedProduct(
         "Car For Magsafe Wireless Charger Pad Air Vent Phone Holder Stand For iPhone 17~12",
@@ -903,6 +915,208 @@ describe("rankProducts", () => {
     const titles = a.map((p) => p.title.toLowerCase().replace(/\s+/g, " ").trim());
     expect(new Set(titles).size).toBe(titles.length);
   });
+
+  it("puts the product named at the head of the title before one named late, at equal trust", () => {
+    const f = filters({
+      keywords_en: "neck pillow travel",
+      product_terms: ["neck pillow", "travel pillow"],
+    });
+    const ranked = rankProducts(
+      [
+        product({
+          productId: "late",
+          title: "Soft Slow Rebound Memory Foam Outdoor Camping Noon Break Travel Neck Pillow",
+          unitsSold: 3000,
+        }),
+        product({
+          productId: "head",
+          title: "Travel Neck Pillow Memory Foam Soft",
+          unitsSold: 2000,
+        }),
+      ],
+      f,
+    );
+    expect(ids(ranked)).toEqual(["head", "late"]);
+  });
+});
+
+describe("sort and score fixes (item 6)", () => {
+  const cables = filters({ keywords_en: "usb cable", product_terms: ["cable"] });
+
+  it("orders 'most_popular' by 30-day sales", () => {
+    // The plan's case: 2,000 sales ahead of 5,000 under the old score.
+    const items = [
+      product({
+        productId: "fewer",
+        title: "USB Cable A",
+        unitsSold: 2000,
+        positiveFeedbackPct: 99,
+      }),
+      product({
+        productId: "more",
+        title: "USB Cable B",
+        unitsSold: 5000,
+        positiveFeedbackPct: 91,
+      }),
+    ];
+    expect(ids(rankProducts(items, cables))).toEqual(["fewer", "more"]);
+    expect(ids(rankProducts(items, { ...cables, sort_preference: "most_popular" }))).toEqual([
+      "more",
+      "fewer",
+    ]);
+  });
+
+  it("orders 'cheapest' by price over the whole list, second-tier products included", () => {
+    const f = filters({
+      keywords_en: "sonic plush",
+      product_terms: ["sonic plush"],
+      sort_preference: "cheapest",
+    });
+    const { ranked, fillIds } = rankWithFill(
+      [
+        product({ productId: "std", title: "Sonic Plush Classic", price: 40, unitsSold: 500 }),
+        product({
+          productId: "fill",
+          title: "Sonic Plush Mini",
+          price: 25,
+          positiveFeedbackPct: 100,
+          unitsSold: 60,
+        }),
+      ],
+      f,
+      3,
+    );
+    expect(fillIds).toEqual(["fill"]);
+    expect(ids(ranked)).toEqual(["fill", "std"]);
+  });
+
+  it("does not score the discount", () => {
+    const base = { title: "USB Cable", price: 10, unitsSold: 1000, commissionRatePct: 5 };
+    const ranked = rankProducts(
+      [
+        product({ ...base, productId: "b-no-discount", title: "USB Cable B", discountPct: 0 }),
+        product({ ...base, productId: "a-discount", title: "USB Cable A", discountPct: 53 }),
+      ],
+      cables,
+    );
+    // An exact tie: the id decides, not the 53% off.
+    expect(ids(ranked)).toEqual(["a-discount", "b-no-discount"]);
+    expect(WEIGHTS).not.toHaveProperty("discount");
+  });
+
+  it("gives no advantage for being cheaper within a stated budget", () => {
+    const items = [
+      product({ productId: "cheap", title: "USB Cable A", price: 5 }),
+      product({ productId: "dearer", title: "USB Cable B", price: 45 }),
+    ];
+    const budget = { ...cables, max_price_ils: 50 };
+    const ctx = scoreContext(budget, items);
+    expect(score(items[0], ctx)).toBe(score(items[1], ctx));
+    // Without a budget the cheaper one still fits the price better.
+    const open = scoreContext(cables, items);
+    expect(score(items[0], open)).toBeGreaterThan(score(items[1], open));
+  });
+});
+
+describe("capacity (item 4)", () => {
+  const bank = filters({
+    keywords_en: "10000mah power bank",
+    product_terms: ["power bank"],
+    requirements: [req("10000mah")],
+  });
+
+  it("ranks the exact capacity before a bigger one", () => {
+    const ranked = rankProducts(
+      [
+        product({ productId: "big", title: "UGREEN 20000mAh Power Bank PD 20W", unitsSold: 9000 }),
+        product({ productId: "exact", title: "Baseus 10000mAh Power Bank 22.5W", unitsSold: 900 }),
+        product({ productId: "both", title: "Power Bank 20000mAh 10000mAh Slim", unitsSold: 500 }),
+      ],
+      bank,
+    );
+    expect(ids(ranked)).toEqual(["exact", "both", "big"]);
+  });
+
+  it("caps a small or mini search at 1.5 times the capacity", () => {
+    const mini = { ...bank, keywords_en: "mini power bank 10000mah" };
+    const big = product({ title: "UGREEN 20000mAh Power Bank PD 20W" });
+    const near = product({ title: "Slim Power Bank 12000mAh" });
+    expect(rejectReason(big, mini)).toBe("requirement");
+    expect(rejectReason(near, mini)).toBeNull();
+    expect(rejectReason(big, bank)).toBeNull();
+  });
+});
+
+describe("category consistency (item 2)", () => {
+  const inCategory = (id: string, firstId: string | null) =>
+    product({
+      productId: id,
+      title: `Drawer Organizer ${id}`,
+      category: { firstId, firstName: null, secondId: null, secondName: null },
+    });
+
+  it("marks passers from another first-level category than two thirds of them", () => {
+    const home = ["a", "b", "c", "d"].map((id) => inCategory(id, "15"));
+    expect(categoryOutliers([...home, inCategory("car", "34")])).toEqual(new Set(["car"]));
+    // Too few or too split: nothing is an outlier.
+    expect(
+      categoryOutliers([inCategory("a", "15"), inCategory("b", "15"), inCategory("c", "34")]),
+    ).toEqual(new Set());
+    expect(
+      categoryOutliers([...home.slice(0, 3), inCategory("x", "34"), inCategory("y", "34")]),
+    ).toEqual(new Set());
+    // A product without a category is never an outlier.
+    expect(categoryOutliers([...home, inCategory("unknown", null)])).toEqual(new Set());
+  });
+
+  it("moves an outlier after the others without dropping it", () => {
+    const f = filters({ keywords_en: "drawer organizer", product_terms: ["drawer organizer"] });
+    const home = ["a", "b", "c", "d"].map((id) => inCategory(id, "15"));
+    const car = { ...inCategory("car", "34"), unitsSold: 50_000 };
+    const ranked = rankProducts([car, ...home], f);
+    expect(ids(ranked).at(-1)).toBe("car");
+    expect(ranked).toHaveLength(5);
+  });
+
+  it("leaves the cheapest and most popular orders to price and sales", () => {
+    // The finding on cheapest-cable: USB-C cables filed under another category were pushed below
+    // dearer ones although the shopper asked for the cheapest.
+    const home = ["a", "b", "c", "d"].map((id, i) => ({
+      ...inCategory(id, "15"),
+      price: 20 + i,
+      unitsSold: 1_000 + i,
+    }));
+    const other = { ...inCategory("other", "34"), price: 5, unitsSold: 50_000 };
+    const base = { keywords_en: "drawer organizer", product_terms: ["drawer organizer"] };
+    expect(
+      ids(rankProducts([...home, other], filters({ ...base, sort_preference: "cheapest" })))[0],
+    ).toBe("other");
+    expect(
+      ids(rankProducts([...home, other], filters({ ...base, sort_preference: "most_popular" })))[0],
+    ).toBe("other");
+    expect(ids(rankProducts([...home, other], filters(base))).at(-1)).toBe("other");
+  });
+});
+
+describe("commission", () => {
+  it("never changes the order of products that differ in anything but commission", () => {
+    const products = fixtureProducts();
+    const f = filters({ keywords_en: "usb cable", product_terms: ["cable", "cord"] });
+    const base = rankWithFill(products, f, 3).ranked;
+    const passed = products.filter((p) => passesFilters(p, f));
+    const ctx = scoreContext(f, passed);
+    const scores = base.map((p) => score(p, ctx));
+    // The property is only meaningful when no two scores tie.
+    expect(new Set(scores).size).toBe(scores.length);
+    for (const shift of [1, 7, 13]) {
+      const rates = products.map((p) => p.commissionRatePct);
+      const permuted = products.map((p, i) => ({
+        ...p,
+        commissionRatePct: rates[(i + shift) % rates.length],
+      }));
+      expect(ids(rankWithFill(permuted, f, 3).ranked)).toEqual(ids(base));
+    }
+  });
 });
 
 describe("dedupeListings", () => {
@@ -946,11 +1160,13 @@ describe("dedupeListings", () => {
         productId: "a",
         title: "100W GaN PD Type C Charger USB QC 3.0 For Laptop",
         shop: shop("7"),
+        unitsSold: 3152,
       }),
       product({
         productId: "b",
         title: "Real 85W GaN Type C Charger USB QC3.0 For Laptop PD 65W",
         shop: shop("7"),
+        unitsSold: 1484,
       }),
       product({ productId: "c", title: "For PS5 Controller Charging Dock Station" }),
       product({ productId: "d", title: "For PS5 Controller Silicone Skin Cover" }),

@@ -14,6 +14,18 @@ export interface Requirement {
   he: string;
 }
 
+/**
+ * A need the user stated that no title check can verify ("לטלפון ולמחשב נייד", parsed as
+ * "multi-device"; docs/search-quality-plan.md item 8). Not a filter: titles with its words only
+ * rank higher (lib/ranking/relevance.ts), and the results page says it was not checked.
+ */
+export interface Preference {
+  /** Lowercase English words a title may say it with: ["laptop", "phone"]. */
+  words: string[];
+  /** The Hebrew label of the stated need, as the chip would have shown it. */
+  he: string;
+}
+
 /** Everything that decides which products are fetched, kept and ordered. */
 export interface SearchFilters {
   /** 2-4 English words sent to the AliExpress keyword search. */
@@ -21,6 +33,8 @@ export interface SearchFilters {
   /** 1-4 lowercase phrases naming the product itself: ["phone holder", "phone mount"]. */
   product_terms: string[];
   requirements: Requirement[];
+  /** Stated needs that are not filters (see Preference); absent when there are none. */
+  preferences?: Preference[];
   min_price_ils?: number;
   max_price_ils?: number;
   sort_preference: SortPreference;

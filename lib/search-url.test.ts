@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { firstParam, parseFrom, parseSort, parseWithout, searchHref } from "./search-url";
+import {
+  firstParam,
+  goHref,
+  parseArrival,
+  parseFrom,
+  parseSort,
+  parseWithout,
+  searchHref,
+} from "./search-url";
 
 describe("searchHref", () => {
   it("omits empty values", () => {
@@ -47,5 +55,38 @@ describe("param parsing", () => {
     expect(parseFrom(["example", "recent"])).toBe("example");
     expect(parseFrom("seo")).toBeUndefined();
     expect(parseFrom(undefined)).toBeUndefined();
+  });
+});
+
+describe("parseArrival", () => {
+  it("is an ad whenever an ad or campaign parameter is present", () => {
+    expect(parseArrival({ q: "x", gclid: "abc" })).toBe("ad");
+    expect(parseArrival({ q: "x", utm_source: "google", from: "example" })).toBe("ad");
+    expect(parseArrival({ q: "x", gbraid: ["a", "b"] })).toBe("ad");
+    expect(parseArrival({ q: "x", wbraid: "a" })).toBe("ad");
+  });
+
+  it("otherwise reads from, and is nothing for a query the visitor typed", () => {
+    expect(parseArrival({ q: "x", from: "recent" })).toBe("recent");
+    expect(parseArrival({ q: "x", from: "example" })).toBe("example");
+    expect(parseArrival({ q: "x", utm_source: " " })).toBeUndefined();
+    expect(parseArrival({ q: "x", from: "ad" })).toBeUndefined();
+    expect(parseArrival({ q: "x" })).toBeUndefined();
+  });
+});
+
+describe("goHref", () => {
+  it("adds the search uid and position of a result card", () => {
+    expect(goHref("1005", "search_featured", { searchUid: "abc", position: 1 })).toBe(
+      "/go/1005?src=search_featured&s=abc&pos=1",
+    );
+  });
+
+  it("leaves out what it does not have", () => {
+    expect(goHref("1005", "product")).toBe("/go/1005?src=product");
+    expect(goHref("1005", "seo", { searchUid: null, position: 3 })).toBe("/go/1005?src=seo&pos=3");
+    expect(goHref("1005", "search_more", { searchUid: undefined })).toBe(
+      "/go/1005?src=search_more",
+    );
   });
 });

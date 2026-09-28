@@ -132,3 +132,46 @@ Round 2 replayed with the round-3 script, for a like-for-like comparison.
     requirement, so that round only looked better by luck.
 - Explain wording is a little rougher in places ("אלחוטי עם נטענות", a garbled "וזקנין"). The
   post-checks do not catch Hebrew style; watch it in production.
+
+## Snapshots (2026-09-28)
+
+Product pools for offline replay (docs/search-quality-plan.md, item 1): `scripts/snapshot-pools.ts`
+saved every product `product.query` returned for 32 queries (the 20 eval queries, the 9 home page
+examples, 3 queries seen on the live site) to `fixtures/snapshots/<id>.json`, with the parse behind
+each search. Details, per-query table and refresh steps: `fixtures/snapshots/README.md`.
+`npx tsx scripts/snapshot-pools.ts --report` recomputes the statistics under the current ranking
+code, with no API call.
+
+- **Parses:** 4 from the production `parse_cache` (current `PARSE_VERSION` 5), 19 recorded in round 3
+  (16 with `PARSE_VERSION` 4, 3 with 5), 5 live. 4 examples repeat an eval query and share its
+  snapshot.
+- **Fetch:** the pipeline's own call and keyword ladder, but always 3 calls per query: page 1 and
+  page 2 of `keywords_en`, then the first ladder step. 84 calls, 117 to 149 distinct products per
+  query, against 48 to 50 checked by today's pipeline in 23 of the 28 distinct queries (one call).
+- **Cost:** 5 LLM calls (parse only), $0.01006. 86 AliExpress requests (the 84 calls plus 2 from a
+  first `ex-3` run redone to add page 2), no rate-limit retry, no error. No database write.
+
+Findings for the plan:
+
+- **Page 2 is rarely fetched.** A page of 50 brought 49 items for 14 of the 28 queries, although
+  hundreds to thousands of records existed. The pipeline fetches page 2 only when page 1 has 50
+  parsed items (`first.products.length >= 50` in `fetchAndRank`), so for those queries it never does.
+  Relevant to item 5 (A5).
+- **A larger pool helps some queries:** kids-toy (6 passers in the pipeline, 16 ranked in the
+  3-call pool), price-watch (6 and 15), `ex-7` (6 and 14), home-nightlight (3 and 5), pair-a2 (7 in
+  the pool).
+- **It does not help others:** pair-a, the home page `FULL_EXAMPLE` (3 of 148 pass: 96 fail trust,
+  46 the type gate), gift-cook (3 of 149; 127 fail the type gate), tech-charger (0 of 145; 53 fail
+  the "multi-device" requirement) and live-sonic-doll (0 pass `FILTERS`, 4 only `FILL_TIER`). These
+  need the ranking, type-gate and parse items (2, 3, 8), not more calls.
+- **`product.query` is stable over a minute.** Three pairs of identical calls 8 to 63 seconds apart
+  returned the same ids in the same order with the same prices and sales (one ladder page: 49 of 50
+  ids shared, 20 at the same position), unlike `hotproduct.query` (docs/aliexpress-api.md).
+
+### Offline eval (wave A)
+
+`npm run eval:offline` replays the snapshots through a fetch policy and the current ranking, with
+the labels in `fixtures/snapshots/labels/` (agent-made, waiting for the owner's review). Wave A's
+before and after numbers, the labels to review, and what the final paid check must verify are in
+docs/search-quality-wave-a.md. Every quality number there is in-sample: the ranking was tuned on
+the same 32 labelled pools.

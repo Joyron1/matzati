@@ -3,22 +3,30 @@
 import { z } from "zod";
 import { formatCount, formatPct } from "@/lib/format";
 import type { ParsedQuery, SortPreference } from "@/lib/search/filters";
-import { numbersAreGrounded } from "./numbers";
+import { extractNumbers, numbersAreGrounded } from "./numbers";
 import {
   comparisonSizes,
+  fixSpelling,
   hasForeignScript,
+  hasForeignWord,
+  hasGarbledWord,
   hasMixedScript,
   isTruncated,
+  mentionsBudget,
   superlativeClaims,
   tidyHebrew,
   usesSingularAddress,
+  withoutForeignWords,
   writesPrice,
   type Superlative,
 } from "./text-checks";
 import type { LlmProvider, LlmUsage } from "./provider";
 
-/** Part of the results cache key: bump it whenever the prompt or the checks change. */
-export const EXPLAIN_VERSION = 4;
+/**
+ * Part of the results cache key: bump it whenever the prompt or the checks change. 5: the Hebrew
+ * checks of docs/search-quality-plan.md A9 (Latin words, budget, repeated lines, spelling).
+ */
+export const EXPLAIN_VERSION = 5;
 
 export const WHY_MAX = 120;
 export const WHY_MIN = 25;
@@ -54,9 +62,11 @@ export function explainContextFrom(filters: ParsedQuery): ExplainContext {
   const round = (n: number | undefined) => (n === undefined ? undefined : Math.round(n));
   const min = round(filters.min_price_ils);
   const max = round(filters.max_price_ils);
+  // Spelled right even for a parse saved before normalizeParsed fixed the labels: the model copies
+  // a typo it is given ("עמידות למיים", eval round 3) into every line.
   return {
-    product_he: filters.product_he,
-    requirements_he: filters.requirements.map((r) => r.he),
+    product_he: fixSpelling(filters.product_he),
+    requirements_he: filters.requirements.map((r) => fixSpelling(r.he)),
     ...(min !== undefined ? { min_price_ils: min } : {}),
     ...(max !== undefined ? { max_price_ils: max } : {}),
     sort_preference: filters.sort_preference,
@@ -103,7 +113,15 @@ export type CopyProblem =
   | "ungrounded_number"
   | "false_superlative"
   /** "הכותרת לא מציינת ..." about something the search did not require, not at the end. */
-  | "unrequested_caveat";
+  | "unrequested_caveat"
+  /** A known garbled word or transliteration ("עצם הסיסמום"). */
+  | "garbled_word"
+  /** A Latin word that is not a brand, model or spec of title_en, or a brand after its "for". */
+  | "foreign_word"
+  /** "תקציב" when the shopper gave no budget ("מתחת לתקציב שלכם"). */
+  | "unstated_budget"
+  /** The same line as an earlier product of the batch, apart from its own trust numbers. */
+  | "repeated_line";
 
 export interface Explained {
   product_id: string;
@@ -172,8 +190,11 @@ function whyProblem(
   if (why.length > WHY_MAX) return "too_long";
   if (hasForeignScript(why)) return "foreign_script";
   if (hasMixedScript(why)) return "mixed_script";
+  if (hasGarbledWord(why)) return "garbled_word";
+  if (hasForeignWord(why, p.title_en)) return "foreign_word";
   if (usesSingularAddress(why)) return "singular_address";
   if (writesPrice(why)) return "price_written";
+  if (mentionsBudget(why) && context.max_price_ils === undefined) return "unstated_budget";
   // Only this product's facts and the budget: never another product's numbers or the raw query.
   // Its prices are left out too, so a bare "27.31" cannot contradict the card's rounded "≈₪27".
   const { title_en, discount_pct, positive_feedback_pct, units_sold_30d } = p;
@@ -191,6 +212,9 @@ function titleProblem(title: string, p: ExplainInput): CopyProblem | null {
   if (title.length > TITLE_MAX) return "too_long";
   if (hasForeignScript(title)) return "foreign_script";
   if (hasMixedScript(title)) return "mixed_script";
+  if (hasGarbledWord(title)) return "garbled_word";
+  // What is left once the Latin words were dropped must still be a Hebrew name.
+  if (!/[א-ת]{2}/.test(title) || hasForeignWord(title, p.title_en)) return "foreign_word";
   // Numbers in the title must come from the original title (model names, specs).
   if (!numbersAreGrounded(title, p.title_en, [])) return "ungrounded_number";
   return null;
@@ -274,12 +298,20 @@ export function checkExplanation(
 ): CheckedCopy {
   const caveat = withoutUnrequestedCaveat(tidyHebrew(item.why_he.trim()), context.requirements_he);
   const why = caveat.why;
-  const title = tidyHebrew(item.title_he.trim());
+  // A Latin word that is not a brand, model or spec is dropped rather than failing the title,
+  // which would show the English title_en instead ("מארגן מגירות Expandable" → "מארגן מגירות").
+  const written = tidyHebrew(item.title_he.trim());
+  const title = withoutForeignWords(written, p.title_en);
   let wp = caveat.problem ?? whyProblem(why, p, batch, context);
   // Too little left after our own cut is not a line the model cut off, so the title stays.
   if (caveat.cut && (wp === "empty" || wp === "truncated")) wp = "unrequested_caveat";
   // A cut-off line usually means the title was cut at the same ASCII quote ("מארגן סכו").
-  const tp = wp === "truncated" ? "truncated" : titleProblem(title, p);
+  const tp =
+    wp === "truncated"
+      ? "truncated"
+      : written && !title
+        ? "foreign_word" // nothing but Latin words that are not names
+        : titleProblem(title, p);
   return {
     title_he: tp ? null : title,
     why_he: wp ? null : why,
@@ -334,6 +366,48 @@ function explainOne(
   };
 }
 
+/** The line without this product's trust numbers, so lines of different products compare. */
+function lineShape(why: string, p: ExplainInput): string {
+  const own = new Set(
+    [p.positive_feedback_pct, p.units_sold_30d].flatMap((n) =>
+      n === null ? [] : extractNumbers(String(n)),
+    ),
+  );
+  return why
+    .replace(/\d+(?:[.,]\d+)*/g, (raw) => (own.has(extractNumbers(raw)[0]) ? "#" : raw))
+    .replace(/[\s,.;:־-]+/g, " ")
+    .trim();
+}
+
+/**
+ * The same line under two products of one list says nothing about either (the live site showed
+ * two identical lines, eval round 3 three): a line equal to an earlier one once each product's own
+ * trust numbers are set aside falls back to data. A spec number stays part of the line, so "10000
+ * מיליאמפר" and "20000 מיליאמפר" differ.
+ */
+export function withoutRepeatedLines(
+  items: Explained[],
+  products: readonly ExplainInput[],
+): Explained[] {
+  const byId = new Map(products.map((p) => [p.product_id, p]));
+  const seen = new Set<string>();
+  return items.map((item) => {
+    const p = byId.get(item.product_id);
+    if (!item.why_from_model || !p) return item;
+    const shape = lineShape(item.why_he, p);
+    if (!seen.has(shape)) {
+      seen.add(shape);
+      return item;
+    }
+    return {
+      ...item,
+      why_he: whyFromData(p),
+      why_from_model: false,
+      rejected: { ...item.rejected, why_he: item.why_he, why_problem: "repeated_line" },
+    };
+  });
+}
+
 export interface ExplainResult {
   items: Explained[];
   usage: LlmUsage;
@@ -369,5 +443,5 @@ export async function explainProducts(
     if (!byId.has(id)) byId.set(id, item);
   }
   const items = products.map((p, i) => explainOne(byId.get(shortId(i)), p, products, context));
-  return { items, usage: res.usage, model: res.model };
+  return { items: withoutRepeatedLines(items, products), usage: res.usage, model: res.model };
 }

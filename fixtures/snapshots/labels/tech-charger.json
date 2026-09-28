@@ -1,0 +1,602 @@
+[
+  {
+    "productId": "1005010376516082",
+    "label": "weak",
+    "note": "Phone charger with built-in cable; 65W doubtful, no laptop"
+  },
+  {
+    "productId": "1005006904627335",
+    "label": "reasonable",
+    "note": "65W USB-C laptop adapter; phone use not stated"
+  },
+  {
+    "productId": "1005005925834800",
+    "label": "exact",
+    "note": "65W-class GaN/PD wall charger for laptop and phone"
+  },
+  {
+    "productId": "1005009094486800",
+    "label": "wrong",
+    "note": "Car charger or car adapter, different product"
+  },
+  {
+    "productId": "1005007170937588",
+    "label": "exact",
+    "note": "65W-class GaN/PD wall charger for laptop and phone"
+  },
+  {
+    "productId": "1005010044087863",
+    "label": "weak",
+    "note": "Cheap multi-port phone charger; 65W dubious, no laptop"
+  },
+  {
+    "productId": "1005009570758626",
+    "label": "weak",
+    "note": "45W or lower charger, below requested 65W"
+  },
+  {
+    "productId": "1005010114603895",
+    "label": "exact",
+    "note": "65W-class GaN/PD wall charger for laptop and phone"
+  },
+  {
+    "productId": "1005012085539534",
+    "label": "weak",
+    "note": "Phone charger with built-in cable; 65W doubtful, no laptop"
+  },
+  {
+    "productId": "1005006678018718",
+    "label": "exact",
+    "note": "65W-class GaN/PD wall charger for laptop and phone"
+  },
+  {
+    "productId": "1005011782814431",
+    "label": "weak",
+    "note": "Cheap multi-port phone charger; 65W dubious, no laptop"
+  },
+  {
+    "productId": "1005012159884249",
+    "label": "reasonable",
+    "note": "Above 65W; charges laptop and phone but pricier"
+  },
+  {
+    "productId": "1005007129365470",
+    "label": "weak",
+    "note": "Phone charger, no wattage stated, not for laptops"
+  },
+  {
+    "productId": "1005009205983512",
+    "label": "reasonable",
+    "note": "Travel adapter with 70W charger; bulkier than asked"
+  },
+  {
+    "productId": "1005012155701410",
+    "label": "weak",
+    "note": "Car charger; not a wall charger for laptop"
+  },
+  {
+    "productId": "1005011551096285",
+    "label": "weak",
+    "note": "45W or lower charger, below requested 65W"
+  },
+  {
+    "productId": "1005009874162856",
+    "label": "wrong",
+    "note": "Charging cable, not a charger"
+  },
+  {
+    "productId": "1005012274502051",
+    "label": "exact",
+    "note": "65W-class GaN/PD wall charger for laptop and phone"
+  },
+  {
+    "productId": "1005003416182958",
+    "label": "exact",
+    "note": "65W-class GaN/PD wall charger for laptop and phone"
+  },
+  {
+    "productId": "1005006994778584",
+    "label": "exact",
+    "note": "65W-class GaN/PD wall charger for laptop and phone"
+  },
+  {
+    "productId": "1005005604864546",
+    "label": "weak",
+    "note": "Low-watt phone charger, far below 65W"
+  },
+  {
+    "productId": "1005006579895295",
+    "label": "reasonable",
+    "note": "Above 65W; charges laptop and phone but pricier"
+  },
+  {
+    "productId": "1005005030888081",
+    "label": "weak",
+    "note": "Low-watt phone charger, far below 65W"
+  },
+  {
+    "productId": "1005004921468312",
+    "label": "exact",
+    "note": "Desktop charger with 65W option, laptop and phone listed"
+  },
+  {
+    "productId": "1005009737813666",
+    "label": "weak",
+    "note": "Cheap multi-port phone charger; 65W dubious, no laptop"
+  },
+  {
+    "productId": "1005006437101161",
+    "label": "exact",
+    "note": "65W-class GaN/PD wall charger for laptop and phone"
+  },
+  {
+    "productId": "1005004992957146",
+    "label": "exact",
+    "note": "65W-class GaN/PD wall charger for laptop and phone"
+  },
+  {
+    "productId": "1005007302320007",
+    "label": "exact",
+    "note": "65W-class GaN/PD wall charger for laptop and phone"
+  },
+  {
+    "productId": "1005007860996686",
+    "label": "wrong",
+    "note": "Power bank, not a wall charger"
+  },
+  {
+    "productId": "1005011999799292",
+    "label": "exact",
+    "note": "65W-class GaN/PD wall charger for laptop and phone"
+  },
+  {
+    "productId": "1005006962792386",
+    "label": "wrong",
+    "note": "Charging cable, not a charger"
+  },
+  {
+    "productId": "1005013002690011",
+    "label": "weak",
+    "note": "Cheap multi-port phone charger; 65W dubious, no laptop"
+  },
+  {
+    "productId": "1005013040476445",
+    "label": "weak",
+    "note": "Phone charger with built-in cable; 65W doubtful, no laptop"
+  },
+  {
+    "productId": "1005004992896883",
+    "label": "weak",
+    "note": "Low-watt phone charger, far below 65W"
+  },
+  {
+    "productId": "1005010585504537",
+    "label": "weak",
+    "note": "Cheap multi-port phone charger; 65W dubious, no laptop"
+  },
+  {
+    "productId": "1005006967496227",
+    "label": "weak",
+    "note": "Cheap multi-port phone charger; 65W dubious, no laptop"
+  },
+  {
+    "productId": "1005010285388776",
+    "label": "wrong",
+    "note": "Charging cable, not a charger"
+  },
+  {
+    "productId": "1005006436990810",
+    "label": "reasonable",
+    "note": "Above 65W; charges laptop and phone but pricier"
+  },
+  {
+    "productId": "1005009820293282",
+    "label": "reasonable",
+    "note": "Above 65W; charges laptop and phone but pricier"
+  },
+  {
+    "productId": "1005012150674127",
+    "label": "exact",
+    "note": "65W-class GaN/PD wall charger for laptop and phone"
+  },
+  {
+    "productId": "1005010530302422",
+    "label": "weak",
+    "note": "Cheap multi-port phone charger; 65W dubious, no laptop"
+  },
+  {
+    "productId": "1005009508881738",
+    "label": "weak",
+    "note": "Car charger; not a wall charger for laptop"
+  },
+  {
+    "productId": "1005003413514494",
+    "label": "exact",
+    "note": "65W-class GaN/PD wall charger for laptop and phone"
+  },
+  {
+    "productId": "1005007010536406",
+    "label": "exact",
+    "note": "Desktop charger with 65W option, laptop and phone listed"
+  },
+  {
+    "productId": "1005007038413196",
+    "label": "weak",
+    "note": "AU plug; real PD output only 33W"
+  },
+  {
+    "productId": "1005009880283488",
+    "label": "reasonable",
+    "note": "Cheap 65W claim, laptop listed; real output doubtful"
+  },
+  {
+    "productId": "1005008908982402",
+    "label": "exact",
+    "note": "65W-class GaN/PD wall charger for laptop and phone"
+  },
+  {
+    "productId": "1005006022670718",
+    "label": "weak",
+    "note": "45W or lower charger, below requested 65W"
+  },
+  {
+    "productId": "1005012218197842",
+    "label": "weak",
+    "note": "Overkill 160W+ charging station, far beyond need"
+  },
+  {
+    "productId": "1005006437101184",
+    "label": "exact",
+    "note": "65W-class GaN/PD wall charger for laptop and phone"
+  },
+  {
+    "productId": "1005006995547868",
+    "label": "exact",
+    "note": "65W-class GaN/PD wall charger for laptop and phone"
+  },
+  {
+    "productId": "1005009101066066",
+    "label": "weak",
+    "note": "45W or lower charger, below requested 65W"
+  },
+  {
+    "productId": "1005004824334889",
+    "label": "exact",
+    "note": "65W-class GaN/PD wall charger for laptop and phone"
+  },
+  {
+    "productId": "1005006761858347",
+    "label": "weak",
+    "note": "45W or lower charger, below requested 65W"
+  },
+  {
+    "productId": "1005005994445557",
+    "label": "reasonable",
+    "note": "65W USB-C laptop adapter; phone use not stated"
+  },
+  {
+    "productId": "1005008375120777",
+    "label": "weak",
+    "note": "Overkill 160W+ charging station, far beyond need"
+  },
+  {
+    "productId": "1005012977971388",
+    "label": "weak",
+    "note": "Cheap multi-port phone charger; 65W dubious, no laptop"
+  },
+  {
+    "productId": "1005011774771867",
+    "label": "wrong",
+    "note": "Charging cable, not a charger"
+  },
+  {
+    "productId": "1005004983302095",
+    "label": "exact",
+    "note": "65W-class GaN/PD wall charger for laptop and phone"
+  },
+  {
+    "productId": "1005006445275495",
+    "label": "weak",
+    "note": "Overkill 160W+ charging station, far beyond need"
+  },
+  {
+    "productId": "1005012172871106",
+    "label": "exact",
+    "note": "65W-class GaN/PD wall charger for laptop and phone"
+  },
+  {
+    "productId": "1005006860700710",
+    "label": "weak",
+    "note": "Cheap multi-port phone charger; 65W dubious, no laptop"
+  },
+  {
+    "productId": "1005008323122386",
+    "label": "weak",
+    "note": "Overkill 160W+ charging station, far beyond need"
+  },
+  {
+    "productId": "1005008707006131",
+    "label": "weak",
+    "note": "Overkill 160W+ charging station, far beyond need"
+  },
+  {
+    "productId": "1005008800102990",
+    "label": "reasonable",
+    "note": "Cheap 65W claim, laptop listed; real output doubtful"
+  },
+  {
+    "productId": "1005012018146833",
+    "label": "reasonable",
+    "note": "Above 65W; charges laptop and phone but pricier"
+  },
+  {
+    "productId": "1005011939823980",
+    "label": "exact",
+    "note": "65W-class GaN/PD wall charger for laptop and phone"
+  },
+  {
+    "productId": "1005012218235654",
+    "label": "reasonable",
+    "note": "Above 65W; charges laptop and phone but pricier"
+  },
+  {
+    "productId": "1005012089647708",
+    "label": "weak",
+    "note": "Overkill 160W+ charging station, far beyond need"
+  },
+  {
+    "productId": "1005010627780404",
+    "label": "reasonable",
+    "note": "Above 65W; charges laptop and phone but pricier"
+  },
+  {
+    "productId": "1005010572867056",
+    "label": "wrong",
+    "note": "Charging cable, not a charger"
+  },
+  {
+    "productId": "1005009955733942",
+    "label": "weak",
+    "note": "AU plug; real PD output only 33W"
+  },
+  {
+    "productId": "1005009267889844",
+    "label": "exact",
+    "note": "65W-class GaN/PD wall charger for laptop and phone"
+  },
+  {
+    "productId": "1005005210163156",
+    "label": "exact",
+    "note": "Desktop charger with 65W option, laptop and phone listed"
+  },
+  {
+    "productId": "1005009295911745",
+    "label": "exact",
+    "note": "65W-class GaN/PD wall charger for laptop and phone"
+  },
+  {
+    "productId": "1005006966246508",
+    "label": "weak",
+    "note": "Cheap multi-port phone charger; 65W dubious, no laptop"
+  },
+  {
+    "productId": "1005009579188903",
+    "label": "weak",
+    "note": "45W or lower charger, below requested 65W"
+  },
+  {
+    "productId": "1005005210274272",
+    "label": "weak",
+    "note": "Low-watt phone charger, far below 65W"
+  },
+  {
+    "productId": "1005008708117856",
+    "label": "reasonable",
+    "note": "Above 65W; charges laptop and phone but pricier"
+  },
+  {
+    "productId": "1005010129494824",
+    "label": "weak",
+    "note": "Phone charger with built-in cable; 65W doubtful, no laptop"
+  },
+  {
+    "productId": "1005008448601462",
+    "label": "exact",
+    "note": "65W-class GaN/PD wall charger for laptop and phone"
+  },
+  {
+    "productId": "1005010322152259",
+    "label": "weak",
+    "note": "Overkill 160W+ charging station, far beyond need"
+  },
+  {
+    "productId": "1005009253765094",
+    "label": "exact",
+    "note": "65W-class GaN/PD wall charger for laptop and phone"
+  },
+  {
+    "productId": "1005009384354473",
+    "label": "reasonable",
+    "note": "Cheap 65W claim, laptop listed; real output doubtful"
+  },
+  {
+    "productId": "1005012075124682",
+    "label": "reasonable",
+    "note": "Above 65W; charges laptop and phone but pricier"
+  },
+  {
+    "productId": "1005007461864264",
+    "label": "wrong",
+    "note": "Tesla center console docking station"
+  },
+  {
+    "productId": "1005011749334480",
+    "label": "wrong",
+    "note": "Charging cable, not a charger"
+  },
+  {
+    "productId": "1005012918356197",
+    "label": "wrong",
+    "note": "Charging cable, not a charger"
+  },
+  {
+    "productId": "1005012977843986",
+    "label": "wrong",
+    "note": "Charging cable, not a charger"
+  },
+  {
+    "productId": "1005007009955787",
+    "label": "wrong",
+    "note": "Wireless charging pad; cannot charge a laptop"
+  },
+  {
+    "productId": "1005009351001674",
+    "label": "weak",
+    "note": "Phone charger, no wattage stated, not for laptops"
+  },
+  {
+    "productId": "1005012977979551",
+    "label": "wrong",
+    "note": "Charging cable, not a charger"
+  },
+  {
+    "productId": "1005009384462068",
+    "label": "wrong",
+    "note": "Car charger or car adapter, different product"
+  },
+  {
+    "productId": "1005010514258460",
+    "label": "wrong",
+    "note": "Charging cable, not a charger"
+  },
+  {
+    "productId": "1005007306670508",
+    "label": "wrong",
+    "note": "Charging cable, not a charger"
+  },
+  {
+    "productId": "1005007823432802",
+    "label": "wrong",
+    "note": "Car charger or car adapter, different product"
+  },
+  {
+    "productId": "1005012986578850",
+    "label": "wrong",
+    "note": "Charging cable, not a charger"
+  },
+  {
+    "productId": "1005010044102794",
+    "label": "weak",
+    "note": "40-45W phone charger kit, below 65W"
+  },
+  {
+    "productId": "1005007614330107",
+    "label": "wrong",
+    "note": "Motorcycle USB charger socket"
+  },
+  {
+    "productId": "1005013082611063",
+    "label": "wrong",
+    "note": "Car charger or car adapter, different product"
+  },
+  {
+    "productId": "1005011824724339",
+    "label": "wrong",
+    "note": "Motorcycle USB charger socket"
+  },
+  {
+    "productId": "1005007145464159",
+    "label": "wrong",
+    "note": "Car cigarette lighter splitter"
+  },
+  {
+    "productId": "1005006904502591",
+    "label": "weak",
+    "note": "Low-watt phone charger, far below 65W"
+  },
+  {
+    "productId": "1005008041186169",
+    "label": "wrong",
+    "note": "Car charger or car adapter, different product"
+  },
+  {
+    "productId": "1005009577109019",
+    "label": "wrong",
+    "note": "Car charger or car adapter, different product"
+  },
+  {
+    "productId": "1005009418411818",
+    "label": "wrong",
+    "note": "Power bank, not a wall charger"
+  },
+  {
+    "productId": "1005010530081391",
+    "label": "weak",
+    "note": "40-45W phone charger kit, below 65W"
+  },
+  {
+    "productId": "1005012736771439",
+    "label": "weak",
+    "note": "40-45W phone charger kit, below 65W"
+  },
+  {
+    "productId": "1005006994445986",
+    "label": "wrong",
+    "note": "Charging cable, not a charger"
+  },
+  {
+    "productId": "1005012865709979",
+    "label": "wrong",
+    "note": "Car charger or car adapter, different product"
+  },
+  {
+    "productId": "1005007097148368",
+    "label": "wrong",
+    "note": "Makita tool-battery USB adapter"
+  },
+  {
+    "productId": "1005013266186728",
+    "label": "wrong",
+    "note": "Charging cable, not a charger"
+  },
+  {
+    "productId": "1005009582319690",
+    "label": "wrong",
+    "note": "Car charger or car adapter, different product"
+  },
+  {
+    "productId": "1005006895080598",
+    "label": "wrong",
+    "note": "Charging cable, not a charger"
+  },
+  {
+    "productId": "1005007010394425",
+    "label": "wrong",
+    "note": "Car FM transmitter"
+  },
+  {
+    "productId": "1005008406210546",
+    "label": "wrong",
+    "note": "Charging cable, not a charger"
+  },
+  {
+    "productId": "1005010044163415",
+    "label": "weak",
+    "note": "Low-watt phone charger, far below 65W"
+  },
+  {
+    "productId": "1005011692406930",
+    "label": "wrong",
+    "note": "Car charger or car adapter, different product"
+  },
+  {
+    "productId": "1005008830678574",
+    "label": "wrong",
+    "note": "Car vent phone mount with wireless charger"
+  },
+  {
+    "productId": "1005009738047899",
+    "label": "wrong",
+    "note": "Car charger or car adapter, different product"
+  }
+]

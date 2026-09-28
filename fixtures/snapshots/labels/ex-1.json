@@ -1,0 +1,322 @@
+[
+  {
+    "productId": "1005012440801923",
+    "label": "exact",
+    "note": "Open-ear sports earbuds, waterproof, for running"
+  },
+  {
+    "productId": "1005012970483610",
+    "label": "exact",
+    "note": "Sports running TWS earbuds, waterproof"
+  },
+  {
+    "productId": "1005006257950849",
+    "label": "exact",
+    "note": "Waterproof sports earbuds for running"
+  },
+  {
+    "productId": "1005008740074221",
+    "label": "exact",
+    "note": "IPX7 waterproof earbuds for running"
+  },
+  {
+    "productId": "1005012959326832",
+    "label": "exact",
+    "note": "Bone conduction sports headphones rated for swimming"
+  },
+  {
+    "productId": "1005012234988760",
+    "label": "wrong",
+    "note": "Running phone armband, not earphones"
+  },
+  {
+    "productId": "1005012245998962",
+    "label": "exact",
+    "note": "IPX8 bone conduction headphones for running"
+  },
+  {
+    "productId": "1005006269541022",
+    "label": "reasonable",
+    "note": "Open running earbuds, no water rating stated"
+  },
+  {
+    "productId": "1005009887723505",
+    "label": "weak",
+    "note": "Generic AirPods-style clone, running keyword only, no water rating"
+  },
+  {
+    "productId": "1005011610078881",
+    "label": "exact",
+    "note": "Waterproof bone conduction earbuds for running"
+  },
+  {
+    "productId": "1005011675886288",
+    "label": "exact",
+    "note": "IPX8 bone conduction earbuds for running"
+  },
+  {
+    "productId": "1005012159270152",
+    "label": "weak",
+    "note": "Generic AirPods-style clone, running keyword only, no water rating"
+  },
+  {
+    "productId": "1005007623121003",
+    "label": "exact",
+    "note": "IP7 waterproof sports earbuds for running"
+  },
+  {
+    "productId": "1005007792521675",
+    "label": "exact",
+    "note": "Waterproof neckband sports earbuds for running"
+  },
+  {
+    "productId": "1005012833511900",
+    "label": "reasonable",
+    "note": "Open-ear running earbuds, no water rating stated"
+  },
+  {
+    "productId": "1005011674789869",
+    "label": "exact",
+    "note": "Waterproof bone conduction earbuds for running"
+  },
+  {
+    "productId": "1005001814197354",
+    "label": "exact",
+    "note": "IPX7 waterproof earbuds for running"
+  },
+  {
+    "productId": "1005010089207318",
+    "label": "wrong",
+    "note": "Running phone armband, not earphones"
+  },
+  {
+    "productId": "1005013172126421",
+    "label": "exact",
+    "note": "Bone conduction sports headphones rated for swimming"
+  },
+  {
+    "productId": "1005013100925225",
+    "label": "exact",
+    "note": "Waterproof magnetic sports earphones for running"
+  },
+  {
+    "productId": "1005012378032768",
+    "label": "exact",
+    "note": "Waterproof neckband sports earbuds for running"
+  },
+  {
+    "productId": "1005006995963553",
+    "label": "weak",
+    "note": "Generic AirPods-style clone, running keyword only, no water rating"
+  },
+  {
+    "productId": "1005010182087483",
+    "label": "reasonable",
+    "note": "Earhook running earbuds, no water rating stated"
+  },
+  {
+    "productId": "1005007038500351",
+    "label": "reasonable",
+    "note": "Open running earbuds, no water rating stated"
+  },
+  {
+    "productId": "1005012058590153",
+    "label": "reasonable",
+    "note": "Open-ear clip sports earbuds, no water rating"
+  },
+  {
+    "productId": "1005012721732657",
+    "label": "weak",
+    "note": "Generic AirPods-style clone, running keyword only, no water rating"
+  },
+  {
+    "productId": "1005010265682066",
+    "label": "weak",
+    "note": "Generic in-ear TWS, keyword-stuffed, no water rating"
+  },
+  {
+    "productId": "1005012202992212",
+    "label": "weak",
+    "note": "Generic gaming TWS, no water rating"
+  },
+  {
+    "productId": "1005012401757758",
+    "label": "weak",
+    "note": "Sleep and translator earbuds, not for running"
+  },
+  {
+    "productId": "1005009580477059",
+    "label": "reasonable",
+    "note": "Ear clip sports earphones, no water rating"
+  },
+  {
+    "productId": "1005009750303279",
+    "label": "reasonable",
+    "note": "Ear clip sports earphones, no water rating"
+  },
+  {
+    "productId": "1005006737258764",
+    "label": "reasonable",
+    "note": "Earhook sports earphones, no water rating"
+  },
+  {
+    "productId": "1005010162856028",
+    "label": "weak",
+    "note": "Translator earbuds, no water rating"
+  },
+  {
+    "productId": "1005009569969138",
+    "label": "reasonable",
+    "note": "Open-ear sport translator earphones, no water rating"
+  },
+  {
+    "productId": "1005010657289378",
+    "label": "reasonable",
+    "note": "Open-ear clip sports earbuds, no water rating"
+  },
+  {
+    "productId": "1005010240614648",
+    "label": "reasonable",
+    "note": "IPX5 in-ear earbuds, not sports-oriented"
+  },
+  {
+    "productId": "1005007961638171",
+    "label": "exact",
+    "note": "Waterproof earhook earphones"
+  },
+  {
+    "productId": "1005007352046243",
+    "label": "reasonable",
+    "note": "Earhook sports earphones, no water rating"
+  },
+  {
+    "productId": "1005010121783902",
+    "label": "weak",
+    "note": "ANC in-ear earbuds, not sports, no water rating"
+  },
+  {
+    "productId": "1005009578274758",
+    "label": "reasonable",
+    "note": "Open-ear clip sports earbuds, no water rating"
+  },
+  {
+    "productId": "1005010155302507",
+    "label": "reasonable",
+    "note": "Earhook running earbuds, no water rating stated"
+  },
+  {
+    "productId": "1005009826812698",
+    "label": "reasonable",
+    "note": "Ear clip earphones, no water rating"
+  },
+  {
+    "productId": "1005007166519305",
+    "label": "reasonable",
+    "note": "Earhook running earbuds, no water rating stated"
+  },
+  {
+    "productId": "1005008859360561",
+    "label": "reasonable",
+    "note": "Sport ear clip earphones, no water rating"
+  },
+  {
+    "productId": "1005009045264533",
+    "label": "reasonable",
+    "note": "Earhook running earbuds, no water rating stated"
+  },
+  {
+    "productId": "1005009970168305",
+    "label": "exact",
+    "note": "IPX5 open-ear earhook sports earbuds"
+  },
+  {
+    "productId": "1005010535516482",
+    "label": "reasonable",
+    "note": "IP55 semi in-ear earbuds, not sports-oriented"
+  },
+  {
+    "productId": "1005009793388939",
+    "label": "weak",
+    "note": "Gaming TWS earbuds, no water rating"
+  },
+  {
+    "productId": "1005007858086442",
+    "label": "weak",
+    "note": "Generic gaming TWS, no water rating"
+  },
+  {
+    "productId": "1005006966378226",
+    "label": "weak",
+    "note": "Sleep/ANC in-ear earbuds, running keyword only, no water rating"
+  },
+  {
+    "productId": "1005010503016514",
+    "label": "weak",
+    "note": "ANC in-ear earbuds, not sports, no water rating"
+  },
+  {
+    "productId": "1005009736102805",
+    "label": "reasonable",
+    "note": "Waterproof earbuds, gaming/translator focus, not a running design"
+  },
+  {
+    "productId": "1005007678232042",
+    "label": "reasonable",
+    "note": "Waterproof TWS earbuds, not sports-oriented"
+  },
+  {
+    "productId": "1005012234106869",
+    "label": "weak",
+    "note": "Wired gaming earphones, no water rating"
+  },
+  {
+    "productId": "1005011786797389",
+    "label": "reasonable",
+    "note": "Clip-on sports earphones, no water rating"
+  },
+  {
+    "productId": "1005009926833649",
+    "label": "exact",
+    "note": "IP55 open-ear clip sports earbuds"
+  },
+  {
+    "productId": "1005010802856880",
+    "label": "exact",
+    "note": "Waterproof earhook sports earphones"
+  },
+  {
+    "productId": "1005011782548894",
+    "label": "reasonable",
+    "note": "Open-ear sports earbuds for running, no water rating"
+  },
+  {
+    "productId": "1005002482288551",
+    "label": "weak",
+    "note": "Wired sports earphones, no water rating"
+  },
+  {
+    "productId": "1005011715254947",
+    "label": "reasonable",
+    "note": "Open-ear clip earphones, no water rating"
+  },
+  {
+    "productId": "1005010710252547",
+    "label": "reasonable",
+    "note": "Ear clip earbuds, no water rating"
+  },
+  {
+    "productId": "1005009006022196",
+    "label": "exact",
+    "note": "Waterproof earhook sports earphones"
+  },
+  {
+    "productId": "1005010443102720",
+    "label": "reasonable",
+    "note": "Open-ear stable fit earbuds, no water rating"
+  },
+  {
+    "productId": "1005008965197230",
+    "label": "reasonable",
+    "note": "Open-ear clip sports earbuds, no water rating"
+  }
+]

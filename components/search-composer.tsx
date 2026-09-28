@@ -7,7 +7,8 @@ import { useId, useRef, type KeyboardEvent } from "react";
 import { keepPricesTogether } from "@/lib/format";
 import { btnLg, btnMd, btnPrimary } from "./styles";
 
-const PLACEHOLDER = keepPricesTogether("למשל: אוזניות לריצה, עמידות למים, עד 100 ש״ח");
+// FULL_EXAMPLE of components/search-guide.tsx, the home example chosen on the snapshots.
+const PLACEHOLDER = keepPricesTogether("למשל: שעון חכם עם מד דופק עד 150 ש״ח");
 
 /** The home page field's id, so the "איך לחפש" examples can add text to it (AddToSearch). */
 export const COMPOSER_INPUT_ID = "composer-q";

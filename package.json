@@ -11,7 +11,8 @@
     "test": "vitest run",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check:ali": "tsx --env-file=.env.local scripts/check-aliexpress.ts"
+    "check:ali": "tsx --env-file=.env.local scripts/check-aliexpress.ts",
+    "eval:offline": "tsx scripts/eval-offline.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",

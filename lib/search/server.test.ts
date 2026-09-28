@@ -2,7 +2,9 @@
 // promo code, owner and community coupons, SKU flag) and clickOut for /go (link refresh, src).
 // Database, AliExpress calls, coupons, deals and the refresher are faked; nothing here reaches
 // Supabase, AliExpress or an LLM.
+import { APIConnectionTimeoutError } from "@anthropic-ai/sdk";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AliExpressError } from "@/lib/aliexpress/errors";
 import type { AliPromoCode } from "@/lib/aliexpress/promo-code";
 import type {
   AliProduct,
@@ -15,7 +17,8 @@ import { TIPS_VERSION } from "@/lib/llm/tips";
 import type { TipsEntry } from "@/lib/tips/store";
 import { TipsStoreError } from "@/lib/tips/store";
 import type { Deal } from "@/lib/types";
-import { clickOut, productForPage } from "./server";
+import { SearchError } from "./pipeline";
+import { clickOut, clickRefFrom, failureCode, productForPage } from "./server";
 
 interface DbUpdate {
   table: string;
@@ -53,7 +56,9 @@ const m = vi.hoisted(() => {
     getProduct: vi.fn(),
     saveProducts:
       vi.fn<(products: AliProduct[], titles: Record<string, string | null>) => Promise<void>>(),
-    logClick: vi.fn<(productId: string, src: string) => Promise<void>>(),
+    logClick:
+      vi.fn<(productId: string, src: string, ref?: unknown, owner?: boolean) => Promise<void>>(),
+    getAdminUser: vi.fn<() => Promise<{ email: string } | null>>(async () => null),
     couponForProduct: vi.fn<(productId: string, now: Date) => Promise<Deal | null>>(),
     couponsForProduct: vi.fn<(productId: string, now: Date) => Promise<Coupon[]>>(),
     readCategoryTips: vi.fn<(categoryId: string, now: Date) => Promise<TipsEntry | null>>(),
@@ -103,6 +108,8 @@ vi.mock("@/lib/config/site", async (importOriginal) => ({
     return m.state.skuEnabled;
   },
 }));
+// The admin session (search_log.owner, clicks.owner): a visitor unless a test signs in.
+vi.mock("@/lib/admin/auth", () => ({ getAdminUser: m.getAdminUser }));
 vi.mock("@/lib/coupons/queries", () => ({ couponsForProduct: m.couponsForProduct }));
 vi.mock("@/lib/deals/queries", () => ({ couponForProduct: m.couponForProduct }));
 vi.mock("@/lib/tips/store", async (importOriginal) => ({
@@ -202,6 +209,7 @@ beforeEach(() => {
   m.getProduct.mockResolvedValue(stored());
   m.saveProducts.mockResolvedValue(undefined);
   m.logClick.mockResolvedValue(undefined);
+  m.getAdminUser.mockResolvedValue(null);
   m.couponForProduct.mockResolvedValue(null);
   m.couponsForProduct.mockResolvedValue([]);
   m.state.skuEnabled = false;
@@ -652,14 +660,35 @@ describe("clickOut", () => {
 
   it("redirects to a fresh stored link without calling AliExpress, and logs the src", async () => {
     await expect(clickOut(ID, "reviews")).resolves.toBe(PRODUCT.promotionLink);
-    expect(m.logClick).toHaveBeenCalledWith(ID, "reviews");
+    expect(m.logClick).toHaveBeenCalledWith(
+      ID,
+      "reviews",
+      { searchUid: null, position: null },
+      false,
+    );
     expect(m.generateLinks).not.toHaveBeenCalled();
     expect(m.updates).toHaveLength(0);
   });
 
   it("logs a src it does not accept as 'other'", async () => {
     await clickOut(ID, "not a src!");
-    expect(m.logClick).toHaveBeenCalledWith(ID, "other");
+    expect(m.logClick).toHaveBeenCalledWith(
+      ID,
+      "other",
+      { searchUid: null, position: null },
+      false,
+    );
+  });
+
+  it("marks the owner's own clicks, so the stats leave them out", async () => {
+    m.getAdminUser.mockResolvedValue({ email: "owner@example.com" });
+    await expect(clickOut(ID, "product")).resolves.toBe(PRODUCT.promotionLink);
+    expect(m.logClick).toHaveBeenCalledWith(
+      ID,
+      "product",
+      { searchUid: null, position: null },
+      true,
+    );
   });
 
   it("regenerates a link older than LINK_MAX_AGE_DAYS once and saves only the link", async () => {
@@ -802,5 +831,43 @@ describe("clickOut", () => {
     await expect(clickOut(id, "product")).resolves.toBe(NEW_LINK);
     await expect(clickOut(id, "reviews")).resolves.toBe(NEW_LINK);
     expect(m.generateLinks).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("clickOut: the result card a click came from", () => {
+  it("logs the search uid and position it is given", async () => {
+    const ref = { searchUid: "0b7e6f55-2f0c-4a53-9d7c-3f7c1d1e2a10", position: 2 };
+    await expect(clickOut(ID, "search_compact", ref)).resolves.toBe(PRODUCT.promotionLink);
+    expect(m.logClick).toHaveBeenCalledWith(ID, "search_compact", ref, false);
+  });
+});
+
+describe("clickRefFrom (/go s= and pos=)", () => {
+  const UID = "0b7e6f55-2f0c-4a53-9d7c-3f7c1d1e2a10";
+  const ref = (query: string) => clickRefFrom(new URLSearchParams(query));
+
+  it("reads a UUID search uid and a 1-based position", () => {
+    expect(ref("src=search_featured&s=" + UID + "&pos=1")).toEqual({ searchUid: UID, position: 1 });
+    expect(ref("s=" + UID.toUpperCase() + "&pos=12")).toEqual({ searchUid: UID, position: 12 });
+  });
+
+  it("drops each bad value on its own, and a click without them is still a click", () => {
+    expect(ref("src=product")).toEqual({ searchUid: null, position: null });
+    expect(ref("s=123&pos=2")).toEqual({ searchUid: null, position: 2 });
+    expect(ref("s=" + UID + "&pos=0")).toEqual({ searchUid: UID, position: null });
+    for (const pos of ["-1", "1.5", "101", "abc", " "]) {
+      expect(ref("pos=" + encodeURIComponent(pos)).position).toBeNull();
+    }
+    expect(ref("s=" + encodeURIComponent(UID + "' or 1=1")).searchUid).toBeNull();
+  });
+});
+
+describe("failureCode (the code a failed search is answered and logged with)", () => {
+  it("names a failure of the model 'llm', never AliExpress's 'upstream'", () => {
+    expect(failureCode(new SearchError("llm", "parse call failed"))).toBe("llm");
+    expect(failureCode(new APIConnectionTimeoutError())).toBe("llm");
+    expect(failureCode(new AliExpressError("server", "AliExpress HTTP 503"))).toBe("upstream");
+    expect(failureCode(new SearchError("upstream", "x"))).toBe("upstream");
+    expect(failureCode(new Error("database is down"))).toBe("unavailable");
   });
 });

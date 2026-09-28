@@ -1,5 +1,7 @@
 // Display text for /admin/stats. Costs of a few calls are fractions of a cent, so small USD
 // amounts keep four decimals instead of rounding to "$0.00".
+import type { SearchOriginKind } from "@/lib/search/store";
+import type { ClickPositionGroup } from "./report";
 import type { LlmCallKind } from "./usage";
 
 const usdSmall = new Intl.NumberFormat("en-US", {
@@ -51,6 +53,53 @@ export function formatIsraelDay(day: string): string {
   const [y, m, d] = day.split("-").map(Number);
   if (!y || !m || !d) return day;
   return dayFormat.format(new Date(Date.UTC(y, m - 1, d)));
+}
+
+/** 6240 → "6.2 שניות", 380 → "0.4 שניות", null → NO_SHARE (nothing to measure). */
+export function formatSeconds(ms: number | null): string {
+  if (ms === null || !Number.isFinite(ms)) return NO_SHARE;
+  return `${(ms / 1000).toFixed(1)} שניות`;
+}
+
+const ORIGIN_LABELS: Record<SearchOriginKind, string> = {
+  typed: "הוקלד בתיבת החיפוש",
+  example: "דוגמה מהאתר",
+  recent: "חיפוש אחרון",
+  chip: "הסרת סינון",
+  sort: "שינוי מיון",
+  more: "״עוד 3 אפשרויות״",
+  preview: "עמוד SEO",
+  ad: "מודעה או קמפיין",
+};
+
+/** search_log.origin in Hebrew; null is the total row. */
+export function originLabel(origin: SearchOriginKind | null): string {
+  return origin === null ? "סה״כ" : ORIGIN_LABELS[origin];
+}
+
+const FAILURE_LABELS: Record<string, string> = {
+  parse_failed: "החיפוש לא הובן",
+  upstream: "אלי אקספרס לא ענתה",
+  llm: "מודל השפה לא ענה",
+  capacity: "תקציב ה־LLM היומי נוצל",
+  rate_limited: "מגבלת החיפושים של המבקר",
+  unavailable: "תקלה אצלנו",
+  invalid_query: "חיפוש לא תקין",
+};
+
+/** A search_log.failure code in Hebrew, or null for a code without a label (shown as is). */
+export function failureLabel(code: string): string | null {
+  return Object.hasOwn(FAILURE_LABELS, code) ? FAILURE_LABELS[code] : null;
+}
+
+const POSITION_LABELS: Record<ClickPositionGroup, string> = {
+  featured: "התוצאה הראשית (מקום 1)",
+  top3: "מקומות 2 ו־3",
+  more: "״עוד 3 אפשרויות״ (מקום 4 ומעלה)",
+};
+
+export function clickPositionLabel(group: ClickPositionGroup): string {
+  return POSITION_LABELS[group];
 }
 
 const KIND_LABELS: Record<LlmCallKind, string> = {

@@ -8,20 +8,27 @@ import type { UsdIlsRate } from "@/lib/fx/boi";
 import { formatCount, formatDateTime } from "@/lib/format";
 import { hasHebrew } from "@/lib/product-title";
 import {
+  clickPositionLabel,
+  failureLabel,
   formatIlsAmount,
   formatIsraelDay,
+  formatSeconds,
   formatShare,
   formatUsd,
   llmKindLabel,
   NO_SHARE,
+  originLabel,
 } from "@/lib/stats/format";
 import {
   budgetUse,
   ratio,
   sumDaily,
   usdToIls,
+  type ClickPositionStats,
   type DailyStats,
+  type FailureStats,
   type LlmKindStats,
+  type OriginStats,
   type TopProduct,
   type TopQuery,
   type ZeroResultQuery,
@@ -167,9 +174,9 @@ export function DailyTable({
       id={id}
       title={title}
       description={
-        // "preview" rows come from examplePreview: the SEO landing pages (lib/seo/page-view.ts)
-        // and, in older rows, the home page example it no longer shows. Not a visitor's search.
-        `חיפושים של מבקרים, כולל הסרת סינון ושינוי מיון. לא נספרו כחיפושים: תוצאות בעמודי SEO, וגם הדוגמה שהייתה בעבר בדף הבית (${formatCount(t.previews)}) וטעינות של ״עוד 3 אפשרויות״ (${formatCount(t.moreLoads)}). קליקים נספרים מכל העמודים, ולכן אחוז ההקלקה יכול לעבור את 100%.`
+        // "preview" rows come from examplePreview: the SEO landing pages (lib/seo/page-view.ts).
+        // Not a visitor's search. Failed and shared requests have their own tables below.
+        `חיפושים של מבקרים, כולל הסרת סינון ושינוי מיון. לא נספרו כחיפושים: תוצאות בעמודי SEO (${formatCount(t.previews)}), טעינות של ״עוד 3 אפשרויות״ (${formatCount(t.moreLoads)}), חיפושים שנכשלו ובקשה כפולה שקיבלה את התוצאות של חיפוש זהה שרץ באותו רגע. קליקים נספרים מכל העמודים, ולכן אחוז ההקלקה יכול לעבור את 100%.`
       }
     >
       <DataTable
@@ -285,6 +292,162 @@ export function LlmByKindTable({ rows, fx }: { rows: LlmKindStats[] | null; fx: 
               </Row>
             );
           })}
+        </DataTable>
+      )}
+    </Section>
+  );
+}
+
+// --- By origin, failures, click positions --------------------------------------------------------
+
+/** "12 (8%)": a count with its share of `whole` (no share when there is nothing to divide by). */
+function CountShare({ count, whole }: { count: number; whole: number }) {
+  return (
+    <>
+      {formatCount(count)} <span className="text-muted">({formatShare(ratio(count, whole))})</span>
+    </>
+  );
+}
+
+export function OriginTable({ rows }: { rows: OriginStats[] | null }) {
+  const id = "by-origin";
+  const title = "חיפושים לפי מקור";
+  return (
+    <Section
+      id={id}
+      title={title}
+      description="מאיפה הגיע כל חיפוש: כמה נגמרו בלי תוצאות או עם פחות מ־3, כמה נכשלו, בכמה המבקרים הסירו סינון או לחצו על מוצר, ומה זמן ההמתנה החציוני (מחצית מהחיפושים היו מהירים יותר). האחוזים הם מתוך החיפושים שהחזירו תשובה. בקשה כפולה שקיבלה את התוצאות של חיפוש זהה שרץ באותו רגע לא נספרת."
+    >
+      {!rows ? (
+        <Notice>{LOAD_FAILED}</Notice>
+      ) : rows.length === 0 ? (
+        <Notice>עוד אין חיפושים מהאתר החי בתקופה הזו.</Notice>
+      ) : (
+        <DataTable
+          labelledBy={id}
+          caption="חיפושים מהאתר החי לפי מקור: תוצאות, כישלונות, הסרת סינון, קליקים וזמן המתנה"
+          head={
+            <>
+              <Th>מקור</Th>
+              <Th numeric>חיפושים</Th>
+              <Th numeric>בלי תוצאות</Th>
+              <Th numeric>1 או 2 תוצאות</Th>
+              <Th numeric>נכשלו</Th>
+              <Th numeric>הוסר סינון</Th>
+              <Th numeric>עם קליק</Th>
+              <Th numeric>זמן, חיפוש חדש</Th>
+              <Th numeric>זמן, מהמטמון</Th>
+            </>
+          }
+        >
+          {rows.map((r) => (
+            <Row key={r.origin ?? "total"}>
+              <RowTh>{originLabel(r.origin)}</RowTh>
+              <Td numeric>{formatCount(r.searches)}</Td>
+              <Td numeric>
+                <CountShare count={r.zeroResults} whole={r.searches} />
+              </Td>
+              <Td numeric>
+                <CountShare count={r.partialResults} whole={r.searches} />
+              </Td>
+              <Td numeric muted={!r.failures}>
+                {formatCount(r.failures)}
+              </Td>
+              <Td numeric>
+                <CountShare count={r.chipsRemoved} whole={r.searches} />
+              </Td>
+              <Td numeric>
+                <CountShare count={r.clicked} whole={r.searches} />
+              </Td>
+              <Td numeric>{formatSeconds(r.medianMsFresh)}</Td>
+              <Td numeric>{formatSeconds(r.medianMsCached)}</Td>
+            </Row>
+          ))}
+        </DataTable>
+      )}
+    </Section>
+  );
+}
+
+export function FailuresTable({ rows }: { rows: FailureStats[] | null }) {
+  const id = "failures";
+  const title = "חיפושים שנכשלו";
+  return (
+    <Section
+      id={id}
+      title={title}
+      description="חיפושים וטעינות של ״עוד 3 אפשרויות״ שהמבקרים קיבלו עליהם הודעת שגיאה, לפי הסיבה. בקשות שנחסמו במגבלת החיפושים לא נרשמות."
+    >
+      {!rows ? (
+        <Notice>{LOAD_FAILED}</Notice>
+      ) : rows.length === 0 ? (
+        <Notice>אין חיפושים שנכשלו בתקופה הזו.</Notice>
+      ) : (
+        <DataTable
+          labelledBy={id}
+          caption="חיפושים שנכשלו באתר החי לפי סיבה, עם מספר הפעמים ומתי קרה לאחרונה"
+          head={
+            <>
+              <Th>סיבה</Th>
+              <Th numeric>פעמים</Th>
+              <Th numeric>מתוכם חיפושים</Th>
+              <Th>לאחרונה</Th>
+            </>
+          }
+        >
+          {rows.map((r) => (
+            <Row key={r.failure}>
+              <RowTh>
+                {failureLabel(r.failure) ?? (
+                  <bdi dir="ltr" className="font-mono">
+                    {r.failure}
+                  </bdi>
+                )}
+              </RowTh>
+              <Td numeric>{formatCount(r.failures)}</Td>
+              <Td numeric>{formatCount(r.searches)}</Td>
+              <Td muted>{formatDateTime(r.lastSeen)}</Td>
+            </Row>
+          ))}
+        </DataTable>
+      )}
+    </Section>
+  );
+}
+
+export function ClickPositionsTable({ rows }: { rows: ClickPositionStats[] | null }) {
+  const id = "click-positions";
+  const title = "על איזו תוצאה לוחצים";
+  const total = rows?.reduce((sum, r) => sum + r.clicks, 0) ?? 0;
+  return (
+    <Section
+      id={id}
+      title={title}
+      description="קליקים על כפתורי הקנייה בכרטיסי התוצאות של חיפושים באתר (לא בעמודי SEO), לפי מקום הכרטיס. אם לוחצים על מקומות 2 ו־3 יותר מאשר על הראשי, כנראה שהסדר צריך תיקון."
+    >
+      {!rows ? (
+        <Notice>{LOAD_FAILED}</Notice>
+      ) : rows.length === 0 ? (
+        <Notice>עוד אין קליקים על כרטיסי תוצאות בתקופה הזו.</Notice>
+      ) : (
+        <DataTable
+          labelledBy={id}
+          caption="קליקים על כרטיסי תוצאות באתר החי לפי מקום הכרטיס"
+          head={
+            <>
+              <Th>מקום</Th>
+              <Th numeric>קליקים</Th>
+            </>
+          }
+        >
+          {rows.map((r) => (
+            <Row key={r.group}>
+              <RowTh>{clickPositionLabel(r.group)}</RowTh>
+              <Td numeric>
+                <CountShare count={r.clicks} whole={total} />
+              </Td>
+            </Row>
+          ))}
         </DataTable>
       )}
     </Section>

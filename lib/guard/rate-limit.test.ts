@@ -121,20 +121,35 @@ describe("checkSearchRate", () => {
 
   it("counts in an hour window and an Israel-day window under separate keys", async () => {
     const { db, calls } = fakeDb();
-    expect(await checkSearchRate(db, "abc", now)).toEqual({ ok: true });
+    expect(await checkSearchRate(db, "abc", now, "production")).toEqual({ ok: true });
     expect(calls).toEqual([
       { p_key: "h:abc", p_window_start: "2026-09-27T10:00:00.000Z" },
       { p_key: "d:abc", p_window_start: "2026-09-26T21:00:00.000Z" },
     ]);
   });
 
+  it("keeps dev and preview counters apart from production's", async () => {
+    const { db, calls } = fakeDb();
+    await checkSearchRate(db, "abc", now, "development");
+    await checkSearchRate(db, "abc", now, "preview");
+    expect(calls.map((c) => c.p_key)).toEqual([
+      "dev:h:abc",
+      "dev:d:abc",
+      "preview:h:abc",
+      "preview:d:abc",
+    ]);
+  });
+
   it("allows 20 per hour, then refuses until the hour ends without eating the day quota", async () => {
     const { db, counts } = fakeDb();
     for (let i = 0; i < SEARCHES_PER_HOUR; i++) {
-      expect((await checkSearchRate(db, "abc", now)).ok).toBe(true);
+      expect((await checkSearchRate(db, "abc", now, "production")).ok).toBe(true);
     }
-    expect(await checkSearchRate(db, "abc", now)).toEqual({ ok: false, retryAfterSec: 45 * 60 });
-    expect(await checkSearchRate(db, "abc", now)).toMatchObject({ ok: false });
+    expect(await checkSearchRate(db, "abc", now, "production")).toEqual({
+      ok: false,
+      retryAfterSec: 45 * 60,
+    });
+    expect(await checkSearchRate(db, "abc", now, "production")).toMatchObject({ ok: false });
     expect(counts.get("d:abc@2026-09-26T21:00:00.000Z")).toBe(SEARCHES_PER_HOUR);
     // Another IP is unaffected.
     expect(await checkSearchRate(db, "def", now)).toEqual({ ok: true });
@@ -174,11 +189,20 @@ describe("consumeDailyLlmBudget", () => {
   it("allows up to cap units per Israel day on one global key", async () => {
     const { db, calls } = fakeDb();
     const now = new Date("2026-09-27T10:00:00Z");
-    expect(await consumeDailyLlmBudget(db, now, 2)).toBe(true);
-    expect(await consumeDailyLlmBudget(db, now, 2)).toBe(true);
-    expect(await consumeDailyLlmBudget(db, now, 2)).toBe(false);
+    expect(await consumeDailyLlmBudget(db, now, 2, "production")).toBe(true);
+    expect(await consumeDailyLlmBudget(db, now, 2, "production")).toBe(true);
+    expect(await consumeDailyLlmBudget(db, now, 2, "production")).toBe(false);
     expect(calls[0]).toEqual({ p_key: "llm:day", p_window_start: "2026-09-26T21:00:00.000Z" });
-    expect(await consumeDailyLlmBudget(db, new Date("2026-09-27T21:00:01Z"), 2)).toBe(true);
+    expect(await consumeDailyLlmBudget(db, new Date("2026-09-27T21:00:01Z"), 2, "production")).toBe(
+      true,
+    );
+  });
+
+  it("never spends production's budget from dev", async () => {
+    const { db, calls } = fakeDb();
+    const now = new Date("2026-09-27T10:00:00Z");
+    expect(await consumeDailyLlmBudget(db, now, 2, "development")).toBe(true);
+    expect(calls[0].p_key).toBe("dev:llm:day");
   });
 
   it("refuses everything when the cap is 0 or invalid", async () => {

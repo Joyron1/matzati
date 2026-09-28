@@ -6,6 +6,7 @@ import {
   explainContextFrom,
   explainProducts,
   whyFromData,
+  withoutRepeatedLines,
   WHY_TEMPLATE,
   type ExplainContext,
   type ExplainInput,
@@ -372,6 +373,163 @@ describe("'הכותרת לא מציינת' caveats name only a requirement from 
   });
 });
 
+describe("Hebrew checks (docs/search-quality-plan.md A9)", () => {
+  // Recorded round-3 cards (fixtures/llm/eval-v3-2026-09-27.json).
+  const drawer: ExplainInput = {
+    product_id: "1005007170336837",
+    title_en:
+      "Expandable Kitchen Cabinet Drawer Organizer Rack, Multi‑Purpose Storage Shelf for Pots, Pans, Pot Lids, Cutting Boards Cookware",
+    price_ils: 44.07,
+    original_price_ils: 91.81,
+    discount_pct: 52,
+    positive_feedback_pct: 98,
+    units_sold_30d: 3098,
+  };
+  const watch: ExplainInput = {
+    product_id: "1005009384181339",
+    title_en:
+      "New For OPPO Ultra Thin Smart Watch Men AMOLED HD Screen Always Show Time Heart Rate Bluetooth Call Sports Waterproof Smartwatch",
+    price_ils: 11.3,
+    original_price_ils: 23.54,
+    discount_pct: 52,
+    positive_feedback_pct: 98,
+    units_sold_30d: 2486,
+  };
+  const bottle: ExplainInput = {
+    product_id: "1005008641098398",
+    title_en:
+      "Cute Kids Water Bottle with Straw Free BPA Leakproof Outdoor Portable Children's Cups School Water Bottle for Children",
+    price_ils: 15.04,
+    original_price_ils: 31.33,
+    discount_pct: 52,
+    positive_feedback_pct: 98,
+    units_sold_30d: 304,
+  };
+  const noBudget: ExplainContext = {
+    product_he: "בקבוק מים לגן",
+    requirements_he: ["אטום לדליפות"],
+    sort_preference: "best_value",
+  };
+  const why =
+    "מארגן לאחסון סירים, מחבתות וקרשי חיתוך, 98% משוב חיובי ו־3098 נמכרו ב־30 הימים האחרונים.";
+  const check = (item: { title_he: string; why_he: string }, p: ExplainInput, ctx = context) =>
+    checkExplanation(item, p, [p], ctx);
+
+  it("drops a Latin word from the title instead of showing the English title", () => {
+    const out = check({ title_he: "מארגן מגירות מטבח Expandable למחבתות", why_he: why }, drawer);
+    expect(out.title_he).toBe("מארגן מגירות מטבח למחבתות");
+    expect(out.title_problem).toBeNull();
+    const brand = check({ title_he: "שעון חכם OPPO עם מד דופק", why_he: why }, watch);
+    expect(brand.title_he).toBe("שעון חכם עם מד דופק");
+  });
+
+  it("rejects a title with no Hebrew left, or with a garbled word", () => {
+    expect(
+      check({ title_he: "Expandable Kitchen Drawer Organizer", why_he: why }, drawer),
+    ).toMatchObject({ title_he: null, title_problem: "foreign_word" });
+    expect(check({ title_he: "מארגן עצם הסיסמום", why_he: why }, drawer)).toMatchObject({
+      title_he: null,
+      title_problem: "garbled_word",
+    });
+  });
+
+  it("rejects a line with a brand the product only fits, or a garbled word", () => {
+    const line = "שעון חכם OPPO עם מד דופק, 98% משוב חיובי ו־2486 נמכרו ב־30 הימים האחרונים.";
+    expect(check({ title_he: "שעון חכם", why_he: line }, watch).why_problem).toBe("foreign_word");
+    const garbled =
+      "מארגן לצנצנות תבלינים וזקנין עם 98% משוב חיובי ו־3098 נמכרו ב־30 הימים האחרונים.";
+    expect(check({ title_he: "מארגן", why_he: garbled }, drawer).why_problem).toBe("garbled_word");
+  });
+
+  it("allows the budget word only when the search gave a budget", () => {
+    const line = "בקבוק אטום לדליפות, 98% משוב חיובי ומתחת לתקציב שלכם.";
+    expect(check({ title_he: "בקבוק מים", why_he: line }, bottle, noBudget).why_problem).toBe(
+      "unstated_budget",
+    );
+    expect(check({ title_he: "בקבוק מים", why_he: line }, bottle, context).why_problem).toBeNull();
+  });
+
+  it("fixes a shopper's typo in the lines", () => {
+    const out = check(
+      {
+        title_he: "אוזניות ספורט עמידות למיים",
+        why_he: "אוזניות צוואר אלחוטיות לריצה עמידות למיים, 98% משוב חיובי.",
+      },
+      input,
+    );
+    expect(out.title_he).toBe("אוזניות ספורט עמידות למים");
+    expect(out.why_he).toBe("אוזניות צוואר אלחוטיות לריצה עמידות למים, 98% משוב חיובי.");
+  });
+});
+
+describe("withoutRepeatedLines", () => {
+  const holders: ExplainInput[] = [5089, 2941, 3156].map((sold, i) => ({
+    product_id: `h${i}`,
+    title_en: "Magnetic Car Wireless Charger Mount 15W Fast Charging For iPhone",
+    price_ils: 13.89 + i,
+    original_price_ils: null,
+    discount_pct: null,
+    positive_feedback_pct: 98,
+    units_sold_30d: sold,
+  }));
+  const line = (sold: number) =>
+    `מחזיק טלפון עם טעינה אלחוטית, 98% משוב חיובי ו־${sold} נמכרו ב־30 הימים האחרונים.`;
+  const fromModel = (p: ExplainInput, why: string) => ({
+    product_id: p.product_id,
+    title_he: "מחזיק טלפון לרכב",
+    why_he: why,
+    why_from_model: true,
+  });
+
+  it("keeps the first of the same line and builds the others from data (eval round 3)", () => {
+    const out = withoutRepeatedLines(
+      holders.map((p) => fromModel(p, line(p.units_sold_30d!))),
+      holders,
+    );
+    expect(out[0].why_he).toBe(line(5089));
+    expect(out[1]).toMatchObject({
+      why_he: "98% משוב חיובי ו־2,941 נמכרו ב־30 הימים האחרונים.",
+      why_from_model: false,
+      rejected: { why_he: line(2941), why_problem: "repeated_line" },
+    });
+    expect(out[2].rejected?.why_problem).toBe("repeated_line");
+  });
+
+  it("tells lines apart by a spec number, and leaves lines built from data alone", () => {
+    const spec = (mah: number) => `סוללת גיבוי בנפח ${mah} מיליאמפר, 98% משוב חיובי.`;
+    const out = withoutRepeatedLines(
+      [
+        fromModel(holders[0], spec(10000)),
+        fromModel(holders[1], spec(20000)),
+        { ...fromModel(holders[2], "98% משוב חיובי."), why_from_model: false },
+      ],
+      holders,
+    );
+    expect(out.map((i) => i.why_from_model)).toEqual([true, true, false]);
+  });
+
+  it("runs on every batch explainProducts returns", async () => {
+    const llm: LlmProvider = {
+      name: "anthropic",
+      model: "fake-model",
+      async generateStructured(req) {
+        const items = holders.map((p, i) => ({
+          id: String(i + 1),
+          title_he: "מחזיק טלפון לרכב",
+          why_he: line(p.units_sold_30d!),
+        }));
+        return {
+          data: req.schema.parse({ items }),
+          usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 },
+          model: "fake-1",
+        };
+      },
+    };
+    const res = await explainProducts(llm, context, holders);
+    expect(res.items.map((i) => i.why_from_model)).toEqual([true, false, false]);
+  });
+});
+
 describe("whyFromData", () => {
   it("builds a true sentence from the trust data", () => {
     expect(whyFromData(chargers[0])).toBe("98.7% משוב חיובי ו־1,928 נמכרו ב־30 הימים האחרונים.");
@@ -416,6 +574,20 @@ describe("explainContextFrom", () => {
       requirements_he: ["עמידות למים"],
       max_price_ils: 100,
       sort_preference: "cheapest",
+    });
+  });
+
+  it("spells the labels right even in a parse saved with a typo", () => {
+    const parsed: ParsedQuery = {
+      keywords_en: "waterproof bluetooth running headphones",
+      product_terms: ["running headphones"],
+      requirements: [{ en: "waterproof", alt: [], he: "עמידות למיים" }],
+      sort_preference: "best_value",
+      product_he: "אוזניות בלוטות לריצה",
+    };
+    expect(explainContextFrom(parsed)).toMatchObject({
+      product_he: "אוזניות בלוטוס לריצה",
+      requirements_he: ["עמידות למים"],
     });
   });
 });

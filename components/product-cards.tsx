@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Trophy } from "lucide-react";
-import type { ResultProduct } from "@/lib/types";
+import { hasHebrew } from "@/lib/product-title";
+import type { LoggedResult } from "@/lib/search-url";
 import { BuyButton } from "./buy-button";
 import { Price } from "./price";
 import { ProductImage } from "./product-image";
@@ -8,7 +9,8 @@ import { btnLg, btnMd, btnSecondary, featured, card } from "./styles";
 import { TrustMetrics } from "./trust-metrics";
 
 interface CardProps {
-  product: ResultProduct;
+  /** A result; search_uid (when the search was logged for this visitor) goes to /go with rank. */
+  product: LoggedResult;
   rank: number;
   /** Query that produced this result, so the product page can link back. */
   q: string;
@@ -17,6 +19,14 @@ interface CardProps {
 function productHref(id: string, q: string) {
   const path = `/p/${encodeURIComponent(id)}`;
   return q ? `${path}?q=${encodeURIComponent(q)}` : path;
+}
+
+/**
+ * The card title. Without a Hebrew title of ours (a rejected or failed explain line) it is
+ * AliExpress's English title, isolated left to right so its numbers and punctuation stay in order.
+ */
+function CardTitle({ title }: { title: string }) {
+  return hasHebrew(title) ? title : <bdi dir="ltr">{title}</bdi>;
 }
 
 export function FeaturedProductCard({ product, rank, q }: CardProps) {
@@ -41,7 +51,7 @@ export function FeaturedProductCard({ product, rank, q }: CardProps) {
       <div className="space-y-3">
         <h2 className="text-xl leading-snug font-bold sm:text-2xl">
           <Link href={href} className="hover:text-accent-ink">
-            {product.title_he}
+            <CardTitle title={product.title_he} />
           </Link>
         </h2>
         {product.why_he && (
@@ -58,7 +68,12 @@ export function FeaturedProductCard({ product, rank, q }: CardProps) {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
-        <BuyButton productId={product.product_id} src="search_featured" />
+        <BuyButton
+          productId={product.product_id}
+          src="search_featured"
+          searchUid={product.search_uid}
+          position={rank}
+        />
         <Link href={href} className={`${btnSecondary} ${btnLg}`}>
           לפרטים
         </Link>
@@ -88,7 +103,7 @@ export function CompactProductCard({
           <p className="text-xs font-semibold text-muted">מקום {rank} בדירוג</p>
           <h3 className="line-clamp-2 leading-snug font-semibold">
             <Link href={href} className="hover:text-accent-ink">
-              {product.title_he}
+              <CardTitle title={product.title_he} />
             </Link>
           </h3>
           <Price product={product} size="sm" />
@@ -97,7 +112,13 @@ export function CompactProductCard({
       <TrustMetrics product={product} short />
       {product.why_he && <p className="text-sm leading-relaxed text-muted">{product.why_he}</p>}
       <div className="mt-auto grid gap-2 sm:grid-cols-[1fr_auto] sm:items-start">
-        <BuyButton productId={product.product_id} src={src} size="md" />
+        <BuyButton
+          productId={product.product_id}
+          src={src}
+          searchUid={product.search_uid}
+          position={rank}
+          size="md"
+        />
         <Link href={href} className={`${btnSecondary} ${btnMd}`}>
           לפרטים
         </Link>

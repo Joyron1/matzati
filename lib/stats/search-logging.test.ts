@@ -4,15 +4,19 @@
 // The pipeline itself is faked; nothing here reaches Supabase, AliExpress or an LLM.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SearchOutcome } from "@/lib/search/pipeline";
-import { examplePreview, searchForRequest } from "@/lib/search/server";
+import { examplePreview, moreForRequest, searchForRequest } from "@/lib/search/server";
 import type { SearchLogEntry } from "@/lib/search/store";
+import type { ResultProduct } from "@/lib/types";
 
 const m = vi.hoisted(() => ({
   runSearch: vi.fn(),
+  loadMore: vi.fn(),
   logSearch: vi.fn<(entry: SearchLogEntry) => Promise<void>>(async () => {}),
+  getAdminUser: vi.fn<() => Promise<{ email: string } | null>>(async () => null),
 }));
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/lib/admin/auth", () => ({ getAdminUser: m.getAdminUser }));
 vi.mock("next/server", () => ({ after: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ serviceClient: () => ({}) }));
 vi.mock("@/lib/guard/rate-limit", () => ({
@@ -35,6 +39,7 @@ vi.mock("@/lib/search/supabase-store", () => ({
 vi.mock("@/lib/search/pipeline", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/search/pipeline")>()),
   runSearch: m.runSearch,
+  loadMore: m.loadMore,
 }));
 
 function outcome(
@@ -58,6 +63,15 @@ function outcome(
     source,
     categoryId: "44",
     listable,
+    origin: source === "search" ? "typed" : source,
+    without: [],
+    sortOverride: null,
+    timings: { parse_ms: 900, fetch_ms: 4000, explain_ms: 2500, total_ms: 7500 },
+    aliCalls: 2,
+    rejected: null,
+    failure: null,
+    searchUid: "run-uid",
+    shared: false,
   };
   return {
     response: {
@@ -75,9 +89,11 @@ function outcome(
       cache: "none",
       llmUsage: [],
       aliCalls: 1,
+      linkCalls: 0,
       rejected: null,
       keywordsTried: [],
       explainRejected: [],
+      timings: { parse_ms: 900, fetch_ms: 4000, explain_ms: 2500 },
     },
     log,
   };
@@ -99,6 +115,7 @@ beforeEach(() => {
   vi.stubEnv("ALIEXPRESS_APP_SECRET", "s");
   vi.stubEnv("ALIEXPRESS_TRACKING_ID", "t");
   vi.stubEnv("DAILY_SEARCH_CAP", "2000");
+  m.getAdminUser.mockResolvedValue(null);
 });
 
 afterEach(() => {
@@ -128,7 +145,29 @@ describe("searchForRequest: shared runs", () => {
       queryNorm: "כבל usb עד ₪40",
       cache: "results",
       listable: true,
+      // No work of its own: no calls, only its own wait, and a uid of its own.
+      origin: "typed",
+      timings: { parse_ms: null, fetch_ms: null, explain_ms: null, total_ms: expect.any(Number) },
+      aliCalls: 0,
+      searchUid: expect.any(String),
+      shared: true,
+      owner: false,
+      diag: null,
     });
+    expect(m.logSearch.mock.calls[0][0].searchUid).not.toBe("run-uid");
+  });
+
+  it("marks the owner's own search and its joiner, and never lists them", async () => {
+    const q = "מטען נייד";
+    m.getAdminUser.mockResolvedValue({ email: "owner@example.com" });
+    const release = deferredRun(outcome(q, "search"));
+    const first = searchForRequest({ q }, new Headers());
+    const second = searchForRequest({ q }, new Headers());
+    await vi.waitFor(() => expect(m.runSearch).toHaveBeenCalledTimes(1));
+    release();
+    await Promise.all([first, second]);
+    expect(m.runSearch.mock.calls[0][0]).toMatchObject({ q, owner: true });
+    expect(m.logSearch.mock.calls[0][0]).toMatchObject({ owner: true, listable: false });
   });
 
   it("decides whether /searches may list the joiner for its own spelling", async () => {
@@ -209,7 +248,95 @@ describe("examplePreview", () => {
     expect(m.runSearch.mock.calls[0][0]).toEqual({ q, source: "preview" });
     expect(m.logSearch).toHaveBeenCalledTimes(1);
     expect(m.logSearch).toHaveBeenCalledWith(
-      expect.objectContaining({ source: "preview", cache: "results", query: q, listable: false }),
+      expect.objectContaining({
+        source: "preview",
+        cache: "results",
+        query: q,
+        listable: false,
+        origin: "preview",
+        shared: true,
+      }),
     );
+  });
+});
+
+const RESULT: ResultProduct = {
+  product_id: "1005001234567890",
+  title_he: "מנורת לילה",
+  title_en: "Night Light",
+  why_he: "",
+  price_ils: 20,
+  original_price_ils: null,
+  price_is_approx: false,
+  discount_pct: null,
+  positive_feedback_pct: 97,
+  units_sold: 500,
+  passed_tier: "standard",
+  image_urls: [],
+  category_id: "39",
+};
+
+describe("searchForRequest: search uid and origin", () => {
+  it("tags each request's results with the uid of its own search_log row", async () => {
+    const q = "מנורת לילה";
+    const run = outcome(q, "search");
+    run.response.results = [RESULT];
+    const release = deferredRun(run);
+    const first = searchForRequest({ q }, new Headers());
+    const second = searchForRequest({ q }, new Headers());
+    await vi.waitFor(() => expect(m.runSearch).toHaveBeenCalledTimes(1));
+    release();
+    const [a, b] = await Promise.all([first, second]);
+    if (!a.ok || !b.ok) throw new Error("expected both requests to succeed");
+    expect(a.response.results).toEqual([{ ...RESULT, search_uid: "run-uid" }]);
+    const joinerUid = m.logSearch.mock.calls[0][0].searchUid;
+    expect(b.response.results).toEqual([{ ...RESULT, search_uid: joinerUid }]);
+    // The shared outcome is never changed.
+    expect(run.response.results[0]).not.toHaveProperty("search_uid");
+  });
+
+  it("passes the arrival to the run and logs a joiner with its own origin", async () => {
+    const q = "מטען נייד";
+    const release = deferredRun(outcome(q, "search"));
+    const first = searchForRequest({ q, arrival: "ad" }, new Headers());
+    const second = searchForRequest({ q, arrival: "recent" }, new Headers());
+    await vi.waitFor(() => expect(m.runSearch).toHaveBeenCalledTimes(1));
+    release();
+    await Promise.all([first, second]);
+    expect(m.runSearch.mock.calls[0][0]).toMatchObject({ q, typed: false, arrival: "ad" });
+    expect(m.logSearch.mock.calls[0][0]).toMatchObject({
+      origin: "recent",
+      listable: false,
+      shared: true,
+    });
+  });
+
+  it("logs the failure code the visitor is answered with", async () => {
+    m.runSearch.mockResolvedValueOnce(outcome("x", "search"));
+    await searchForRequest({ q: "x" }, new Headers());
+    const deps = m.runSearch.mock.calls[0][1] as { failureOf: (err: unknown) => string | null };
+    expect(deps.failureOf(new Error("boom"))).toBe("unavailable");
+  });
+});
+
+describe("moreForRequest: search uid", () => {
+  it("tags the page's results with the uid of its own 'more' row", async () => {
+    const log = { ...outcome("כבל USB", "more", false).log, searchUid: "more-uid" };
+    m.loadMore.mockResolvedValueOnce({
+      results: [RESULT],
+      more_available: false,
+      fetched_at: "2026-09-28T08:00:00.000Z",
+      meta: outcome("כבל USB", "more").meta,
+      log,
+    });
+    const res = await moreForRequest("f".repeat(64), 1, new Headers());
+    expect(res).toEqual({
+      ok: true,
+      results: [{ ...RESULT, search_uid: "more-uid" }],
+      more_available: false,
+    });
+    const deps = m.loadMore.mock.calls[0][2] as { failureOf: (err: unknown) => string | null };
+    expect(deps.failureOf(new Error("boom"))).toBe("unavailable");
+    expect(m.loadMore.mock.calls[0][3]).toEqual({ owner: false });
   });
 });

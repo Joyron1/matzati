@@ -1,0 +1,2638 @@
+{
+  "format": 1,
+  "name": "ranking-r6-r5fetch",
+  "generatedBy": "scripts/eval-offline.ts",
+  "rankingVersion": 6,
+  "snapshots": {
+    "count": 32,
+    "ids": ["car-holder","cheapest-cable","gift-cook","ho-gift-garden","ho-neck-pillow","ho-powerbank","ho-slippers","ho-speaker","home-drawer","home-nightlight","kids-bottle","kids-toy","pair-a","pair-a2","pair-b2","price-range-bag","price-watch","slang-mouse","tech-charger","typo-earbuds","ex-1","ex-2","ex-3","ex-4","ex-5","ex-6","ex-7","ex-8","ex-9","live-drawer-organizer","live-sonic-doll","live-soundbar"]
+  },
+  "labels": {
+    "files": ["fixtures/snapshots/labels/car-holder.json","fixtures/snapshots/labels/cheapest-cable.json","fixtures/snapshots/labels/ex-1.json","fixtures/snapshots/labels/ex-2.json","fixtures/snapshots/labels/ex-3.json","fixtures/snapshots/labels/ex-4.json","fixtures/snapshots/labels/ex-5.json","fixtures/snapshots/labels/ex-6.json","fixtures/snapshots/labels/ex-7.json","fixtures/snapshots/labels/ex-8.json","fixtures/snapshots/labels/ex-9.json","fixtures/snapshots/labels/gift-cook.json","fixtures/snapshots/labels/ho-gift-garden.json","fixtures/snapshots/labels/ho-neck-pillow.json","fixtures/snapshots/labels/ho-powerbank.json","fixtures/snapshots/labels/ho-slippers.json","fixtures/snapshots/labels/ho-speaker.json","fixtures/snapshots/labels/home-drawer.json","fixtures/snapshots/labels/home-nightlight.json","fixtures/snapshots/labels/kids-bottle.json","fixtures/snapshots/labels/kids-toy.json","fixtures/snapshots/labels/live-drawer-organizer.json","fixtures/snapshots/labels/live-sonic-doll.json","fixtures/snapshots/labels/live-soundbar.json","fixtures/snapshots/labels/pair-a.json","fixtures/snapshots/labels/pair-a2.json","fixtures/snapshots/labels/pair-b2.json","fixtures/snapshots/labels/price-range-bag.json","fixtures/snapshots/labels/price-watch.json","fixtures/snapshots/labels/slang-mouse.json","fixtures/snapshots/labels/tech-charger.json","fixtures/snapshots/labels/typo-earbuds.json"],
+    "queries": 32,
+    "entries": 3419
+  },
+  "runs": [
+    {
+      "variant": {
+        "name": "r5",
+        "policy": "r5",
+        "policyDescription": "the pipeline before item 5: p1; p2 only after a full page 1 (50 items) limited by relevance; then the ladder while fewer than 3 pass; at most 3 calls",
+        "rank": "pipeline",
+        "sort": null,
+        "without": [],
+        "adjustedParse": false
+      },
+      "summary": {
+        "queries": 32,
+        "copies": 4,
+        "incomplete": [],
+        "errors": [],
+        "aliCalls": 39,
+        "checked": 1916,
+        "passed": 420,
+        "noResults": [],
+        "underOnePage": ["tech-charger"],
+        "exactlyOnePage": ["home-nightlight","ex-5","live-sonic-doll"],
+        "twoPagesOrMore": 27,
+        "moreAvailable": 28,
+        "sameShopTop3": ["kids-toy","price-watch","ex-7","live-soundbar"],
+        "meanBudgetShare": 0.33,
+        "labels": {
+          "queries": 32,
+          "leadCorrect": 31,
+          "leadLabelled": 32,
+          "cardsGood": 86,
+          "cardsLabelled": 95,
+          "cardsShown": 95,
+          "wrongTop3": 1,
+          "typeFalseNegatives": 333,
+          "typeFalseNegativesBlocking": 280,
+          "falsePositives": 38,
+          "unlabelledTop6": 0,
+          "unknownIds": 0
+        }
+      },
+      "queries": [
+        {
+          "id": "car-holder",
+          "group": "eval",
+          "query": "מחזיק טלפון לרכב עם טעינה אלחוטית",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 140,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 50,
+          "passed": 13,
+          "fill": 0,
+          "shown": 3,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005007097351039","label":"exact","tier":"standard","shop":"1103573332","price":29.49,"feedbackPct":98,"unitsSold":2347,"title":"Essager Magnetic Wireless Charger Car Phone Holder 15W RGB Seven Color Light Fast Charging Mount Stand For IPhone15 14 13Android"},
+            {"id":"1005005544072940","label":"exact","tier":"standard","shop":"2343184","price":76.8,"feedbackPct":97.1,"unitsSold":2484,"title":"Baseus Magnetic Wireless Charger Car Phone Holder 15W Fast Charging Wireless Car Charger Holder For iPhone 16 15 14 13 Car Mount"},
+            {"id":"1005009889116002","label":"exact","tier":"standard","shop":"301635","price":101.15,"feedbackPct":96.6,"unitsSold":3436,"title":"UGREEN Qi2.2 25W 15W Magnetic Car Phone Holder Wireless Charger Stand For iPhone 17 16 Pro Max Charging Magnetic Car Charger"}
+          ],
+          "next3": [
+            {"id":"1005008830678574","label":"exact","tier":"standard","shop":"1103573332","price":13.64,"feedbackPct":98,"unitsSold":8218,"title":"Car Air Vent Magnetic Wireless Charger Phone Holder, Fast Charging Mount Compatible with MagSafe iPhone 17/16/15/14/13/12 Pro"},
+            {"id":"1005009638185893","label":"exact","tier":"standard","shop":"1103316981","price":21,"feedbackPct":92.4,"unitsSold":3009,"title":"RGB Light Car Magnetic Wireless Charger Phone Holder Air Vent Stand For Magsafe iPhone 16 15 14 13 12 Pro Max Fast Charging Dock"},
+            {"id":"1005010487359429","label":"exact","tier":"standard","shop":"1103573332","price":13.89,"feedbackPct":98,"unitsSold":5115,"title":"Magnetic Car Wireless Charger Mount 15W Fast Charging For iPhone 12 13 14 15 16 Samsung Qi Phone 360 Rotation Vent Clip No Cable"}
+          ],
+          "sameShopTop3": 1,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 11,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 12,
+            "requirement": 6
+          },
+          "labels": {
+            "count": 115,
+            "leadCorrect": true,
+            "cardsGood": 3,
+            "cardsLabelled": 3,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005008660246574","1005006877040254","1005008458283071","1005008932603515","1005011718120542","1005006994698700","1005006678136283","1005007319834017","1005008666261754","1005009658721592","1005006994502758","1005007857095876","1005007125140751","1005009874304186","1005006677929920","1005006990169184","1005006876952507","1005010707085025","1005008077426712"],
+            "typeFalseNegativesBlocking": ["1005008660246574","1005006877040254","1005008458283071","1005008932603515","1005011718120542","1005006994698700","1005006678136283","1005007319834017","1005008666261754","1005009658721592","1005006994502758","1005007857095876","1005007125140751","1005009874304186","1005006677929920","1005006990169184","1005006876952507","1005010707085025","1005008077426712"],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "cheapest-cable",
+          "group": "eval",
+          "query": "הכי זול: כבל USB-C לאייפון 15",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 140,
+          "error": null,
+          "sort": "cheapest",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 50,
+          "passed": 23,
+          "fill": 0,
+          "shown": 3,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005006997190677","label":"exact","tier":"standard","shop":"1103573332","price":4.35,"feedbackPct":98,"unitsSold":12439,"title":"100W C to C USB C to USB C PD Cable for iPhone 15 Pro Max iPad 10 MacBook Huawei Xiaomi Type C to Type C PD Fast Charging Cable"},
+            {"id":"1005006304009788","label":"exact","tier":"standard","shop":"1103103413","price":6.54,"feedbackPct":95.4,"unitsSold":11622,"title":"Original USB-C Cable For iPhone 16 15 Pro Max PD 60W Fast Charging For Huawei Xiaomi Samsung Type C Weaving Cable Accessories"},
+            {"id":"1005006304425302","label":"exact","tier":"standard","shop":"1102456750","price":16.49,"feedbackPct":97.1,"unitsSold":12642,"title":"Essager 240W USB Type C To USB C Cable 100W PD 3.1 Fast Charging Charger Wire For iPhone 15 Pro max Macbook Pro Xiaomi Samsung"}
+          ],
+          "next3": [
+            {"id":"1005006967329774","label":"exact","tier":"standard","shop":"1103573332","price":4.64,"feedbackPct":98,"unitsSold":10401,"title":"Toocki 6A USB Cable Type C 66W Fast Charging For Huawei P40 P30 Type C Cable For iPhone 15 Pro Max Xiaomi Samsung S24 Data Cord"},
+            {"id":"1005006434080534","label":"exact","tier":"standard","shop":"1102471236","price":17.03,"feedbackPct":98.2,"unitsSold":11318,"title":"Baseus 100W Type C Cable For iPhone 15 USB C PD Fast Charging Charger Wire Cord For Macbook Samsung Xiaomi Type C USB C Cable"},
+            {"id":"1005006212088373","label":"exact","tier":"standard","shop":"1103268049","price":4.98,"feedbackPct":95.8,"unitsSold":21772,"title":"USB-C to Type C Color Cable For Apple iPhone 15 PD 60W Fast Charging For Huawei Xiaomi Samsung Type C Weaving Cable Accessories"}
+          ],
+          "sameShopTop3": 1,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 1,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 6,
+            "requirement": 5
+          },
+          "labels": {
+            "count": 128,
+            "leadCorrect": true,
+            "cardsGood": 3,
+            "cardsLabelled": 3,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005012613871856","1005007728418448","1005006995911581","1005008765247136","1005011824542632","1005013266358108"],
+            "typeFalseNegativesBlocking": ["1005012613871856","1005007728418448","1005006995911581","1005008765247136","1005011824542632"],
+            "falsePositives": ["1005013255643267","1005006967384811"],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "gift-cook",
+          "group": "eval",
+          "query": "מתנה לאבא שאוהב לבשל עד 200 ש״ח",
+          "sameQueryAs": null,
+          "parseVersion": 5,
+          "snapshotPool": 149,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1","primary-p2"],
+            "calls": 2,
+            "missing": null
+          },
+          "checked": 100,
+          "passed": 10,
+          "fill": 0,
+          "shown": 3,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005012743006539","label":"reasonable","tier":"standard","shop":"1103573332","price":36.26,"feedbackPct":98,"unitsSold":602,"title":"5-piece kitchen tool set, including a small chopping knife, scissors, fruit knife, peeler, and knife block, suitable for househo"},
+            {"id":"1005007663259910","label":"weak","tier":"standard","shop":"1102425791","price":5.8,"feedbackPct":95.1,"unitsSold":1451,"title":"Measuring Cup And  Spoon 5/10PCS Household Kitchen Tool Set, Can Be Used To Store Cooking"},
+            {"id":"1005007611485410","label":"weak","tier":"standard","shop":"1103856072","price":8.4,"feedbackPct":95.1,"unitsSold":782,"title":"Sandwich Cutting and Sealing Machine, biscuit Plastic Cutting Machine, Household Kitchen Tools, baking Molds, Creative Cutting"}
+          ],
+          "next3": [
+            {"id":"1005007169766992","label":"weak","tier":"standard","shop":"1103573332","price":11.69,"feedbackPct":98,"unitsSold":1079,"title":"1/3PCS Nylon Kitchen Utensils Set Kitchen Cooking Tools  Slotted Turner Solid Spoon Fork Children Spade Fork Spoon Dinnerware"},
+            {"id":"1005012705511099","label":"wrong","tier":"standard","shop":"1104393123","price":23.17,"feedbackPct":94.4,"unitsSold":679,"title":"22Pcs Stainless Steel Caulking Nozzle Tool Set Silicone Sealant Finishing Tools For Kitchen Bathroom Sink Joint Sealing Work"},
+            {"id":"1005006997354157","label":"exact","tier":"standard","shop":"1103573332","price":53.24,"feedbackPct":98,"unitsSold":766,"title":"12Pcs Kitchen Utensil Set Silicone Spatula Set Wooden Handle Cooking Tools Kit with Holder Heat-Resistant Cookware for Kitchen"}
+          ],
+          "sameShopTop3": 1,
+          "budgetShare": 0.08,
+          "rejected": {
+            "feedback": 13,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 75,
+            "requirement": 0
+          },
+          "labels": {
+            "count": 130,
+            "leadCorrect": true,
+            "cardsGood": 1,
+            "cardsLabelled": 3,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005013262555028","1005008077524666","1005009916287051","1005007811194179","1005007635090428","1005008660310361","1005011717779648","1005009751349013","1005007016051853","1005009054990325","1005008239033716","1005006994560658","1005006904728187"],
+            "typeFalseNegativesBlocking": ["1005013262555028","1005008077524666","1005009916287051","1005007811194179","1005007635090428","1005008660310361","1005011717779648","1005009751349013","1005007016051853","1005009054990325","1005008239033716","1005006994560658","1005006904728187"],
+            "falsePositives": ["1005007170813797","1005012705511099"],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "ho-gift-garden",
+          "group": "eval",
+          "query": "מתנה לסבתא שאוהבת לגנן עד 120 ש״ח",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 120,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1","primary-p2"],
+            "calls": 2,
+            "missing": null
+          },
+          "checked": 98,
+          "passed": 8,
+          "fill": 0,
+          "shown": 3,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005006993936964","label":"exact","tier":"standard","shop":"1103573332","price":14.19,"feedbackPct":98,"unitsSold":4537,"title":"Garden Hoe Agricultural Supplies Weeds Tool Gardening Tools Utensils Hand Herbicide Weed Teacher Farming Farm Accessories"},
+            {"id":"1005009146805974","label":"wrong","tier":"standard","shop":"1104671141","price":15.97,"feedbackPct":93,"unitsSold":8652,"title":"Garden Tools Brass Water Faucet 1/2\" Outside & Inside Easy Turn On/Off Lever Handle Watering Supply Taps Ball Valve"},
+            {"id":"1005008896594643","label":"reasonable","tier":"standard","shop":"1104408613","price":17.97,"feedbackPct":95.4,"unitsSold":9244,"title":"Stainless Steel Gap Weeding Tool, L-Shaped Multi-Purpose Garden Hand Tool, Used for Clearing Weeds in Yards, Terraces, and Lanes"}
+          ],
+          "next3": [
+            {"id":"1005012304293432","label":"reasonable","tier":"standard","shop":"1103573332","price":10.92,"feedbackPct":98,"unitsSold":1450,"title":"2/4pcs Flower potted automatic watering irrigation device drip Plant Waterer gardening tool ceramic drip irrigation device"},
+            {"id":"1005007805886355","label":"exact","tier":"standard","shop":"1104091271","price":16.69,"feedbackPct":90.8,"unitsSold":1563,"title":"Soil Humidometer Home Gardening Measuring Tool Soil Moisture Meter Hygrometer Probe Watering Test"},
+            {"id":"1005009400661849","label":"reasonable","tier":"standard","shop":"1102983068","price":15.21,"feedbackPct":94.3,"unitsSold":1906,"title":"1pc 13.5inch L-shaped Stainless Steel Gap Weeding Tool Garden Hand Tool, For Clearing Weeds On Yard, Patio, Driveway"}
+          ],
+          "sameShopTop3": 1,
+          "budgetShare": 0.13,
+          "rejected": {
+            "feedback": 11,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 79,
+            "requirement": 0
+          },
+          "labels": {
+            "count": 107,
+            "leadCorrect": true,
+            "cardsGood": 2,
+            "cardsLabelled": 3,
+            "wrongTop3": 1,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005010044206112","1005005209533452","1005006863883159","1005007245622338","1005008144722917","1005008554582601","1005010333651659","1005009508968051","1005010050281663","1005010487361367","1005012993863717","1005008144990131","1005009050302387","1005008932431667","1005012061755643","1005009916252124","1005009045274447","1005007751488876","1005010590949626","1005009259824987","1005009414674397","1005012053713030","1005009398833927","1005008679023167","1005009054768697","1005010096193814","1005007818146963","1005012011135488","1005012172803442"],
+            "typeFalseNegativesBlocking": ["1005010044206112","1005005209533452","1005006863883159","1005007245622338","1005008144722917","1005008554582601","1005010333651659","1005009508968051","1005010050281663","1005010487361367","1005012993863717","1005008144990131","1005009050302387","1005008932431667","1005012061755643","1005009916252124","1005009045274447","1005007751488876","1005010590949626","1005009259824987","1005009414674397","1005012053713030","1005009398833927","1005008679023167","1005009054768697","1005010096193814","1005007818146963","1005012011135488","1005012172803442"],
+            "falsePositives": ["1005009146805974","1005005773713258"],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "ho-neck-pillow",
+          "group": "eval",
+          "query": "כרית לצוואר לטיסות ארוכות",
+          "sameQueryAs": null,
+          "parseVersion": 5,
+          "snapshotPool": 148,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 50,
+          "passed": 26,
+          "fill": 0,
+          "shown": 3,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005009582344612","label":"reasonable","tier":"standard","shop":"1103573332","price":16.8,"feedbackPct":98,"unitsSold":3042,"title":"Travel Neck Pillow with Fillable Clothing U-Shaped Pillowcase, Extra Storage Bag, Velvet Neck Pillow Cover for Airplane Travel"},
+            {"id":"1005006760465481","label":"exact","tier":"standard","shop":"1103452008","price":31.85,"feedbackPct":94.9,"unitsSold":13530,"title":"Travel Neck Pillow Memory Foam U-shaped Pillow Snail Style Travel Neck Support Portable Adjustable Soft Noon Break Sleep Pillows"},
+            {"id":"1005007238902686","label":"reasonable","tier":"standard","shop":"1103837518","price":11.45,"feedbackPct":93.7,"unitsSold":1307,"title":"Flocking Inflatable Portable Neck Pillow That Can Be Stored And Self Filled Suitable For Outdoor Travel Business Trips Camping"}
+          ],
+          "next3": [
+            {"id":"1005009460591122","label":"exact","tier":"standard","shop":"1103573332","price":14.38,"feedbackPct":98,"unitsSold":1207,"title":"Travel Neck Pillow, Portable Travel Essentials, Lightweight Versatile Luggage Carry On Travel Accessories"},
+            {"id":"1005012183253580","label":"weak","tier":"standard","shop":"1105348480","price":15.1,"feedbackPct":95,"unitsSold":1297,"title":"Naturehike Camping Pillow Ultralight Inflatable Pillow for Neck Support Comfortable Portable Backpacking Travel Office Pillow"},
+            {"id":"1005009013962402","label":"exact","tier":"standard","shop":"1103677578","price":19.49,"feedbackPct":93,"unitsSold":1356,"title":"U-Shaped Inflatable Travel Pillow Portable Air Neck Support Cushion Comfortable Sleeping Press to inflate pillow neck pillow"}
+          ],
+          "sameShopTop3": 1,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 2,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 15,
+            "requirement": 0
+          },
+          "labels": {
+            "count": 139,
+            "leadCorrect": true,
+            "cardsGood": 3,
+            "cardsLabelled": 3,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005007170752899","1005005266708630"],
+            "typeFalseNegativesBlocking": ["1005007170752899","1005005266708630"],
+            "falsePositives": ["1005007204690243","1005013255627262","1005005896396093"],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "ho-powerbank",
+          "group": "eval",
+          "query": "סוללת גיבוי קטנה לטלפון 10000 מיליאמפר",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 120,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 48,
+          "passed": 31,
+          "fill": 0,
+          "shown": 3,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005010425880598","label":"exact","tier":"standard","shop":"2343184","price":85.93,"feedbackPct":98.9,"unitsSold":3256,"title":"Baseus 10000mAh Power Bank 22.5W Built-In Dual USB-C Cable Thinner Fast Charging for iPhone 17 Pro Max Samsung S25 Xiaomi Poco"},
+            {"id":"1005010606760672","label":"exact","tier":"standard","shop":"1035473","price":92.38,"feedbackPct":97.5,"unitsSold":7443,"title":"Vention 10000mAh Mini Power Bank 22.5w Portable Charger Built-in USB C Cable PD 3.0 Fast Charging for iPhone 17 18 Samsung S26"},
+            {"id":"1005007956125217","label":"reasonable","tier":"standard","shop":"301635","price":155.84,"feedbackPct":98.2,"unitsSold":2580,"title":"UGREEN 55W Power Bank 10000mAh Type C Cable Portable Fast Charging PowerBank for Redmi Note Xiaomi Mi 14 13 12 Portable Battery"}
+          ],
+          "next3": [
+            {"id":"1005005704794297","label":"exact","tier":"standard","shop":"301635","price":138.72,"feedbackPct":97.7,"unitsSold":3154,"title":"UGREEN Mini 33W 10000mAh Power Bank Built-in Type-C Cable PD 30W Charger Compatible for Xiaomi 33W External Battery"},
+            {"id":"1005008058965763","label":"exact","tier":"standard","shop":"1035473","price":101.46,"feedbackPct":96.8,"unitsSold":2064,"title":"Vention CCC 10000mAh 35W Power Bank Fast Charge Portable Mini 3C PowerBank for iPhone 18 Xiaomi External Spare Battery Charger"},
+            {"id":"1005010354323473","label":"exact","tier":"standard","shop":"2343184","price":116.49,"feedbackPct":96.1,"unitsSold":5632,"title":"【CCC】Baseus 10000mAh Magnetic Power Bank PD 27W, 5000mAh Magnetic Power Bank PD 20W Card-Sized Powerbank For iPhone 17 Samsung"}
+          ],
+          "sameShopTop3": 1,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 2,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 7,
+            "requirement": 4
+          },
+          "labels": {
+            "count": 114,
+            "leadCorrect": true,
+            "cardsGood": 3,
+            "cardsLabelled": 3,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005009127238944"],
+            "typeFalseNegativesBlocking": ["1005009127238944"],
+            "falsePositives": ["1005011768370783"],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "ho-slippers",
+          "group": "eval",
+          "query": "נעלי בית חמות לחורף",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 120,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 50,
+          "passed": 32,
+          "fill": 0,
+          "shown": 3,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005008660379272","label":"exact","tier":"standard","shop":"1103573332","price":19.95,"feedbackPct":98,"unitsSold":3902,"title":"Winter Warm Slippers Men House Non Slip Soft Shoes Comfortable Flat Heel Home Indoor Bedroom Plush Slippers Bedroom Female shoes"},
+            {"id":"1005003022006610","label":"exact","tier":"standard","shop":"911932418","price":13.32,"feedbackPct":100,"unitsSold":247,"title":"Fluffy Female Slipper Women Home Winter Plush Thick Non slip Grip Soft Cute Funny Indoor House Heart Love Shoes hairy warm Fuzzy"},
+            {"id":"1005012384235278","label":"exact","tier":"standard","shop":"1103813169","price":15.78,"feedbackPct":94.8,"unitsSold":221,"title":"Women's House Slippers, Cute Cartoon Plush Non-Slip Indoor Bedroom Floor Shoes, Warm & Cozy Home Footwear for Winter&Autumn"}
+          ],
+          "next3": [
+            {"id":"1005012061454873","label":"exact","tier":"standard","shop":"1103573332","price":36.81,"feedbackPct":98,"unitsSold":988,"title":"Winter Men Felt Platform  House Slippers Ultra Warm Cushion   Cozy Living Non-Slip TPR Outdoor Indoor House"},
+            {"id":"1005012967925438","label":"exact","tier":"standard","shop":"1105781315","price":10.9,"feedbackPct":97.3,"unitsSold":491,"title":"Womens Fuzzy Cat Slippers Winter Warm Cozy Indoor House Shoes With Soft Non Slip EVA Sole Cute Animal Design For Home Use"},
+            {"id":"1005010620590535","label":"reasonable","tier":"standard","shop":"1103840307","price":29,"feedbackPct":97.6,"unitsSold":202,"title":"Fluffy Slippers For Women Men House Winter Plush Lined Thick Sole Non-slip Snow Boots Warm Indoor House Fuzzy Cotton Shoes"}
+          ],
+          "sameShopTop3": 1,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 4,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 3,
+            "requirement": 0
+          },
+          "labels": {
+            "count": 105,
+            "leadCorrect": true,
+            "cardsGood": 3,
+            "cardsLabelled": 3,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005009913484266","1005010285425685","1005009735143072","1005010187496358","1005010439455075","1005009889141626"],
+            "typeFalseNegativesBlocking": ["1005009913484266","1005010285425685","1005009735143072","1005010187496358","1005010439455075","1005009889141626"],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "ho-speaker",
+          "group": "eval",
+          "query": "רמקול בלוטוס עמיד למים לים בין 50 ל־150 שקל",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 117,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 49,
+          "passed": 12,
+          "fill": 0,
+          "shown": 3,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005007038567261","label":"exact","tier":"standard","shop":"1103573332","price":89.06,"feedbackPct":98,"unitsSold":4138,"title":"ZEALOT-S32PRO Powerful Bluetooth Speaker, Bass Wireless, LED Light, Outdoor Speakers, Subwoofer, Waterproof Sound Box Support"},
+            {"id":"1005007357456579","label":"exact","tier":"standard","shop":"1104002136","price":122.19,"feedbackPct":96.7,"unitsSold":7145,"title":"Ortizan Bluetooth Speakers 40W Enhanced Bass Portable Outdoor Wireless Speaker 30Hrs IP7 Waterproof Shower Speaker Bluetooth 5.3"},
+            {"id":"1005009981036191","label":"reasonable","tier":"standard","shop":"1103207162","price":56.1,"feedbackPct":97.1,"unitsSold":1148,"title":"Wearable Bluetooth Speaker IPX7 Waterproof Portable Speakers Outdoor Sport Clip-On Microphone Speaker Calls/Music Mini Sound Box"}
+          ],
+          "next3": [
+            {"id":"1005010376374580","label":"exact","tier":"standard","shop":"1103573332","price":78.86,"feedbackPct":98,"unitsSold":2054,"title":"Tribit PocketGo Portable Bluetooth Speaker IP68 Waterproof BT6.0 Built-in Mic TWS APP EQ for Outdoor Pool Party Camping Travel"},
+            {"id":"1005006437000769","label":"exact","tier":"standard","shop":"1102895551","price":56.43,"feedbackPct":96.5,"unitsSold":715,"title":"Edifier MP85 Portable Bluetooth Speakers Camping Walking Speaker Wireless Stereo 70g Lightweight 8H Playback Waterproof"},
+            {"id":"32976654989","label":"exact","tier":"standard","shop":"4873018","price":74.68,"feedbackPct":96,"unitsSold":544,"title":"EWA A106 Pro Mini Bluetooth Speaker with Custom Bass Radiator, IPX7 Waterproof, Super Portable Speakers, Travel Case Packed"}
+          ],
+          "sameShopTop3": 1,
+          "budgetShare": 0.59,
+          "rejected": {
+            "feedback": 3,
+            "volume": 0,
+            "currency": 0,
+            "price": 1,
+            "type": 13,
+            "requirement": 4
+          },
+          "labels": {
+            "count": 101,
+            "leadCorrect": true,
+            "cardsGood": 3,
+            "cardsLabelled": 3,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005005741315902","1005010427729730"],
+            "typeFalseNegativesBlocking": ["1005005741315902","1005010427729730"],
+            "falsePositives": ["1005011587179693","1005007573673406","1005009993283473"],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "home-drawer",
+          "group": "eval",
+          "query": "מארגן מגירות למטבח",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 149,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 49,
+          "passed": 18,
+          "fill": 0,
+          "shown": 3,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005007170336837","label":"reasonable","tier":"standard","shop":"1103573332","price":44.07,"feedbackPct":98,"unitsSold":3050,"title":"Expandable Kitchen Cabinet Drawer Organizer Rack, Multi‑Purpose Storage Shelf for Pots, Pans, Pot Lids, Cutting Boards Cookware"},
+            {"id":"1005013004164872","label":"exact","tier":"standard","shop":"1105326216","price":16.93,"feedbackPct":100,"unitsSold":344,"title":"UpgradedAdjustable Plastic Cutlery Drawer Organizer Divided Storage Tray Space Saving Holder for Kitchen Knives Spoons Tableware"},
+            {"id":"1005010323499090","label":"reasonable","tier":"standard","shop":"1103877006","price":82.81,"feedbackPct":96.5,"unitsSold":1683,"title":"6/8/10/12-Pack Adjustable Drawer Organizers, Clear Expandable Dresser Organizers for Storing Clothes Kitchen Utensils"}
+          ],
+          "next3": [
+            {"id":"1005008429982440","label":"reasonable","tier":"standard","shop":"1103573332","price":39.14,"feedbackPct":98,"unitsSold":1227,"title":"4 Layers Kitchen Spice Drawer Organizer Adjustable Spice Rack for Spice Jars Seasoning Bottles Cabinet Pantry Kitchen Organizer"},
+            {"id":"1005010621821117","label":"exact","tier":"standard","shop":"1105008143","price":16.65,"feedbackPct":95.7,"unitsSold":1100,"title":"1Pc Expandable Kitchen Drawer Organizer - Adjustable Retractable Cutlery Storage Box with Dividers for Utensils,Drawer Organizer"},
+            {"id":"1005008300383489","label":"weak","tier":"standard","shop":"1103877006","price":26.26,"feedbackPct":97.1,"unitsSold":362,"title":"1/2/4/6/8 Pack Drawer Dividers for Clothes, 11.6''-19.6'' Adjustable Drawer Organizers 3.35'' High Expandable Separators"}
+          ],
+          "sameShopTop3": 1,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 6,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 23,
+            "requirement": 0
+          },
+          "labels": {
+            "count": 128,
+            "leadCorrect": true,
+            "cardsGood": 3,
+            "cardsLabelled": 3,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005006860725584","1005005622568983","1005009960331365","1005006776306341","1005007513992717","1005007060348934","1005008145028011","1005007476670557","1005011759776623","1005011807896561","1005008258287112","1005010035014505","1005012543543024","1005010016876517"],
+            "typeFalseNegativesBlocking": ["1005006860725584","1005005622568983","1005009960331365","1005006776306341","1005007513992717","1005007060348934","1005008145028011","1005007476670557","1005011759776623","1005011807896561","1005008258287112","1005010035014505","1005012543543024","1005010016876517"],
+            "falsePositives": ["1005010492645121","1005010483885296"],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "home-nightlight",
+          "group": "eval",
+          "query": "מנורת לילה לחדר ילדים עם חיישן תנועה",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 147,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 50,
+          "passed": 3,
+          "fill": 0,
+          "shown": 3,
+          "moreAvailable": false,
+          "top3": [
+            {"id":"1005008557420018","label":"exact","tier":"standard","shop":"1103317922","price":14.55,"feedbackPct":98.6,"unitsSold":115,"title":"Motion Sensor Led Night Light EU US Plug Infrared Smart Sensor Wall Lamp Bedroom Toilet Hallway Kitchen Kid Nightlight 220V 110V"},
+            {"id":"1005008640620418","label":"exact","tier":"standard","shop":"1102696938","price":12.7,"feedbackPct":97,"unitsSold":111,"title":"LED Cloud Smart Motion Sensor Night Lights Room DecorEU/US Plug in for Kids Bedroom Stair Hallway Study Bedhead Night Lamps"},
+            {"id":"1005006011826341","label":"exact","tier":"standard","shop":"912699044","price":23.17,"feedbackPct":90.8,"unitsSold":159,"title":"EU US UK Plug in LED Motion Sensor Night Lights for Kids Bedroom Auto Dusk to Dawn Sensor Dimmable Wireless Cabinet Lamp Decor"}
+          ],
+          "next3": [],
+          "sameShopTop3": 1,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 23,
+            "volume": 24,
+            "currency": 0,
+            "price": 0,
+            "type": 0,
+            "requirement": 0
+          },
+          "labels": {
+            "count": 41,
+            "leadCorrect": true,
+            "cardsGood": 3,
+            "cardsLabelled": 3,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": [],
+            "typeFalseNegativesBlocking": [],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "kids-bottle",
+          "group": "eval",
+          "query": "בקבוק מים לגן שלא נוזל",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 133,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 49,
+          "passed": 19,
+          "fill": 0,
+          "shown": 3,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005010758572162","label":"exact","tier":"standard","shop":"1103841451","price":16.93,"feedbackPct":97.5,"unitsSold":463,"title":"650ml Cute Kids Water Bottle With Straw Free BPA Leakproof Outdoor Portable Children's Cups School Water Bottle for Children"},
+            {"id":"1005008145022027","label":"exact","tier":"standard","shop":"1103573332","price":10.4,"feedbackPct":98,"unitsSold":1945,"title":"600ml Dinosaur Water Bottle For Kids Water Sippy Cup With Silicone Straw Leakproof Plastic Water Bottles Summer Kids Water Cup"},
+            {"id":"1005012633078775","label":"reasonable","tier":"standard","shop":"1105444857","price":21.19,"feedbackPct":100,"unitsSold":118,"title":"750ml Football Pattern Kids Water Bottle Leak Proof Flip Lid Portable Sports Drink Cup For Boys Outdoor Sport"}
+          ],
+          "next3": [
+            {"id":"1005007028619805","label":"exact","tier":"standard","shop":"1103638325","price":16.71,"feedbackPct":98.4,"unitsSold":918,"title":"600ml Cartoon Animal Water Bottle Portable Safety Lock Cute Straw Cup Kids Leak-proof Drinking Jug For Outdoor Camping Travel"},
+            {"id":"1005010188950414","label":"exact","tier":"standard","shop":"1104723182","price":16.97,"feedbackPct":95.5,"unitsSold":392,"title":"550ml Kids Cartoon Animal Water Bottle with Safety Lock Portable Leak-proof Straw Cup for Outdoor Camping Travel"},
+            {"id":"1005007306561916","label":"exact","tier":"standard","shop":"1103573332","price":17.78,"feedbackPct":98,"unitsSold":1192,"title":"Hot 500ml Cute Water Bottle with Straw Portable Plastic Pop-Up Cover Water Cup for School Kids Leak-Proof Cute Drinking Bottle"}
+          ],
+          "sameShopTop3": 1,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 6,
+            "volume": 1,
+            "currency": 0,
+            "price": 0,
+            "type": 7,
+            "requirement": 6
+          },
+          "labels": {
+            "count": 109,
+            "leadCorrect": true,
+            "cardsGood": 3,
+            "cardsLabelled": 3,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005009485042004","1005009940569393","1005005791921398","1005013110928815","1005010099761435","1005012439959413","1005005680557224","1005009877602973","1005011960845616","1005011556737084"],
+            "typeFalseNegativesBlocking": ["1005009485042004","1005009940569393","1005005791921398","1005013110928815","1005010099761435","1005012439959413","1005005680557224","1005009877602973","1005011960845616","1005011556737084"],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "kids-toy",
+          "group": "eval",
+          "query": "צעצוע לילד בן 3 שמלמד צבעים",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 146,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 49,
+          "passed": 7,
+          "fill": 0,
+          "shown": 3,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005011654056078","label":"exact","tier":"standard","shop":"1103573332","price":14.09,"feedbackPct":98,"unitsSold":952,"title":"Color Sorting Sensory Toys Fine Motor Skills Game For Toddlers Color Matching Toys Preschool Learn Activities Educational toy ﻿"},
+            {"id":"1005008742347693","label":"exact","tier":"standard","shop":"1104633920","price":35.39,"feedbackPct":94.3,"unitsSold":958,"title":"Wooden Color Shape Sorting Toys Drawer Box Busy Board Matching Game Fine Motor Sensory Toys Montessori Learning For Baby Gifts"},
+            {"id":"1005007096712990","label":"reasonable","tier":"standard","shop":"1103573332","price":13.68,"feedbackPct":98,"unitsSold":1303,"title":"Colorful Wooden Roller Coaster Educational Circle Toy For Preschool Learning Bead Maze Toy Perfect Gift For Young Children"}
+          ],
+          "next3": [
+            {"id":"1005010109648376","label":"wrong","tier":"standard","shop":"1103573332","price":7.74,"feedbackPct":98,"unitsSold":1624,"title":"PVCjuggling ball outdoor sandbag multi-color beginner 1/3/6/12 sandbags circular learning toy smooth durable circus child adult"},
+            {"id":"1005007822675175","label":"exact","tier":"standard","shop":"1103573332","price":22.86,"feedbackPct":98,"unitsSold":734,"title":"Wooden Matching Toys Montessori Color Matching Sorting Stick Balance Toy Fine Motor Skills Math Learning Educational Toys Kids"},
+            {"id":"1005007010556247","label":"reasonable","tier":"standard","shop":"1103573332","price":21.05,"feedbackPct":98,"unitsSold":692,"title":"Montessori Baby Toys 18 Months Sensory Development Learning Educational Toys Colorful Blocks Sorting Game For Babies Infant"}
+          ],
+          "sameShopTop3": 2,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 3,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 36,
+            "requirement": 0
+          },
+          "labels": {
+            "count": 134,
+            "leadCorrect": true,
+            "cardsGood": 3,
+            "cardsLabelled": 3,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005007169631687","1005010383637441","1005008557485021","1005009274837279","1005008248123260","1005009234671417","1005006673366985","1005005240277616","1005007938087552","1005010439233904","1005008446126377","1005007038475217","1005005529435589","1005006966395499","1005007904972361","1005007171110287","1005007636079710","1005007588330042"],
+            "typeFalseNegativesBlocking": ["1005007169631687","1005010383637441","1005008557485021","1005009274837279","1005008248123260","1005009234671417","1005006673366985","1005005240277616","1005007938087552","1005010439233904","1005008446126377","1005007038475217","1005005529435589","1005006966395499","1005007904972361","1005007171110287","1005007636079710","1005007588330042"],
+            "falsePositives": ["1005010109648376","1005009002382081","1005009582625056","1005008097934329","1005006996242795","1005009785507061","1005007491933245"],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "pair-a",
+          "group": "eval",
+          "query": "אוזניות לריצה, עמידות למים, עד 100 ש״ח",
+          "sameQueryAs": null,
+          "parseVersion": 5,
+          "snapshotPool": 148,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 50,
+          "passed": 6,
+          "fill": 0,
+          "shown": 3,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005013100925225","label":"exact","tier":"standard","shop":"1103573332","price":7.76,"feedbackPct":98,"unitsSold":244,"title":"Wireless Bluetooth 4.2 Earphone Sports Running Headset Waterproof Earbuds Music Magnetic Headphone With HD Mic For Xiaomi Huawei"},
+            {"id":"1005007623121003","label":"exact","tier":"standard","shop":"1103314218","price":62.44,"feedbackPct":97.3,"unitsSold":130,"title":"Sport Wireless Headphone TWS Wireless Earphones Bluetooth 5.3 Earbuds with ENC Noise Cancellation Mic IP7 Waterproof for Running"},
+            {"id":"1005012245998962","label":"exact","tier":"standard","shop":"912628034","price":13.72,"feedbackPct":96,"unitsSold":349,"title":"Lenovo Bluetooth 5.4 Bone Conduction Headphones Wireless Sports Earbuds IPX8 Waterproof with Mic for Swimming Running Fitness"}
+          ],
+          "next3": [
+            {"id":"1005007792521675","label":"exact","tier":"standard","shop":"1103573332","price":9.79,"feedbackPct":98,"unitsSold":346,"title":"K58 Wireless Headphones Bluetooth Neckband Magnetic Earphones Sport Running Earbuds Waterproof Bluetooth 5.0 Headset With Mic"},
+            {"id":"1005006257950849","label":"exact","tier":"standard","shop":"911425250","price":34.89,"feedbackPct":93.8,"unitsSold":449,"title":"HOCO EW60 Bluetooth 5.0 Earbuds Wireless Hi-Res Audio Touch Control Waterproof Sports Headset with Mic for Running"},
+            {"id":"1005001814197354","label":"exact","tier":"standard","shop":"1986430","price":72.28,"feedbackPct":90.9,"unitsSold":283,"title":"Mpow Flame Solo Wireless Earphones TWS Bluetooth 5.4 Earbuds with ENC Noise Cancellation Mic IPX7 Waterproof for Running Sport"}
+          ],
+          "sameShopTop3": 1,
+          "budgetShare": 0.28,
+          "rejected": {
+            "feedback": 16,
+            "volume": 19,
+            "currency": 0,
+            "price": 0,
+            "type": 3,
+            "requirement": 6
+          },
+          "labels": {
+            "count": 64,
+            "leadCorrect": true,
+            "cardsGood": 3,
+            "cardsLabelled": 3,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005012440801923","1005011675886288","1005012833511900","1005011674789869","1005012058590153","1005009580477059","1005009750303279","1005010657289378","1005010240614648","1005007961638171","1005009578274758","1005009826812698","1005009970168305","1005010535516482","1005009736102805","1005007678232042","1005011786797389","1005009926833649","1005011715254947","1005010710252547","1005009006022196","1005010443102720","1005008965197230"],
+            "typeFalseNegativesBlocking": ["1005012440801923","1005011675886288","1005011674789869","1005010240614648","1005007961638171","1005009970168305","1005009736102805","1005007678232042","1005009006022196"],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "pair-a2",
+          "group": "eval",
+          "query": "אוזניות ריצה עמידות במים עד 100 שקל",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 126,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 49,
+          "passed": 5,
+          "fill": 0,
+          "shown": 3,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005008805916503","label":"exact","tier":"standard","shop":"1103457065","price":21.6,"feedbackPct":93.5,"unitsSold":9451,"title":"Bluetooth 5.4 Earphones IPX7 Waterproof 20Hrs Wireless Headphones with ENC Noise Cancelling Mic Deep Bass For Sports Workout Gym"},
+            {"id":"1005008067032223","label":"reasonable","tier":"standard","shop":"1104030037","price":46.79,"feedbackPct":97.8,"unitsSold":1564,"title":"Choice Lenovo GM2 Pro Gaming Headset LED Digital Display Wireless Sport Earbuds HD Call Low Latency Headphones Waterproof"},
+            {"id":"1005007582608533","label":"exact","tier":"standard","shop":"5047067","price":34.55,"feedbackPct":90.3,"unitsSold":4741,"title":"B8 True Bone Conduction Earphones Bluetooth 5.3 Sports Wireless Headphones Ear Hook IPX5 Waterproof Headset for Running Driving"}
+          ],
+          "next3": [
+            {"id":"1005008653246621","label":"exact","tier":"standard","shop":"1812062","price":20.73,"feedbackPct":91.7,"unitsSold":1949,"title":"Wireless Headphone Bluetooth Headset Smart Adjustable Touch Sports Waterproof Earbuds Stereo Music Earphone For All Smartphone"},
+            {"id":"1005011677078001","label":"exact","tier":"standard","shop":"1105161170","price":8.21,"feedbackPct":91,"unitsSold":907,"title":"Lenovo Bone Conduction Headset Wireless Swimming Sports Headphone IPX8 Bluetooth 5.4 With Mic Waterproof Exercise Fitness New"}
+          ],
+          "sameShopTop3": 1,
+          "budgetShare": 0.34,
+          "rejected": {
+            "feedback": 15,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 19,
+            "requirement": 10
+          },
+          "labels": {
+            "count": 93,
+            "leadCorrect": true,
+            "cardsGood": 3,
+            "cardsLabelled": 3,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005008527087685","1005008073993250","1005007961638171","1005008998758138","1005009651279076","1005009970168305","1005010404325994","1005009799479634","1005005953928507","1005010487367374","1005009706727798","1005009006022196","1005007861207830","1005010640923455","1005010106509688","1005012066498093","1005006658968177","1005007275303308","1005005071434469","1005008702903326","1005012505369409","1005009894399990","1005007884058329","1005011812880938","1005012742635202","1005007994343959","1005012058590153","1005012950652826","1005008893525854","1005007678232042","1005011786797389","1005009826812698"],
+            "typeFalseNegativesBlocking": ["1005008073993250","1005007961638171","1005009970168305","1005010404325994","1005009799479634","1005005953928507","1005010487367374","1005009706727798","1005009006022196","1005007861207830","1005010640923455","1005010106509688","1005006658968177","1005005071434469","1005012505369409","1005009894399990","1005007884058329","1005012742635202","1005007994343959","1005012950652826","1005007678232042"],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "pair-b2",
+          "group": "eval",
+          "query": "מעמד לפלאפון לאוטו עם טעינה אלחוטית",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 147,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 50,
+          "passed": 13,
+          "fill": 0,
+          "shown": 3,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005007097351039","label":"exact","tier":"standard","shop":"1103573332","price":29.49,"feedbackPct":98,"unitsSold":2347,"title":"Essager Magnetic Wireless Charger Car Phone Holder 15W RGB Seven Color Light Fast Charging Mount Stand For IPhone15 14 13Android"},
+            {"id":"1005005544072940","label":"exact","tier":"standard","shop":"2343184","price":76.8,"feedbackPct":97.1,"unitsSold":2484,"title":"Baseus Magnetic Wireless Charger Car Phone Holder 15W Fast Charging Wireless Car Charger Holder For iPhone 16 15 14 13 Car Mount"},
+            {"id":"1005009889116002","label":"exact","tier":"standard","shop":"301635","price":101.15,"feedbackPct":96.6,"unitsSold":3436,"title":"UGREEN Qi2.2 25W 15W Magnetic Car Phone Holder Wireless Charger Stand For iPhone 17 16 Pro Max Charging Magnetic Car Charger"}
+          ],
+          "next3": [
+            {"id":"1005008830678574","label":"exact","tier":"standard","shop":"1103573332","price":13.64,"feedbackPct":98,"unitsSold":8218,"title":"Car Air Vent Magnetic Wireless Charger Phone Holder, Fast Charging Mount Compatible with MagSafe iPhone 17/16/15/14/13/12 Pro"},
+            {"id":"1005009638185893","label":"exact","tier":"standard","shop":"1103316981","price":21,"feedbackPct":92.4,"unitsSold":3009,"title":"RGB Light Car Magnetic Wireless Charger Phone Holder Air Vent Stand For Magsafe iPhone 16 15 14 13 12 Pro Max Fast Charging Dock"},
+            {"id":"1005010487359429","label":"exact","tier":"standard","shop":"1103573332","price":13.89,"feedbackPct":98,"unitsSold":5115,"title":"Magnetic Car Wireless Charger Mount 15W Fast Charging For iPhone 12 13 14 15 16 Samsung Qi Phone 360 Rotation Vent Clip No Cable"}
+          ],
+          "sameShopTop3": 1,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 11,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 12,
+            "requirement": 6
+          },
+          "labels": {
+            "count": 119,
+            "leadCorrect": true,
+            "cardsGood": 3,
+            "cardsLabelled": 3,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005008660246574","1005006877040254","1005008458283071","1005008932603515","1005011718120542","1005006994698700","1005006678136283","1005007319834017","1005008666261754","1005009658721592","1005006994502758","1005007857095876","1005007125140751","1005009874304186","1005006677929920","1005006990169184","1005006876952507","1005010707085025","1005008077426712"],
+            "typeFalseNegativesBlocking": ["1005008660246574","1005006877040254","1005008458283071","1005008932603515","1005011718120542","1005006994698700","1005006678136283","1005007319834017","1005008666261754","1005009658721592","1005006994502758","1005007857095876","1005007125140751","1005009874304186","1005006677929920","1005006990169184","1005006876952507","1005010707085025","1005008077426712"],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "price-range-bag",
+          "group": "eval",
+          "query": "תיק גב לטיולים בין 80 ל־200 ש״ח עמיד למים",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 133,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 49,
+          "passed": 19,
+          "fill": 0,
+          "shown": 3,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005007805618542","label":"reasonable","tier":"standard","shop":"1103573332","price":105.15,"feedbackPct":98,"unitsSold":941,"title":"38L Tactical Backpack Style, Large Capacity Waterproof Outdoor Rucksack with MOLLE System, Hiking Camping Travel Bug Out Bag"},
+            {"id":"1005007402692778","label":"weak","tier":"standard","shop":"1102731477","price":143.71,"feedbackPct":97.4,"unitsSold":1978,"title":"BANGE Expandable Men's Backpack Waterproof 17.3 in Laptop Backpack Man Large Capacity Hiking Travel Bag Male Backpacks for Men"},
+            {"id":"1005009050889130","label":"reasonable","tier":"standard","shop":"1104821432","price":165.2,"feedbackPct":98.3,"unitsSold":307,"title":"45L Tactical Backpack Men Outdoor Waterproof Sports Travel Gym Hiking Bug Out Bag Military Camping Hunting Survival Rucksack"}
+          ],
+          "next3": [
+            {"id":"1005006860931684","label":"weak","tier":"standard","shop":"1103573332","price":143.76,"feedbackPct":98,"unitsSold":830,"title":"HK Expandable Travel Backpack Men Large Capacity Waterproof 15.6” Laptop Bag Hiking Rucksack Cycling Daypack Bag with USB Port"},
+            {"id":"1005010587792488","label":"exact","tier":"standard","shop":"1105273046","price":139.26,"feedbackPct":97,"unitsSold":417,"title":"Hiking Backpack, Waterproof Hiking Daypack with Rain Cover, Lightweight Travel Camping Backpack for Men Women"},
+            {"id":"1005010588468033","label":"exact","tier":"standard","shop":"1105273046","price":194.96,"feedbackPct":98.8,"unitsSold":247,"title":"55L Internal Frame Waterproof Hiking Camping Backpack with Rain Cover, Large Lightweight Travel Daypack Rucksack for Climbing"}
+          ],
+          "sameShopTop3": 1,
+          "budgetShare": 0.69,
+          "rejected": {
+            "feedback": 1,
+            "volume": 0,
+            "currency": 0,
+            "price": 2,
+            "type": 16,
+            "requirement": 8
+          },
+          "labels": {
+            "count": 118,
+            "leadCorrect": true,
+            "cardsGood": 2,
+            "cardsLabelled": 3,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005005922339620","1005008115371474","1005007169715839"],
+            "typeFalseNegativesBlocking": ["1005005922339620","1005008115371474"],
+            "falsePositives": ["1005007456206334"],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "price-watch",
+          "group": "eval",
+          "query": "שעון חכם עם דופק בפחות מ־150 שקל",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 139,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 49,
+          "passed": 6,
+          "fill": 0,
+          "shown": 3,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005008830601930","label":"exact","tier":"standard","shop":"1103573332","price":14.49,"feedbackPct":98,"unitsSold":6103,"title":"LAXASFIT Smartwatch Bluetooth Talk Smartwatch Message Alert Heart Rate Monitor Sports Watch for Android IOS Men Women"},
+            {"id":"1005007043908778","label":"exact","tier":"standard","shop":"1102832321","price":50.68,"feedbackPct":91.6,"unitsSold":3358,"title":"LIGE 2026 Smart Watch Women Men Ladies Gift Sport Fitness Men Watches Heart Rate Monitor Waterproof Smartwatch For Android IOS"},
+            {"id":"1005006860956768","label":"exact","tier":"standard","shop":"1103573332","price":59.8,"feedbackPct":98,"unitsSold":2787,"title":"2026 New Classic Smart Watch Men Women ECG+PPG HD Screen Bluetooth Call GPS Tracker Heart Rate IP68 Waterproof Sports Smartwatch"}
+          ],
+          "next3": [
+            {"id":"1005006997324750","label":"exact","tier":"standard","shop":"1103573332","price":39.25,"feedbackPct":98,"unitsSold":2856,"title":"LAXASFIT New Men's Smart Watch Bluetooth Talk 2.01 inch HD Screen LED Outdoor Flashlight Heart Rate Monitor Sports Smartwatch"},
+            {"id":"1005009384181339","label":"exact","tier":"standard","shop":"1103573332","price":11.3,"feedbackPct":98,"unitsSold":2486,"title":"New For OPPO Ultra Thin Smart Watch Men AMOLED HD Screen Always Show Time Heart Rate Bluetooth Call Sports Waterproof Smartwatch"},
+            {"id":"1005012438476927","label":"exact","tier":"standard","shop":"1103573332","price":22.64,"feedbackPct":98,"unitsSold":2568,"title":"2026 New Smart Watch Bluetooth Call Fitness Tracker Heart Rate Sleep Record Outdoor Sport Watch for Android/IOS Men Women HT30"}
+          ],
+          "sameShopTop3": 2,
+          "budgetShare": 0.28,
+          "rejected": {
+            "feedback": 17,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 1,
+            "requirement": 25
+          },
+          "labels": {
+            "count": 94,
+            "leadCorrect": true,
+            "cardsGood": 3,
+            "cardsLabelled": 3,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005008144895479","1005012013986562","1005008908975458","1005010332447247","1005010541858471"],
+            "typeFalseNegativesBlocking": ["1005012013986562","1005008908975458","1005010332447247","1005010541858471"],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "slang-mouse",
+          "group": "eval",
+          "query": "משהו שווה לגיימינג, עכבר שקט שלא מרעיש",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 144,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 50,
+          "passed": 25,
+          "fill": 0,
+          "shown": 3,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005006904646242","label":"reasonable","tier":"standard","shop":"1103573332","price":11.38,"feedbackPct":98,"unitsSold":8681,"title":"Ergonomic Wireless Gaming Mouse RGB Backlight USB Compatible Rechargeable Silent Backlit Mouse for Laptop PC - Silent Gaming Mic"},
+            {"id":"1005010351630831","label":"reasonable","tier":"standard","shop":"1103415017","price":18.33,"feedbackPct":94.8,"unitsSold":3293,"title":"Bluetooth 5.4 Mouse Dual-Mode 2.4G Wireless Mouse 6 Buttons Gaming Mouse Office Silent Mice Rechargeable Mouse For PC Laptop"},
+            {"id":"1005011618146389","label":"reasonable","tier":"standard","shop":"1105139148","price":22.65,"feedbackPct":94.8,"unitsSold":1622,"title":"2.4G Wireless Mouse Dual-Mode Bluetooth Mouse 6Buttons Silent Gaming Mice Rechargeable E-Sports Mouse 1600DPI Office Mice For PC"}
+          ],
+          "next3": [
+            {"id":"1005006678237239","label":"reasonable","tier":"standard","shop":"1103573332","price":13.09,"feedbackPct":98,"unitsSold":8326,"title":"KEBIDUMEI Bluetooth 5.4 Mouse 2.4G Wireless Mouse Dual Mode RGB Backlit Gaming Mouse Rechargeable Silent Mice for PC Laptop"},
+            {"id":"1005005847298347","label":"weak","tier":"standard","shop":"1102471236","price":29.84,"feedbackPct":96.5,"unitsSold":2138,"title":"Baseus F01B Mouse Wireless Bluetooth 5.0 Mouse 1600 DPI Silent Click For MacBook Tablet Laptop PC Gaming Accessories 2.4G Mouse"},
+            {"id":"1005005699328399","label":"reasonable","tier":"standard","shop":"1102512602","price":14.73,"feedbackPct":95.4,"unitsSold":1088,"title":"Wireless Mouse For Laptop PC Bluetooth RGB Rechargeable Mouses Wireless Computer Silent Mice LED Backlit Ergonomic Gaming Mouse"}
+          ],
+          "sameShopTop3": 1,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 6,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 0,
+            "requirement": 13
+          },
+          "labels": {
+            "count": 129,
+            "leadCorrect": true,
+            "cardsGood": 3,
+            "cardsLabelled": 3,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": [],
+            "typeFalseNegativesBlocking": [],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "tech-charger",
+          "group": "eval",
+          "query": "מטען מהיר 65W לטלפון ולמחשב נייד",
+          "sameQueryAs": null,
+          "parseVersion": 5,
+          "snapshotPool": 145,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1","primary-p2","ladder-1"],
+            "calls": 3,
+            "missing": null
+          },
+          "checked": 145,
+          "passed": 2,
+          "fill": 0,
+          "shown": 2,
+          "moreAvailable": false,
+          "top3": [
+            {"id":"1005009205983512","label":"reasonable","tier":"standard","shop":"2343184","price":123.44,"feedbackPct":97.6,"unitsSold":3339,"title":"Baseus GaN Charger Universal Travel Adapter Built in 70W Retractable Cable 2AC 2 USB-A Type-C Fast Charging EU/UK/USA/AUS"},
+            {"id":"1005009880283488","label":"reasonable","tier":"standard","shop":"1102732226","price":26.08,"feedbackPct":90.3,"unitsSold":1794,"title":"Elough 65W USB Type C Phone Charger Universal Travel Adapter Retractable Fast Charging USB C Cable For iPhone 16 Samsung Laptop"}
+          ],
+          "next3": [],
+          "sameShopTop3": 1,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 25,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 29,
+            "requirement": 89
+          },
+          "labels": {
+            "count": 120,
+            "leadCorrect": true,
+            "cardsGood": 2,
+            "cardsLabelled": 2,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005006436990810"],
+            "typeFalseNegativesBlocking": [],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "typo-earbuds",
+          "group": "eval",
+          "query": "אוזניות בלוטות לריצה עמידות למיים",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 135,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 49,
+          "passed": 17,
+          "fill": 0,
+          "shown": 3,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005012561171707","label":"exact","tier":"standard","shop":"1103396380","price":29.95,"feedbackPct":95.9,"unitsSold":300,"title":"Lenovo X7 Wireless Earphone Bone Conduction Bluetooth Headphone Waterproof Hand-free With Mic For Running Sport Swimming"},
+            {"id":"1005007792521675","label":"exact","tier":"standard","shop":"1103573332","price":9.79,"feedbackPct":98,"unitsSold":346,"title":"K58 Wireless Headphones Bluetooth Neckband Magnetic Earphones Sport Running Earbuds Waterproof Bluetooth 5.0 Headset With Mic"},
+            {"id":"1005007678232042","label":"reasonable","tier":"standard","shop":"1102341828","price":82.62,"feedbackPct":96.3,"unitsSold":1883,"title":"Original GDLYL HD65 TWS Bluetooth V5.4 Headphones Wireless LED Digital Display Earphones Noise Reduction Waterproof Headset New"}
+          ],
+          "next3": [
+            {"id":"1005008500784169","label":"exact","tier":"standard","shop":"1103573332","price":18.76,"feedbackPct":98,"unitsSold":402,"title":"2024 Sports Neckband Wireless Running Universal Earphone Ear-hook Headphone Earplugs Super Stereo Headset Bluetooth Waterproof"},
+            {"id":"1005012504699349","label":"exact","tier":"standard","shop":"1102799862","price":34.56,"feedbackPct":93.8,"unitsSold":232,"title":"G3 Bone Conduction Headphones Bluetooth Headphones Wireless Air Conduction Headphones Waterproof for Running and Sports"},
+            {"id":"1005012245998962","label":"exact","tier":"standard","shop":"912628034","price":13.72,"feedbackPct":96,"unitsSold":349,"title":"Lenovo Bluetooth 5.4 Bone Conduction Headphones Wireless Sports Earbuds IPX8 Waterproof with Mic for Swimming Running Fitness"}
+          ],
+          "sameShopTop3": 1,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 11,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 9,
+            "requirement": 11
+          },
+          "labels": {
+            "count": 98,
+            "leadCorrect": true,
+            "cardsGood": 3,
+            "cardsLabelled": 3,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005010676941545","1005009680752545","1005012505369409","1005009970168305","1005009799479634","1005010487367374","1005009706727798","1005012058590153","1005012950652826","1005012440801923","1005010578692405","1005012029167812","1005007278922497","1005011786797389","1005009926833649","1005010724623265","1005010037084184"],
+            "typeFalseNegativesBlocking": ["1005010676941545","1005009680752545","1005012505369409","1005009970168305","1005009799479634","1005010487367374","1005009706727798","1005012950652826","1005012440801923","1005012029167812","1005007278922497"],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "ex-1",
+          "group": "example",
+          "query": "אוזניות לריצה, עמידות למים, עד 100 ש״ח",
+          "sameQueryAs": "pair-a",
+          "parseVersion": 5,
+          "snapshotPool": 148,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 50,
+          "passed": 6,
+          "fill": 0,
+          "shown": 3,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005013100925225","label":"exact","tier":"standard","shop":"1103573332","price":7.76,"feedbackPct":98,"unitsSold":244,"title":"Wireless Bluetooth 4.2 Earphone Sports Running Headset Waterproof Earbuds Music Magnetic Headphone With HD Mic For Xiaomi Huawei"},
+            {"id":"1005007623121003","label":"exact","tier":"standard","shop":"1103314218","price":62.44,"feedbackPct":97.3,"unitsSold":130,"title":"Sport Wireless Headphone TWS Wireless Earphones Bluetooth 5.3 Earbuds with ENC Noise Cancellation Mic IP7 Waterproof for Running"},
+            {"id":"1005012245998962","label":"exact","tier":"standard","shop":"912628034","price":13.72,"feedbackPct":96,"unitsSold":349,"title":"Lenovo Bluetooth 5.4 Bone Conduction Headphones Wireless Sports Earbuds IPX8 Waterproof with Mic for Swimming Running Fitness"}
+          ],
+          "next3": [
+            {"id":"1005007792521675","label":"exact","tier":"standard","shop":"1103573332","price":9.79,"feedbackPct":98,"unitsSold":346,"title":"K58 Wireless Headphones Bluetooth Neckband Magnetic Earphones Sport Running Earbuds Waterproof Bluetooth 5.0 Headset With Mic"},
+            {"id":"1005006257950849","label":"exact","tier":"standard","shop":"911425250","price":34.89,"feedbackPct":93.8,"unitsSold":449,"title":"HOCO EW60 Bluetooth 5.0 Earbuds Wireless Hi-Res Audio Touch Control Waterproof Sports Headset with Mic for Running"},
+            {"id":"1005001814197354","label":"exact","tier":"standard","shop":"1986430","price":72.28,"feedbackPct":90.9,"unitsSold":283,"title":"Mpow Flame Solo Wireless Earphones TWS Bluetooth 5.4 Earbuds with ENC Noise Cancellation Mic IPX7 Waterproof for Running Sport"}
+          ],
+          "sameShopTop3": 1,
+          "budgetShare": 0.28,
+          "rejected": {
+            "feedback": 16,
+            "volume": 19,
+            "currency": 0,
+            "price": 0,
+            "type": 3,
+            "requirement": 6
+          },
+          "labels": {
+            "count": 64,
+            "leadCorrect": true,
+            "cardsGood": 3,
+            "cardsLabelled": 3,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005012440801923","1005011675886288","1005012833511900","1005011674789869","1005012058590153","1005009580477059","1005009750303279","1005010657289378","1005010240614648","1005007961638171","1005009578274758","1005009826812698","1005009970168305","1005010535516482","1005009736102805","1005007678232042","1005011786797389","1005009926833649","1005011715254947","1005010710252547","1005009006022196","1005010443102720","1005008965197230"],
+            "typeFalseNegativesBlocking": ["1005012440801923","1005011675886288","1005011674789869","1005010240614648","1005007961638171","1005009970168305","1005009736102805","1005007678232042","1005009006022196"],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "ex-2",
+          "group": "example",
+          "query": "מתנה לאבא שאוהב לבשל עד 200 ש״ח",
+          "sameQueryAs": "gift-cook",
+          "parseVersion": 5,
+          "snapshotPool": 149,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1","primary-p2"],
+            "calls": 2,
+            "missing": null
+          },
+          "checked": 100,
+          "passed": 10,
+          "fill": 0,
+          "shown": 3,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005012743006539","label":"reasonable","tier":"standard","shop":"1103573332","price":36.26,"feedbackPct":98,"unitsSold":602,"title":"5-piece kitchen tool set, including a small chopping knife, scissors, fruit knife, peeler, and knife block, suitable for househo"},
+            {"id":"1005007663259910","label":"weak","tier":"standard","shop":"1102425791","price":5.8,"feedbackPct":95.1,"unitsSold":1451,"title":"Measuring Cup And  Spoon 5/10PCS Household Kitchen Tool Set, Can Be Used To Store Cooking"},
+            {"id":"1005007611485410","label":"weak","tier":"standard","shop":"1103856072","price":8.4,"feedbackPct":95.1,"unitsSold":782,"title":"Sandwich Cutting and Sealing Machine, biscuit Plastic Cutting Machine, Household Kitchen Tools, baking Molds, Creative Cutting"}
+          ],
+          "next3": [
+            {"id":"1005007169766992","label":"weak","tier":"standard","shop":"1103573332","price":11.69,"feedbackPct":98,"unitsSold":1079,"title":"1/3PCS Nylon Kitchen Utensils Set Kitchen Cooking Tools  Slotted Turner Solid Spoon Fork Children Spade Fork Spoon Dinnerware"},
+            {"id":"1005012705511099","label":"wrong","tier":"standard","shop":"1104393123","price":23.17,"feedbackPct":94.4,"unitsSold":679,"title":"22Pcs Stainless Steel Caulking Nozzle Tool Set Silicone Sealant Finishing Tools For Kitchen Bathroom Sink Joint Sealing Work"},
+            {"id":"1005006997354157","label":"exact","tier":"standard","shop":"1103573332","price":53.24,"feedbackPct":98,"unitsSold":766,"title":"12Pcs Kitchen Utensil Set Silicone Spatula Set Wooden Handle Cooking Tools Kit with Holder Heat-Resistant Cookware for Kitchen"}
+          ],
+          "sameShopTop3": 1,
+          "budgetShare": 0.08,
+          "rejected": {
+            "feedback": 13,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 75,
+            "requirement": 0
+          },
+          "labels": {
+            "count": 130,
+            "leadCorrect": true,
+            "cardsGood": 1,
+            "cardsLabelled": 3,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005013262555028","1005008077524666","1005009916287051","1005007811194179","1005007635090428","1005008660310361","1005011717779648","1005009751349013","1005007016051853","1005009054990325","1005008239033716","1005006994560658","1005006904728187"],
+            "typeFalseNegativesBlocking": ["1005013262555028","1005008077524666","1005009916287051","1005007811194179","1005007635090428","1005008660310361","1005011717779648","1005009751349013","1005007016051853","1005009054990325","1005008239033716","1005006994560658","1005006904728187"],
+            "falsePositives": ["1005007170813797","1005012705511099"],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "ex-3",
+          "group": "example",
+          "query": "מארגנים למגירות במטבח",
+          "sameQueryAs": null,
+          "parseVersion": 5,
+          "snapshotPool": 148,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 49,
+          "passed": 18,
+          "fill": 0,
+          "shown": 3,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005007170336837","label":"reasonable","tier":"standard","shop":"1103573332","price":44.07,"feedbackPct":98,"unitsSold":3050,"title":"Expandable Kitchen Cabinet Drawer Organizer Rack, Multi‑Purpose Storage Shelf for Pots, Pans, Pot Lids, Cutting Boards Cookware"},
+            {"id":"1005013004164872","label":"exact","tier":"standard","shop":"1105326216","price":16.93,"feedbackPct":100,"unitsSold":344,"title":"UpgradedAdjustable Plastic Cutlery Drawer Organizer Divided Storage Tray Space Saving Holder for Kitchen Knives Spoons Tableware"},
+            {"id":"1005010323499090","label":"reasonable","tier":"standard","shop":"1103877006","price":82.81,"feedbackPct":96.5,"unitsSold":1683,"title":"6/8/10/12-Pack Adjustable Drawer Organizers, Clear Expandable Dresser Organizers for Storing Clothes Kitchen Utensils"}
+          ],
+          "next3": [
+            {"id":"1005008429982440","label":"reasonable","tier":"standard","shop":"1103573332","price":39.14,"feedbackPct":98,"unitsSold":1227,"title":"4 Layers Kitchen Spice Drawer Organizer Adjustable Spice Rack for Spice Jars Seasoning Bottles Cabinet Pantry Kitchen Organizer"},
+            {"id":"1005010621821117","label":"exact","tier":"standard","shop":"1105008143","price":16.65,"feedbackPct":95.7,"unitsSold":1100,"title":"1Pc Expandable Kitchen Drawer Organizer - Adjustable Retractable Cutlery Storage Box with Dividers for Utensils,Drawer Organizer"},
+            {"id":"1005008300383489","label":"weak","tier":"standard","shop":"1103877006","price":26.26,"feedbackPct":97.1,"unitsSold":362,"title":"1/2/4/6/8 Pack Drawer Dividers for Clothes, 11.6''-19.6'' Adjustable Drawer Organizers 3.35'' High Expandable Separators"}
+          ],
+          "sameShopTop3": 1,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 6,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 23,
+            "requirement": 0
+          },
+          "labels": {
+            "count": 127,
+            "leadCorrect": true,
+            "cardsGood": 3,
+            "cardsLabelled": 3,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005006860725584","1005005622568983","1005009960331365","1005006776306341","1005007513992717","1005007060348934","1005008145028011","1005007476670557","1005011759776623","1005011807896561","1005008258287112","1005010035014505","1005012543543024","1005010016876517"],
+            "typeFalseNegativesBlocking": ["1005006860725584","1005005622568983","1005009960331365","1005006776306341","1005007513992717","1005007060348934","1005008145028011","1005007476670557","1005011759776623","1005011807896561","1005008258287112","1005010035014505","1005012543543024","1005010016876517"],
+            "falsePositives": ["1005010492645121","1005010483885296"],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "ex-4",
+          "group": "example",
+          "query": "מחזיק טלפון לרכב עם טעינה אלחוטית",
+          "sameQueryAs": "car-holder",
+          "parseVersion": 4,
+          "snapshotPool": 140,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 50,
+          "passed": 13,
+          "fill": 0,
+          "shown": 3,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005007097351039","label":"exact","tier":"standard","shop":"1103573332","price":29.49,"feedbackPct":98,"unitsSold":2347,"title":"Essager Magnetic Wireless Charger Car Phone Holder 15W RGB Seven Color Light Fast Charging Mount Stand For IPhone15 14 13Android"},
+            {"id":"1005005544072940","label":"exact","tier":"standard","shop":"2343184","price":76.8,"feedbackPct":97.1,"unitsSold":2484,"title":"Baseus Magnetic Wireless Charger Car Phone Holder 15W Fast Charging Wireless Car Charger Holder For iPhone 16 15 14 13 Car Mount"},
+            {"id":"1005009889116002","label":"exact","tier":"standard","shop":"301635","price":101.15,"feedbackPct":96.6,"unitsSold":3436,"title":"UGREEN Qi2.2 25W 15W Magnetic Car Phone Holder Wireless Charger Stand For iPhone 17 16 Pro Max Charging Magnetic Car Charger"}
+          ],
+          "next3": [
+            {"id":"1005008830678574","label":"exact","tier":"standard","shop":"1103573332","price":13.64,"feedbackPct":98,"unitsSold":8218,"title":"Car Air Vent Magnetic Wireless Charger Phone Holder, Fast Charging Mount Compatible with MagSafe iPhone 17/16/15/14/13/12 Pro"},
+            {"id":"1005009638185893","label":"exact","tier":"standard","shop":"1103316981","price":21,"feedbackPct":92.4,"unitsSold":3009,"title":"RGB Light Car Magnetic Wireless Charger Phone Holder Air Vent Stand For Magsafe iPhone 16 15 14 13 12 Pro Max Fast Charging Dock"},
+            {"id":"1005010487359429","label":"exact","tier":"standard","shop":"1103573332","price":13.89,"feedbackPct":98,"unitsSold":5115,"title":"Magnetic Car Wireless Charger Mount 15W Fast Charging For iPhone 12 13 14 15 16 Samsung Qi Phone 360 Rotation Vent Clip No Cable"}
+          ],
+          "sameShopTop3": 1,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 11,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 12,
+            "requirement": 6
+          },
+          "labels": {
+            "count": 115,
+            "leadCorrect": true,
+            "cardsGood": 3,
+            "cardsLabelled": 3,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005008660246574","1005006877040254","1005008458283071","1005008932603515","1005011718120542","1005006994698700","1005006678136283","1005007319834017","1005008666261754","1005009658721592","1005006994502758","1005007857095876","1005007125140751","1005009874304186","1005006677929920","1005006990169184","1005006876952507","1005010707085025","1005008077426712"],
+            "typeFalseNegativesBlocking": ["1005008660246574","1005006877040254","1005008458283071","1005008932603515","1005011718120542","1005006994698700","1005006678136283","1005007319834017","1005008666261754","1005009658721592","1005006994502758","1005007857095876","1005007125140751","1005009874304186","1005006677929920","1005006990169184","1005006876952507","1005010707085025","1005008077426712"],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "ex-5",
+          "group": "example",
+          "query": "מנורת לילה לחדר ילדים עם חיישן תנועה",
+          "sameQueryAs": "home-nightlight",
+          "parseVersion": 4,
+          "snapshotPool": 147,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 50,
+          "passed": 3,
+          "fill": 0,
+          "shown": 3,
+          "moreAvailable": false,
+          "top3": [
+            {"id":"1005008557420018","label":"exact","tier":"standard","shop":"1103317922","price":14.55,"feedbackPct":98.6,"unitsSold":115,"title":"Motion Sensor Led Night Light EU US Plug Infrared Smart Sensor Wall Lamp Bedroom Toilet Hallway Kitchen Kid Nightlight 220V 110V"},
+            {"id":"1005008640620418","label":"exact","tier":"standard","shop":"1102696938","price":12.7,"feedbackPct":97,"unitsSold":111,"title":"LED Cloud Smart Motion Sensor Night Lights Room DecorEU/US Plug in for Kids Bedroom Stair Hallway Study Bedhead Night Lamps"},
+            {"id":"1005006011826341","label":"exact","tier":"standard","shop":"912699044","price":23.17,"feedbackPct":90.8,"unitsSold":159,"title":"EU US UK Plug in LED Motion Sensor Night Lights for Kids Bedroom Auto Dusk to Dawn Sensor Dimmable Wireless Cabinet Lamp Decor"}
+          ],
+          "next3": [],
+          "sameShopTop3": 1,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 23,
+            "volume": 24,
+            "currency": 0,
+            "price": 0,
+            "type": 0,
+            "requirement": 0
+          },
+          "labels": {
+            "count": 41,
+            "leadCorrect": true,
+            "cardsGood": 3,
+            "cardsLabelled": 3,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": [],
+            "typeFalseNegativesBlocking": [],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "ex-6",
+          "group": "example",
+          "query": "רמקול בלוטות׳ עמיד למים בין 50 ל־150 ש״ח",
+          "sameQueryAs": null,
+          "parseVersion": 5,
+          "snapshotPool": 117,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 49,
+          "passed": 12,
+          "fill": 0,
+          "shown": 3,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005007038567261","label":"exact","tier":"standard","shop":"1103573332","price":89.06,"feedbackPct":98,"unitsSold":4138,"title":"ZEALOT-S32PRO Powerful Bluetooth Speaker, Bass Wireless, LED Light, Outdoor Speakers, Subwoofer, Waterproof Sound Box Support"},
+            {"id":"1005007357456579","label":"exact","tier":"standard","shop":"1104002136","price":122.19,"feedbackPct":96.7,"unitsSold":7145,"title":"Ortizan Bluetooth Speakers 40W Enhanced Bass Portable Outdoor Wireless Speaker 30Hrs IP7 Waterproof Shower Speaker Bluetooth 5.3"},
+            {"id":"1005009981036191","label":"reasonable","tier":"standard","shop":"1103207162","price":56.1,"feedbackPct":97.1,"unitsSold":1148,"title":"Wearable Bluetooth Speaker IPX7 Waterproof Portable Speakers Outdoor Sport Clip-On Microphone Speaker Calls/Music Mini Sound Box"}
+          ],
+          "next3": [
+            {"id":"1005010376374580","label":"exact","tier":"standard","shop":"1103573332","price":78.86,"feedbackPct":98,"unitsSold":2054,"title":"Tribit PocketGo Portable Bluetooth Speaker IP68 Waterproof BT6.0 Built-in Mic TWS APP EQ for Outdoor Pool Party Camping Travel"},
+            {"id":"1005006437000769","label":"exact","tier":"standard","shop":"1102895551","price":56.43,"feedbackPct":96.5,"unitsSold":715,"title":"Edifier MP85 Portable Bluetooth Speakers Camping Walking Speaker Wireless Stereo 70g Lightweight 8H Playback Waterproof"},
+            {"id":"32976654989","label":"exact","tier":"standard","shop":"4873018","price":74.68,"feedbackPct":96,"unitsSold":544,"title":"EWA A106 Pro Mini Bluetooth Speaker with Custom Bass Radiator, IPX7 Waterproof, Super Portable Speakers, Travel Case Packed"}
+          ],
+          "sameShopTop3": 1,
+          "budgetShare": 0.59,
+          "rejected": {
+            "feedback": 3,
+            "volume": 0,
+            "currency": 0,
+            "price": 1,
+            "type": 13,
+            "requirement": 4
+          },
+          "labels": {
+            "count": 101,
+            "leadCorrect": true,
+            "cardsGood": 3,
+            "cardsLabelled": 3,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005005741315902","1005010427729730"],
+            "typeFalseNegativesBlocking": ["1005005741315902","1005010427729730"],
+            "falsePositives": ["1005007573673406"],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "ex-7",
+          "group": "example",
+          "query": "שעון חכם עם מד דופק עד 150 ש״ח",
+          "sameQueryAs": null,
+          "parseVersion": 5,
+          "snapshotPool": 135,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 49,
+          "passed": 6,
+          "fill": 0,
+          "shown": 3,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005008830601930","label":"exact","tier":"standard","shop":"1103573332","price":14.49,"feedbackPct":98,"unitsSold":6103,"title":"LAXASFIT Smartwatch Bluetooth Talk Smartwatch Message Alert Heart Rate Monitor Sports Watch for Android IOS Men Women"},
+            {"id":"1005007043908778","label":"exact","tier":"standard","shop":"1102832321","price":50.68,"feedbackPct":91.6,"unitsSold":3358,"title":"LIGE 2026 Smart Watch Women Men Ladies Gift Sport Fitness Men Watches Heart Rate Monitor Waterproof Smartwatch For Android IOS"},
+            {"id":"1005006860956768","label":"exact","tier":"standard","shop":"1103573332","price":59.8,"feedbackPct":98,"unitsSold":2787,"title":"2026 New Classic Smart Watch Men Women ECG+PPG HD Screen Bluetooth Call GPS Tracker Heart Rate IP68 Waterproof Sports Smartwatch"}
+          ],
+          "next3": [
+            {"id":"1005006997324750","label":"exact","tier":"standard","shop":"1103573332","price":39.25,"feedbackPct":98,"unitsSold":2856,"title":"LAXASFIT New Men's Smart Watch Bluetooth Talk 2.01 inch HD Screen LED Outdoor Flashlight Heart Rate Monitor Sports Smartwatch"},
+            {"id":"1005009384181339","label":"exact","tier":"standard","shop":"1103573332","price":11.3,"feedbackPct":98,"unitsSold":2486,"title":"New For OPPO Ultra Thin Smart Watch Men AMOLED HD Screen Always Show Time Heart Rate Bluetooth Call Sports Waterproof Smartwatch"},
+            {"id":"1005012438476927","label":"exact","tier":"standard","shop":"1103573332","price":22.64,"feedbackPct":98,"unitsSold":2568,"title":"2026 New Smart Watch Bluetooth Call Fitness Tracker Heart Rate Sleep Record Outdoor Sport Watch for Android/IOS Men Women HT30"}
+          ],
+          "sameShopTop3": 2,
+          "budgetShare": 0.28,
+          "rejected": {
+            "feedback": 17,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 1,
+            "requirement": 25
+          },
+          "labels": {
+            "count": 79,
+            "leadCorrect": true,
+            "cardsGood": 3,
+            "cardsLabelled": 3,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005008144895479"],
+            "typeFalseNegativesBlocking": [],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "ex-8",
+          "group": "example",
+          "query": "תיק גב עמיד למים לטיולים",
+          "sameQueryAs": null,
+          "parseVersion": 5,
+          "snapshotPool": 126,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 50,
+          "passed": 9,
+          "fill": 0,
+          "shown": 3,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005013092462383","label":"reasonable","tier":"standard","shop":"1103573332","price":15.1,"feedbackPct":98,"unitsSold":18334,"title":"Backpack Multifunctional Outdoor Folding Backpack Lightweight Waterproof Nylon Fabric Sports Bag for Camping Hiking Travel"},
+            {"id":"1005007402692778","label":"weak","tier":"standard","shop":"1102731477","price":143.71,"feedbackPct":97.4,"unitsSold":1978,"title":"BANGE Expandable Men's Backpack Waterproof 17.3 in Laptop Backpack Man Large Capacity Hiking Travel Bag Male Backpacks for Men"},
+            {"id":"1005005888954862","label":"reasonable","tier":"standard","shop":"1102986239","price":43.66,"feedbackPct":94.2,"unitsSold":1221,"title":"Sport Hydration Pack Backpack Water-proof Nylon Water Bag with 3 Liter Bladder for Hiking Cycling Climbing"}
+          ],
+          "next3": [
+            {"id":"1005009916206776","label":"weak","tier":"standard","shop":"1103573332","price":19.93,"feedbackPct":98,"unitsSold":2063,"title":"Sport Basketball Backpack Travel Outdoor Waterproof Swimming Fitness Travel Sports Bag Basketball Pouch Hiking Climbing Backpack"},
+            {"id":"1005007707640828","label":"weak","tier":"standard","shop":"1103841340","price":45.55,"feedbackPct":91,"unitsSold":1402,"title":"1 Pc Men's Backpack, Large Capacity Waterproof Casual Backpack,Adjustable Computer Backpack"},
+            {"id":"1005013266358009","label":"weak","tier":"standard","shop":"1103573332","price":38.56,"feedbackPct":98.3,"unitsSold":4744,"title":"Tactical Assault Pack Sling Backpack Waterproof EDC Rucksack Bag for Outdoor Hiking Camping Hunting Trekking Travelling"}
+          ],
+          "sameShopTop3": 1,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 6,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 31,
+            "requirement": 1
+          },
+          "labels": {
+            "count": 116,
+            "leadCorrect": true,
+            "cardsGood": 2,
+            "cardsLabelled": 3,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005013266296245","1005008146433077","1005006997632307","1005007170412764","1005008224329613","1005006678223064","1005008112477409","1005006966132945","1005008234493648","1005005651412698","1005006996432383"],
+            "typeFalseNegativesBlocking": ["1005013266296245","1005008146433077","1005006997632307","1005007170412764","1005008224329613","1005006678223064","1005008112477409","1005006966132945"],
+            "falsePositives": ["1005006727708320","1005007170315788"],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "ex-9",
+          "group": "example",
+          "query": "כרית צוואר לטיסות ארוכות",
+          "sameQueryAs": null,
+          "parseVersion": 5,
+          "snapshotPool": 148,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 50,
+          "passed": 26,
+          "fill": 0,
+          "shown": 3,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005009582344612","label":"reasonable","tier":"standard","shop":"1103573332","price":16.8,"feedbackPct":98,"unitsSold":3042,"title":"Travel Neck Pillow with Fillable Clothing U-Shaped Pillowcase, Extra Storage Bag, Velvet Neck Pillow Cover for Airplane Travel"},
+            {"id":"1005006760465481","label":"exact","tier":"standard","shop":"1103452008","price":31.85,"feedbackPct":94.9,"unitsSold":13530,"title":"Travel Neck Pillow Memory Foam U-shaped Pillow Snail Style Travel Neck Support Portable Adjustable Soft Noon Break Sleep Pillows"},
+            {"id":"1005007238902686","label":"reasonable","tier":"standard","shop":"1103837518","price":11.45,"feedbackPct":93.7,"unitsSold":1307,"title":"Flocking Inflatable Portable Neck Pillow That Can Be Stored And Self Filled Suitable For Outdoor Travel Business Trips Camping"}
+          ],
+          "next3": [
+            {"id":"1005009460591122","label":"exact","tier":"standard","shop":"1103573332","price":14.38,"feedbackPct":98,"unitsSold":1207,"title":"Travel Neck Pillow, Portable Travel Essentials, Lightweight Versatile Luggage Carry On Travel Accessories"},
+            {"id":"1005012183253580","label":"weak","tier":"standard","shop":"1105348480","price":15.1,"feedbackPct":95,"unitsSold":1297,"title":"Naturehike Camping Pillow Ultralight Inflatable Pillow for Neck Support Comfortable Portable Backpacking Travel Office Pillow"},
+            {"id":"1005009013962402","label":"exact","tier":"standard","shop":"1103677578","price":19.49,"feedbackPct":93,"unitsSold":1356,"title":"U-Shaped Inflatable Travel Pillow Portable Air Neck Support Cushion Comfortable Sleeping Press to inflate pillow neck pillow"}
+          ],
+          "sameShopTop3": 1,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 2,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 15,
+            "requirement": 0
+          },
+          "labels": {
+            "count": 139,
+            "leadCorrect": true,
+            "cardsGood": 3,
+            "cardsLabelled": 3,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005007170752899","1005005266708630"],
+            "typeFalseNegativesBlocking": ["1005007170752899","1005005266708630"],
+            "falsePositives": ["1005007204690243","1005013255627262","1005005896396093"],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "live-drawer-organizer",
+          "group": "live",
+          "query": "מארגן למגירות, עד 100 ש״ח",
+          "sameQueryAs": null,
+          "parseVersion": 5,
+          "snapshotPool": 147,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 49,
+          "passed": 12,
+          "fill": 0,
+          "shown": 3,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005006995257180","label":"reasonable","tier":"standard","shop":"1103573332","price":11.23,"feedbackPct":98,"unitsSold":11268,"title":"Thicken Clothes Organizer Pants Sweater Storage Cabinets Drawers Organizer Jeans Storage Box Wardrobe Clothes Storage Organizers"},
+            {"id":"1005008290033959","label":"exact","tier":"standard","shop":"1104433135","price":19.13,"feedbackPct":95.7,"unitsSold":2772,"title":"Cabinet Underwear Organizer Drawer Clothes Organizer Boxes Closet Organizer for Underwear Bra Socks Underpants Storage Organizer"},
+            {"id":"1005010323499090","label":"exact","tier":"standard","shop":"1103877006","price":82.81,"feedbackPct":96.5,"unitsSold":1683,"title":"6/8/10/12-Pack Adjustable Drawer Organizers, Clear Expandable Dresser Organizers for Storing Clothes Kitchen Utensils"}
+          ],
+          "next3": [
+            {"id":"1005007170336837","label":"reasonable","tier":"standard","shop":"1103573332","price":44.07,"feedbackPct":98,"unitsSold":3050,"title":"Expandable Kitchen Cabinet Drawer Organizer Rack, Multi‑Purpose Storage Shelf for Pots, Pans, Pot Lids, Cutting Boards Cookware"},
+            {"id":"1005010621821117","label":"exact","tier":"standard","shop":"1105008143","price":16.65,"feedbackPct":95.7,"unitsSold":1100,"title":"1Pc Expandable Kitchen Drawer Organizer - Adjustable Retractable Cutlery Storage Box with Dividers for Utensils,Drawer Organizer"},
+            {"id":"1005011942122518","label":"wrong","tier":"standard","shop":"1104559987","price":18.58,"feedbackPct":94,"unitsSold":1315,"title":"Multi-layer Drawer Makeup Organizer, Transparent Cosmetic Storage Box, Desktop Vanity Organizer for Skincare, Lipsticks, Perfume"}
+          ],
+          "sameShopTop3": 1,
+          "budgetShare": 0.38,
+          "rejected": {
+            "feedback": 9,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 27,
+            "requirement": 0
+          },
+          "labels": {
+            "count": 117,
+            "leadCorrect": true,
+            "cardsGood": 3,
+            "cardsLabelled": 3,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005007170932465","1005006860725584","1005006782990459","1005009773498302","1005006174381760","1005007705527057","1005007345021980","1005007513992717","1005007037546152","1005006727805035","1005007170777869","1005006982718799","1005011839708234","1005013255433191","1005007857210079","1005004780769776","1005007501510278","1005009916255172","1005006776306341","1005009685253527","1005007060348934","1005005871110819","1005009962171825","1005012258141020"],
+            "typeFalseNegativesBlocking": ["1005007170932465","1005006860725584","1005006782990459","1005009773498302","1005006174381760","1005007705527057","1005007345021980","1005007513992717","1005007037546152","1005006727805035","1005007170777869","1005006982718799","1005011839708234","1005013255433191","1005007857210079","1005004780769776","1005007501510278","1005009916255172","1005006776306341","1005009685253527","1005007060348934","1005005871110819","1005009962171825","1005012258141020"],
+            "falsePositives": ["1005008554568611","1005011942122518","1005007032908429","1005005633256751","1005009279251941"],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "live-sonic-doll",
+          "group": "live",
+          "query": "בובת סוניק לילד",
+          "sameQueryAs": null,
+          "parseVersion": 5,
+          "snapshotPool": 131,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1","ladder-1"],
+            "calls": 2,
+            "missing": null
+          },
+          "checked": 87,
+          "passed": 3,
+          "fill": 3,
+          "shown": 3,
+          "moreAvailable": false,
+          "top3": [
+            {"id":"1005013192916106","label":"exact","tier":"fill","shop":"1104809075","price":25.43,"feedbackPct":100,"unitsSold":78,"title":"30cm-High Quality Sonic Plush Toys Knuckles Tails Amy Rose Plush Doll Cute Soft Stuffed Plush Doll Birthday Gifts~"},
+            {"id":"1005012737850036","label":"exact","tier":"fill","shop":"1105240516","price":36.58,"feedbackPct":100,"unitsSold":97,"title":"33cm Sonic Plush High Quality The Hedgehog Shadow Plush Toys New Cartoon Hedgehog Sonic Ultra Mouse Shadow Super SONY Kids Gifts"},
+            {"id":"1005012867684572","label":"exact","tier":"fill","shop":"1105112677","price":36.49,"feedbackPct":100,"unitsSold":70,"title":"Quality Sonic Plush Toy Hedgehog Knuckles Tails Cute Cartoon Soft Stuffed Doll Birthday Gift for Children"}
+          ],
+          "next3": [],
+          "sameShopTop3": 1,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 7,
+            "volume": 12,
+            "currency": 0,
+            "price": 0,
+            "type": 68,
+            "requirement": 0
+          },
+          "labels": {
+            "count": 77,
+            "leadCorrect": true,
+            "cardsGood": 3,
+            "cardsLabelled": 3,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005013090369715","1005012861365389"],
+            "typeFalseNegativesBlocking": ["1005013090369715","1005012861365389"],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "live-soundbar",
+          "group": "live",
+          "query": "סאונד בר",
+          "sameQueryAs": null,
+          "parseVersion": 5,
+          "snapshotPool": 148,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1","primary-p2"],
+            "calls": 2,
+            "missing": null
+          },
+          "checked": 100,
+          "passed": 7,
+          "fill": 0,
+          "shown": 3,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005007096840816","label":"weak","tier":"standard","shop":"1103573332","price":16.22,"feedbackPct":98,"unitsSold":5880,"title":"Portable Wireless Soundbar 500mAh Battery Bluetooth 5.0 Outdoor Indoor Sport HIFI Customized High-Quality Speakers Soundbar"},
+            {"id":"1005005235672872","label":"weak","tier":"standard","shop":"1102724226","price":40.44,"feedbackPct":92.7,"unitsSold":742,"title":"Speaker TG506 Portable Mini Wireless Soundbar Bluetooth 5.0 Outdoor Indoor HIFI Loudspeaker Support TF Card FM Radio Waterproof"},
+            {"id":"1005010285581153","label":"exact","tier":"standard","shop":"1103573332","price":31.44,"feedbackPct":98,"unitsSold":2295,"title":"Bluetooth 5.3 HiFi Stereo Speaker Wireless Soundbar Subwoofer with Breathing Light Portable Home Theater Audio"}
+          ],
+          "next3": [
+            {"id":"1005008077574550","label":"exact","tier":"standard","shop":"1103573332","price":41.77,"feedbackPct":98,"unitsSold":734,"title":"Wired Wireless Bluetooth Speaker Sound Box Bar Soundbar Computer PC TV Laptop Desktop Music Portable Caixa De Som Audio System"},
+            {"id":"1005009916267045","label":"reasonable","tier":"standard","shop":"1103573332","price":100.1,"feedbackPct":98,"unitsSold":4732,"title":"Lenovo C02 Wooden USB Speaker 360° Stereo Soundbar Rich Bass Desktop Speaker For PC Laptop Gaming 2026 New Speaker"},
+            {"id":"1005009874292196","label":"reasonable","tier":"standard","shop":"1103573332","price":52.81,"feedbackPct":98,"unitsSold":752,"title":"New Long Strip USB Wired & Bluetooth Dual Speaker Wooden Mini Soundbar for PC  Laptop & Desktop, Mid-Bass Speaker"}
+          ],
+          "sameShopTop3": 2,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 19,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 73,
+            "requirement": 0
+          },
+          "labels": {
+            "count": 127,
+            "leadCorrect": false,
+            "cardsGood": 1,
+            "cardsLabelled": 3,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005009645842055","1005006994697284"],
+            "typeFalseNegativesBlocking": ["1005009645842055","1005006994697284"],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        }
+      ]
+    }
+  ],
+  "comparisons": [
+    {
+      "baseline": "current",
+      "candidate": "r5",
+      "totals": [
+        {
+          "metric": "queries",
+          "baseline": 32,
+          "candidate": 32
+        },
+        {
+          "metric": "incomplete",
+          "baseline": 1,
+          "candidate": 0
+        },
+        {
+          "metric": "AliExpress calls",
+          "baseline": 41,
+          "candidate": 39
+        },
+        {
+          "metric": "checked",
+          "baseline": 1993,
+          "candidate": 1916
+        },
+        {
+          "metric": "no results",
+          "baseline": 1,
+          "candidate": 0
+        },
+        {
+          "metric": "1-2 results",
+          "baseline": 3,
+          "candidate": 1
+        },
+        {
+          "metric": "exactly 3 (no more)",
+          "baseline": 5,
+          "candidate": 3
+        },
+        {
+          "metric": "6+ passed",
+          "baseline": 23,
+          "candidate": 27
+        },
+        {
+          "metric": "more available",
+          "baseline": 23,
+          "candidate": 28
+        },
+        {
+          "metric": "2+ same shop in top 3",
+          "baseline": 25,
+          "candidate": 4
+        },
+        {
+          "metric": "mean budget share",
+          "baseline": 0.22,
+          "candidate": 0.33
+        },
+        {
+          "metric": "lead correct",
+          "baseline": "25/31",
+          "candidate": "31/32"
+        },
+        {
+          "metric": "cards exact/reasonable",
+          "baseline": "73/90",
+          "candidate": "86/95"
+        },
+        {
+          "metric": "wrong in top 3",
+          "baseline": 6,
+          "candidate": 1
+        },
+        {
+          "metric": "type-gate false negatives",
+          "baseline": 649,
+          "candidate": 333
+        },
+        {
+          "metric": "filter false positives",
+          "baseline": 74,
+          "candidate": 38
+        }
+      ],
+      "queries": [
+        {
+          "id": "car-holder",
+          "baseline": {
+            "calls": 1,
+            "missing": null,
+            "checked": 50,
+            "passed": 10,
+            "top3": ["1005010487359429","1005012263000564","1005006861015027"],
+            "next3": ["1005011942686816","1005007097351039","1005013266054572"],
+            "sameShopTop3": 3,
+            "moreAvailable": true,
+            "top3Labels": "EEE",
+            "wrongTop3": 0
+          },
+          "candidate": {
+            "calls": 1,
+            "missing": null,
+            "checked": 50,
+            "passed": 13,
+            "top3": ["1005007097351039","1005005544072940","1005009889116002"],
+            "next3": ["1005008830678574","1005009638185893","1005010487359429"],
+            "sameShopTop3": 1,
+            "moreAvailable": true,
+            "top3Labels": "EEE",
+            "wrongTop3": 0
+          },
+          "changes": ["passed 10→13","top3: +3 -3","next3: +3 -3","same shop 3→1"]
+        },
+        {
+          "id": "cheapest-cable",
+          "baseline": {
+            "calls": 1,
+            "missing": null,
+            "checked": 50,
+            "passed": 19,
+            "top3": ["1005006997190677","1005007129679040","1005013255385720"],
+            "next3": ["1005007010293617","1005006212088373","1005011759391869"],
+            "sameShopTop3": 3,
+            "moreAvailable": true,
+            "top3Labels": "EEw",
+            "wrongTop3": 0
+          },
+          "candidate": {
+            "calls": 1,
+            "missing": null,
+            "checked": 50,
+            "passed": 23,
+            "top3": ["1005006997190677","1005006304009788","1005006304425302"],
+            "next3": ["1005006967329774","1005006434080534","1005006212088373"],
+            "sameShopTop3": 1,
+            "moreAvailable": true,
+            "top3Labels": "EEE",
+            "wrongTop3": 0
+          },
+          "changes": ["passed 19→23","top3: +2 -2","next3: +2 -2","labels EEw→EEE","same shop 3→1"]
+        },
+        {
+          "id": "gift-cook",
+          "baseline": {
+            "calls": 3,
+            "missing": null,
+            "checked": 149,
+            "passed": 2,
+            "top3": ["1005012743006539","1005007663259910"],
+            "next3": [],
+            "sameShopTop3": 1,
+            "moreAvailable": false,
+            "top3Labels": "Rw",
+            "wrongTop3": 0
+          },
+          "candidate": {
+            "calls": 2,
+            "missing": null,
+            "checked": 100,
+            "passed": 10,
+            "top3": ["1005012743006539","1005007663259910","1005007611485410"],
+            "next3": ["1005007169766992","1005012705511099","1005006997354157"],
+            "sameShopTop3": 1,
+            "moreAvailable": true,
+            "top3Labels": "Rww",
+            "wrongTop3": 0
+          },
+          "changes": ["calls 3→2","checked 149→100","passed 2→10","top3: +1 -0","next3: +3 -0","labels Rw→Rww","more false→true"]
+        },
+        {
+          "id": "ho-gift-garden",
+          "baseline": {
+            "calls": 1,
+            "missing": null,
+            "checked": 50,
+            "passed": 7,
+            "top3": ["1005007805667144","1005006993936964","1005007476643595"],
+            "next3": ["1005008896594643","1005012060230578","1005009146805974"],
+            "sameShopTop3": 3,
+            "moreAvailable": true,
+            "top3Labels": "XEX",
+            "wrongTop3": 2
+          },
+          "candidate": {
+            "calls": 2,
+            "missing": null,
+            "checked": 98,
+            "passed": 8,
+            "top3": ["1005006993936964","1005009146805974","1005008896594643"],
+            "next3": ["1005012304293432","1005007805886355","1005009400661849"],
+            "sameShopTop3": 1,
+            "moreAvailable": true,
+            "top3Labels": "EXR",
+            "wrongTop3": 1
+          },
+          "changes": ["calls 1→2","checked 50→98","passed 7→8","top3: +2 -2","next3: +3 -3","labels XEX→EXR","same shop 3→1","wrong 2→1"]
+        },
+        {
+          "id": "ho-neck-pillow",
+          "baseline": {
+            "calls": 1,
+            "missing": null,
+            "checked": 50,
+            "passed": 26,
+            "top3": ["1005010706919284","1005011653758907","1005009916199837"],
+            "next3": ["1005007856890940","1005009582344612","1005013265994410"],
+            "sameShopTop3": 3,
+            "moreAvailable": true,
+            "top3Labels": "XwE",
+            "wrongTop3": 1
+          },
+          "candidate": {
+            "calls": 1,
+            "missing": null,
+            "checked": 50,
+            "passed": 26,
+            "top3": ["1005009582344612","1005006760465481","1005007238902686"],
+            "next3": ["1005009460591122","1005012183253580","1005009013962402"],
+            "sameShopTop3": 1,
+            "moreAvailable": true,
+            "top3Labels": "RER",
+            "wrongTop3": 0
+          },
+          "changes": ["top3: +3 -3","next3: +3 -3","labels XwE→RER","same shop 3→1","wrong 1→0"]
+        },
+        {
+          "id": "ho-powerbank",
+          "baseline": {
+            "calls": 1,
+            "missing": null,
+            "checked": 48,
+            "passed": 32,
+            "top3": ["1005010425880598","1005010606760672","1005006670126685"],
+            "next3": ["1005006974245321","1005005642344316","1005007956125217"],
+            "sameShopTop3": 1,
+            "moreAvailable": true,
+            "top3Labels": "EEw",
+            "wrongTop3": 0
+          },
+          "candidate": {
+            "calls": 1,
+            "missing": null,
+            "checked": 48,
+            "passed": 31,
+            "top3": ["1005010425880598","1005010606760672","1005007956125217"],
+            "next3": ["1005005704794297","1005008058965763","1005010354323473"],
+            "sameShopTop3": 1,
+            "moreAvailable": true,
+            "top3Labels": "EER",
+            "wrongTop3": 0
+          },
+          "changes": ["passed 32→31","top3: +1 -1","next3: +3 -3","labels EEw→EER"]
+        },
+        {
+          "id": "ho-slippers",
+          "baseline": {
+            "calls": 1,
+            "missing": null,
+            "checked": 50,
+            "passed": 11,
+            "top3": ["1005012865865321","1005008660379272","1005010285515416"],
+            "next3": ["1005007857170359","1005010487474040","1005012061454873"],
+            "sameShopTop3": 3,
+            "moreAvailable": true,
+            "top3Labels": "wEE",
+            "wrongTop3": 0
+          },
+          "candidate": {
+            "calls": 1,
+            "missing": null,
+            "checked": 50,
+            "passed": 32,
+            "top3": ["1005008660379272","1005003022006610","1005012384235278"],
+            "next3": ["1005012061454873","1005012967925438","1005010620590535"],
+            "sameShopTop3": 1,
+            "moreAvailable": true,
+            "top3Labels": "EEE",
+            "wrongTop3": 0
+          },
+          "changes": ["passed 11→32","top3: +2 -2","next3: +2 -2","labels wEE→EEE","same shop 3→1"]
+        },
+        {
+          "id": "ho-speaker",
+          "baseline": {
+            "calls": 1,
+            "missing": null,
+            "checked": 49,
+            "passed": 13,
+            "top3": ["1005006677962779","1005007038567261","1005010376374580"],
+            "next3": ["1005006677917937","1005009981036191","1005011587179693"],
+            "sameShopTop3": 3,
+            "moreAvailable": true,
+            "top3Labels": "EEE",
+            "wrongTop3": 0
+          },
+          "candidate": {
+            "calls": 1,
+            "missing": null,
+            "checked": 49,
+            "passed": 12,
+            "top3": ["1005007038567261","1005007357456579","1005009981036191"],
+            "next3": ["1005010376374580","1005006437000769","32976654989"],
+            "sameShopTop3": 1,
+            "moreAvailable": true,
+            "top3Labels": "EER",
+            "wrongTop3": 0
+          },
+          "changes": ["passed 13→12","top3: +2 -2","next3: +3 -3","labels EEE→EER","same shop 3→1"]
+        },
+        {
+          "id": "home-drawer",
+          "baseline": {
+            "calls": 1,
+            "missing": null,
+            "checked": 49,
+            "passed": 15,
+            "top3": ["1005007170336837","1005013004164872","1005008429982440"],
+            "next3": ["1005007938130472","1005012370665602","1005008300383489"],
+            "sameShopTop3": 2,
+            "moreAvailable": true,
+            "top3Labels": "RER",
+            "wrongTop3": 0
+          },
+          "candidate": {
+            "calls": 1,
+            "missing": null,
+            "checked": 49,
+            "passed": 18,
+            "top3": ["1005007170336837","1005013004164872","1005010323499090"],
+            "next3": ["1005008429982440","1005010621821117","1005008300383489"],
+            "sameShopTop3": 1,
+            "moreAvailable": true,
+            "top3Labels": "RER",
+            "wrongTop3": 0
+          },
+          "changes": ["passed 15→18","top3: +1 -1","next3: +2 -2","same shop 2→1"]
+        },
+        {
+          "id": "kids-bottle",
+          "baseline": {
+            "calls": 1,
+            "missing": null,
+            "checked": 49,
+            "passed": 6,
+            "top3": ["1005006904753085","1005010758572162","1005011824422955"],
+            "next3": ["1005006020903865","1005010188950414","1005012633078775"],
+            "sameShopTop3": 2,
+            "moreAvailable": true,
+            "top3Labels": "EEE",
+            "wrongTop3": 0
+          },
+          "candidate": {
+            "calls": 1,
+            "missing": null,
+            "checked": 49,
+            "passed": 19,
+            "top3": ["1005010758572162","1005008145022027","1005012633078775"],
+            "next3": ["1005007028619805","1005010188950414","1005007306561916"],
+            "sameShopTop3": 1,
+            "moreAvailable": true,
+            "top3Labels": "EER",
+            "wrongTop3": 0
+          },
+          "changes": ["passed 6→19","top3: +2 -2","next3: +2 -2","labels EEE→EER","same shop 2→1"]
+        },
+        {
+          "id": "kids-toy",
+          "baseline": {
+            "calls": 1,
+            "missing": null,
+            "checked": 49,
+            "passed": 6,
+            "top3": ["1005007096712990","1005011654056078","1005007010556247"],
+            "next3": ["1005007822675175","1005006860832582","1005008742347693"],
+            "sameShopTop3": 3,
+            "moreAvailable": true,
+            "top3Labels": "RER",
+            "wrongTop3": 0
+          },
+          "candidate": {
+            "calls": 1,
+            "missing": null,
+            "checked": 49,
+            "passed": 7,
+            "top3": ["1005011654056078","1005008742347693","1005007096712990"],
+            "next3": ["1005010109648376","1005007822675175","1005007010556247"],
+            "sameShopTop3": 2,
+            "moreAvailable": true,
+            "top3Labels": "EER",
+            "wrongTop3": 0
+          },
+          "changes": ["passed 6→7","top3: +1 -1","next3: +2 -2","labels RER→EER","same shop 3→2"]
+        },
+        {
+          "id": "pair-a",
+          "baseline": {
+            "calls": 1,
+            "missing": null,
+            "checked": 50,
+            "passed": 3,
+            "top3": ["1005013100925225","1005007792521675","1005012245998962"],
+            "next3": [],
+            "sameShopTop3": 2,
+            "moreAvailable": false,
+            "top3Labels": "EEE",
+            "wrongTop3": 0
+          },
+          "candidate": {
+            "calls": 1,
+            "missing": null,
+            "checked": 50,
+            "passed": 6,
+            "top3": ["1005013100925225","1005007623121003","1005012245998962"],
+            "next3": ["1005007792521675","1005006257950849","1005001814197354"],
+            "sameShopTop3": 1,
+            "moreAvailable": true,
+            "top3Labels": "EEE",
+            "wrongTop3": 0
+          },
+          "changes": ["passed 3→6","top3: +1 -1","next3: +3 -0","same shop 2→1","more false→true"]
+        },
+        {
+          "id": "pair-a2",
+          "baseline": {
+            "calls": 2,
+            "missing": "sports audio (p1)",
+            "checked": 76,
+            "passed": 2,
+            "top3": ["1005011677078001","1005007582608533"],
+            "next3": [],
+            "sameShopTop3": 1,
+            "moreAvailable": false,
+            "top3Labels": "EE",
+            "wrongTop3": 0
+          },
+          "candidate": {
+            "calls": 1,
+            "missing": null,
+            "checked": 49,
+            "passed": 5,
+            "top3": ["1005008805916503","1005008067032223","1005007582608533"],
+            "next3": ["1005008653246621","1005011677078001"],
+            "sameShopTop3": 1,
+            "moreAvailable": true,
+            "top3Labels": "ERE",
+            "wrongTop3": 0
+          },
+          "changes": ["calls 2→1","missing sports audio (p1)→-","checked 76→49","passed 2→5","top3: +2 -1","next3: +2 -0","labels EE→ERE","more false→true"]
+        },
+        {
+          "id": "pair-b2",
+          "baseline": {
+            "calls": 1,
+            "missing": null,
+            "checked": 50,
+            "passed": 10,
+            "top3": ["1005010487359429","1005012263000564","1005006861015027"],
+            "next3": ["1005011942686816","1005007097351039","1005013266054572"],
+            "sameShopTop3": 3,
+            "moreAvailable": true,
+            "top3Labels": "EEE",
+            "wrongTop3": 0
+          },
+          "candidate": {
+            "calls": 1,
+            "missing": null,
+            "checked": 50,
+            "passed": 13,
+            "top3": ["1005007097351039","1005005544072940","1005009889116002"],
+            "next3": ["1005008830678574","1005009638185893","1005010487359429"],
+            "sameShopTop3": 1,
+            "moreAvailable": true,
+            "top3Labels": "EEE",
+            "wrongTop3": 0
+          },
+          "changes": ["passed 10→13","top3: +3 -3","next3: +3 -3","same shop 3→1"]
+        },
+        {
+          "id": "price-range-bag",
+          "baseline": {
+            "calls": 1,
+            "missing": null,
+            "checked": 49,
+            "passed": 20,
+            "top3": ["1005007170232910","1005007805618542","1005009582247884"],
+            "next3": ["1005012263040435","1005007635721959","1005007402692778"],
+            "sameShopTop3": 3,
+            "moreAvailable": true,
+            "top3Labels": "wRw",
+            "wrongTop3": 0
+          },
+          "candidate": {
+            "calls": 1,
+            "missing": null,
+            "checked": 49,
+            "passed": 19,
+            "top3": ["1005007805618542","1005007402692778","1005009050889130"],
+            "next3": ["1005006860931684","1005010587792488","1005010588468033"],
+            "sameShopTop3": 1,
+            "moreAvailable": true,
+            "top3Labels": "RwR",
+            "wrongTop3": 0
+          },
+          "changes": ["passed 20→19","top3: +2 -2","next3: +3 -3","labels wRw→RwR","same shop 3→1"]
+        },
+        {
+          "id": "price-watch",
+          "baseline": {
+            "calls": 1,
+            "missing": null,
+            "checked": 49,
+            "passed": 6,
+            "top3": ["1005008830601930","1005009384181339","1005012438476927"],
+            "next3": ["1005006997324750","1005006860956768","1005007043908778"],
+            "sameShopTop3": 3,
+            "moreAvailable": true,
+            "top3Labels": "EEE",
+            "wrongTop3": 0
+          },
+          "candidate": {
+            "calls": 1,
+            "missing": null,
+            "checked": 49,
+            "passed": 6,
+            "top3": ["1005008830601930","1005007043908778","1005006860956768"],
+            "next3": ["1005006997324750","1005009384181339","1005012438476927"],
+            "sameShopTop3": 2,
+            "moreAvailable": true,
+            "top3Labels": "EEE",
+            "wrongTop3": 0
+          },
+          "changes": ["top3: +2 -2","next3: +2 -2","same shop 3→2"]
+        },
+        {
+          "id": "slang-mouse",
+          "baseline": {
+            "calls": 1,
+            "missing": null,
+            "checked": 50,
+            "passed": 13,
+            "top3": ["1005006904646242","1005008077489612","1005010653523244"],
+            "next3": ["1005012013988634","1005010155190941","1005006054645920"],
+            "sameShopTop3": 3,
+            "moreAvailable": true,
+            "top3Labels": "RRR",
+            "wrongTop3": 0
+          },
+          "candidate": {
+            "calls": 1,
+            "missing": null,
+            "checked": 50,
+            "passed": 25,
+            "top3": ["1005006904646242","1005010351630831","1005011618146389"],
+            "next3": ["1005006678237239","1005005847298347","1005005699328399"],
+            "sameShopTop3": 1,
+            "moreAvailable": true,
+            "top3Labels": "RRR",
+            "wrongTop3": 0
+          },
+          "changes": ["passed 13→25","top3: +2 -2","next3: +3 -3","same shop 3→1"]
+        },
+        {
+          "id": "tech-charger",
+          "baseline": {
+            "calls": 3,
+            "missing": null,
+            "checked": 145,
+            "passed": 0,
+            "top3": [],
+            "next3": [],
+            "sameShopTop3": 0,
+            "moreAvailable": false,
+            "top3Labels": "",
+            "wrongTop3": 0
+          },
+          "candidate": {
+            "calls": 3,
+            "missing": null,
+            "checked": 145,
+            "passed": 2,
+            "top3": ["1005009205983512","1005009880283488"],
+            "next3": [],
+            "sameShopTop3": 1,
+            "moreAvailable": false,
+            "top3Labels": "RR",
+            "wrongTop3": 0
+          },
+          "changes": ["passed 0→2","top3: +2 -0","labels -→RR","same shop 0→1"]
+        },
+        {
+          "id": "typo-earbuds",
+          "baseline": {
+            "calls": 1,
+            "missing": null,
+            "checked": 49,
+            "passed": 9,
+            "top3": ["1005007792521675","1005012308536449","1005007678232042"],
+            "next3": ["1005012561171707","1005006111979422","1005012504699349"],
+            "sameShopTop3": 2,
+            "moreAvailable": true,
+            "top3Labels": "EER",
+            "wrongTop3": 0
+          },
+          "candidate": {
+            "calls": 1,
+            "missing": null,
+            "checked": 49,
+            "passed": 17,
+            "top3": ["1005012561171707","1005007792521675","1005007678232042"],
+            "next3": ["1005008500784169","1005012504699349","1005012245998962"],
+            "sameShopTop3": 1,
+            "moreAvailable": true,
+            "top3Labels": "EER",
+            "wrongTop3": 0
+          },
+          "changes": ["passed 9→17","top3: +1 -1","next3: +2 -2","same shop 2→1"]
+        },
+        {
+          "id": "ex-1",
+          "baseline": {
+            "calls": 1,
+            "missing": null,
+            "checked": 50,
+            "passed": 3,
+            "top3": ["1005013100925225","1005007792521675","1005012245998962"],
+            "next3": [],
+            "sameShopTop3": 2,
+            "moreAvailable": false,
+            "top3Labels": "EEE",
+            "wrongTop3": 0
+          },
+          "candidate": {
+            "calls": 1,
+            "missing": null,
+            "checked": 50,
+            "passed": 6,
+            "top3": ["1005013100925225","1005007623121003","1005012245998962"],
+            "next3": ["1005007792521675","1005006257950849","1005001814197354"],
+            "sameShopTop3": 1,
+            "moreAvailable": true,
+            "top3Labels": "EEE",
+            "wrongTop3": 0
+          },
+          "changes": ["passed 3→6","top3: +1 -1","next3: +3 -0","same shop 2→1","more false→true"]
+        },
+        {
+          "id": "ex-2",
+          "baseline": {
+            "calls": 3,
+            "missing": null,
+            "checked": 149,
+            "passed": 2,
+            "top3": ["1005012743006539","1005007663259910"],
+            "next3": [],
+            "sameShopTop3": 1,
+            "moreAvailable": false,
+            "top3Labels": "Rw",
+            "wrongTop3": 0
+          },
+          "candidate": {
+            "calls": 2,
+            "missing": null,
+            "checked": 100,
+            "passed": 10,
+            "top3": ["1005012743006539","1005007663259910","1005007611485410"],
+            "next3": ["1005007169766992","1005012705511099","1005006997354157"],
+            "sameShopTop3": 1,
+            "moreAvailable": true,
+            "top3Labels": "Rww",
+            "wrongTop3": 0
+          },
+          "changes": ["calls 3→2","checked 149→100","passed 2→10","top3: +1 -0","next3: +3 -0","labels Rw→Rww","more false→true"]
+        },
+        {
+          "id": "ex-3",
+          "baseline": {
+            "calls": 1,
+            "missing": null,
+            "checked": 49,
+            "passed": 15,
+            "top3": ["1005007170336837","1005013004164872","1005008429982440"],
+            "next3": ["1005007938130472","1005012370665602","1005008300383489"],
+            "sameShopTop3": 2,
+            "moreAvailable": true,
+            "top3Labels": "RER",
+            "wrongTop3": 0
+          },
+          "candidate": {
+            "calls": 1,
+            "missing": null,
+            "checked": 49,
+            "passed": 18,
+            "top3": ["1005007170336837","1005013004164872","1005010323499090"],
+            "next3": ["1005008429982440","1005010621821117","1005008300383489"],
+            "sameShopTop3": 1,
+            "moreAvailable": true,
+            "top3Labels": "RER",
+            "wrongTop3": 0
+          },
+          "changes": ["passed 15→18","top3: +1 -1","next3: +2 -2","same shop 2→1"]
+        },
+        {
+          "id": "ex-4",
+          "baseline": {
+            "calls": 1,
+            "missing": null,
+            "checked": 50,
+            "passed": 10,
+            "top3": ["1005010487359429","1005012263000564","1005006861015027"],
+            "next3": ["1005011942686816","1005007097351039","1005013266054572"],
+            "sameShopTop3": 3,
+            "moreAvailable": true,
+            "top3Labels": "EEE",
+            "wrongTop3": 0
+          },
+          "candidate": {
+            "calls": 1,
+            "missing": null,
+            "checked": 50,
+            "passed": 13,
+            "top3": ["1005007097351039","1005005544072940","1005009889116002"],
+            "next3": ["1005008830678574","1005009638185893","1005010487359429"],
+            "sameShopTop3": 1,
+            "moreAvailable": true,
+            "top3Labels": "EEE",
+            "wrongTop3": 0
+          },
+          "changes": ["passed 10→13","top3: +3 -3","next3: +3 -3","same shop 3→1"]
+        },
+        {
+          "id": "ex-6",
+          "baseline": {
+            "calls": 1,
+            "missing": null,
+            "checked": 49,
+            "passed": 13,
+            "top3": ["1005006677962779","1005007038567261","1005010376374580"],
+            "next3": ["1005006677917937","1005009981036191","1005011587179693"],
+            "sameShopTop3": 3,
+            "moreAvailable": true,
+            "top3Labels": "EEE",
+            "wrongTop3": 0
+          },
+          "candidate": {
+            "calls": 1,
+            "missing": null,
+            "checked": 49,
+            "passed": 12,
+            "top3": ["1005007038567261","1005007357456579","1005009981036191"],
+            "next3": ["1005010376374580","1005006437000769","32976654989"],
+            "sameShopTop3": 1,
+            "moreAvailable": true,
+            "top3Labels": "EER",
+            "wrongTop3": 0
+          },
+          "changes": ["passed 13→12","top3: +2 -2","next3: +3 -3","labels EEE→EER","same shop 3→1"]
+        },
+        {
+          "id": "ex-7",
+          "baseline": {
+            "calls": 1,
+            "missing": null,
+            "checked": 49,
+            "passed": 6,
+            "top3": ["1005008830601930","1005009384181339","1005012438476927"],
+            "next3": ["1005006997324750","1005006860956768","1005007043908778"],
+            "sameShopTop3": 3,
+            "moreAvailable": true,
+            "top3Labels": "EEE",
+            "wrongTop3": 0
+          },
+          "candidate": {
+            "calls": 1,
+            "missing": null,
+            "checked": 49,
+            "passed": 6,
+            "top3": ["1005008830601930","1005007043908778","1005006860956768"],
+            "next3": ["1005006997324750","1005009384181339","1005012438476927"],
+            "sameShopTop3": 2,
+            "moreAvailable": true,
+            "top3Labels": "EEE",
+            "wrongTop3": 0
+          },
+          "changes": ["top3: +2 -2","next3: +2 -2","same shop 3→2"]
+        },
+        {
+          "id": "ex-8",
+          "baseline": {
+            "calls": 1,
+            "missing": null,
+            "checked": 50,
+            "passed": 9,
+            "top3": ["1005013255555079","1005013266358009","1005006727708320"],
+            "next3": ["1005009916206776","1005007857181136","1005007170232910"],
+            "sameShopTop3": 3,
+            "moreAvailable": true,
+            "top3Labels": "RwX",
+            "wrongTop3": 1
+          },
+          "candidate": {
+            "calls": 1,
+            "missing": null,
+            "checked": 50,
+            "passed": 9,
+            "top3": ["1005013092462383","1005007402692778","1005005888954862"],
+            "next3": ["1005009916206776","1005007707640828","1005013266358009"],
+            "sameShopTop3": 1,
+            "moreAvailable": true,
+            "top3Labels": "RwR",
+            "wrongTop3": 0
+          },
+          "changes": ["top3: +3 -3","next3: +2 -2","labels RwX→RwR","same shop 3→1","wrong 1→0"]
+        },
+        {
+          "id": "ex-9",
+          "baseline": {
+            "calls": 1,
+            "missing": null,
+            "checked": 50,
+            "passed": 26,
+            "top3": ["1005010706919284","1005011653758907","1005009916199837"],
+            "next3": ["1005007856890940","1005009582344612","1005013265994410"],
+            "sameShopTop3": 3,
+            "moreAvailable": true,
+            "top3Labels": "XwE",
+            "wrongTop3": 1
+          },
+          "candidate": {
+            "calls": 1,
+            "missing": null,
+            "checked": 50,
+            "passed": 26,
+            "top3": ["1005009582344612","1005006760465481","1005007238902686"],
+            "next3": ["1005009460591122","1005012183253580","1005009013962402"],
+            "sameShopTop3": 1,
+            "moreAvailable": true,
+            "top3Labels": "RER",
+            "wrongTop3": 0
+          },
+          "changes": ["top3: +3 -3","next3: +3 -3","labels XwE→RER","same shop 3→1","wrong 1→0"]
+        },
+        {
+          "id": "live-drawer-organizer",
+          "baseline": {
+            "calls": 1,
+            "missing": null,
+            "checked": 49,
+            "passed": 14,
+            "top3": ["1005006995257180","1005007011605676","1005012698650176"],
+            "next3": ["1005008554568611","1005007170336837","1005007792141996"],
+            "sameShopTop3": 3,
+            "moreAvailable": true,
+            "top3Labels": "RRX",
+            "wrongTop3": 1
+          },
+          "candidate": {
+            "calls": 1,
+            "missing": null,
+            "checked": 49,
+            "passed": 12,
+            "top3": ["1005006995257180","1005008290033959","1005010323499090"],
+            "next3": ["1005007170336837","1005010621821117","1005011942122518"],
+            "sameShopTop3": 1,
+            "moreAvailable": true,
+            "top3Labels": "REE",
+            "wrongTop3": 0
+          },
+          "changes": ["passed 14→12","top3: +2 -2","next3: +2 -2","labels RRX→REE","same shop 3→1","wrong 1→0"]
+        },
+        {
+          "id": "live-sonic-doll",
+          "baseline": {
+            "calls": 2,
+            "missing": null,
+            "checked": 87,
+            "passed": 3,
+            "top3": ["1005013192916106","1005012734147872","1005012737850036"],
+            "next3": [],
+            "sameShopTop3": 2,
+            "moreAvailable": false,
+            "top3Labels": "EEE",
+            "wrongTop3": 0
+          },
+          "candidate": {
+            "calls": 2,
+            "missing": null,
+            "checked": 87,
+            "passed": 3,
+            "top3": ["1005013192916106","1005012737850036","1005012867684572"],
+            "next3": [],
+            "sameShopTop3": 1,
+            "moreAvailable": false,
+            "top3Labels": "EEE",
+            "wrongTop3": 0
+          },
+          "changes": ["top3: +1 -1","same shop 2→1"]
+        },
+        {
+          "id": "live-soundbar",
+          "baseline": {
+            "calls": 2,
+            "missing": null,
+            "checked": 100,
+            "passed": 9,
+            "top3": ["1005007096840816","1005010285581153","1005008909030186"],
+            "next3": ["1005011782758504","1005012053088013","1005009916267045"],
+            "sameShopTop3": 3,
+            "moreAvailable": true,
+            "top3Labels": "wER",
+            "wrongTop3": 0
+          },
+          "candidate": {
+            "calls": 2,
+            "missing": null,
+            "checked": 100,
+            "passed": 7,
+            "top3": ["1005007096840816","1005005235672872","1005010285581153"],
+            "next3": ["1005008077574550","1005009916267045","1005009874292196"],
+            "sameShopTop3": 2,
+            "moreAvailable": true,
+            "top3Labels": "wwE",
+            "wrongTop3": 0
+          },
+          "changes": ["passed 9→7","top3: +1 -1","next3: +2 -2","labels wER→wwE","same shop 3→2"]
+        }
+      ],
+      "unchanged": 2,
+      "source": "fixtures/snapshots/report-baseline-r5.json, RANKING_VERSION 5 → 6"
+    }
+  ]
+}

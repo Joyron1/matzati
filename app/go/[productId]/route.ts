@@ -1,13 +1,15 @@
 import type { NextRequest } from "next/server";
-import { clickOut } from "@/lib/search/server";
+import { clickOut, clickRefFrom } from "@/lib/search/server";
 
 // A missing link, or one older than LINK_MAX_AGE_DAYS, costs one link.generate call first.
 export const maxDuration = 60;
 
-// Click-out (CLAUDE.md §7): logs { product_id, src, created_at } and redirects to the affiliate
-// link. Every buy button goes through here, and so does the reviews link on /p. `src` names the
-// button ("product", "reviews", "search_featured", "seo", ...); anything that is not 1-32 letters,
-// digits, "_" or "-" is logged as "other" (clickOut).
+// Click-out (CLAUDE.md §7): logs { product_id, src, env, created_at } and redirects to the
+// affiliate link. Every buy button goes through here, and so does the reviews link on /p. `src`
+// names the button ("product", "reviews", "search_featured", "seo", ...); anything that is not 1-32
+// letters, digits, "_" or "-" is logged as "other" (clickOut). A result card adds `s` (the uid of
+// the search_log row that showed it) and `pos` (its 1-based rank), validated with zod
+// (clickRefFrom) and logged only: a bad value is dropped, never an error.
 
 // A route handler cannot render app/not-found.tsx, so the 404 is a minimal standalone page.
 const NOT_FOUND_HTML = `<!doctype html>
@@ -29,7 +31,8 @@ const NOT_FOUND_HTML = `<!doctype html>
 
 export async function GET(request: NextRequest, ctx: RouteContext<"/go/[productId]">) {
   const { productId } = await ctx.params;
-  const link = await clickOut(productId, request.nextUrl.searchParams.get("src") ?? "");
+  const params = request.nextUrl.searchParams;
+  const link = await clickOut(productId, params.get("src") ?? "", clickRefFrom(params));
   if (!link) {
     return new Response(NOT_FOUND_HTML, {
       status: 404,
