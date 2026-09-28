@@ -26,11 +26,11 @@ export interface LegalDetails {
 }
 
 export const LEGAL: LegalDetails = {
-  operatorName: "",
+  operatorName: "ג׳וי רון",
   operatorBusinessId: "",
   contactEmail: "",
-  accessibilityCoordinatorName: "",
-  accessibilityCoordinatorPhone: "",
+  accessibilityCoordinatorName: "ג׳וי רון",
+  accessibilityCoordinatorPhone: "050-5796203",
   accessibilityCoordinatorEmail: "",
 };
 
