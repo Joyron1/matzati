@@ -8,7 +8,15 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { after } from "next/server";
 import { cache } from "react";
 import { z } from "zod";
-import { generateLinks, getProductDetails, getSkuDetails } from "@/lib/aliexpress/affiliate";
+import {
+  HOT_LINK_TYPE,
+  STANDARD_LINK_TYPE,
+  generateLinks,
+  getProductDetails,
+  getSkuDetails,
+  itemSourceUrl,
+  type PromotionLinkType,
+} from "@/lib/aliexpress/affiliate";
 import { AliExpressClient } from "@/lib/aliexpress/client";
 import { AliExpressError } from "@/lib/aliexpress/errors";
 import {
@@ -16,7 +24,12 @@ import {
   readStoredPromoCode,
   type AliPromoCode,
 } from "@/lib/aliexpress/promo-code";
-import { mediaUrl, type AliProduct, type AliSkuDetails } from "@/lib/aliexpress/schemas";
+import {
+  affiliateUrl,
+  mediaUrl,
+  type AliProduct,
+  type AliSkuDetails,
+} from "@/lib/aliexpress/schemas";
 import { LINK_MAX_AGE_DAYS, RESULTS_PER_PAGE, SKU_DETAILS_ENABLED } from "@/lib/config/site";
 import { couponsForProduct } from "@/lib/coupons/queries";
 import type { Coupon } from "@/lib/coupons/types";
@@ -317,12 +330,29 @@ export interface ProductPageData {
   skuDetails: AliSkuDetails | null;
 }
 
-const itemUrl = (productId: string) => `https://www.aliexpress.com/item/${productId}.html`;
-
-async function generateLink(ali: AliExpressClient, productId: string): Promise<string | null> {
-  const links = await generateLinks(ali, [itemUrl(productId)]);
-  return links.find((l) => l.promotionLink)?.promotionLink ?? null;
+/** One link.generate call for one product; the first https AliExpress link, or null. */
+async function generateLink(
+  ali: AliExpressClient,
+  productId: string,
+  promotionLinkType: PromotionLinkType = STANDARD_LINK_TYPE,
+): Promise<string | null> {
+  const links = await generateLinks(ali, [itemSourceUrl(productId)], { promotionLinkType });
+  for (const l of links) {
+    const url = affiliateUrl(l.promotionLink);
+    if (url) return url;
+  }
+  return null;
 }
+
+/**
+ * A row whose link is a link.generate hot link (promotion_link_type 2, made by a hot list for a
+ * product with a higher hot rate, lib/hot/loader.ts). Strict: the stored jsonb is not trusted.
+ */
+const hasHotLink = (stored: StoredProduct) => stored.product.promotionLinkType === HOT_LINK_TYPE;
+
+/** The link type /go regenerates a row's link with: 2 for a row marked 2, 0 otherwise. */
+const linkTypeOf = (stored: StoredProduct): PromotionLinkType =>
+  hasHotLink(stored) ? HOT_LINK_TYPE : STANDARD_LINK_TYPE;
 
 /**
  * When the stored affiliate link was made: promotionLinkAt when that was set, otherwise the row's
@@ -351,6 +381,12 @@ const fromHotList = (stored: StoredProduct) =>
  * its title stays the one its card shows, and keeps the list's link while it is fresh: whether that
  * link earns the hot commission is unconfirmed (docs/aliexpress-api.md), so it is not swapped for
  * productdetail.get's.
+ *
+ * A row with a hot link (promotionLinkType 2) keeps it, with its type and time, while it is
+ * younger than LINK_MAX_AGE_DAYS; after that a new type 2 link is made (one more call). When that
+ * call fails or gives no usable link, the product goes on with productdetail.get's link (type
+ * unknown), as any other. Every hot row keeps its stored hot rate, whichever link it ends up with,
+ * since productdetail.get sends "0.0%".
  */
 async function refreshProduct(
   ali: AliExpressClient,
@@ -363,9 +399,34 @@ async function refreshProduct(
   const page = await spaced(() => getProductDetails(ali, [productId], hot ? "HE" : "EN"));
   const found = page.products.find((p) => p.productId === productId);
   if (!found) return null;
-  const product: AliProduct = hot ? { ...found, source: "hot" } : found;
+  let product: AliProduct = hot ? { ...found, source: "hot" } : found;
+  if (hot || hasHotLink(stored)) {
+    // productdetail.get sends a hot rate of "0.0%" (null): a hot row keeps the one its list
+    // stored, whatever link it ends up with (stats only, never selection, filters or order).
+    product = {
+      ...product,
+      hotCommissionRatePct:
+        found.hotCommissionRatePct ?? stored.product.hotCommissionRatePct ?? null,
+    };
+  }
   const known = stored.product.promotionLink;
   const keepKnown = known && linkIsFresh(stored, now);
+  if (hasHotLink(stored)) {
+    const hotLink = (promotionLink: string, promotionLinkAt: string): AliProduct => ({
+      ...product,
+      promotionLink,
+      promotionLinkType: HOT_LINK_TYPE,
+      promotionLinkAt,
+    });
+    if (known && keepKnown) return hotLink(known, linkMadeAt(stored));
+    const renewed = await spaced(() => generateLink(ali, productId, HOT_LINK_TYPE)).catch(
+      (err: unknown) => {
+        logError("product", err);
+        return null;
+      },
+    );
+    if (renewed) return hotLink(renewed, now.toISOString());
+  }
   if (keepKnown && (hot || !product.promotionLink)) {
     return { ...product, promotionLink: known, promotionLinkAt: linkMadeAt(stored) };
   }
@@ -587,23 +648,6 @@ export async function examplePreview(q: string): Promise<SearchResponse | null> 
 }
 
 /**
- * Only AliExpress hosts over https, so a bad row can never turn /go into an open redirect. Returns
- * the serialized URL: a raw value with a newline or non-Latin-1 character would pass the host
- * check and then make the Location header throw.
- */
-function safeAliExpressUrl(link: string): string | null {
-  try {
-    const url = new URL(link);
-    const ok =
-      url.protocol === "https:" &&
-      (url.hostname === "aliexpress.com" || url.hostname.endsWith(".aliexpress.com"));
-    return ok ? url.href : null;
-  } catch {
-    return null;
-  }
-}
-
-/**
  * Saves a new link into the stored product without touching updated_at: the row's price is as old
  * as before, and /p must keep saying when it was checked (saveProducts would stamp the row as
  * fresh and add a price_history row). Applies only to the row as it was read, so a refresh saved
@@ -623,7 +667,11 @@ async function saveLink(db: SupabaseClient, stored: StoredProduct, link: string,
   if (error) throw error;
 }
 
-/** One link.generate call for /go; the new link is saved. Null when it fails or gives nothing usable. */
+/**
+ * One link.generate call for /go, of the row's link type (2 for a row with a hot link, 0 otherwise);
+ * the new link is saved and the row keeps its type. Null when it fails or gives nothing usable (an
+ * https AliExpress link, generateLink).
+ */
 async function regenerateLink(
   db: SupabaseClient,
   stored: StoredProduct,
@@ -631,11 +679,11 @@ async function regenerateLink(
 ): Promise<string | null> {
   let link: string | null = null;
   try {
-    link = await generateLink(aliClient(), stored.product.productId);
+    link = await generateLink(aliClient(), stored.product.productId, linkTypeOf(stored));
   } catch (err) {
     logError("go", err);
   }
-  if (!link || !safeAliExpressUrl(link)) return null;
+  if (!link) return null;
   await saveLink(db, stored, link, now).catch((err) => logError("go", err));
   return link;
 }
@@ -646,8 +694,9 @@ const linkRuns = new Map<string, { run: Promise<string | null>; settledAt?: numb
 
 /**
  * The stored link while it is younger than LINK_MAX_AGE_DAYS (AliExpress may invalidate old short
- * links, agreement 5.4). Otherwise, or when there is none, one link.generate call makes a new one,
- * which is saved; when that fails the stored link is still used.
+ * links, agreement 5.4). Otherwise, or when there is none, one link.generate call makes a new one
+ * (type 2 for a row marked with a hot link, type 0 otherwise), which is saved; when that fails the
+ * stored link is still used.
  *
  * /go is public and has no per-IP limit, and the app key shares one frequency ban with searches and
  * /p, so a burst of clicks on one old link must not become a burst of calls: clicks that arrive
@@ -696,7 +745,8 @@ export async function clickOut(productId: string, src: string): Promise<string |
         .catch((err) => logError("go", err)),
     ]);
     if (!link) return null;
-    const safe = safeAliExpressUrl(link);
+    // Only AliExpress hosts over https, so a bad row can never turn /go into an open redirect.
+    const safe = affiliateUrl(link);
     if (!safe) logError("go", new Error(`refusing a non-AliExpress link for product ${productId}`));
     return safe;
   } catch (err) {

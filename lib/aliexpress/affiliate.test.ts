@@ -1,10 +1,14 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import {
+  HOT_LINK_TYPE,
+  STANDARD_LINK_TYPE,
   chunk,
   generateLinks,
   getSkuDetails,
   hotProductQueryParams,
+  itemSourceUrl,
+  productIdOfSource,
   productQueryParams,
   queryHotProducts,
   queryProducts,
@@ -217,5 +221,58 @@ describe("generateLinks", () => {
     expect(sentFields(fetchMock, 0).get("source_values")!.split(",")).toHaveLength(50);
     expect(sentFields(fetchMock, 1).get("source_values")!.split(",")).toHaveLength(10);
     expect(sentFields(fetchMock, 0).get("promotion_link_type")).toBe("0");
+  });
+
+  it("asks for hot links with promotion_link_type 2 and parses the real type 2 answer", async () => {
+    // The masked response of the probe (fixtures/aliexpress/probe-hot, 2026-09-28): 3 /e/ links.
+    const fixture = JSON.parse(
+      readFileSync(
+        "fixtures/aliexpress/probe-hot/aliexpress.affiliate.link.generate.type2.json",
+        "utf8",
+      ),
+    );
+    const { client, fetchMock } = clientReturning([fixture]);
+    const ids = ["1005006590652214", "1005006338829917", "1005007785012911"];
+    const links = await generateLinks(client, ids.map(itemSourceUrl), {
+      promotionLinkType: HOT_LINK_TYPE,
+    });
+    const f = sentFields(fetchMock);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(f.get("method")).toBe("aliexpress.affiliate.link.generate");
+    expect(f.get("promotion_link_type")).toBe("2");
+    expect(f.get("tracking_id")).toBe("trk");
+    expect(f.get("source_values")).toBe(ids.map(itemSourceUrl).join(","));
+    expect(links.map((l) => productIdOfSource(l.sourceValue))).toEqual(ids);
+    for (const l of links) {
+      expect(l.promotionLink).toMatch(/^https:\/\/s\.click\.aliexpress\.com\/e\/_/);
+      expect(l.message).toBeNull();
+    }
+  });
+
+  it("keeps batching by 50 for hot links", async () => {
+    const ok = {
+      aliexpress_affiliate_link_generate_response: {
+        resp_result: { resp_code: 200, result: { promotion_links: { promotion_link: [] } } },
+      },
+    };
+    const { client, fetchMock } = clientReturning([ok, ok]);
+    const urls = Array.from({ length: 51 }, (_, i) => itemSourceUrl(String(1000 + i)));
+    await generateLinks(client, urls, { promotionLinkType: HOT_LINK_TYPE });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(sentFields(fetchMock, 0).get("source_values")!.split(",")).toHaveLength(50);
+    expect(sentFields(fetchMock, 1).get("promotion_link_type")).toBe("2");
+  });
+});
+
+describe("item source values", () => {
+  it("builds the item URL we send and reads the product id back", () => {
+    expect(itemSourceUrl("1005006590652214")).toBe(
+      "https://www.aliexpress.com/item/1005006590652214.html",
+    );
+    expect(productIdOfSource(itemSourceUrl("42"))).toBe("42");
+    expect(productIdOfSource("https://he.aliexpress.com/item/77.html?x=1")).toBe("77");
+    expect(productIdOfSource("https://www.aliexpress.com/store/1.html")).toBeNull();
+    expect(STANDARD_LINK_TYPE).toBe(0);
+    expect(HOT_LINK_TYPE).toBe(2);
   });
 });

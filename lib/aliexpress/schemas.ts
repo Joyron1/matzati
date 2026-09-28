@@ -8,6 +8,8 @@
 // - no store/seller rating field exists in any affiliate method
 // - product_video_url is an .mp4 on video.aliexpress-media.com or "" (probe of 2026-09-28);
 //   promo_code_info is present on a few products only (see promo-code.ts)
+// - hot_product_commission_rate is "0.0%" on product.query and productdetail.get products and a real
+//   rate on hotproduct.query products (3.5% to 15% in the probe of 2026-09-28)
 import { z } from "zod";
 import { parsePromoCode, type AliPromoCode } from "./promo-code";
 import { unwrapList } from "./unwrap";
@@ -17,6 +19,12 @@ export function parsePercent(value: unknown): number | null {
   if (typeof value !== "string" && typeof value !== "number") return null;
   const n = Number.parseFloat(String(value).replace("%", "").trim());
   return Number.isFinite(n) ? n : null;
+}
+
+/** A rate above zero: "8.0%" → 8; "0.0%", "", missing → null */
+export function positivePercent(value: unknown): number | null {
+  const n = parsePercent(value);
+  return n !== null && n > 0 ? n : null;
 }
 
 /** "183.70" → 183.7; "", missing → null */
@@ -46,6 +54,33 @@ export function mediaUrl(value: unknown): string | null {
   }
 }
 
+/**
+ * An https URL on aliexpress.com or one of its subdomains (affiliate links such as
+ * s.click.aliexpress.com), serialized; null otherwise. The check every link we store or redirect
+ * to passes, so a bad row or response can never make /go an open redirect. The serialized form
+ * matters too: a raw value with a newline or a non-Latin-1 character would pass the host check
+ * and then make a Location header throw.
+ */
+export function affiliateUrl(value: unknown): string | null {
+  if (typeof value !== "string" || value.trim() === "") return null;
+  try {
+    const url = new URL(value.trim());
+    const ok =
+      url.protocol === "https:" &&
+      (url.hostname === "aliexpress.com" || url.hostname.endsWith(".aliexpress.com"));
+    return ok ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * link.generate's promotion_link_type (doc 921): 0 "normal link which has standard commission", 2
+ * "hot link which has hot product commission". Whether AliExpress credits the hot rate for a type 2
+ * link is UNCONFIRMED until orders show it (docs/aliexpress-api.md, Hot link).
+ */
+export type PromotionLinkType = 0 | 2;
+
 export const rawProductSchema = z.object({
   product_id: id,
   product_title: z.string().min(1),
@@ -64,6 +99,7 @@ export const rawProductSchema = z.object({
   shop_name: optionalText,
   shop_url: optionalText,
   commission_rate: z.string().optional(),
+  hot_product_commission_rate: z.string().optional(),
   first_level_category_id: id.optional(),
   first_level_category_name: optionalText,
   second_level_category_id: id.optional(),
@@ -91,6 +127,14 @@ export interface AliProduct {
   shop: { id: string | null; name: string | null; url: string | null };
   /** Used only to break exact ranking ties (CLAUDE.md §6.6). */
   commissionRatePct: number | null;
+  /**
+   * hot_product_commission_rate: the rate AliExpress offers for a hot link (type 2) to a hot
+   * product. Null when it is "0.0%" (every product.query and productdetail.get product) or missing.
+   * Stored for stats, and read only to choose which link type a hot product gets
+   * (lib/hot/links.ts): it never influences selection, filtering or order, and never breaks a tie.
+   * Optional: products saved before 2026-09-28 lack it.
+   */
+  hotCommissionRatePct?: number | null;
   category: {
     firstId: string | null;
     firstName: string | null;
@@ -109,6 +153,13 @@ export interface AliProduct {
    * link. Absent when the link came with the product data of the row's last save.
    */
   promotionLinkAt?: string | null;
+  /**
+   * 2 when promotionLink is a link.generate hot link (promotion_link_type 2), made for a hot product
+   * whose hot rate beat its standard rate (lib/hot/loader.ts); promotionLinkAt is then when it was
+   * made. The /p refresh keeps such a link and /go regenerates it with type 2. Absent when the type
+   * is unknown (links that came with product data) or 0. Never set by a parse.
+   */
+  promotionLinkType?: PromotionLinkType;
   /** product.sku.detail.get, fetched with the /p refresh while SKU_DETAILS_ENABLED is on. */
   skuDetails?: AliSkuDetails | null;
   /**
@@ -144,6 +195,7 @@ export const productSchema = rawProductSchema.transform((p, ctx): AliProduct => 
     promotionLink: p.promotion_link,
     shop: { id: p.shop_id ?? null, name: p.shop_name, url: p.shop_url },
     commissionRatePct: parsePercent(p.commission_rate),
+    hotCommissionRatePct: positivePercent(p.hot_product_commission_rate),
     category: {
       firstId: p.first_level_category_id ?? null,
       firstName: p.first_level_category_name,

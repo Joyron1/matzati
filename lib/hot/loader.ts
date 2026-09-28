@@ -8,8 +8,8 @@
 // last RECENT_MS is reused while the cache entry is still being written; a list that failed is not
 // fetched again until its retry time (retryDelayMs); and this instance's hot calls start at least
 // ALI_SPACING_MS apart. One list costs one call (plus the client's retries of a rate limit or a
-// server error, at most two): never a second page, since two calls seconds apart return different
-// lists (docs/aliexpress-api.md, Hot products).
+// server error, at most two), plus the hot links call below: never a second page, since two calls
+// seconds apart return different lists (docs/aliexpress-api.md, Hot products).
 //
 // Retry times: a lasting failure (a missing permission or key, a rejected request, a list where
 // nothing passes our filters) waits HOT_LIST_TTL_MS, as long as a good list is kept. A passing one
@@ -19,13 +19,19 @@
 // cache entry starts a background refresh on every view, which would be refused here and logged
 // by Next (unstable_cache) each time.
 //
-// Links: each product keeps the promotion_link hotproduct.query returned (made with our tracking
-// id). Whether that link earns the hot-product commission is unconfirmed (docs, Open items).
-import { queryHotProducts } from "@/lib/aliexpress/affiliate";
+// Links (owner decision 2026-09-28, lib/hot/links.ts): once the list is selected, the kept products
+// whose hot rate beats their standard rate get a link.generate hot link (promotion_link_type 2) in
+// ONE batched call, spaced after the list call like any other; the rest keep the promotion_link
+// hotproduct.query returned (made with our tracking id, type unknown). When that call fails, every
+// product keeps the list's link: the list itself never fails over it. The links change nothing in
+// what is shown or in what order. So a cold list costs two calls. Whether either link type earns
+// the hot commission is UNCONFIRMED until orders show it (docs/aliexpress-api.md, Hot link).
+import { HOT_LINK_TYPE, generateLinks, queryHotProducts } from "@/lib/aliexpress/affiliate";
 import type { AliExpressClient } from "@/lib/aliexpress/client";
 import { AliExpressError, type AliExpressErrorKind } from "@/lib/aliexpress/errors";
 import type { AliProduct } from "@/lib/aliexpress/schemas";
 import type { HotCategoryId } from "./categories";
+import { hotLinkSources, withHotLinks } from "./links";
 import { selectHotProducts, toHotProduct, type HotProduct } from "./select";
 
 export interface HotPool {
@@ -192,14 +198,44 @@ export class HotPoolLoader {
     return run;
   }
 
+  /**
+   * `products` (already selected) with a hot link for each one that pays a hot rate: one
+   * link.generate call with promotion_link_type 2, spaced after the list call. Never throws: when
+   * the call fails, every product keeps the list's link. Neither the set nor the order changes.
+   */
+  private async withHotLinks(
+    key: HotCategoryId,
+    ali: AliExpressClient,
+    products: AliProduct[],
+  ): Promise<AliProduct[]> {
+    const sources = hotLinkSources(products);
+    if (!sources.length) return products;
+    try {
+      const links = await this.spaced(() =>
+        generateLinks(ali, sources, { promotionLinkType: HOT_LINK_TYPE }),
+      );
+      const linked = withHotLinks(products, links, new Date(this.clock()).toISOString());
+      const made = linked.filter((p) => p.promotionLinkType === HOT_LINK_TYPE).length;
+      if (made < sources.length) {
+        this.log(`${key}: ${made} of ${sources.length} hot links made; the rest keep the list's`);
+      }
+      return linked;
+    } catch (err) {
+      this.log(`${key}: hot links not made, the list's links are kept: ${errorText(err)}`);
+      return products;
+    }
+  }
+
   private async fetch(key: HotCategoryId, makeDeps: () => HotFetchDeps): Promise<HotPool> {
     const { ali, saveProducts } = makeDeps();
     const page = await this.spaced(() => queryHotProducts(ali, { categoryId: key }));
     const fetchedAt = new Date(this.clock());
-    const kept = selectHotProducts(page.products);
-    if (!kept.length) {
+    const selected = selectHotProducts(page.products);
+    if (!selected.length) {
       throw new HotPoolError("empty", `${key}: none of ${page.products.length} products passed`);
     }
+    // The saved rows and the returned list are built from this one array, so they agree.
+    const kept = await this.withHotLinks(key, ali, selected);
     try {
       // Without a Hebrew title of ours: title_he holds the LLM's titles only. Marked as saved from
       // a hot list, so a /p refresh keeps the title in Hebrew and this list's link

@@ -41,17 +41,46 @@ const fixture = (name: string) =>
     "utf8",
   );
 const FAILURE = JSON.stringify({ error_response: { code: "InsufficientPermission" } });
+const LINK_METHOD = "aliexpress.affiliate.link.generate";
+
+/** A link.generate answer: one short link per source value. */
+const linkAnswer = (sources: string[]) =>
+  JSON.stringify({
+    aliexpress_affiliate_link_generate_response: {
+      resp_result: {
+        resp_code: 200,
+        result: {
+          promotion_links: {
+            promotion_link: sources.map((s) => ({
+              source_value: s,
+              promotion_link: `https://s.click.aliexpress.com/e/_h${s.match(/item\/(\d+)/)![1]}`,
+            })),
+          },
+        },
+      },
+    },
+  });
 
 let fetchMock: ReturnType<typeof vi.fn<typeof fetch>>;
 let errors: ReturnType<typeof vi.spyOn>;
 
-/** Answers each call by its category_ids param. */
+const methodOf = (init: RequestInit | undefined) =>
+  new URLSearchParams(String(init?.body)).get("method");
+
+/** Answers each list call by its category_ids param, and every hot links call with links. */
 function gateway(bodies: Record<string, string>) {
   fetchMock.mockImplementation(async (_url, init) => {
-    const category = new URLSearchParams(String(init?.body)).get("category_ids") ?? "";
-    return new Response(bodies[category] ?? FAILURE);
+    const sent = new URLSearchParams(String(init?.body));
+    if (sent.get("method") === LINK_METHOD) {
+      return new Response(linkAnswer((sent.get("source_values") ?? "").split(",")));
+    }
+    return new Response(bodies[sent.get("category_ids") ?? ""] ?? FAILURE);
   });
 }
+
+/** Calls of `method`: the hot lists by default. */
+const calls = (method = "aliexpress.affiliate.hotproduct.query") =>
+  fetchMock.mock.calls.filter(([, init]) => methodOf(init) === method).length;
 
 beforeEach(() => {
   vi.resetModules(); // a fresh loader (and its failure memory) per test
@@ -79,11 +108,18 @@ describe("hotCarouselProducts", () => {
     });
     const { CAROUSEL_SIZE, hotCarouselProducts } = await import("./queries");
     const products = await hotCarouselProducts();
-    expect(fetchMock).toHaveBeenCalledTimes(MIX_CATEGORY_IDS.length);
+    // A cold list costs its list call and one hot links call.
+    expect(calls()).toBe(MIX_CATEGORY_IDS.length);
+    expect(calls(LINK_METHOD)).toBe(MIX_CATEGORY_IDS.length);
+    expect(fetchMock).toHaveBeenCalledTimes(2 * MIX_CATEGORY_IDS.length);
     expect(products).toHaveLength(CAROUSEL_SIZE);
     expect(new Set(products.map((p) => p.productId)).size).toBe(CAROUSEL_SIZE);
     expect(save).toHaveBeenCalledTimes(MIX_CATEGORY_IDS.length);
-    const [, titles, fetchedAt, options] = save.mock.calls[0] as unknown as unknown[];
+    const [saved, titles, fetchedAt, options] = save.mock.calls[0] as unknown as [
+      { promotionLinkType?: number }[],
+      ...unknown[],
+    ];
+    expect(saved.some((p) => p.promotionLinkType === 2)).toBe(true);
     // title_he is left alone: it holds our LLM titles, not AliExpress's machine translation. Rows
     // a search titled keep their data too.
     expect(titles).toEqual({});
@@ -127,6 +163,7 @@ describe("hotCarouselProducts", () => {
       reason: "failed",
     });
     expect(fetchMock).toHaveBeenCalledTimes(MIX_CATEGORY_IDS.length);
+    expect(calls(LINK_METHOD)).toBe(0);
     expect(errors).toHaveBeenCalledTimes(MIX_CATEGORY_IDS.length);
     expect(save).not.toHaveBeenCalled();
   });
@@ -144,12 +181,13 @@ describe("loadHotPool", () => {
     clock.now += RECENT_MS;
     gateway({});
     expect(await loadHotPool("44")).toEqual(first);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(calls()).toBe(2);
     expect(errors).toHaveBeenCalledTimes(1);
 
     // While the loader waits, views are served from memory: no call, no new log line.
+    const before = fetchMock.mock.calls.length;
     for (let i = 0; i < 3; i++) expect(await loadHotPool("44")).toEqual(first);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(before);
     expect(errors).toHaveBeenCalledTimes(1);
   });
 });

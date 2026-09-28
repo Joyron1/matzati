@@ -532,6 +532,26 @@ describe("SupabaseStore", () => {
         ]);
       });
 
+      it("stores a hot link's type and time in data, and a later list's own link clears them", async () => {
+        const db = new FakeDb();
+        const store = new SupabaseStore(db.client());
+        const linked: AliProduct = {
+          ...hot(a),
+          promotionLink: "https://s.click.aliexpress.com/e/_hot",
+          promotionLinkType: 2,
+          promotionLinkAt: fetchedAt.toISOString(),
+          hotCommissionRatePct: 9,
+        };
+        await store.saveProducts([linked], {}, fetchedAt, { keepTitledRows: true });
+        expect((await store.getProduct(a.productId))?.product).toEqual(linked);
+        // The next list (its hot links call failed): the row takes that list's link, no type.
+        const later = new Date(fetchedAt.getTime() + 12 * 3_600_000);
+        await store.saveProducts([hot(a)], {}, later, { keepTitledRows: true });
+        const row = await store.getProduct(a.productId);
+        expect(row?.product).toEqual(hot(a));
+        expect(row?.product.promotionLinkType).toBeUndefined();
+      });
+
       it("writes only new rows when the stored rows cannot be read", async () => {
         const db = new FakeDb();
         db.rows("products").push({

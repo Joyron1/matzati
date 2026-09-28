@@ -2,7 +2,9 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parseEnvelope, parseJsonKeepingIds } from "./client";
 import {
+  affiliateUrl,
   mediaUrl,
+  positivePercent,
   parseAmount,
   parseCategories,
   parsePercent,
@@ -158,6 +160,82 @@ describe("product videos (probe of 2026-09-28)", () => {
     expect(mediaUrl("javascript:alert(1)")).toBeNull();
     expect(mediaUrl("")).toBeNull();
     expect(mediaUrl(42)).toBeNull();
+  });
+});
+
+describe("hot commission rate (probe of 2026-09-28)", () => {
+  const hot = parseProductPage(
+    fixtureResult(
+      "aliexpress.affiliate.hotproduct.query",
+      "probe-hot/aliexpress.affiliate.hotproduct.query.cat44-HE",
+    ),
+  ).products;
+
+  it("reads hot_product_commission_rate of hot products as a number", () => {
+    expect(hot).toHaveLength(46);
+    for (const p of hot) {
+      expect(p.hotCommissionRatePct).toBeGreaterThanOrEqual(3.5);
+      expect(p.hotCommissionRatePct).toBeLessThanOrEqual(15);
+    }
+    // The probe: the hot rate was higher on 44 of these 46.
+    const higher = hot.filter((p) => p.hotCommissionRatePct! > (p.commissionRatePct ?? 0));
+    expect(higher).toHaveLength(44);
+  });
+
+  it('reads "0.0%" (product.query, productdetail.get) and a missing rate as null', () => {
+    const query = parseProductPage(fixtureResult("aliexpress.affiliate.product.query")).products;
+    expect(query.length).toBeGreaterThan(0);
+    expect(query.every((p) => p.hotCommissionRatePct === null)).toBe(true);
+    const detail = parseProductPage(fixtureResult("aliexpress.affiliate.productdetail.get"));
+    expect(detail.products[0].hotCommissionRatePct).toBeNull();
+    const base = {
+      product_id: "1",
+      product_title: "x",
+      target_sale_price: "10.00",
+      target_sale_price_currency: "ILS",
+      product_main_image_url: "https://ae-pic-a1.aliexpress-media.com/kf/a.jpg",
+      product_detail_url: "https://he.aliexpress.com/item/1.html",
+    };
+    expect(productSchema.parse(base).hotCommissionRatePct).toBeNull();
+    expect(
+      productSchema.parse({ ...base, hot_product_commission_rate: "" }).hotCommissionRatePct,
+    ).toBeNull();
+    expect(
+      productSchema.parse({ ...base, hot_product_commission_rate: "9.5%" }).hotCommissionRatePct,
+    ).toBe(9.5);
+    expect(positivePercent("0.0%")).toBeNull();
+    expect(positivePercent("-1%")).toBeNull();
+    expect(positivePercent("8.0%")).toBe(8);
+  });
+
+  it("never sets a link type or source: those are ours", () => {
+    for (const p of hot) {
+      expect(p.promotionLinkType).toBeUndefined();
+      expect(p.promotionLinkAt).toBeUndefined();
+      expect(p.source).toBeUndefined();
+    }
+  });
+});
+
+describe("affiliateUrl", () => {
+  it("accepts only https links on aliexpress.com and its subdomains, serialized", () => {
+    const link = "https://s.click.aliexpress.com/e/_c2yIJ7i5";
+    expect(affiliateUrl(link)).toBe(link);
+    expect(affiliateUrl(` ${link} `)).toBe(link);
+    expect(affiliateUrl("https://aliexpress.com/item/1.html")).toBe(
+      "https://aliexpress.com/item/1.html",
+    );
+    expect(affiliateUrl("http://s.click.aliexpress.com/e/_x")).toBeNull();
+    expect(affiliateUrl("https://s.click.aliexpress.com.evil.test/e/_x")).toBeNull();
+    expect(affiliateUrl("https://evilaliexpress.com/e/_x")).toBeNull();
+    expect(affiliateUrl("https://evil.test/redirect")).toBeNull();
+    expect(affiliateUrl("javascript:alert(1)")).toBeNull();
+    expect(affiliateUrl("")).toBeNull();
+    expect(affiliateUrl(null)).toBeNull();
+    // Serialized: a raw non-Latin-1 character would make a Location header throw.
+    expect(affiliateUrl("https://s.click.aliexpress.com/e/_ק")).toBe(
+      "https://s.click.aliexpress.com/e/_%D7%A7",
+    );
   });
 });
 

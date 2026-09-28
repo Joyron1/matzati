@@ -10,6 +10,8 @@
 //   scripts/probe-hot.ts): the same 33 product fields, ILS accepted although undocumented
 // - product.sku.detail.get returns InsufficientPermission (2026-09-28): getSkuDetails stays behind
 //   SKU_DETAILS_ENABLED
+// - link.generate with promotion_link_type 2 returns short /e/ links with our tracking id echoed,
+//   also for a product without a hot rate (probe of 2026-09-28)
 import type { AliExpressClient, ParamValue } from "./client";
 import { AliExpressError } from "./errors";
 import {
@@ -21,7 +23,10 @@ import {
   type AliPromotionLink,
   type AliSkuDetails,
   type ProductPage,
+  type PromotionLinkType,
 } from "./schemas";
+
+export type { PromotionLinkType };
 
 export const CURRENCY = "ILS";
 export const SHIP_TO = "IL";
@@ -188,15 +193,40 @@ export async function getSkuDetails(
   }
 }
 
-/** Affiliate links for product URLs that came without promotion_link. Batches of 50. */
+export const STANDARD_LINK_TYPE = 0 satisfies PromotionLinkType;
+export const HOT_LINK_TYPE = 2 satisfies PromotionLinkType;
+
+/** The source value we send to link.generate for a product. */
+export const itemSourceUrl = (productId: string) =>
+  `https://www.aliexpress.com/item/${productId}.html`;
+
+const ITEM_ID = /\/item\/(\d+)\.html/;
+
+/** The product id in a link.generate source_value (an item URL), or null. */
+export function productIdOfSource(sourceValue: string): string | null {
+  return ITEM_ID.exec(sourceValue)?.[1] ?? null;
+}
+
+export interface GenerateLinksOptions {
+  /** 0 (default) for standard links; 2 for hot links (HOT_LINK_TYPE). */
+  promotionLinkType?: PromotionLinkType;
+}
+
+/**
+ * Affiliate links for product URLs, in batches of MAX_LINKS_PER_CALL source values. Type 0 by
+ * default (products that came without promotion_link, /go past LINK_MAX_AGE_DAYS); type 2 for hot
+ * products (lib/hot/loader.ts) and the rows marked with it. Callers check each link's host
+ * (affiliateUrl in schemas.ts) before storing or redirecting to it.
+ */
 export async function generateLinks(
   client: AliExpressClient,
   sourceUrls: string[],
+  { promotionLinkType = STANDARD_LINK_TYPE }: GenerateLinksOptions = {},
 ): Promise<AliPromotionLink[]> {
   const links: AliPromotionLink[] = [];
   for (const batch of chunk([...new Set(sourceUrls)], MAX_LINKS_PER_CALL)) {
     const res = await client.call("aliexpress.affiliate.link.generate", {
-      promotion_link_type: 0,
+      promotion_link_type: promotionLinkType,
       source_values: batch.join(","),
       tracking_id: client.trackingId,
     });

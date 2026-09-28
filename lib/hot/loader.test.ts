@@ -20,8 +20,38 @@ import {
 import { PER_SHOP } from "./select";
 
 const METHOD = "aliexpress.affiliate.hotproduct.query";
+const LINK_METHOD = "aliexpress.affiliate.link.generate";
 const fixtureText = (name: string) =>
   readFileSync(`fixtures/aliexpress/probe-hot/${METHOD}.${name}.json`, "utf8");
+
+/** A link.generate answer with one short link per source value, shaped like the type 2 fixture. */
+function linkAnswer(
+  sources: string[],
+  link = (id: string) => `https://s.click.aliexpress.com/e/_h${id}`,
+) {
+  return JSON.stringify({
+    aliexpress_affiliate_link_generate_response: {
+      resp_result: {
+        resp_code: 200,
+        resp_msg: "Call succeeds",
+        result: {
+          total_result_count: sources.length,
+          promotion_links: {
+            promotion_link: sources.map((s) => ({
+              source_value: s,
+              promotion_link: link(s.match(/item\/(\d+)\.html/)![1]),
+            })),
+          },
+          tracking_id: "<ALIEXPRESS_TRACKING_ID>",
+        },
+      },
+      request_id: "fake",
+    },
+  });
+}
+
+/** How the fake gateway answers link.generate: a link per product, or one of the error bodies. */
+type LinkMode = "ok" | "banned" | "denied" | ((sources: string[]) => string);
 const EMPTY = JSON.stringify({
   aliexpress_affiliate_hotproduct_query_response: {
     resp_result: { resp_code: 405, resp_msg: "The result is empty" },
@@ -35,10 +65,25 @@ const BANNED = JSON.stringify({
 });
 const MINUTE = 60_000;
 
-function setup(bodies: string[]) {
+/**
+ * A loader against a fake gateway: hotproduct.query calls take `bodies` in order, link.generate
+ * calls are answered per `links`.
+ */
+function setup(bodies: string[], links: LinkMode = "ok") {
   let now = Date.parse("2026-09-28T12:00:00Z");
-  const fetchMock = vi.fn<typeof fetch>();
-  for (const body of bodies) fetchMock.mockImplementationOnce(async () => new Response(body));
+  const queue = [...bodies];
+  const fetchMock = vi.fn<typeof fetch>(async (_url, init) => {
+    const sent = new URLSearchParams(String(init?.body));
+    if (sent.get("method") === LINK_METHOD) {
+      const sources = (sent.get("source_values") ?? "").split(",");
+      if (links === "banned") return new Response(BANNED);
+      if (links === "denied") return new Response(DENIED);
+      return new Response(links === "ok" ? linkAnswer(sources) : links(sources));
+    }
+    const body = queue.shift();
+    if (body === undefined) throw new Error("no more fake list responses");
+    return new Response(body);
+  });
   const client = new AliExpressClient(
     { appKey: "k", appSecret: "secret", trackingId: "trk", gateway: "https://g.test/sync" },
     { fetch: fetchMock, sleep: async () => {}, retries: 0 },
@@ -59,11 +104,15 @@ function setup(bodies: string[]) {
   });
   const deps = (): HotFetchDeps => ({ ali: client, saveProducts });
   const sent = (call: number) => new URLSearchParams(String(fetchMock.mock.calls[call][1]?.body));
+  const methods = () => fetchMock.mock.calls.map((_, i) => sent(i).get("method"));
   return {
     loader,
     deps,
     fetchMock,
     sent,
+    methods,
+    /** hotproduct.query calls so far. */
+    listCalls: () => methods().filter((m) => m === METHOD).length,
     saved,
     saveProducts,
     sleeps,
@@ -76,8 +125,8 @@ describe("HotPoolLoader", () => {
   it("fetches a category's list once, keeps what passes and saves those products", async () => {
     const t = setup([fixtureText("cat44-HE")]);
     const pool = await t.loader.load("44", t.deps);
-    expect(t.fetchMock).toHaveBeenCalledTimes(1);
-    expect(t.sent(0).get("method")).toBe(METHOD);
+    // The list, then one link.generate call for its hot links (see below).
+    expect(t.methods()).toEqual([METHOD, LINK_METHOD]);
     expect(t.sent(0).get("category_ids")).toBe("44");
     expect(t.sent(0).get("target_language")).toBe("HE");
     expect(pool.key).toBe("44");
@@ -117,7 +166,7 @@ describe("HotPoolLoader", () => {
       t.loader.load("44", t.deps),
       t.loader.load("44", t.deps),
     ]);
-    expect(t.fetchMock).toHaveBeenCalledTimes(1);
+    expect(t.methods()).toEqual([METHOD, LINK_METHOD]);
     expect(b).toBe(a);
     expect(c).toBe(a);
   });
@@ -127,19 +176,19 @@ describe("HotPoolLoader", () => {
     const first = await t.loader.load("44", t.deps);
     t.advance(RECENT_MS - 1);
     expect(await t.loader.load("44", t.deps)).toBe(first);
-    expect(t.fetchMock).toHaveBeenCalledTimes(1);
+    expect(t.listCalls()).toBe(1);
     t.advance(1);
     const second = await t.loader.load("44", t.deps);
-    expect(t.fetchMock).toHaveBeenCalledTimes(2);
+    expect(t.listCalls()).toBe(2);
     expect(second.products[0].productId).not.toBe(first.products[0].productId);
   });
 
-  it("spaces this instance's calls ALI_SPACING_MS apart", async () => {
+  it("spaces this instance's calls ALI_SPACING_MS apart, hot link calls included", async () => {
     const t = setup([fixtureText("cat44-HE"), fixtureText("all-HE")]);
     await Promise.all([t.loader.load("44", t.deps), t.loader.load("15", t.deps)]);
     expect(t.sent(1).get("category_ids")).toBe("15");
-    expect(t.fetchMock).toHaveBeenCalledTimes(2);
-    expect(t.sleeps).toEqual([ALI_SPACING_MS]);
+    expect(t.methods()).toEqual([METHOD, METHOD, LINK_METHOD, LINK_METHOD]);
+    expect(t.sleeps).toEqual([ALI_SPACING_MS, ALI_SPACING_MS, ALI_SPACING_MS]);
   });
 
   /** Loads "44" `ms` from now (advancing the clock) and says whether AliExpress was called. */
@@ -168,7 +217,7 @@ describe("HotPoolLoader", () => {
     t.advance(1);
     expect(t.loader.isWaiting("44")).toBe(false);
     await expect(t.loader.load("44", t.deps)).resolves.toMatchObject({ key: "44" });
-    expect(t.fetchMock).toHaveBeenCalledTimes(2);
+    expect(t.listCalls()).toBe(2);
     expect(t.saveProducts).toHaveBeenCalledTimes(1);
   });
 
@@ -186,7 +235,7 @@ describe("HotPoolLoader", () => {
     expect(await callsAfter(t, RECENT_MS)).toBe(true);
     expect(await callsAfter(t, 10 * MINUTE - 1)).toBe(false);
     expect(await callsAfter(t, 1)).toBe(true);
-    expect(t.fetchMock).toHaveBeenCalledTimes(6);
+    expect(t.listCalls()).toBe(6);
   });
 
   it("waits HOT_LIST_TTL_MS after a lasting failure (a missing permission)", async () => {
@@ -228,6 +277,115 @@ describe("HotPoolLoader", () => {
     const pool = await t.loader.load("44", t.deps);
     expect(pool.products.length).toBeGreaterThan(0);
     expect(t.log).toHaveBeenCalledWith(expect.stringContaining("products not saved"));
+  });
+
+  describe("hot links (promotion_link_type 2)", () => {
+    /** The same list loaded with the link call failing: what the list alone gives. */
+    async function listOnly() {
+      const t = setup([fixtureText("cat44-HE")], "denied");
+      return { pool: await t.loader.load("44", t.deps), saved: t.saved[0].products };
+    }
+
+    it("makes one type 2 call for the kept products with a higher hot rate and saves those links", async () => {
+      const t = setup([fixtureText("cat44-HE")]);
+      const pool = await t.loader.load("44", t.deps);
+      const link = t.sent(1);
+      expect(link.get("method")).toBe(LINK_METHOD);
+      expect(link.get("promotion_link_type")).toBe("2");
+      expect(link.get("tracking_id")).toBe("trk");
+      // Spaced after the list call like any other call.
+      expect(t.sleeps).toEqual([ALI_SPACING_MS]);
+
+      const saved = t.saved[0].products;
+      const eligible = saved.filter(
+        (p) => (p.hotCommissionRatePct ?? 0) > (p.commissionRatePct ?? Infinity),
+      );
+      expect(eligible.length).toBeGreaterThan(30);
+      expect(eligible.length).toBeLessThan(saved.length);
+      expect(link.get("source_values")!.split(",")).toEqual(
+        eligible.map((p) => `https://www.aliexpress.com/item/${p.productId}.html`),
+      );
+      const madeAt = new Date(Date.parse(pool.fetchedAt) + ALI_SPACING_MS).toISOString();
+      for (const p of eligible) {
+        expect(p).toMatchObject({
+          promotionLink: `https://s.click.aliexpress.com/e/_h${p.productId}`,
+          promotionLinkType: 2,
+          promotionLinkAt: madeAt,
+          source: "hot",
+        });
+      }
+      // The rest keep the list's own /s/ link, type unknown.
+      for (const p of saved.filter((q) => !eligible.includes(q))) {
+        expect(p.promotionLink).toMatch(/^https:\/\/s\.click\.aliexpress\.com\/s\//);
+        expect(p.promotionLinkType).toBeUndefined();
+        expect(p.promotionLinkAt).toBeUndefined();
+      }
+    });
+
+    it("changes neither the products shown nor their order", async () => {
+      const t = setup([fixtureText("cat44-HE")]);
+      const pool = await t.loader.load("44", t.deps);
+      const alone = await listOnly();
+      expect(pool.products).toEqual(alone.pool.products);
+      expect(t.saved[0].products.map((p) => p.productId)).toEqual(
+        alone.saved.map((p) => p.productId),
+      );
+      // The saved rows and the returned list are the same products, in the same order.
+      expect(t.saved[0].products.map((p) => p.productId)).toEqual(
+        pool.products.map((p) => p.productId),
+      );
+    });
+
+    it("keeps the list's links when the call fails, and still returns and saves the list", async () => {
+      for (const mode of ["denied", "banned"] as const) {
+        const t = setup([fixtureText("cat44-HE")], mode);
+        const pool = await t.loader.load("44", t.deps);
+        expect(pool.products.length).toBeGreaterThan(30);
+        expect(t.loader.isWaiting("44")).toBe(false);
+        const saved = t.saved[0].products;
+        expect(saved.every((p) => p.promotionLink?.includes("/s/"))).toBe(true);
+        expect(saved.every((p) => p.promotionLinkType === undefined)).toBe(true);
+        expect(t.log).toHaveBeenCalledWith(expect.stringContaining("hot links not made"));
+      }
+    });
+
+    it("keeps the list's link for a product whose answer is missing or not an AliExpress link", async () => {
+      let asked: string[] = [];
+      const t = setup([fixtureText("cat44-HE")], (sources) => {
+        asked = sources;
+        const [bad, ...rest] = sources.slice(0, -1); // the last one gets no answer
+        return linkAnswer([bad, ...rest], (id) =>
+          id === bad.match(/item\/(\d+)/)![1]
+            ? "https://evil.test/redirect"
+            : `https://s.click.aliexpress.com/e/_h${id}`,
+        );
+      });
+      await t.loader.load("44", t.deps);
+      const byId = new Map(t.saved[0].products.map((p) => [p.productId, p]));
+      const idOf = (s: string) => s.match(/item\/(\d+)/)![1];
+      const first = byId.get(idOf(asked[0]))!;
+      const last = byId.get(idOf(asked[asked.length - 1]))!;
+      for (const p of [first, last]) {
+        expect(p.promotionLink).toMatch(/^https:\/\/s\.click\.aliexpress\.com\/s\//);
+        expect(p.promotionLinkType).toBeUndefined();
+      }
+      expect(byId.get(idOf(asked[1]))!.promotionLinkType).toBe(2);
+      expect(t.log).toHaveBeenCalledWith(
+        expect.stringContaining(`${asked.length - 2} of ${asked.length} hot links made`),
+      );
+    });
+
+    it("makes no call when no kept product has a higher hot rate", async () => {
+      const lower = fixtureText("cat44-HE").replace(
+        /"hot_product_commission_rate": "[^"]*"/g,
+        '"hot_product_commission_rate": "0.0%"',
+      );
+      const t = setup([lower]);
+      const pool = await t.loader.load("44", t.deps);
+      expect(pool.products.length).toBeGreaterThan(30);
+      expect(t.methods()).toEqual([METHOD]);
+      expect(t.saved[0].products.every((p) => p.promotionLinkType === undefined)).toBe(true);
+    });
   });
 });
 

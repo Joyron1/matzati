@@ -60,7 +60,14 @@ const m = vi.hoisted(() => {
     refresh: vi.fn(async () => {}),
     getProductDetails:
       vi.fn<(client: unknown, ids: string[], language?: "EN" | "HE") => Promise<ProductPage>>(),
-    generateLinks: vi.fn<(client: unknown, urls: string[]) => Promise<AliPromotionLink[]>>(),
+    generateLinks:
+      vi.fn<
+        (
+          client: unknown,
+          urls: string[],
+          options?: { promotionLinkType?: 0 | 2 },
+        ) => Promise<AliPromotionLink[]>
+      >(),
     getSkuDetails: vi.fn<(client: unknown, id: string) => Promise<AliSkuDetails | null>>(),
   };
 });
@@ -84,7 +91,8 @@ vi.mock("@/lib/env", async (importOriginal) => ({
     gateway: "https://g.test/sync",
   }),
 }));
-vi.mock("@/lib/aliexpress/affiliate", () => ({
+vi.mock("@/lib/aliexpress/affiliate", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/aliexpress/affiliate")>()),
   getProductDetails: m.getProductDetails,
   generateLinks: m.generateLinks,
   getSkuDetails: m.getSkuDetails,
@@ -486,9 +494,14 @@ describe("productForPage: refresh after 24 hours", () => {
     });
 
     it("is refreshed in Hebrew and keeps the list's link, marked as from the list", async () => {
-      const row = hotRow({ source: "hot" });
+      const row = hotRow({ source: "hot", hotCommissionRatePct: 8 });
       m.getProduct.mockResolvedValue(row);
-      detailsReturn({ ...PRODUCT, title: `${HOT_TITLE} חדש`, promotionLink: FRESH_LINK });
+      detailsReturn({
+        ...PRODUCT,
+        title: `${HOT_TITLE} חדש`,
+        promotionLink: FRESH_LINK,
+        hotCommissionRatePct: null, // productdetail.get sends "0.0%"
+      });
       const data = await productForPage(ID);
       expect(m.getProductDetails).toHaveBeenCalledWith(expect.anything(), [ID], "HE");
       const [[saved], titles] = m.saveProducts.mock.calls[0];
@@ -497,6 +510,7 @@ describe("productForPage: refresh after 24 hours", () => {
         promotionLink: HOT_LINK,
         promotionLinkAt: row.updatedAt,
         source: "hot",
+        hotCommissionRatePct: 8, // the list's, kept for stats
       });
       expect(titles).toEqual({ [ID]: null });
       // The page shows AliExpress's Hebrew title as it is (lib/product-title.ts).
@@ -523,6 +537,99 @@ describe("productForPage: refresh after 24 hours", () => {
       await productForPage(ID);
       expect(m.generateLinks).not.toHaveBeenCalled();
       expect(m.saveProducts.mock.calls[0][0][0].promotionLink).toBe(FRESH_LINK);
+    });
+
+    describe("with a hot link (promotionLinkType 2)", () => {
+      const TYPE2_LINK = "https://s.click.aliexpress.com/e/_hot2";
+      const NEW_TYPE2 = "https://s.click.aliexpress.com/e/_hot2new";
+      /** A row the hot list gave a type 2 link `linkDays` ago; its data was saved 2 days ago. */
+      const type2Row = (linkDays: number) =>
+        hotRow(
+          {
+            source: "hot",
+            promotionLink: TYPE2_LINK,
+            promotionLinkType: 2,
+            promotionLinkAt: daysAgo(linkDays),
+            hotCommissionRatePct: 9,
+          },
+          daysAgo(Math.max(2, linkDays)),
+        );
+      // productdetail.get: a new price, its own /s/ link, and a hot rate of "0.0%".
+      const refreshed = {
+        ...PRODUCT,
+        title: HOT_TITLE,
+        price: 39.9,
+        promotionLink: FRESH_LINK,
+        hotCommissionRatePct: null,
+      };
+
+      it("keeps the hot link, its type and time over productdetail's link, with the fresh data", async () => {
+        const row = type2Row(2);
+        m.getProduct.mockResolvedValue(row);
+        detailsReturn(refreshed);
+        const data = await productForPage(ID);
+        expect(m.generateLinks).not.toHaveBeenCalled();
+        expect(m.saveProducts.mock.calls[0][0][0]).toEqual({
+          ...refreshed,
+          source: "hot",
+          promotionLink: TYPE2_LINK,
+          promotionLinkType: 2,
+          promotionLinkAt: row.product.promotionLinkAt,
+          // The hot rate the link was made for; productdetail.get sends none.
+          hotCommissionRatePct: 9,
+        });
+        expect(data?.product.price_ils).toBe(39.9);
+      });
+
+      it("makes a new type 2 link once it is older than LINK_MAX_AGE_DAYS, 1.1 s later", async () => {
+        m.getProduct.mockResolvedValue(type2Row(91));
+        const at: number[] = [];
+        m.getProductDetails.mockImplementation(async () => {
+          at.push(Date.now());
+          return { products: [refreshed], skipped: 0, totalRecords: 1 };
+        });
+        m.generateLinks.mockImplementation(async (_client, urls) => {
+          at.push(Date.now());
+          return [{ sourceValue: urls[0], promotionLink: NEW_TYPE2, message: null }];
+        });
+        const before = Date.now();
+        await withFakeTimers(() => productForPage(ID));
+        expect(m.generateLinks).toHaveBeenCalledTimes(1);
+        expect(m.generateLinks).toHaveBeenCalledWith(
+          expect.anything(),
+          [`https://www.aliexpress.com/item/${ID}.html`],
+          { promotionLinkType: 2 },
+        );
+        expect(at[1] - at[0]).toBeGreaterThanOrEqual(1_100);
+        const saved = m.saveProducts.mock.calls[0][0][0];
+        expect(saved).toMatchObject({
+          price: 39.9,
+          promotionLink: NEW_TYPE2,
+          promotionLinkType: 2,
+          hotCommissionRatePct: 9,
+        });
+        expect(Date.parse(saved.promotionLinkAt ?? "")).toBeGreaterThanOrEqual(before);
+      });
+
+      it("goes on with productdetail's link when the new type 2 link fails or is unusable", async () => {
+        for (const answer of [
+          () => Promise.reject(new Error("ApiCallLimit")),
+          async () => [{ sourceValue: "x", promotionLink: "https://evil.test/r", message: null }],
+        ]) {
+          m.saveProducts.mockClear();
+          m.getProduct.mockResolvedValue(type2Row(91));
+          detailsReturn(refreshed);
+          m.generateLinks.mockImplementationOnce(answer);
+          const data = await withFakeTimers(() => productForPage(ID));
+          expect(data?.product.product_id).toBe(ID);
+          const saved = m.saveProducts.mock.calls[0][0][0];
+          expect(saved.promotionLink).toBe(FRESH_LINK);
+          expect(saved.promotionLinkType).toBeUndefined();
+          expect(saved.promotionLinkAt).toBeUndefined();
+          // The stored hot rate stays for stats; productdetail.get sends none.
+          expect(saved.hotCommissionRatePct).toBe(9);
+        }
+      });
     });
   });
 });
@@ -562,9 +669,12 @@ describe("clickOut", () => {
 
     await expect(clickOut(id, "product")).resolves.toBe(NEW_LINK);
     expect(m.generateLinks).toHaveBeenCalledTimes(1);
-    expect(m.generateLinks).toHaveBeenCalledWith(expect.anything(), [
-      `https://www.aliexpress.com/item/${id}.html`,
-    ]);
+    // A row without a hot link gets a standard link (type 0), as before.
+    expect(m.generateLinks).toHaveBeenCalledWith(
+      expect.anything(),
+      [`https://www.aliexpress.com/item/${id}.html`],
+      { promotionLinkType: 0 },
+    );
     // updated_at stays as it was: the price is no fresher than before.
     expect(m.saveProducts).not.toHaveBeenCalled();
     expect(m.updates).toHaveLength(1);
@@ -579,6 +689,43 @@ describe("clickOut", () => {
       ["product_id", id],
       ["updated_at", updatedAt],
     ]);
+  });
+
+  it("regenerates an old hot link with type 2, and the row stays marked", async () => {
+    const updatedAt = daysAgo(120);
+    const id = staleProduct(
+      { source: "hot", promotionLinkType: 2, promotionLinkAt: daysAgo(91) },
+      updatedAt,
+    );
+    m.generateLinks.mockResolvedValue(linkResult(NEW_LINK, id));
+    await expect(clickOut(id, "product")).resolves.toBe(NEW_LINK);
+    expect(m.generateLinks).toHaveBeenCalledWith(
+      expect.anything(),
+      [`https://www.aliexpress.com/item/${id}.html`],
+      { promotionLinkType: 2 },
+    );
+    const data = m.updates[0].values.data as AliProduct;
+    expect(data).toMatchObject({ promotionLink: NEW_LINK, promotionLinkType: 2 });
+    expect(Date.parse(data.promotionLinkAt ?? "")).toBeGreaterThan(Date.now() - 60_000);
+    expect(m.updates[0].filters).toEqual([
+      ["product_id", id],
+      ["updated_at", updatedAt],
+    ]);
+  });
+
+  it("keeps a hot link younger than LINK_MAX_AGE_DAYS without calling AliExpress", async () => {
+    m.getProduct.mockResolvedValue(
+      stored({ ...PRODUCT, promotionLinkType: 2, promotionLinkAt: daysAgo(89) }, daysAgo(120)),
+    );
+    await expect(clickOut(ID, "product")).resolves.toBe(PRODUCT.promotionLink);
+    expect(m.generateLinks).not.toHaveBeenCalled();
+  });
+
+  it("reads only a stored type of exactly 2 as a hot link", async () => {
+    const id = staleProduct({ promotionLinkType: "2" as unknown as 2 });
+    m.generateLinks.mockResolvedValue(linkResult(NEW_LINK, id));
+    await clickOut(id, "product");
+    expect(m.generateLinks.mock.calls[0][2]).toEqual({ promotionLinkType: 0 });
   });
 
   it("counts the link's age from promotionLinkAt when /go made it after the row was saved", async () => {
