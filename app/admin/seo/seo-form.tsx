@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { CircleAlert } from "lucide-react";
 import { useActionState, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { btnLg, btnPrimary, btnSecondary } from "@/components/styles";
+import { btnBusy, btnLg, btnPrimary, btnSecondary } from "@/components/styles";
 import { searchHref } from "@/lib/search-url";
 import {
   INTRO_MAX,
@@ -110,7 +110,14 @@ export function SeoForm({
   return (
     // Query and slug are controlled (the slug follows the query); the other inputs are
     // uncontrolled with defaultValue from the last submit, as in the deals form.
-    <form action={formAction} noValidate className="space-y-7">
+    <form
+      action={formAction}
+      onSubmit={(e) => {
+        if (pending) e.preventDefault();
+      }}
+      noValidate
+      className="space-y-7"
+    >
       {(errors.form || fieldErrorCount > 0) && (
         <div
           ref={summaryRef}
@@ -257,7 +264,12 @@ export function SeoForm({
       </label>
 
       <div className="flex flex-wrap items-center gap-3 border-t border-line pt-6">
-        <button type="submit" disabled={pending} className={`${btnPrimary} ${btnLg}`}>
+        {/* aria-disabled, not disabled: the button keeps keyboard focus while saving. */}
+        <button
+          type="submit"
+          aria-disabled={pending}
+          className={`${btnPrimary} ${btnLg} ${btnBusy}`}
+        >
           {pending ? "שומרים…" : "שמירה"}
         </button>
         <Link href="/admin/seo" className={`${btnSecondary} ${btnLg}`}>

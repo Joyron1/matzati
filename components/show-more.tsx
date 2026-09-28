@@ -41,8 +41,20 @@ async function fetchMore(filtersKey: string, page: number): Promise<MoreResponse
   }
 }
 
-/** "עוד 3 אפשרויות": loads the next ranked page of the cached result set and focuses it. */
-export function ShowMore({ filtersKey, q }: { filtersKey: string; q: string }) {
+/**
+ * "עוד 3 אפשרויות": loads the next ranked page of the cached result set and focuses it. `ready`
+ * settles once that result set is cached: a page that shows its products before their lines
+ * (plan item 15) caches them only then, so a click before it waits for it.
+ */
+export function ShowMore({
+  filtersKey,
+  q,
+  ready,
+}: {
+  filtersKey: string;
+  q: string;
+  ready?: Promise<unknown>;
+}) {
   const [pages, setPages] = useState<LoggedResult[][]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<MoreError | null>(null);
@@ -54,6 +66,7 @@ export function ShowMore({ filtersKey, q }: { filtersKey: string; q: string }) {
     setLoading(true);
     setError(null);
     const page = pages.length + 1;
+    if (ready) await ready.catch(() => undefined);
     const result = await fetchMore(filtersKey, page);
     setLoading(false);
     if (typeof result === "string") {

@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { Eye, EyeOff, Pencil, Trash2 } from "lucide-react";
 import { useActionState, useEffect, useId, useMemo, useRef, useState } from "react";
-import { btnPrimary, btnSecondary } from "@/components/styles";
+import { btnBusy, btnPrimary, btnSecondary } from "@/components/styles";
 import { deleteDealAction, setPublishedAction, type RowActionState } from "./actions";
 
-const btnSm = "min-h-11 px-4 text-sm";
+// Busy buttons are aria-disabled, not disabled, so they keep keyboard focus (btnBusy).
+const btnSm = `min-h-11 px-4 text-sm ${btnBusy}`;
 const NO_ERROR: RowActionState = { error: null };
 
 interface DealRowActionsProps {
@@ -42,6 +43,9 @@ export function DealRowActions({ id, title, published }: DealRowActionsProps) {
       {confirming ? (
         <form
           action={deleteAction}
+          onSubmit={(e) => {
+            if (deleting) e.preventDefault();
+          }}
           className="flex flex-col gap-3 rounded-2xl bg-gold-soft p-4 sm:flex-row sm:items-center"
         >
           <p id={questionId} className="font-semibold">
@@ -50,7 +54,7 @@ export function DealRowActions({ id, title, published }: DealRowActionsProps) {
           <div className="flex gap-2">
             <button
               type="submit"
-              disabled={deleting}
+              aria-disabled={deleting}
               aria-describedby={questionId}
               className={`${btnPrimary} ${btnSm}`}
             >
@@ -61,9 +65,10 @@ export function DealRowActions({ id, title, published }: DealRowActionsProps) {
             <button
               ref={cancelRef}
               type="button"
-              disabled={deleting}
+              aria-disabled={deleting}
               aria-describedby={questionId}
               onClick={() => {
+                if (deleting) return;
                 returnFocus.current = true;
                 setConfirming(false);
               }}
@@ -75,10 +80,15 @@ export function DealRowActions({ id, title, published }: DealRowActionsProps) {
         </form>
       ) : (
         <div className="flex flex-wrap gap-2">
-          <form action={publishAction}>
+          <form
+            action={publishAction}
+            onSubmit={(e) => {
+              if (publishing) e.preventDefault();
+            }}
+          >
             <button
               type="submit"
-              disabled={publishing}
+              aria-disabled={publishing}
               className={`${published ? btnSecondary : btnPrimary} ${btnSm}`}
             >
               {published ? (

@@ -6,6 +6,7 @@ import { LoaderCircle, Search, X } from "lucide-react";
 import { useEffect, useId, useRef, useTransition, type FormEvent, type MouseEvent } from "react";
 import { cleanRecentText, recentHref } from "@/lib/recent/params";
 import { RECENT_TEXT_MAX, type RecentCategory } from "@/lib/recent/types";
+import { scrollFocusedItemIntoView } from "./focus-scroll-list";
 import { btnMd, btnSecondary } from "./styles";
 
 const DEBOUNCE_MS = 300;
@@ -147,11 +148,14 @@ export function RecentSearchesFilters({ categories, category, text }: RecentSear
 
       {categories.length > 0 && (
         // One scrollable row on phones (bleeding to the screen edges), wrapped from sm up.
-        // The padding keeps the focus ring inside the scroll area; `relative` keeps the sr-only
-        // counts (absolutely positioned) inside it too, or they would widen the page.
+        // The padding keeps the focus ring inside the scroll area, and a pill that gets keyboard
+        // focus is scrolled fully into view, clear of the edge by the same room (scroll-px).
+        // `relative` keeps the sr-only counts (absolutely positioned) inside it too, or they would
+        // widen the page.
         <ul
           aria-label="סינון לפי קטגוריה"
-          className="relative -mx-4 flex gap-2 overflow-x-auto px-4 py-1.5 [scrollbar-color:var(--line)_transparent] [scrollbar-width:thin] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0"
+          onFocus={scrollFocusedItemIntoView}
+          className="relative -mx-4 flex scroll-px-4 gap-2 overflow-x-auto px-4 py-1.5 [scrollbar-color:var(--line)_transparent] [scrollbar-width:thin] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:scroll-px-0 sm:px-0"
         >
           {[{ id: undefined, labelHe: "הכול", count: null }, ...categories].map((c) => {
             const active = c.id === category;

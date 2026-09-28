@@ -10,6 +10,14 @@ describe("buildSitemap", () => {
     expect(urls).not.toContain(`${ORIGIN}/deals`);
   });
 
+  it("lists the four legal pages and not /disclosure, which only redirects", () => {
+    const urls = buildSitemap({ origin: ORIGIN, hasDeals: false, pages: [] }).map((e) => e.url);
+    for (const path of ["/terms", "/privacy", "/cookies", "/accessibility"]) {
+      expect(urls).toContain(`${ORIGIN}${path}`);
+    }
+    expect(urls).not.toContain(`${ORIGIN}/disclosure`);
+  });
+
   it("lists /deals while a published deal exists", () => {
     const urls = buildSitemap({ origin: ORIGIN, hasDeals: true, pages: [] }).map((e) => e.url);
     expect(urls).toContain(`${ORIGIN}/deals`);

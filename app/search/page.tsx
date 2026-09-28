@@ -12,11 +12,14 @@ import {
   SearchX,
   type LucideIcon,
 } from "lucide-react";
+import type { FinalResults } from "@/components/card-lines";
 import { BlockerHint, BlockerList, chipBlockers } from "@/components/filter-blockers";
-import { FilterChips } from "@/components/filter-chips";
-import { CompactProductCard, FeaturedProductCard } from "@/components/product-cards";
+import { LiveFilterChips } from "@/components/live-filter-chips";
+import { LinkPending, PendingNavigation, PendingResults } from "@/components/pending-navigation";
+import { ResultCards } from "@/components/result-cards";
 import { SearchComposer } from "@/components/search-composer";
 import { ResultsAnnouncer } from "@/components/search-wait/results-announcer";
+import { WAIT_ENTER_DELAY_MS } from "@/components/search-wait/schedule";
 import { SearchWait } from "@/components/search-wait/search-wait";
 import { ShareLink } from "@/components/share-link";
 import { ShowMore } from "@/components/show-more";
@@ -37,7 +40,12 @@ import {
 } from "@/lib/search-url";
 import { staleFetchedAt } from "@/lib/search/freshness";
 import { MAX_QUERY_LENGTH } from "@/lib/search/pipeline";
-import { searchForRequest, type SearchFailure } from "@/lib/search/server";
+import {
+  startSearchForRequest,
+  type LoggedSearchResponse,
+  type SearchFailure,
+  type SearchStream,
+} from "@/lib/search/server";
 import type { SearchResponse, SortPreference } from "@/lib/types";
 
 // A fresh search (parse, up to 3 AliExpress calls, explain) takes 7-15 s; give it room.
@@ -61,90 +69,139 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
   const arrival = parseArrival(params);
   const href = searchHref({ q, sort, without, from });
 
-  // The wait is this boundary's fallback, keyed by the search: loading.tsx does not show again
-  // when only the search params change (a new query in the bar, a removed chip, another sort), and
-  // an already revealed boundary keeps the old results on screen during that navigation. A new
-  // key is a new boundary, which shows its fallback.
+  // The page streams (docs/search-quality-plan.md item 15): the wait, then the chips once the
+  // query is understood with a second wait under them, then the products, then their lines.
+  // The first wait is this boundary's fallback, keyed by the query: loading.tsx does not show
+  // again when only the search params change, and a new key is a new boundary, which shows its
+  // fallback (a new query in the bar). Another sort or a removed chip keeps the key: the boundary
+  // is revealed already, so the navigation keeps the chips and results on screen (busy and dimmed,
+  // components/pending-navigation.tsx) until the next ones are ready, which a view of the checked
+  // pool (item 13) is well within a second; only a slower one shows the wait, from AliExpress on.
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-4 pt-6 sm:px-6 sm:pt-10">
       <SearchComposer variant="bar" defaultValue={q} />
-      <Suspense
-        key={href}
-        fallback={<SearchWait query={q} reusesParse={without.length > 0 || sort !== undefined} />}
-      >
-        <SearchResults q={q} sort={sort} without={without} arrival={arrival} retryHref={href} />
-      </Suspense>
+      <PendingNavigation>
+        <Suspense
+          key={q}
+          fallback={
+            <SearchWait
+              query={q}
+              reusesParse={without.length > 0 || sort !== undefined}
+              waitKey={href}
+            />
+          }
+        >
+          <SearchResults q={q} sort={sort} without={without} arrival={arrival} retryHref={href} />
+        </Suspense>
+      </PendingNavigation>
     </div>
   );
 }
 
-async function SearchResults({
-  q,
-  sort,
-  without,
-  arrival,
-  retryHref,
-}: {
+interface SearchProps {
   q: string;
   sort?: SortPreference;
   without: string[];
-  arrival?: SearchArrival;
   retryHref: string;
+}
+
+/** Starts the search, then shows its chips and, under a second wait, its products. */
+async function SearchResults({
+  arrival,
+  ...props
+}: SearchProps & {
+  arrival?: SearchArrival;
 }) {
+  const { q, sort, without, retryHref } = props;
   // The results carry this request's search_log uid, which their buy buttons pass to /go.
-  const result = await searchForRequest({ q, without, sort, arrival }, await headers());
-  const outcome = !result.ok
-    ? failureCopy(result.error, result.retryAfterSec).title
-    : result.response.results.length > 0
-      ? `בדקנו ${formatCount(result.response.checked_count)} מוצרים. ${formatCount(result.response.passed_count)} עברו את הסינון.`
-      : "לא מצאנו מוצרים שעוברים את הסינון.";
+  const search = await startSearchForRequest({ q, without, sort, arrival }, await headers());
+  if (!search.ok) return <Failed q={q} failure={search} retryHref={retryHref} withHeading />;
+  const understood = await search.value.understood;
+  if (!understood.ok)
+    return <Failed q={q} failure={understood} retryHref={retryHref} withHeading />;
+  const { chips, not_filtered, waitedMs } = understood.value;
+  // The chip to draw attention to is known with the products (nothing passed: what blocked).
+  const highlight = search.value.products.then((r) => (r.ok ? highlightIds(r.value.response) : []));
 
   return (
     <>
       <h1 className="sr-only">תוצאות חיפוש עבור {q}</h1>
-      <ResultsAnnouncer text={outcome} />
-      {result.ok ? (
-        <Results response={result.response} q={q} sort={sort} without={without} />
-      ) : (
-        <SearchError
-          error={result.error}
-          retryAfterSec={result.retryAfterSec}
-          retryHref={retryHref}
-        />
-      )}
+      <LiveFilterChips
+        chips={chips}
+        q={q}
+        sort={sort}
+        without={without}
+        highlight={highlight}
+        notFiltered={not_filtered}
+      />
+      <PendingResults query={q}>
+        <Suspense
+          fallback={
+            <SearchWait
+              query={q}
+              understood
+              // The wait before the chips had started to show (its entrance delay was over): this
+              // one goes on from it instead of fading in again.
+              continues={waitedMs > WAIT_ENTER_DELAY_MS}
+              waitKey={retryHref}
+            />
+          }
+        >
+          <ProductsSection stream={search.value} {...props} />
+        </Suspense>
+      </PendingResults>
     </>
   );
 }
 
+/** The products once ranked; while their lines are written, the cards take them in place. */
+async function ProductsSection({ stream, ...props }: SearchProps & { stream: SearchStream }) {
+  const shown = await stream.products;
+  if (!shown.ok) return <Failed q={props.q} failure={shown} retryHref={props.retryHref} />;
+  const { response, pending } = shown.value;
+  const outcome =
+    response.results.length > 0
+      ? `בדקנו ${formatCount(response.checked_count)} מוצרים. ${formatCount(response.passed_count)} עברו את הסינון.`
+      : "לא מצאנו מוצרים שעוברים את הסינון.";
+  // Resolves once the lines are written and the results cached; never rejects.
+  const final: FinalResults | undefined = pending
+    ? stream.final.then((r) => (r.ok ? r.value.results : null))
+    : undefined;
+
+  return (
+    <>
+      {/* One per result set: a sort change or a removed chip is said again, also with the same counts. */}
+      <ResultsAnnouncer key={response.filters_key} text={outcome} />
+      <Results response={response} final={final} {...props} />
+    </>
+  );
+}
+
+/** Nothing passed: what blocked it, else the chips that are price bounds. Else none. */
+function highlightIds(response: SearchResponse): string[] {
+  if (response.results.length) return [];
+  const blockers = chipBlockers(response.blockers, response.chips);
+  if (blockers.length) return [blockers[0].chip.id];
+  return response.chips
+    .filter((c) => c.kind === "max_price" || c.kind === "min_price")
+    .map((c) => c.id);
+}
+
 function Results({
   response,
+  final,
   q,
   sort,
   without,
-}: {
-  response: SearchResponse;
-  q: string;
-  sort?: SortPreference;
-  without: string[];
+}: SearchProps & {
+  response: LoggedSearchResponse;
+  final?: FinalResults;
 }) {
-  const [top, ...rest] = response.results;
   const priceChips = response.chips.filter((c) => c.kind === "max_price" || c.kind === "min_price");
   // What kept the checked products out (item 12), most useful first; never a product that failed.
   const blockers = chipBlockers(response.blockers, response.chips);
-  const chips = (
-    <FilterChips
-      chips={response.chips}
-      q={q}
-      sort={sort}
-      without={without}
-      highlightIds={
-        top ? [] : blockers.length ? [blockers[0].chip.id] : priceChips.map((c) => c.id)
-      }
-      notFiltered={response.not_filtered}
-    />
-  );
 
-  if (!top) {
+  if (!response.results.length) {
     const removable = response.chips.some((c) => c.removable);
     const removableRequirement = response.chips.some((c) => c.removable && c.kind === "must_have");
     // Without blockers, the price is the one filter worth suggesting: the price bounds limited
@@ -159,40 +216,38 @@ function Results({
           ? "נסו להסיר את אחד הסינונים שלמעלה."
           : "נסו לכתוב את החיפוש במילים אחרות או בצורה כללית יותר.";
     return (
-      <>
-        {chips}
-        <StateCard Icon={SearchX} title="לא מצאנו מוצרים שעוברים את הסינון">
-          <p className="max-w-md leading-relaxed text-muted">
-            {response.checked_count > 0 ? (
-              <>
-                בדקנו <bdi dir="ltr">{formatCount(response.checked_count)}</bdi> מוצרים ואף אחד לא
-                עבר.
-              </>
-            ) : (
-              "אלי אקספרס לא החזירה מוצרים לחיפוש הזה."
-            )}
-            {blockers.length === 0 && <> {advice}</>}
-          </p>
-          {blockers.length > 0 ? (
-            <BlockerList blockers={blockers} q={q} sort={sort} without={without} />
+      <StateCard Icon={SearchX} title="לא מצאנו מוצרים שעוברים את הסינון">
+        <p className="max-w-md leading-relaxed text-muted">
+          {response.checked_count > 0 ? (
+            <>
+              בדקנו <bdi dir="ltr">{formatCount(response.checked_count)}</bdi> מוצרים ואף אחד לא
+              עבר.
+            </>
           ) : (
-            priceChips.length > 0 && (
-              <Link
-                href={searchHref({
-                  q,
-                  sort,
-                  without: [...without, ...priceChips.map((c) => c.id)],
-                })}
-                className={`${btnPrimary} ${btnMd}`}
-              >
-                {priceChips.length === 1
-                  ? `הסרת הסינון: ${priceChips[0].label_he}`
-                  : "הסרת סינון המחיר"}
-              </Link>
-            )
+            "אלי אקספרס לא החזירה מוצרים לחיפוש הזה."
           )}
-        </StateCard>
-      </>
+          {blockers.length === 0 && <> {advice}</>}
+        </p>
+        {blockers.length > 0 ? (
+          <BlockerList blockers={blockers} q={q} sort={sort} without={without} />
+        ) : (
+          priceChips.length > 0 && (
+            <Link
+              href={searchHref({
+                q,
+                sort,
+                without: [...without, ...priceChips.map((c) => c.id)],
+              })}
+              className={`${btnPrimary} ${btnMd} relative`}
+            >
+              {priceChips.length === 1
+                ? `הסרת הסינון: ${priceChips[0].label_he}`
+                : "הסרת סינון המחיר"}
+              <LinkPending />
+            </Link>
+          )
+        )}
+      </StateCard>
     );
   }
 
@@ -201,7 +256,6 @@ function Results({
   const checkedAt = staleFetchedAt(response.fetched_at, new Date());
   return (
     <>
-      {chips}
       <div className="space-y-4">
         <div className="space-y-1">
           <p className="text-xl font-bold">
@@ -216,7 +270,10 @@ function Results({
             {shown.some((p) => p.passed_tier === "fill") ? (
               <>
                 הסינון: משוב חיובי ומספר מכירות ב־30 הימים האחרונים לפי{" "}
-                <Link href="/disclosure" className="underline underline-offset-4 hover:text-ink">
+                <Link
+                  href="/terms#accuracy"
+                  className="underline underline-offset-4 hover:text-ink"
+                >
                   הספים שלנו
                 </Link>
               </>
@@ -240,23 +297,20 @@ function Results({
         <SortBar q={q} active={response.sort} without={without} />
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:items-start">
-        <FeaturedProductCard product={top} rank={1} q={q} />
-        {rest.length > 0 && (
-          <div className="grid gap-5">
-            {rest.map((p, i) => (
-              <CompactProductCard key={p.product_id} product={p} rank={i + 2} q={q} />
-            ))}
-          </div>
-        )}
-      </div>
+      {/* Its own cards per result set: the page keeps its boundary across a sort change. */}
+      <ResultCards key={response.filters_key} initial={shown} final={final} q={q} />
 
       <div className="flex flex-col items-center gap-4 pt-2">
         {blockers.length > 0 && (
           <BlockerHint blocker={blockers[0]} q={q} sort={sort} without={without} />
         )}
         {response.more_available && response.filters_key && (
-          <ShowMore key={response.filters_key} filtersKey={response.filters_key} q={q} />
+          <ShowMore
+            key={response.filters_key}
+            filtersKey={response.filters_key}
+            q={q}
+            ready={final}
+          />
         )}
         <ShareLink text={`מצאתי תוצאות לחיפוש "${q}"`} label="שיתוף החיפוש בוואטסאפ" />
       </div>
@@ -328,31 +382,39 @@ function failureCopy(error: SearchFailure, retryAfterSec?: number): FailureCopy 
   }
 }
 
-function SearchError({
-  error,
-  retryAfterSec,
+/** A search that got no results page, said once to screen readers too. */
+function Failed({
+  q,
+  failure,
   retryHref,
+  withHeading = false,
 }: {
-  error: SearchFailure;
-  retryAfterSec?: number;
+  q: string;
+  failure: { error: SearchFailure; retryAfterSec?: number };
   retryHref: string;
+  /** Before the chips, the page has no heading of its own yet. */
+  withHeading?: boolean;
 }) {
-  const { Icon, title, body, retry } = failureCopy(error, retryAfterSec);
+  const { Icon, title, body, retry } = failureCopy(failure.error, failure.retryAfterSec);
   return (
-    <StateCard Icon={Icon} title={title}>
-      <p className="max-w-md leading-relaxed text-muted">{body}</p>
-      <div className="flex flex-wrap justify-center gap-3">
-        {retry && (
-          // A full reload, so the search really runs again.
-          <a href={retryHref} className={`${btnPrimary} ${btnMd}`}>
-            <RotateCcw aria-hidden className="size-[18px]" />
-            ניסיון נוסף
-          </a>
-        )}
-        <Link href="/" className={`${btnSecondary} ${btnMd}`}>
-          לדף הבית
-        </Link>
-      </div>
-    </StateCard>
+    <>
+      {withHeading && <h1 className="sr-only">תוצאות חיפוש עבור {q}</h1>}
+      <ResultsAnnouncer text={title} />
+      <StateCard Icon={Icon} title={title}>
+        <p className="max-w-md leading-relaxed text-muted">{body}</p>
+        <div className="flex flex-wrap justify-center gap-3">
+          {retry && (
+            // A full reload, so the search really runs again.
+            <a href={retryHref} className={`${btnPrimary} ${btnMd}`}>
+              <RotateCcw aria-hidden className="size-[18px]" />
+              ניסיון נוסף
+            </a>
+          )}
+          <Link href="/" className={`${btnSecondary} ${btnMd}`}>
+            לדף הבית
+          </Link>
+        </div>
+      </StateCard>
+    </>
   );
 }

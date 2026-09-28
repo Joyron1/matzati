@@ -10,6 +10,7 @@ import { aliexpressConfig } from "@/lib/env";
 import { SupabaseStore } from "@/lib/search/supabase-store";
 import { serviceClient } from "@/lib/supabase/server";
 import { MIX_CATEGORY_IDS, type HotCategoryId } from "./categories";
+import { parseStoredLinkRows, type StoredLinkRow } from "./links";
 import {
   HOT_LIST_TTL_MS,
   HotPoolError,
@@ -41,6 +42,22 @@ export const CAROUSEL_MAX_AGE_MS = STALE_RESULTS_HOURS * 3_600_000;
 // One loader per server instance: concurrent cold views share one call (lib/hot/loader.ts).
 const loader = new HotPoolLoader();
 
+/**
+ * The link fields of the stored rows among `productIds` (at most one list, 50 ids), read only when
+ * a refetch's hot links call leaves products without a hot link (HotFetchDeps.storedLinks). Throws
+ * on a read error; the loader then keeps the list's links.
+ */
+async function storedLinks(productIds: string[]): Promise<StoredLinkRow[]> {
+  const { data, error } = await serviceClient()
+    .from("products")
+    .select(
+      "product_id, link:data->>promotionLink, type:data->promotionLinkType, at:data->>promotionLinkAt",
+    )
+    .in("product_id", productIds);
+  if (error) throw new Error(`products read failed: ${error.message}`);
+  return parseStoredLinkRows(data);
+}
+
 function fetchDeps(): HotFetchDeps {
   return {
     ali: new AliExpressClient(aliexpressConfig()),
@@ -49,6 +66,7 @@ function fetchDeps(): HotFetchDeps {
       new SupabaseStore(serviceClient()).saveProducts(products, {}, fetchedAt, {
         keepTitledRows: true,
       }),
+    storedLinks,
   };
 }
 

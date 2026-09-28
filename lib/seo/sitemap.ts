@@ -1,11 +1,15 @@
 // Sitemap entries, built from plain inputs so the rules are unit-tested. app/sitemap.ts gathers
 // the inputs (published deals, published landing pages) and handles failures.
 import type { MetadataRoute } from "next";
+import { LEGAL_PATHS } from "@/lib/config/legal";
 import type { SeoPage } from "./db";
 import { seoPath } from "./slug";
 
-/** Pages that always exist and are meant to be found. */
-export const STATIC_PATHS = ["/disclosure", "/privacy", "/terms"] as const;
+/**
+ * Pages that always exist and are meant to be found: the legal pages. /disclosure is only a
+ * redirect to /terms#affiliate now, so it is not listed.
+ */
+export const STATIC_PATHS: readonly string[] = Object.values(LEGAL_PATHS);
 
 export function buildSitemap(input: {
   /** SITE_URL, without a trailing slash. */

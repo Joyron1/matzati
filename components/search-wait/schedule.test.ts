@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { RESULTS_PER_PAGE } from "@/lib/config/site";
 import { FILL_TIER, FILTERS } from "@/lib/ranking/config";
@@ -20,10 +21,23 @@ import {
   stepProgress,
   stepState,
   tipDurationMs,
+  understoodOffsetMs,
+  UNDERSTOOD_STEPS,
+  WAIT_ENTER_DELAY_MS,
 } from "./schedule";
 import { WAIT_TIPS } from "./tips";
 
 const SECOND = 1_000;
+
+describe("WAIT_ENTER_DELAY_MS", () => {
+  it("is the delay of the wait's entrance in the CSS", () => {
+    const css = readFileSync("components/search-wait/search-wait.module.css", "utf8");
+    const enter =
+      /\.enter\s*\{\s*animation:\s*wait-enter\s+[\d.]+s\s+\S+\([^)]*\)\s+([\d.]+)s/.exec(css);
+    expect(enter).not.toBeNull();
+    expect(Number(enter![1]) * 1_000).toBe(WAIT_ENTER_DELAY_MS);
+  });
+});
 
 describe("WAIT_STEPS", () => {
   it("starts at zero and moves forward", () => {
@@ -33,10 +47,15 @@ describe("WAIT_STEPS", () => {
     }
   });
 
-  it("reaches the last step inside a typical fresh search (7-15 s)", () => {
+  it("reaches the last step while a slower fresh search still fetches (7-15 s)", () => {
     const last = WAIT_STEPS[LAST_STEP].startsAtMs;
     expect(last).toBeGreaterThanOrEqual(7 * SECOND);
     expect(last).toBeLessThanOrEqual(15 * SECOND);
+  });
+
+  it("never says it writes the lines: they are written on the cards, after the wait", () => {
+    expect(WAIT_STEPS.map((s) => s.id)).toEqual(["read", "scan", "filter", "rank", "prepare"]);
+    for (const s of WAIT_STEPS) expect(s.label).not.toContain("כותבים");
   });
 
   it("never states a count, only 'dozens'", () => {
@@ -49,10 +68,10 @@ describe("stepAt", () => {
     expect(stepAt(0)).toBe(0);
     expect(stepAt(1_999)).toBe(0);
     expect(stepAt(2_000)).toBe(1);
-    expect(stepAt(5_500)).toBe(2);
-    expect(stepAt(7_000)).toBe(3);
-    expect(stepAt(10_999)).toBe(3);
-    expect(stepAt(11_000)).toBe(4);
+    expect(stepAt(5_000)).toBe(2);
+    expect(stepAt(6_500)).toBe(3);
+    expect(stepAt(8_499)).toBe(3);
+    expect(stepAt(8_500)).toBe(4);
   });
 
   it("stays on the last step however long the wait", () => {
@@ -82,6 +101,27 @@ describe("stepState", () => {
       expect(stepState(LAST_STEP, stepAt(elapsed))).not.toBe("past");
     }
     expect(stepState(LAST_STEP, LAST_STEP + 3)).toBe("current");
+  });
+
+  it("marks done only what the page knows is done: understanding, once the chips show", () => {
+    expect([0, 1, 2, 3, 4].map((i) => stepState(i, 2, UNDERSTOOD_STEPS))).toEqual([
+      "done",
+      "past",
+      "current",
+      "upcoming",
+      "upcoming",
+    ]);
+    // Known to be done, the first step is never the current one, even early in the schedule.
+    expect([0, 1].map((i) => stepState(i, 0, UNDERSTOOD_STEPS))).toEqual(["done", "current"]);
+    expect(stepState(LAST_STEP, LAST_STEP, 99)).toBe("current");
+  });
+});
+
+describe("understoodOffsetMs", () => {
+  it("continues where the wait before the chips had got to, never before the AliExpress step", () => {
+    expect(understoodOffsetMs(null)).toBe(WAIT_STEPS[1].startsAtMs);
+    expect(understoodOffsetMs(800)).toBe(WAIT_STEPS[1].startsAtMs);
+    expect(understoodOffsetMs(3_400)).toBe(3_400);
   });
 });
 

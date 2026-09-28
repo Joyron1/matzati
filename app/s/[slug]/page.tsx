@@ -224,7 +224,10 @@ function Results({ response, query }: { response: SearchResponse; query: string 
             {shown.some((p) => p.passed_tier === "fill") ? (
               <>
                 הסינון: משוב חיובי ומספר מכירות ב־30 הימים האחרונים לפי{" "}
-                <Link href="/disclosure" className="underline underline-offset-4 hover:text-ink">
+                <Link
+                  href="/terms#accuracy"
+                  className="underline underline-offset-4 hover:text-ink"
+                >
                   הספים שלנו
                 </Link>
               </>

@@ -181,8 +181,9 @@ describe("loadMore", () => {
     const later = new Date(t0.getTime() + 5 * 24 * 3_600_000);
     const { response } = await runSearch({ q: "כבל USB" }, { ...deps, now: () => t0 });
     await loadMore(response.filters_key!, 1, { ...deps, now: () => later });
-    // The search saves fresh data (now); the page from the 5-day-old cache keeps the cache's time.
-    expect(store.savedAt).toEqual([null, t0.toISOString()]);
+    // The search saves fresh data (now) before its cards show, then the Hebrew titles under the
+    // time it fetched them; the page from the 5-day-old cache keeps the cache's time.
+    expect(store.savedAt).toEqual([null, t0.toISOString(), t0.toISOString()]);
   });
 });
 
@@ -243,12 +244,15 @@ describe("daily LLM budget (beforeLlmWork)", () => {
 });
 
 describe("sort override", () => {
-  it("changes the filters key and reuses the parse", async () => {
-    const { deps, llm } = setup();
+  it("changes the filters key, reuses the parse and ranks the pool already checked", async () => {
+    const { deps, llm, fetchMock } = setup();
     const first = await runSearch({ q: Q }, deps);
+    const fetches = fetchMock.mock.calls.length;
     const cheapest = await runSearch({ q: Q, sort: "cheapest" }, deps);
-    expect(cheapest.meta.cache).toBe("parse");
-    expect(llm.calls).toEqual(["parse", "explain", "explain"]);
+    // No parse and no AliExpress call (plan item 13): the pool of the first search is ranked again.
+    expect(cheapest.meta).toMatchObject({ cache: "results", derived: true, aliCalls: 0 });
+    expect(fetchMock.mock.calls.length).toBe(fetches);
+    expect(llm.calls.filter((c) => c === "parse")).toHaveLength(1);
     expect(first.response.sort).toBe("best_value");
     expect(cheapest.response.sort).toBe("cheapest");
     expect(cheapest.response.filters_key).not.toBe(first.response.filters_key);
@@ -423,6 +427,7 @@ describe("search_log (stats)", () => {
       parse_ms: expect.any(Number),
       fetch_ms: null,
       explain_ms: null,
+      products_ms: null,
       total_ms: expect.any(Number),
     });
   });
@@ -536,6 +541,7 @@ describe("loadMore stats", () => {
         parse_ms: null,
         fetch_ms: null,
         explain_ms: expect.any(Number),
+        products_ms: null,
         total_ms: expect.any(Number),
       },
       aliCalls: 0,
@@ -630,8 +636,15 @@ describe("search_log telemetry (origin, timings, calls, uid, failures)", () => {
     let t = 0;
     const clockMs = () => (t += 5);
     const fresh = await runSearch({ q: Q }, { ...deps, clockMs });
-    // One clock reading at the start, two per step, one when the row is written.
-    expect(fresh.log.timings).toEqual({ parse_ms: 5, fetch_ms: 5, explain_ms: 5, total_ms: 35 });
+    // One clock reading at the start, two per step, one when the products are ready (before
+    // their lines: plan item 15), one when the row is written.
+    expect(fresh.log.timings).toEqual({
+      parse_ms: 5,
+      fetch_ms: 5,
+      explain_ms: 5,
+      products_ms: 25,
+      total_ms: 40,
+    });
     expect(fresh.log.aliCalls).toBe(fetchMock.mock.calls.length);
     expect(fresh.log.aliCalls).toBeGreaterThanOrEqual(1);
     expect(fresh.log.rejected).not.toBeNull();
@@ -747,6 +760,19 @@ const PARSE_240W: ParsedQueryRaw = {
 const T0 = new Date("2026-09-27T10:00:00Z");
 const at = (hours: number) => new Date(T0.getTime() + hours * 3_600_000);
 
+/**
+ * The line whyFromData builds: feedback and 30-day sales, without a number other listings of the
+ * product's shop show too (lib/ranking/shared-numbers.ts), which is not its own.
+ */
+const dataLine = (r: { shared_numbers?: { feedback: boolean; sales: boolean } }) => {
+  const feedback = !r.shared_numbers?.feedback;
+  const sales = !r.shared_numbers?.sales;
+  if (feedback && sales) return /^[\d.]+% משוב חיובי ו־[\d,]+ נמכרו ב־30 הימים האחרונים\.$/;
+  if (feedback) return /^[\d.]+% משוב חיובי\.$/;
+  if (sales) return /^[\d,]+ נמכרו ב־30 הימים האחרונים\.$/;
+  return /^עבר את הסינון שלנו\.$/;
+};
+
 describe("fetch until enough pass (plan item 5)", () => {
   it("stops after one call once 6 pass", async () => {
     const { deps, fetchMock } = setup();
@@ -829,7 +855,7 @@ describe("LLM failures and limits (plan item 7)", () => {
       expect(response.results.length).toBeGreaterThan(0);
       for (const r of response.results) {
         expect(r.title_he).toBe(r.title_en);
-        expect(r.why_he).toMatch(/^[\d.]+% משוב חיובי ו־[\d,]+ נמכרו ב־30 הימים האחרונים\.$/);
+        expect(r.why_he).toMatch(dataLine(r));
       }
       expect(store.results.get(response.filters_key!)?.degraded).toBe(true);
       expect(store.usage.map((u) => u.kind)).toEqual(["parse"]);
@@ -854,7 +880,7 @@ describe("LLM failures and limits (plan item 7)", () => {
       const more = await loadMore(fk, 1, deps);
       expect(more?.results.length).toBeGreaterThan(0);
       for (const r of more!.results) {
-        expect(r.why_he).toMatch(/נמכרו ב־30 הימים האחרונים\.$/);
+        expect(r.why_he).toMatch(dataLine(r));
         expect(store.products.has(r.product_id)).toBe(true); // its /go link works
       }
       expect(Object.keys(store.results.get(fk)!.explanations)).toHaveLength(3);
@@ -1035,9 +1061,41 @@ describe("first-page safety net (plan item 2, demoteFlaggedLeads)", () => {
     expect(response.results.map((r) => r.product_id)).not.toContain(demoted);
     expect(store.results.get(response.filters_key!)?.products.at(-1)?.productId).toBe(demoted);
     // The product that moved up gets the sentence from the data, with no extra call.
-    expect(response.results[2].why_he).toMatch(/נמכרו ב־30 הימים האחרונים\.$/);
+    expect(response.results[2].why_he).toMatch(dataLine(response.results[2]));
     expect(llm.calls).toEqual(["parse", "explain"]);
     // Saved, so its card on a later page can still go through /go.
     expect(store.products.has(demoted)).toBe(true);
+  });
+});
+
+describe("shared numbers (owner decision 2026-09-28, lib/ranking/shared-numbers.ts)", () => {
+  it("marks the cards of a shop that shares numbers, and explain never gets a shared one", async () => {
+    // The fixture holds 20 listings of one shop, every one at exactly 98.0%.
+    const { deps, llm } = setup();
+    const generate = vi.spyOn(llm, "generateStructured");
+    const { response } = await runSearch({ q: Q }, deps);
+    const marked = response.results.filter((r) => r.shared_numbers);
+    expect(marked.length).toBeGreaterThan(0);
+    expect(marked.length).toBeLessThan(response.results.length);
+    expect(marked.every((r) => r.shared_numbers?.feedback && r.positive_feedback_pct === 98)).toBe(
+      true,
+    );
+    const explain = generate.mock.calls.find(([req]) => req.system === EXPLAIN_SYSTEM)![0];
+    type Sent = { positive_feedback_pct: number | null; units_sold_30d: number | null };
+    const sent = (JSON.parse(explain.user) as { products: Sent[] }).products;
+    response.results.forEach((r, i) => {
+      // The card keeps AliExpress's numbers; the model gets each only when it is the product's own.
+      expect(r.units_sold).not.toBeNull();
+      expect(sent[i].units_sold_30d).toBe(r.shared_numbers?.sales ? null : r.units_sold);
+      expect(sent[i].positive_feedback_pct).toBe(
+        r.shared_numbers?.feedback ? null : r.positive_feedback_pct,
+      );
+    });
+    // The cached result set keeps the marks for the next visitor.
+    const again = await runSearch({ q: Q }, deps);
+    expect(again.response.cached).toBe(true);
+    expect(again.response.results.map((r) => r.shared_numbers)).toEqual(
+      response.results.map((r) => r.shared_numbers),
+    );
   });
 });

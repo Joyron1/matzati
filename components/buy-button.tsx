@@ -1,5 +1,6 @@
 import { ExternalLink } from "lucide-react";
-import { AFFILIATE_DISCLOSURE, BUY_LABEL } from "@/lib/copy";
+import Link from "next/link";
+import { AFFILIATE_NOTE, BUY_LABEL } from "@/lib/copy";
 import { goHref } from "@/lib/search-url";
 import { btnLg, btnMd, btnPrimary } from "./styles";
 
@@ -15,7 +16,24 @@ interface BuyButtonProps {
   className?: string;
 }
 
-/** Every buy button goes through /go and carries the affiliate disclosure right under it. */
+/**
+ * The affiliate disclosure next to a link that leaves for AliExpress through /go (CLAUDE.md §1):
+ * small muted words that open the full text in the terms. The visible text is short, so the link
+ * keeps a 44px hit area through its height and padding.
+ */
+export function AffiliateNoteLink({ className = "" }: { className?: string }) {
+  return (
+    <Link
+      href={AFFILIATE_NOTE.href}
+      aria-label={AFFILIATE_NOTE.ariaLabel}
+      className={`inline-flex min-h-11 items-center rounded-full px-3 text-xs text-muted underline underline-offset-4 hover:text-ink ${className}`}
+    >
+      {AFFILIATE_NOTE.label}
+    </Link>
+  );
+}
+
+/** Every buy button goes through /go and has the "קישור שותפים" note right under it. */
 export function BuyButton({
   productId,
   src,
@@ -25,7 +43,7 @@ export function BuyButton({
   className = "",
 }: BuyButtonProps) {
   return (
-    <div className={`space-y-2 ${className}`}>
+    <div className={`flex flex-col ${className}`}>
       <a
         href={goHref(productId, src, { searchUid, position })}
         target="_blank"
@@ -36,7 +54,7 @@ export function BuyButton({
         <ExternalLink aria-hidden className="size-[18px]" />
         <span className="sr-only">(נפתח בכרטיסייה חדשה)</span>
       </a>
-      <p className="text-xs leading-relaxed text-muted">{AFFILIATE_DISCLOSURE}</p>
+      <AffiliateNoteLink className="self-center" />
     </div>
   );
 }

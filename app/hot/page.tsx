@@ -282,7 +282,7 @@ function AboutTheList() {
         </li>
       </ul>
       <Link
-        href="/disclosure"
+        href="/terms#affiliate"
         className="inline-flex min-h-11 items-center font-semibold text-accent-ink underline-offset-4 hover:underline"
       >
         לגילוי הנאות המלא

@@ -97,9 +97,17 @@ class FakeQuery implements PromiseLike<{ data: unknown; error: { message: string
     db.calls.push({ table, op, payload: this.payload, options: this.options });
     if (db.failing.has(`${table}:${op}`)) return { data: null, error: { message: `${op} denied` } };
     const rows = db.rows(table);
+    // "column" or a JSON field as text ("response->>createdAt"), as PostgREST filters them.
+    const value = (r: Row, c: string) => {
+      const [column, field] = c.split("->>");
+      if (field === undefined) return r[column];
+      const json = r[column] as Row | null | undefined;
+      const v = json?.[field];
+      return v === undefined || v === null ? null : String(v);
+    };
     const matches = (r: Row) =>
-      this.filters.every(([c, v]) => r[c] === v) &&
-      this.inFilters.every(([c, vs]) => vs.includes(r[c]));
+      this.filters.every(([c, v]) => value(r, c) === v) &&
+      this.inFilters.every(([c, vs]) => vs.includes(value(r, c)));
     const payload = (Array.isArray(this.payload) ? this.payload : [this.payload]) as Row[];
     if (op === "select") {
       const found = rows.filter(matches).map((r) => structuredClone(r));
@@ -320,6 +328,23 @@ describe("SupabaseStore", () => {
       const update = db.calls.find((c) => c.op === "update");
       expect(update?.payload).toEqual({ response: more });
       expect(db.rows("search_cache")[0]).toMatchObject({ query: "first query", response: more });
+    });
+
+    it("updateResults never writes an entry back over a newer fetch of the same filters", async () => {
+      const db = new FakeDb();
+      const store = new SupabaseStore(db.client());
+      const old = results("2026-09-20T10:00:00.000Z");
+      await store.putResults("fk", "q", old);
+      // Read by a request, then fetched again by another before the first adds its lines.
+      const refetched = results("2026-09-28T10:00:00.000Z");
+      await store.putResults("fk", "q", refetched);
+      await store.updateResults("fk", {
+        ...old,
+        explanations: { [PRODUCTS[3].productId]: { title_he: null, why_he: "x" } },
+      });
+      expect(db.rows("search_cache")).toEqual([
+        expect.objectContaining({ response: refetched, created_at: refetched.createdAt }),
+      ]);
     });
   });
 
@@ -713,6 +738,30 @@ describe("SupabaseStore", () => {
     });
     expect(rows.find((r) => r.product_id === b.productId)).toMatchObject({ title_he: "כבל חדש" });
     expect(db.rows("price_history")).toEqual([]);
+  });
+
+  it("outside production writes a title saved after the row only into a row it inserted", async () => {
+    // A streamed search saves its cards' rows first and their Hebrew titles once written.
+    const db = new FakeDb();
+    const [a, b] = PRODUCTS;
+    db.rows("products").push({
+      product_id: a.productId,
+      data: a,
+      title_he: null,
+      updated_at: "2026-09-20T00:00:00.000Z",
+    });
+    const dev = new SupabaseStore(db.client(), { env: "development" });
+    const at = new Date("2026-09-28T10:00:00.000Z");
+    await dev.saveProducts([a, b], {}, at);
+    await dev.saveProducts([a, b], { [a.productId]: "שם מסביבת פיתוח", [b.productId]: "כבל" }, at);
+    const rows = db.rows("products");
+    // Production's row keeps its (missing) title; the row dev inserted gets its own.
+    expect(rows.find((r) => r.product_id === a.productId)).toMatchObject({ title_he: null });
+    expect(rows.find((r) => r.product_id === b.productId)).toMatchObject({
+      title_he: "כבל",
+      updated_at: at.toISOString(),
+    });
+    expect(db.calls.filter((c) => c.op === "upsert")).toHaveLength(1);
   });
 
   describe("environments (one database for production, preview and dev)", () => {

@@ -1,7 +1,16 @@
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
+import { scrollFocusedItemIntoView } from "./focus-scroll-list";
 import { HOT_HEADER_ROW, HOT_NAV_BUTTONS, HOT_ROW } from "./hot-carousel-layout";
 
 // aria-disabled rather than disabled at the edges: a disabled button loses keyboard focus, which
@@ -9,11 +18,23 @@ import { HOT_HEADER_ROW, HOT_NAV_BUTTONS, HOT_ROW } from "./hot-carousel-layout"
 const NAV_BUTTON =
   "grid size-11 place-items-center rounded-full border border-line bg-surface text-ink hover:border-accent hover:text-accent-ink aria-disabled:cursor-not-allowed aria-disabled:opacity-40 aria-disabled:hover:border-line aria-disabled:hover:text-ink";
 
+/** The first item (in page order) that is fully inside the row's visible part, if any. */
+function firstVisibleItem(list: HTMLElement): HTMLElement | null {
+  const box = list.getBoundingClientRect();
+  for (const item of list.children) {
+    const r = item.getBoundingClientRect();
+    if (r.left >= box.left - 1 && r.right <= box.right + 1) return item as HTMLElement;
+  }
+  return null;
+}
+
 /**
  * The carousel's row: native horizontal scrolling with snap points (a swipe on touch screens) and,
  * from sm up, previous/next buttons beside the heading that scroll by one visible width. No
- * autoplay. The cards are ordinary links in a labelled list, so Tab reaches each one and the
- * browser scrolls it into view. `children` are the <li> items.
+ * autoplay. The cards are ordinary links in a labelled list, so Tab reaches each one, and a card
+ * that gets focus is scrolled fully into view (scrollFocusedItemIntoView). Tab from the buttons
+ * continues at the first card in view, not at the first card of the row (which would scroll the
+ * row back to its start). `children` are the <li> items.
  */
 export function HotProductsScroller({
   heading,
@@ -67,6 +88,16 @@ export function HotProductsScroller({
     });
   }
 
+  /** Tab from the last button: into the row at the first card the buttons scrolled into view. */
+  function tabIntoView(event: KeyboardEvent<HTMLButtonElement>) {
+    const el = listRef.current;
+    if (event.key !== "Tab" || event.shiftKey || !el || edges.atStart) return;
+    const card = firstVisibleItem(el)?.querySelector<HTMLElement>("a[href], button");
+    if (!card) return;
+    event.preventDefault();
+    card.focus({ preventScroll: true });
+  }
+
   return (
     <div className="space-y-3">
       <div className={HOT_HEADER_ROW}>
@@ -89,13 +120,20 @@ export function HotProductsScroller({
             aria-label="המוצרים הבאים"
             aria-disabled={edges.atEnd}
             onClick={() => scrollByPage(1)}
+            onKeyDown={tabIntoView}
             className={NAV_BUTTON}
           >
             <ChevronLeft aria-hidden className="size-5" />
           </button>
         </div>
       </div>
-      <ul ref={listRef} id={listId} aria-label={label} className={HOT_ROW}>
+      <ul
+        ref={listRef}
+        id={listId}
+        aria-label={label}
+        onFocus={scrollFocusedItemIntoView}
+        className={HOT_ROW}
+      >
         {children}
       </ul>
     </div>

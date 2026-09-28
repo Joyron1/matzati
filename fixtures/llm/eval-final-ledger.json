@@ -1,0 +1,44 @@
+{
+  "kind": "final-check-ledger",
+  "format": 1,
+  "caps": {
+    "llmRequests": 60,
+    "aliRequests": 87
+  },
+  "llmRequests": 48,
+  "aliRequests": 32,
+  "runs": [
+    {
+      "startedAt": "2026-09-28T15:49:24.452Z",
+      "updatedAt": "2026-09-28T15:53:23.532Z",
+      "llmRequests": 48,
+      "aliRequests": 32,
+      "ids": [
+        "gift-cook",
+        "kids-toy",
+        "car-holder",
+        "home-drawer",
+        "tech-charger",
+        "price-watch",
+        "typo-earbuds",
+        "slang-mouse",
+        "kids-bottle",
+        "home-nightlight",
+        "price-range-bag",
+        "cheapest-cable",
+        "pair-a",
+        "pair-a2",
+        "pair-b2",
+        "ho-neck-pillow",
+        "ho-gift-garden",
+        "ho-powerbank",
+        "ho-slippers",
+        "ho-speaker",
+        "ex-1",
+        "ex-3",
+        "ex-6",
+        "ex-9"
+      ]
+    }
+  ]
+}

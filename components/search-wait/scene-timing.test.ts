@@ -25,15 +25,15 @@ const times = (delay: number, share: number, once: boolean, until = 60) => {
 };
 
 describe("sceneTiming", () => {
-  it("lands the two picks, and fills their slots, as the schedule reaches filter and explain", () => {
+  it("lands the two picks, and fills their slots, as the schedule reaches filter and rank", () => {
     const [a, b] = t.cards;
     expect(a.slot).toBe("a");
     expect(b.slot).toBe("b");
     expect(a.once && b.once).toBe(true);
     expect(a.delayS + CARD_LANDS * t.cycleS).toBeCloseTo(fromStream("filter"));
-    expect(b.delayS + CARD_LANDS * t.cycleS).toBeCloseTo(fromStream("explain"));
+    expect(b.delayS + CARD_LANDS * t.cycleS).toBeCloseTo(fromStream("rank"));
     expect(t.fillAtS.a).toBeCloseTo(fromStream("filter"));
-    expect(t.fillAtS.b).toBeCloseTo(fromStream("explain"));
+    expect(t.fillAtS.b).toBeCloseTo(fromStream("rank"));
   });
 
   it("brings the first card under the magnifier only after it has swooped down", () => {

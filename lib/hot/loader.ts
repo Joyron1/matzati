@@ -22,16 +22,24 @@
 // Links (owner decision 2026-09-28, lib/hot/links.ts): once the list is selected, the kept products
 // whose hot rate beats their standard rate get a link.generate hot link (promotion_link_type 2) in
 // ONE batched call, spaced after the list call like any other; the rest keep the promotion_link
-// hotproduct.query returned (made with our tracking id, type unknown). When that call fails, every
-// product keeps the list's link: the list itself never fails over it. The links change nothing in
-// what is shown or in what order. So a cold list costs two calls. Whether either link type earns
-// the hot commission is UNCONFIRMED until orders show it (docs/aliexpress-api.md, Hot link).
+// hotproduct.query returned (made with our tracking id, type unknown). When that call fails, or
+// sends no usable link for a product, the product keeps the fresh type 2 link its stored row holds
+// from an earlier fetch (HotFetchDeps.storedLinks, one read, only then), else the list's link: the
+// list itself never fails over it. The links change nothing in what is shown or in what order. So
+// a cold list costs two calls. Whether either link type earns the hot commission is UNCONFIRMED
+// until orders show it (docs/aliexpress-api.md, Hot link).
 import { HOT_LINK_TYPE, generateLinks, queryHotProducts } from "@/lib/aliexpress/affiliate";
 import type { AliExpressClient } from "@/lib/aliexpress/client";
 import { AliExpressError, type AliExpressErrorKind } from "@/lib/aliexpress/errors";
 import type { AliProduct } from "@/lib/aliexpress/schemas";
 import type { HotCategoryId } from "./categories";
-import { hotLinkSources, withHotLinks } from "./links";
+import {
+  hotLinkSources,
+  productsWithoutHotLink,
+  withHotLinks,
+  withStoredHotLinks,
+  type StoredLinkRow,
+} from "./links";
 import { selectHotProducts, toHotProduct, type HotProduct } from "./select";
 
 export interface HotPool {
@@ -51,6 +59,12 @@ export interface HotFetchDeps {
    * `fetchedAt`.
    */
   saveProducts: (products: AliProduct[], fetchedAt: Date) => Promise<void>;
+  /**
+   * The link fields of the stored rows among `productIds` (products.data). Read only when the hot
+   * links call leaves products it was for without a hot link, so a refetch keeps their fresh
+   * stored type 2 links. Without it they keep the list's links.
+   */
+  storedLinks?: (productIds: string[]) => Promise<StoredLinkRow[]>;
 }
 
 export type HotPoolFailure = "empty" | "failed";
@@ -200,34 +214,61 @@ export class HotPoolLoader {
 
   /**
    * `products` (already selected) with a hot link for each one that pays a hot rate: one
-   * link.generate call with promotion_link_type 2, spaced after the list call. Never throws: when
-   * the call fails, every product keeps the list's link. Neither the set nor the order changes.
+   * link.generate call with promotion_link_type 2, spaced after the list call. Never throws: a
+   * product the call gives no link (all of them when it fails) keeps its stored fresh hot link
+   * (keepStoredHotLinks), else the list's link. Neither the set nor the order changes.
    */
   private async withHotLinks(
     key: HotCategoryId,
-    ali: AliExpressClient,
+    deps: Pick<HotFetchDeps, "ali" | "storedLinks">,
     products: AliProduct[],
   ): Promise<AliProduct[]> {
     const sources = hotLinkSources(products);
     if (!sources.length) return products;
+    let linked = products;
     try {
       const links = await this.spaced(() =>
-        generateLinks(ali, sources, { promotionLinkType: HOT_LINK_TYPE }),
+        generateLinks(deps.ali, sources, { promotionLinkType: HOT_LINK_TYPE }),
       );
-      const linked = withHotLinks(products, links, new Date(this.clock()).toISOString());
+      linked = withHotLinks(products, links, new Date(this.clock()).toISOString());
       const made = linked.filter((p) => p.promotionLinkType === HOT_LINK_TYPE).length;
       if (made < sources.length) {
         this.log(`${key}: ${made} of ${sources.length} hot links made; the rest keep the list's`);
       }
-      return linked;
     } catch (err) {
       this.log(`${key}: hot links not made, the list's links are kept: ${errorText(err)}`);
+    }
+    return this.keepStoredHotLinks(key, deps.storedLinks, linked);
+  }
+
+  /**
+   * `products` where each one the hot links call left without a hot link keeps the fresh type 2
+   * link of its stored row (withStoredHotLinks), with that link's time. One read, only when such
+   * products exist. Never throws: when the read fails they keep the list's links.
+   */
+  private async keepStoredHotLinks(
+    key: HotCategoryId,
+    storedLinks: HotFetchDeps["storedLinks"],
+    products: AliProduct[],
+  ): Promise<AliProduct[]> {
+    const missing = productsWithoutHotLink(products);
+    if (!missing.length || !storedLinks) return products;
+    try {
+      const kept = withStoredHotLinks(products, await storedLinks(missing), this.clock());
+      const count = (ps: AliProduct[]) =>
+        ps.filter((p) => p.promotionLinkType === HOT_LINK_TYPE).length;
+      const reused = count(kept) - count(products);
+      if (reused) this.log(`${key}: ${reused} of ${missing.length} kept their stored hot link`);
+      return kept;
+    } catch (err) {
+      this.log(`${key}: stored hot links not read, the list's links are kept: ${errorText(err)}`);
       return products;
     }
   }
 
   private async fetch(key: HotCategoryId, makeDeps: () => HotFetchDeps): Promise<HotPool> {
-    const { ali, saveProducts } = makeDeps();
+    const deps = makeDeps();
+    const { ali, saveProducts } = deps;
     const page = await this.spaced(() => queryHotProducts(ali, { categoryId: key }));
     const fetchedAt = new Date(this.clock());
     const selected = selectHotProducts(page.products);
@@ -235,7 +276,7 @@ export class HotPoolLoader {
       throw new HotPoolError("empty", `${key}: none of ${page.products.length} products passed`);
     }
     // The saved rows and the returned list are built from this one array, so they agree.
-    const kept = await this.withHotLinks(key, ali, selected);
+    const kept = await this.withHotLinks(key, deps, selected);
     try {
       // Without a Hebrew title of ours: title_he holds the LLM's titles only. Marked as saved from
       // a hot list, so a /p refresh keeps the title in Hebrew and this list's link

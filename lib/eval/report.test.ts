@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { formatComparison, formatDetail, formatRun, shortStep } from "./format";
 import { buildLabelBook } from "./labels";
 import { R5_POLICY, untilPassing } from "./policies";
-import { compareRuns, relabelRun, runVariant, summarize } from "./report";
+import type { ProductLine, QueryResult } from "./replay";
+import { compareRuns, relabelRun, runVariant, shopShares, summarize } from "./report";
 import { BOTTLE, call, good, offType, snapshot, times } from "./testing";
 
 // Two queries: "few" has 2 passers on page 1 (49 items) and 4 more on page 2; "many" has 7.
@@ -67,6 +68,52 @@ describe("summarize", () => {
     });
     expect(s.labels).toMatchObject({ queries: 1, cardsLabelled: 2, cardsShown: 2, wrongTop3: 1 });
     expect(summarize([])).toMatchObject({ queries: 0, meanBudgetShare: null });
+  });
+});
+
+describe("shopShares", () => {
+  const line = (id: string, shop: string | null, shared = false): ProductLine => ({
+    id,
+    label: null,
+    tier: "standard",
+    shop,
+    price: 10,
+    feedbackPct: 98,
+    unitsSold: 500,
+    ...(shared ? { shared: true as const } : {}),
+    title: `Product ${id}`,
+  });
+  const query = (
+    id: string,
+    top3: ProductLine[],
+    sameQueryAs: string | null = null,
+  ): QueryResult => ({
+    ...baseline.queries[1],
+    id,
+    sameQueryAs,
+    top3,
+  });
+
+  it("counts the leading shop and the shared-number cards over the distinct queries", () => {
+    const shares = shopShares([
+      query("a", [line("1", "s", true), line("2", "o"), line("3", null)]),
+      query("b", [line("4", "o"), line("5", "s", true)]),
+      query("c", [line("6", "s", true)]),
+      query("a-copy", [line("1", "s", true)], "a"), // the same query again: left out
+      query("none", []),
+    ]);
+    expect(shares).toEqual({
+      queries: 3,
+      cards: 6,
+      topShop: { id: "s", leads: 2, cards: 3 },
+      shared: { leads: 2, cards: 3 },
+    });
+    expect(shopShares([])).toEqual({
+      queries: 0,
+      cards: 0,
+      topShop: null,
+      shared: { leads: 0, cards: 0 },
+    });
   });
 });
 

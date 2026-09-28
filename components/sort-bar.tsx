@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { searchHref } from "@/lib/search-url";
 import type { SortPreference } from "@/lib/types";
+import { LinkPending, RestoreFocus } from "./pending-navigation";
 
 const SORTS: { value: SortPreference; label: string }[] = [
   { value: "best_value", label: "מחיר ואיכות" },
@@ -8,7 +9,11 @@ const SORTS: { value: SortPreference; label: string }[] = [
   { value: "most_popular", label: "הכי נמכרים" },
 ];
 
-/** Refine buttons. Each sets an explicit sort, which overrides the one parsed from the query. */
+/**
+ * Refine buttons. Each sets an explicit sort, which overrides the one parsed from the query. The
+ * results on screen stay while the next order is prepared (components/pending-navigation.tsx), and
+ * keyboard focus stays on the sort chosen, which is then the current one.
+ */
 export function SortBar({
   q,
   active,
@@ -29,16 +34,18 @@ export function SortBar({
             key={s.value}
             href={searchHref({ q, sort: s.value, without })}
             aria-current={current ? "true" : undefined}
-            className={`inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold ${
+            className={`relative inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold ${
               current
                 ? "bg-ink text-bg"
                 : "border border-line bg-surface text-ink hover:border-accent hover:text-accent-ink"
             }`}
           >
             {s.label}
+            <LinkPending />
           </Link>
         );
       })}
+      <RestoreFocus when={active} targets={['[aria-current="true"]']} />
     </nav>
   );
 }

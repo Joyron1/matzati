@@ -1,5 +1,6 @@
 // productForPage wiring for /p (stored tips, background refresh with after(), video, AliExpress
-// promo code, owner and community coupons, SKU flag) and clickOut for /go (link refresh, src).
+// promo code, owner and community coupons, SKU flag, the refresh guard after a failure or a rate
+// limit) and clickOut for /go (link refresh, src).
 // Database, AliExpress calls, coupons, deals and the refresher are faked; nothing here reaches
 // Supabase, AliExpress or an LLM.
 import { APIConnectionTimeoutError } from "@anthropic-ai/sdk";
@@ -639,6 +640,114 @@ describe("productForPage: refresh after 24 hours", () => {
         }
       });
     });
+  });
+});
+
+describe("productForPage: a refresh that fails or is throttled", () => {
+  const MINUTE = 60_000;
+  const FRESH_PRICE = 39.9;
+  // The refresh guard remembers failures per product for this server instance, so every test
+  // here uses a product id no other test used.
+  let nextId = 1005008000000000;
+  /** Stores a product last checked 2 days ago (so a view refreshes it); returns its id and row. */
+  function staleRow() {
+    const productId = String(nextId++);
+    const row = stored({ ...PRODUCT, productId }, daysAgo(2));
+    return { productId, row };
+  }
+  const freshPage = (productId: string): ProductPage => ({
+    products: [{ ...PRODUCT, productId, price: FRESH_PRICE }],
+    skipped: 0,
+    totalRecords: 1,
+  });
+
+  beforeEach(() => {
+    m.readCategoryTips.mockResolvedValue(entry(false));
+  });
+
+  it("serves the stored row, and makes no call for that product for 10 minutes", async () => {
+    const { productId, row } = staleRow();
+    m.getProduct.mockResolvedValue(row);
+    m.getProductDetails.mockRejectedValue(new AliExpressError("network", "fetch failed"));
+    vi.useFakeTimers({ now: Date.now() });
+    try {
+      for (let view = 0; view < 3; view++) {
+        const data = await productForPage(productId);
+        // The last refresh's data, with its date: never a 404 while AliExpress fails.
+        expect(data?.product.price_ils).toBe(PRODUCT.price);
+        expect(data?.updatedAt).toBe(row.updatedAt);
+      }
+      expect(m.getProductDetails).toHaveBeenCalledTimes(1);
+      expect(m.saveProducts).not.toHaveBeenCalled();
+      expect(console.error).toHaveBeenCalledTimes(1); // logged once, not per view
+
+      vi.setSystemTime(Date.now() + 10 * MINUTE - 1);
+      await productForPage(productId);
+      expect(m.getProductDetails).toHaveBeenCalledTimes(1);
+
+      vi.setSystemTime(Date.now() + 1);
+      m.getProductDetails.mockResolvedValue(freshPage(productId));
+      expect((await productForPage(productId))?.product.price_ils).toBe(FRESH_PRICE);
+      expect(m.getProductDetails).toHaveBeenCalledTimes(2);
+      expect(m.saveProducts).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("holds every product back for a minute after an ApiCallLimit, serving stored rows", async () => {
+    const a = staleRow();
+    const b = staleRow();
+    m.getProduct.mockImplementation(async (id: string) => (id === a.productId ? a.row : b.row));
+    m.getProductDetails.mockRejectedValue(
+      new AliExpressError("rate_limit", "Api access frequency exceeds the limit", {
+        code: "ApiCallLimit",
+      }),
+    );
+    vi.useFakeTimers({ now: Date.now() });
+    try {
+      expect((await productForPage(a.productId))?.updatedAt).toBe(a.row.updatedAt);
+      // Another product, 59 s later: no call, its stored row.
+      vi.setSystemTime(Date.now() + MINUTE - 1_000);
+      const data = await productForPage(b.productId);
+      expect(data?.product.product_id).toBe(b.productId);
+      expect(data?.updatedAt).toBe(b.row.updatedAt);
+      expect(m.getProductDetails).toHaveBeenCalledTimes(1);
+
+      // Once the minute is over it is refreshed (which also ends the back-off).
+      vi.setSystemTime(Date.now() + 1_000);
+      m.getProductDetails.mockResolvedValue(freshPage(b.productId));
+      expect((await productForPage(b.productId))?.product.price_ils).toBe(FRESH_PRICE);
+      expect(m.getProductDetails).toHaveBeenCalledTimes(2);
+      expect(m.getProductDetails).toHaveBeenLastCalledWith(expect.anything(), [b.productId], "EN");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("lets views that arrive together share one productdetail.get call and one save", async () => {
+    const { productId, row } = staleRow();
+    m.getProduct.mockResolvedValue(row);
+    let answer: (page: ProductPage) => void = () => {};
+    m.getProductDetails.mockReturnValue(new Promise((resolve) => (answer = resolve)));
+    const views = [productForPage(productId), productForPage(productId), productForPage(productId)];
+    await vi.waitFor(() => expect(m.getProductDetails).toHaveBeenCalled());
+    await new Promise((resolve) => setTimeout(resolve, 0)); // the other views reach the refresh
+    answer(freshPage(productId));
+    const pages = await Promise.all(views);
+    expect(pages.map((p) => p?.product.price_ils)).toEqual([FRESH_PRICE, FRESH_PRICE, FRESH_PRICE]);
+    expect(m.getProductDetails).toHaveBeenCalledTimes(1);
+    expect(m.saveProducts).toHaveBeenCalledTimes(1);
+  });
+
+  it("404s a product AliExpress no longer returns, without asking again for 10 minutes", async () => {
+    const { productId, row } = staleRow();
+    m.getProduct.mockResolvedValue(row);
+    m.getProductDetails.mockResolvedValue({ products: [], skipped: 0, totalRecords: 0 });
+    expect(await productForPage(productId)).toBeNull();
+    expect(await productForPage(productId)).toBeNull();
+    expect(m.getProductDetails).toHaveBeenCalledTimes(1);
+    expect(m.saveProducts).not.toHaveBeenCalled();
   });
 });
 

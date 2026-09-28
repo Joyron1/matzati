@@ -6,6 +6,7 @@ import { RESULTS_PER_PAGE } from "@/lib/config/site";
 import { normalizeParsed, type ParsedQueryRaw } from "@/lib/llm/parse";
 import { FILL_TIER, FILTERS } from "@/lib/ranking/config";
 import {
+  hasSharedNumbers,
   isRequestedProduct,
   passesFilters,
   rankProducts,
@@ -192,6 +193,8 @@ export interface ProductLine {
   price: number;
   feedbackPct: number | null;
   unitsSold: number | null;
+  /** Its shop shares numbers in the pool (lib/ranking/shared-numbers.ts); absent otherwise. */
+  shared?: true;
   title: string;
 }
 
@@ -282,6 +285,7 @@ function productLine(
     price: p.price,
     feedbackPct: p.positiveFeedbackPct,
     unitsSold: p.unitsSold,
+    ...(hasSharedNumbers(p) ? { shared: true as const } : {}),
     title: p.title,
   };
 }

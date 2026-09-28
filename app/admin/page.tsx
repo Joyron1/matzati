@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CircleCheck, CloudOff, Inbox, Plus } from "lucide-react";
+import { CloudOff, Inbox, Plus } from "lucide-react";
 import { DealRowActions } from "@/app/admin/deals/deal-row-actions";
 import { StateCard } from "@/components/state-card";
 import { btnMd, btnPrimary, card } from "@/components/styles";
@@ -11,6 +11,7 @@ import { hasEnded } from "@/lib/deals/time";
 import { formatDateTime } from "@/lib/format";
 import { firstParam } from "@/lib/search-url";
 import type { Deal } from "@/lib/types";
+import { StatusMessage } from "./status-message";
 
 export const metadata: Metadata = {
   title: "דילים", // the admin layout adds "| ניהול | <brand>"
@@ -111,15 +112,7 @@ export default async function AdminPage({
         </Link>
       </div>
 
-      {status && (
-        <p
-          role="status"
-          className="flex items-center gap-2 rounded-2xl bg-accent-soft px-4 py-3 font-semibold text-accent-ink"
-        >
-          <CircleCheck aria-hidden className="size-5 shrink-0" />
-          {status}
-        </p>
-      )}
+      {status && <StatusMessage>{status}</StatusMessage>}
 
       {deals === null ? (
         <StateCard Icon={CloudOff} title="לא הצלחנו לטעון את הדילים">

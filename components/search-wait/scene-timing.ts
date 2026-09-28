@@ -1,7 +1,7 @@
 // When the waiting scene's product cards move (wait-scene.tsx; the keyframes are in
 // search-wait.module.css). Derived from the schedule, so the scene tells the story the steps tell:
 // the stream starts with the "scan" step, the first two checked cards land in the featured and the
-// second slot exactly as the schedule reaches "filter" and "explain" (each slot fills as its card
+// second slot exactly as the schedule reaches "filter" and "rank" (each slot fills as its card
 // lands), and every later checked card heads for the third slot, which only shows with "prepare"
 // and stays pending until the real page arrives. Times are seconds from the start of the stream.
 import { WAIT_STEPS, type WaitStepId } from "./schedule";
@@ -50,7 +50,7 @@ const startS = (id: WaitStepId) => (WAIT_STEPS.find((s) => s.id === id)?.startsA
 export function sceneTiming(): SceneTiming {
   const stream = startS("scan");
   const fillA = startS("filter") - stream;
-  const fillB = startS("explain") - stream;
+  const fillB = startS("rank") - stream;
   // The two picks are neighbours on the belt, so the gap between cards is the gap between fills.
   const gap = fillB - fillA;
   const cycle = gap * CARDS_PER_CYCLE;

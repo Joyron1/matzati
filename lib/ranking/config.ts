@@ -84,6 +84,26 @@ export const SMALL_CAPACITY_FACTOR = 1.5;
  */
 export const FEEDBACK_PRIOR = { pct: 98, sales: 500 } as const;
 
+/**
+ * Shared numbers (owner decision 2026-09-28: a store whose listings share identical numbers is
+ * trusted less by a general rule, never blocked; lib/ranking/shared-numbers.ts). Within the pool a
+ * search checked, a shop has shared numbers when two of its listings show the same 30-day sales of
+ * at least `salesMin`, or when at least `feedbackMinListings` of its listings have a feedback value
+ * and at least `feedbackShare` of them show the same one below 100% (identical 100% ratings are
+ * what the ceiling produces, not a copied number).
+ *
+ * Measured on the 32 snapshot pools under the live fetch policy (2026-09-28): one shop shows
+ * exactly 98.0% on 89% to 100% of its listings in every pool where it has 5 or more; no other shop
+ * with 5 or more listings in a pool goes above 40% at one value. Across all 3,027 snapshot
+ * products, no other shop has two listings with the same sales from 300 up (one pair at 202);
+ * that shop has 59 such values from 500 up.
+ */
+export const SHARED_NUMBERS = {
+  salesMin: 500,
+  feedbackMinListings: 5,
+  feedbackShare: 0.8,
+} as const;
+
 /** Prices at or below this percentile of the passers all get full price fit, so one cheap outlier does not set the scale. */
 export const PRICE_FIT = { floorPercentile: 0.1 } as const;
 
@@ -131,5 +151,8 @@ export const DEDUP = {
   modelTokenWindow: 4,
 } as const;
 
-/** Bump when any filter or ranking rule changes, so cached results ranked the old way are not reused. */
-export const RANKING_VERSION = 6;
+/**
+ * Bump when any filter or ranking rule changes, so cached results ranked the old way are not
+ * reused. 7: shared numbers (SHARED_NUMBERS), which also marks listings in the cached results.
+ */
+export const RANKING_VERSION = 7;

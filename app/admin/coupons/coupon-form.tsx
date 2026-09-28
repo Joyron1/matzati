@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { CircleAlert, Package, Store, type LucideIcon } from "lucide-react";
 import { useActionState, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { btnLg, btnPrimary, btnSecondary } from "@/components/styles";
+import { btnBusy, btnLg, btnPrimary, btnSecondary } from "@/components/styles";
 import {
   CODE_MAX,
   COUPON_SCOPES,
@@ -139,7 +139,14 @@ export function CouponForm({
   return (
     // Inputs are uncontrolled with defaultValue from the last submit: React resets the form after
     // the action, and a rejected form comes back with what the admin typed.
-    <form action={formAction} noValidate className="space-y-7">
+    <form
+      action={formAction}
+      onSubmit={(e) => {
+        if (pending) e.preventDefault();
+      }}
+      noValidate
+      className="space-y-7"
+    >
       {(errors.form || fieldErrorCount > 0) && (
         <div
           ref={summaryRef}
@@ -373,7 +380,12 @@ export function CouponForm({
       </label>
 
       <div className="flex flex-wrap items-center gap-3 border-t border-line pt-6">
-        <button type="submit" disabled={pending} className={`${btnPrimary} ${btnLg}`}>
+        {/* aria-disabled, not disabled: the button keeps keyboard focus while saving. */}
+        <button
+          type="submit"
+          aria-disabled={pending}
+          className={`${btnPrimary} ${btnLg} ${btnBusy}`}
+        >
           {pending ? "שומרים…" : "שמירה"}
         </button>
         <Link href="/admin/coupons" className={`${btnSecondary} ${btnLg}`}>

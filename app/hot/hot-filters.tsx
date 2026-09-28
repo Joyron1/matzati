@@ -1,6 +1,7 @@
 import Form from "next/form";
 import Link from "next/link";
 import { ChevronDown, SlidersHorizontal } from "lucide-react";
+import { FocusScrollList } from "@/components/focus-scroll-list";
 import { btnMd, btnPrimary, card } from "@/components/styles";
 import { hotCategories } from "@/lib/hot/categories";
 import { DEFAULT_HOT_SORT, HOT_PATH, hotHref, isNarrowed, type HotFilter } from "@/lib/hot/params";
@@ -79,9 +80,10 @@ export function HotFilters({ filter }: { filter: HotFilter }) {
   return (
     <div className="space-y-4">
       {/* One scrollable row on phones (bleeding to the screen edges), wrapped from sm up. The
-          padding keeps the focus ring inside the scroll area. */}
+          padding keeps the focus ring inside the scroll area; a pill that gets keyboard focus is
+          scrolled fully into view, clear of the edge by the same room (scroll-px). */}
       <nav aria-label="קטגוריות">
-        <ul className="-mx-4 flex gap-2 overflow-x-auto px-4 py-1.5 [scrollbar-color:var(--line)_transparent] [scrollbar-width:thin] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+        <FocusScrollList className="-mx-4 flex scroll-px-4 gap-2 overflow-x-auto px-4 py-1.5 [scrollbar-color:var(--line)_transparent] [scrollbar-width:thin] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:scroll-px-0 sm:px-0">
           {pills.map((c) => {
             const active = c.id === category;
             return (
@@ -101,7 +103,7 @@ export function HotFilters({ filter }: { filter: HotFilter }) {
               </li>
             );
           })}
-        </ul>
+        </FocusScrollList>
       </nav>
 
       <details open={active} className="open-from-sm group">

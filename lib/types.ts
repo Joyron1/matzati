@@ -11,6 +11,14 @@ export interface FilterChip {
   removable: boolean;
 }
 
+/** Which of a card's numbers other listings of its shop show too (ResultProduct.shared_numbers). */
+export interface SharedNumbersMark {
+  /** Its positive feedback is the value the shop shows on most of its listings checked. */
+  feedback: boolean;
+  /** Another listing of the shop checked shows exactly its 30-day sales. */
+  sales: boolean;
+}
+
 export interface ResultProduct {
   product_id: string;
   title_he: string;
@@ -28,6 +36,14 @@ export interface ResultProduct {
   units_sold: number | null;
   /** Trust thresholds the product meets (lib/ranking/config.ts); null when it meets neither. */
   passed_tier: "standard" | "fill" | null;
+  /**
+   * Its shop shows the same numbers on several listings of the checked pool
+   * (lib/ranking/shared-numbers.ts), and which of this card's own numbers other listings of the
+   * shop show too. The card still shows AliExpress's numbers and says which are shared; no line
+   * states a shared number as the product's own, and no line of its page calls a product the
+   * best-selling or best-rated one. Absent otherwise, and on results cached before the rule.
+   */
+  shared_numbers?: SharedNumbersMark;
   image_urls: string[];
   category_id: string | null;
 }

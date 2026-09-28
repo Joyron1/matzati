@@ -1,13 +1,7 @@
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import {
-  ListChecks,
-  MessageSquareText,
-  ShieldCheck,
-  Sparkles,
-  SlidersHorizontal,
-} from "lucide-react";
+import { ListChecks, MessageSquareText, Sparkles, SlidersHorizontal } from "lucide-react";
 import { HomeFaq } from "@/components/home-faq";
 import {
   HotProductsCarousel,
@@ -57,14 +51,17 @@ async function NextSale() {
     return null;
   });
   if (!sale?.starts_at) return null;
+  // Centered like the hero, as wide as /sales shows a sale on its own.
   return (
-    <SaleCountdown
-      title={sale.title}
-      startsAt={sale.starts_at}
-      endsAt={sale.ends_at}
-      renderedAt={now.getTime()}
-      moreHref="/sales"
-    />
+    <div className="mx-auto mt-6 max-w-3xl px-4 sm:px-6">
+      <SaleCountdown
+        title={sale.title}
+        startsAt={sale.starts_at}
+        endsAt={sale.ends_at}
+        renderedAt={now.getTime()}
+        moreHref="/sales"
+      />
+    </div>
   );
 }
 
@@ -179,33 +176,11 @@ export default function HomePage() {
         </ol>
       </section>
 
-      <div className="mx-auto mt-6 grid max-w-6xl gap-4 px-4 sm:px-6 md:grid-cols-2">
-        <Suspense fallback={null}>
-          <NextSale />
-        </Suspense>
-        {/* Full width when there is no sale card next to it. */}
-        <section
-          aria-labelledby="trust-title"
-          className={`${card} flex flex-col gap-4 p-6 sm:p-7 md:only:col-span-2`}
-        >
-          <span className="grid size-11 place-items-center rounded-full bg-accent-soft text-accent-ink">
-            <ShieldCheck aria-hidden className="size-5" />
-          </span>
-          <h2 id="trust-title" className="font-display text-2xl">
-            איך אנחנו מרוויחים
-          </h2>
-          <p className="max-w-3xl leading-relaxed text-muted">
-            כשאתם קונים דרך הקישורים שלנו, אלי אקספרס משלמת לנו עמלה קטנה. המחיר שלכם לא משתנה.
-            העמלה לא משפיעה על הדירוג: מוצר לא יעלה למעלה רק כי הוא משלם לנו יותר.
-          </p>
-          <Link
-            href="/disclosure"
-            className="mt-auto inline-flex min-h-11 items-center self-start font-semibold text-accent-ink underline-offset-4 hover:underline"
-          >
-            לגילוי הנאות המלא
-          </Link>
-        </section>
-      </div>
+      {/* The affiliate disclosure is not repeated here (owner decision 2026-09-28): it lives in
+          /terms#affiliate, linked from the FAQ and the footer. */}
+      <Suspense fallback={null}>
+        <NextSale />
+      </Suspense>
 
       <HomeFaq />
 

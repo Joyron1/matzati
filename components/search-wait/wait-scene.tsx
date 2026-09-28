@@ -18,9 +18,10 @@ import styles from "./search-wait.module.css";
 // the query is typed and read by the magnifier and split into chips (step 1); product cards then
 // ride a belt, stop under the magnifier and get a verdict above it, a check or a soft cross. The
 // first two checks fly into the featured and the second of the three numbered slots, which fill
-// as they land (steps 2-3, see scene-timing.ts); later checks head for the third slot, which stays
-// pending until the real page arrives. No slot ever shows a winner: the search may still find
-// nothing. Hidden under reduced motion; a tap or the pointer makes the magnifier lean and hop.
+// as they land (steps 2-3, see scene-timing.ts), a card with its lines as the results page first
+// shows it; later checks head for the third slot, which stays pending until the real page
+// arrives. No slot ever shows a winner: the search may still find nothing. Hidden under reduced
+// motion; a tap or the pointer makes the magnifier lean and hop.
 
 type Tint = "accentSoft" | "goldSoft" | "surface2";
 type Shape = "round" | "box" | "tall";
@@ -387,21 +388,14 @@ export const WaitScene = memo(function WaitScene({
               <ellipse cx="205" cy="80" rx="17" ry="3" className={styles.shade} />
               <rect x="176" y="102" width="76" height="6" rx="3" className={styles.inkSoft} />
               <rect x="200" y="112" width="52" height="6" rx="3" className={styles.inkSoft} />
-              <rect
-                x="158"
-                y="124"
-                width="94"
-                height="28"
-                rx="8"
-                className={cx(styles.accentSoft, styles.whyBox)}
-              />
+              <rect x="158" y="124" width="94" height="28" rx="8" className={styles.accentSoft} />
               <rect
                 x="170"
                 y="131"
                 width="76"
                 height="4.5"
                 rx="2.25"
-                className={cx(styles.accentInk, styles.why, styles.why1)}
+                className={styles.accentInk}
               />
               <rect
                 x="192"
@@ -409,7 +403,7 @@ export const WaitScene = memo(function WaitScene({
                 width="54"
                 height="4.5"
                 rx="2.25"
-                className={cx(styles.accentInk, styles.why, styles.why2)}
+                className={styles.accentInk}
               />
               <rect x="214" y="160" width="38" height="9" rx="4.5" className={styles.inkPrice} />
             </g>
@@ -430,14 +424,7 @@ export const WaitScene = memo(function WaitScene({
               <ellipse cx="108" cy="74" rx="11" ry="2.2" className={styles.shade} />
               <rect x="40" y="36" width="36" height="5" rx="2.5" className={styles.inkSoft} />
               <rect x="52" y="45" width="24" height="5" rx="2.5" className={styles.inkSoft} />
-              <rect
-                x="34"
-                y="58"
-                width="42"
-                height="4.5"
-                rx="2.25"
-                className={cx(styles.accentInk, styles.why, styles.why3)}
-              />
+              <rect x="34" y="58" width="42" height="4.5" rx="2.25" className={styles.accentInk} />
               <rect x="54" y="72" width="22" height="7" rx="3.5" className={styles.inkPrice} />
             </g>
 

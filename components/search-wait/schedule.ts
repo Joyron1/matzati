@@ -1,12 +1,15 @@
-// Timing of the search waiting screen (the Suspense fallback of app/search/page.tsx). The server
-// renders the results in one go, so the browser cannot know which stage a search is in. The steps
-// advance on a schedule that follows the typical durations of a fresh search (CLAUDE.md §6: parse
-// ≈1.5-3 s, AliExpress ≈2-5 s, filtering is instant, explanations ≈3-5 s; 7-15 s in all), a step
-// the schedule moved past is shown as past, never as done, the last step never ends on its own,
-// and the progress bar eases toward PROGRESS_CAP without reaching it. A cached search returns in
-// well under a second, so its visitors barely see the first step.
+// Timing of the search waiting screen (the Suspense fallbacks of app/search/page.tsx). The page
+// streams (docs/search-quality-plan.md item 15): the chips once the query is understood, the
+// products once they are ranked, their "why we picked it" lines after that, on the cards. So the
+// wait covers understanding the query and finding the products, and knows one thing for real: once
+// the chips show, the first step is done (UNDERSTOOD_STEPS). The other steps advance on a schedule
+// that follows the typical durations of a fresh search (parse ≈1.5-3 s, AliExpress ≈2-8 s with up
+// to 3 spaced calls, filtering and ranking are instant), a step the schedule moved past is shown as
+// past, never as done, the last step never ends on its own, and the progress bar eases toward
+// PROGRESS_CAP without reaching it. A cached search returns in well under a second, so its
+// visitors barely see the first step.
 
-export type WaitStepId = "read" | "scan" | "filter" | "explain" | "prepare";
+export type WaitStepId = "read" | "scan" | "filter" | "rank" | "prepare";
 
 export interface WaitStep {
   id: WaitStepId;
@@ -36,26 +39,40 @@ export const WAIT_STEPS: readonly WaitStep[] = [
     id: "filter",
     label: "מסננים לפי משוב חיובי ומכירות",
     detail: "בודקים משוב חיובי, מכירות ב־30 הימים האחרונים והתאמה למה שביקשתם.",
-    startsAtMs: 5_500,
+    startsAtMs: 5_000,
   },
   {
-    id: "explain",
-    label: "כותבים לכם למה בחרנו",
-    detail: "משפט קצר לכל מוצר, רק מהנתונים של אלי אקספרס.",
-    startsAtMs: 7_000,
+    id: "rank",
+    label: "מדרגים את המוצרים שעברו",
+    // byRank in lib/ranking/rank.ts; commission only breaks exact ties.
+    detail: "לפי משוב, מכירות, מחיר והתאמה לחיפוש.",
+    startsAtMs: 6_500,
   },
   {
     id: "prepare",
     label: "עוד רגע, מכינים את המוצרים לצפייה",
-    detail: "התוצאות יופיעו כאן ברגע שיהיו מוכנות.",
-    startsAtMs: 11_000,
+    detail: "המוצרים יופיעו כאן, ומיד אחריהם משפט קצר לכל אחד על הסיבה שבחרנו בו.",
+    startsAtMs: 8_500,
   },
 ];
 
 export const LAST_STEP = WAIT_STEPS.length - 1;
 
-/** "past", not "done": the schedule moved past the step, which says nothing about the search. */
-export type StepState = "past" | "current" | "upcoming";
+/**
+ * The delay of the wait's entrance (`.enter` in search-wait.module.css, 0.18s): a wait replaced
+ * sooner was never seen. A wait that was up longer has started to show, so the wait under the
+ * chips that follows it goes on without an entrance of its own (app/search/page.tsx).
+ */
+export const WAIT_ENTER_DELAY_MS = 180;
+
+/** Steps the page knows are done once the chips show: understanding the query. */
+export const UNDERSTOOD_STEPS = 1;
+
+/**
+ * "past", not "done", for a step the schedule moved past: that says nothing about the search.
+ * "done" only for a step the page knows is over (UNDERSTOOD_STEPS once the chips are shown).
+ */
+export type StepState = "done" | "past" | "current" | "upcoming";
 
 /** The step the schedule shows as current. Never past the last one, which has no end. */
 export function stepAt(elapsedMs: number): number {
@@ -67,9 +84,15 @@ export function stepAt(elapsedMs: number): number {
   return step;
 }
 
-/** Past, current or upcoming. The last step is never past: only the real page ends the wait. */
-export function stepState(index: number, current: number): StepState {
-  const now = Math.min(current, LAST_STEP);
+/**
+ * Done (the first `done` steps, known to be over), past, current or upcoming. The last step is
+ * never past or done: only the real page ends the wait. The current step is never one known to be
+ * done.
+ */
+export function stepState(index: number, current: number, done = 0): StepState {
+  const known = Math.min(Math.max(Math.trunc(done), 0), LAST_STEP);
+  if (index < known) return "done";
+  const now = Math.min(Math.max(current, known), LAST_STEP);
   if (index < now) return "past";
   return index === now ? "current" : "upcoming";
 }
@@ -101,7 +124,10 @@ export function stepProgress(step: number): number {
 
 export type Reassurance = "none" | "slow" | "slower";
 
-/** A fresh search takes 7-15 s; after that the screen says why, and later that it is still on it. */
+/**
+ * The products of a fresh search usually show within 3-8 s (their lines follow on the cards);
+ * after 12 s the screen says why it takes long, and later that it is still on it.
+ */
 export const SLOW_AFTER_MS = 12_000;
 export const SLOWER_AFTER_MS = 25_000;
 
@@ -123,6 +149,15 @@ export const REASSURANCE_TEXT: Record<Exclude<Reassurance, "none">, string> = {
  */
 export function startOffsetMs(reusesParse: boolean): number {
   return reusesParse ? WAIT_STEPS[1].startsAtMs : 0;
+}
+
+/**
+ * Where the wait shown under the chips starts (the query is understood): where the wait it replaces
+ * had got to, `elapsedBefore` (null when there was none), and never before the AliExpress step.
+ */
+export function understoodOffsetMs(elapsedBefore: number | null): number {
+  const scan = WAIT_STEPS[1].startsAtMs;
+  return elapsedBefore !== null && elapsedBefore > scan ? elapsedBefore : scan;
 }
 
 /** Every moment the schedule changes something on screen: the screen re-renders only then. */

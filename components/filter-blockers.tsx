@@ -5,6 +5,7 @@ import { formatCount } from "@/lib/format";
 import { SMALL_CAPACITY_FACTOR } from "@/lib/ranking/config";
 import { searchHref } from "@/lib/search-url";
 import type { FilterBlocker, FilterChip, SortPreference } from "@/lib/types";
+import { LinkPending } from "./pending-navigation";
 
 // "What blocked" (docs/search-quality-plan.md, item 12): for a search with fewer than 3 results,
 // the filters whose removal lets more of the checked products through, with how many. Only the
@@ -73,7 +74,7 @@ function removeHref(b: ChipBlocker, { q, sort, without }: LinkProps) {
 // Like btnPrimary / btnSecondary at btnMd, but a long chip label may wrap onto a second line
 // instead of overflowing a phone screen.
 const removeBase =
-  "inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-5 py-2 text-center text-[15px] font-semibold";
+  "relative inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-5 py-2 text-center text-[15px] font-semibold";
 const removeFirst = `${removeBase} bg-accent text-on-accent hover:bg-accent-ink`;
 const removeOther = `${removeBase} border border-line bg-surface text-ink hover:border-accent hover:text-accent-ink`;
 
@@ -89,6 +90,7 @@ export function BlockerList({ blockers, ...link }: { blockers: ChipBlocker[] } &
           <Link href={removeHref(b, link)} className={i === 0 ? removeFirst : removeOther}>
             <X aria-hidden className="size-[18px] shrink-0" />
             הסרת הסינון: {b.chip.label_he}
+            <LinkPending />
           </Link>
         </li>
       ))}
@@ -109,10 +111,11 @@ export function BlockerHint({ blocker, ...link }: { blocker: ChipBlocker } & Lin
       <Link
         href={removeHref(blocker, link)}
         aria-label={`הסרת הסינון: ${blocker.chip.label_he}`}
-        className={`${btnSecondary} min-h-11 shrink-0 px-4 text-sm`}
+        className={`${btnSecondary} relative min-h-11 shrink-0 px-4 text-sm`}
       >
         <X aria-hidden className="size-4 shrink-0" />
         הסרת הסינון
+        <LinkPending />
       </Link>
     </aside>
   );

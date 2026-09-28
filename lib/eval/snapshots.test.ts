@@ -56,17 +56,19 @@ describe.skipIf(!present)("offline evaluation of the real snapshots", () => {
         }
       }
     },
+    // Two runs over every snapshot: about 2 s alone, over 5 s beside the full suite's CPU work.
+    60_000,
   );
 
   it("the whole-pool policy checks every captured product", () => {
     const all = firstRuns.get(ALL_CAPTURED.name) ?? run(ALL_CAPTURED);
     for (const q of all.queries) expect(q.checked).toBe(q.snapshotPool);
-  });
+  }, 60_000);
 
   it("a policy compared with itself changes nothing", () => {
     const a = firstRuns.get(CURRENT_POLICY.name) ?? run(CURRENT_POLICY);
     const c = compareRuns(a, run(CURRENT_POLICY));
     expect(c.queries).toEqual([]);
     expect(c.unchanged).toBe(snapshots.length);
-  });
+  }, 60_000);
 });

@@ -13,7 +13,16 @@ import {
 } from "@/lib/aliexpress/schemas";
 import { rankWithFill } from "@/lib/ranking/rank";
 import type { SearchFilters } from "@/lib/search/filters";
-import { hotLinkSources, paysHotRate, withHotLinks } from "./links";
+import {
+  LINK_MAX_AGE_MS,
+  hotLinkSources,
+  parseStoredLinkRows,
+  paysHotRate,
+  productsWithoutHotLink,
+  withHotLinks,
+  withStoredHotLinks,
+  type StoredLinkRow,
+} from "./links";
 import {
   HOT_SORTS,
   interleaveHotProducts,
@@ -167,6 +176,109 @@ describe("withHotLinks", () => {
     const list = [product({ productId: id1, hotCommissionRatePct: 7 })];
     expect(withHotLinks(list, TYPE2_LINKS, MADE_AT)).toEqual(list);
     expect(withHotLinks(list, [], MADE_AT)).toEqual(list);
+  });
+});
+
+describe("stored hot links on a refetch whose type 2 call gave none", () => {
+  const NOW = Date.parse("2026-09-28T12:00:00Z");
+  const DAY = 86_400_000;
+  const at = (daysAgo: number) => new Date(NOW - daysAgo * DAY).toISOString();
+  const row = (productId: string, over: Partial<StoredLinkRow> = {}): StoredLinkRow => ({
+    productId,
+    promotionLink: `https://s.click.aliexpress.com/e/_stored${productId}`,
+    promotionLinkType: 2,
+    promotionLinkAt: at(3),
+    ...over,
+  });
+
+  it("names the products asked for that have no hot link yet", () => {
+    const list = [
+      product({ productId: "1" }),
+      product({ productId: "2", promotionLinkType: 2, promotionLinkAt: MADE_AT }),
+      product({ productId: "3", hotCommissionRatePct: 6 }), // not asked: lower hot rate
+      product({ productId: "4" }),
+    ];
+    expect(productsWithoutHotLink(list)).toEqual(["1", "4"]);
+    expect(productsWithoutHotLink([product({ hotCommissionRatePct: null })])).toEqual([]);
+  });
+
+  it("keeps a fresh stored type 2 link with the time it was made", () => {
+    const list = [product({ productId: "1" }), product({ productId: "2" })];
+    const out = withStoredHotLinks(list, [row("1")], NOW);
+    expect(out[0]).toEqual({
+      ...list[0],
+      promotionLink: "https://s.click.aliexpress.com/e/_stored1",
+      promotionLinkType: HOT_LINK_TYPE,
+      promotionLinkAt: at(3),
+    });
+    // No stored row: the list's own link, no type.
+    expect(out[1]).toBe(list[1]);
+    expect(ids(out)).toEqual(ids(list));
+  });
+
+  it("keeps a stored link only while it is younger than LINK_MAX_AGE_MS", () => {
+    const list = [product({ productId: "1" }), product({ productId: "2" })];
+    const out = withStoredHotLinks(
+      list,
+      [
+        row("1", { promotionLinkAt: new Date(NOW - LINK_MAX_AGE_MS + 1).toISOString() }),
+        row("2", { promotionLinkAt: new Date(NOW - LINK_MAX_AGE_MS).toISOString() }),
+      ],
+      NOW,
+    );
+    expect(out.map((p) => p.promotionLinkType ?? null)).toEqual([2, null]);
+    expect(out[1].promotionLink).toBe("https://s.click.aliexpress.com/s/list");
+  });
+
+  it("trusts nothing in the stored jsonb: type exactly 2, an https AliExpress link, a real time", () => {
+    const bad: StoredLinkRow[] = [
+      row("1", { promotionLinkType: "2" }),
+      row("2", { promotionLinkType: 0 }),
+      row("3", { promotionLinkType: null }),
+      row("4", { promotionLink: "https://evil.test/redirect" }),
+      row("5", { promotionLink: "http://s.click.aliexpress.com/e/_x" }),
+      row("6", { promotionLink: null }),
+      row("7", { promotionLinkAt: "not a time" }),
+      row("8", { promotionLinkAt: null }),
+      row("9", { promotionLinkAt: 1 }),
+    ];
+    const list = bad.map((r) => product({ productId: r.productId }));
+    expect(withStoredHotLinks(list, bad, NOW)).toEqual(list);
+  });
+
+  it("never keeps one for a product whose hot rate is no longer higher, or that got a new link", () => {
+    const list = [
+      product({ productId: "1", hotCommissionRatePct: 6 }),
+      product({
+        productId: "2",
+        promotionLink: "https://s.click.aliexpress.com/e/_new2",
+        promotionLinkType: 2,
+        promotionLinkAt: MADE_AT,
+      }),
+    ];
+    expect(withStoredHotLinks(list, [row("1"), row("2")], NOW)).toEqual(list);
+  });
+
+  it("reads the rows of the products select and drops any other shape", () => {
+    expect(
+      parseStoredLinkRows([
+        { product_id: "1", link: "https://s.click.aliexpress.com/e/_a", type: 2, at: at(1) },
+        { product_id: "2", link: null, type: null, at: null },
+        { product_id: 3, link: "x", type: 2, at: at(1) },
+        "row",
+        null,
+      ]),
+    ).toEqual([
+      {
+        productId: "1",
+        promotionLink: "https://s.click.aliexpress.com/e/_a",
+        promotionLinkType: 2,
+        promotionLinkAt: at(1),
+      },
+      { productId: "2", promotionLink: null, promotionLinkType: null, promotionLinkAt: null },
+    ]);
+    expect(parseStoredLinkRows(null)).toEqual([]);
+    expect(parseStoredLinkRows({ product_id: "1" })).toEqual([]);
   });
 });
 

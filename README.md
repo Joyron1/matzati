@@ -21,6 +21,20 @@ Production: https://matzati-il.vercel.app (Vercel project `matzati-il`).
 
 Local dev needs Node 22+, or Node 20.10+ with `--experimental-websocket` (set in the `dev` and `start` scripts) because supabase-js needs a WebSocket global.
 
+## Retention
+
+A daily database job deletes old data so the periods on `/privacy` hold:
+`supabase/migrations/20260928200000_retention.sql` enables pg_cron (Supabase Cron) and schedules
+`public.run_retention()` as job `matzati-retention` at 00:30 UTC (03:30 Israel summer time, 02:30
+winter time). It deletes rate-limit counters (salted IP hashes) 48 hours after their window ends,
+`search_log` and `clicks` rows after 12 months, a hidden search's text 12 months after it was
+hidden once no `search_log` row has it, `llm_usage` and `price_history` after 24 months, and
+`parse_cache` / `search_cache` rows after 30 days; a row can outlive its period by up to a day.
+Products, deals, coupons and SEO pages are kept. No app code depends on it, but `/privacy` states
+these periods: apply it before deploying the legal pages. Check runs with
+`select * from cron.job_run_details order by start_time desc limit 5;`, run it by hand (as
+postgres) with `select public.run_retention();`.
+
 ## Setup
 
 ```bash

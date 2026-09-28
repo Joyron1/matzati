@@ -38,6 +38,19 @@ export interface RunSummary {
   sameShopTop3: string[];
   /** Mean of budgetShare over the queries with a maximum price and results. */
   meanBudgetShare: number | null;
+  /**
+   * How much one store leads, over the distinct queries (copies of another query left out) that
+   * show results: `queries` and `cards` count those queries and their top-3 cards; `topShop` is the
+   * shop with the most first results (then the most cards), with its first results and cards; and
+   * `shared` counts the first results and cards whose shop shares numbers (a saved run from before
+   * the shared-numbers rule has none marked).
+   */
+  shops: {
+    queries: number;
+    cards: number;
+    topShop: { id: string; leads: number; cards: number } | null;
+    shared: { leads: number; cards: number };
+  };
   labels: {
     /** Queries with labels. */
     queries: number;
@@ -74,6 +87,34 @@ export interface EvalRun {
 
 const sum = (ns: number[]) => ns.reduce((s, n) => s + n, 0);
 
+/** RunSummary.shops over the distinct queries with results. */
+export function shopShares(results: readonly QueryResult[]): RunSummary["shops"] {
+  const distinct = results.filter((r) => !r.error && !r.sameQueryAs && r.top3.length);
+  const cards = distinct.flatMap((r) => r.top3);
+  const tally = new Map<string, { leads: number; cards: number }>();
+  for (const r of distinct) {
+    r.top3.forEach((l, i) => {
+      if (l.shop === null) return;
+      const t = tally.get(l.shop) ?? { leads: 0, cards: 0 };
+      t.cards++;
+      if (i === 0) t.leads++;
+      tally.set(l.shop, t);
+    });
+  }
+  const [top] = [...tally.entries()].sort(
+    ([a, x], [b, y]) => y.leads - x.leads || y.cards - x.cards || a.localeCompare(b),
+  );
+  return {
+    queries: distinct.length,
+    cards: cards.length,
+    topShop: top ? { id: top[0], ...top[1] } : null,
+    shared: {
+      leads: distinct.filter((r) => r.top3[0].shared).length,
+      cards: cards.filter((l) => l.shared).length,
+    },
+  };
+}
+
 export function summarize(results: QueryResult[]): RunSummary {
   const ok = results.filter((r) => !r.error);
   const ids = (pred: (r: QueryResult) => boolean) => ok.filter(pred).map((r) => r.id);
@@ -98,6 +139,7 @@ export function summarize(results: QueryResult[]): RunSummary {
     meanBudgetShare: budgets.length
       ? Math.round((sum(budgets) / budgets.length) * 100) / 100
       : null,
+    shops: shopShares(ok),
     labels: {
       queries: labelled.length,
       leadCorrect: labelled.filter((r) => r.labels!.leadCorrect === true).length,
@@ -272,6 +314,11 @@ export function totalsOf(s: RunSummary): Record<string, number | string | null> 
     "more available": s.moreAvailable,
     "2+ same shop in top 3": s.sameShopTop3.length,
     "mean budget share": s.meanBudgetShare,
+    "top shop": s.shops.topShop?.id ?? null,
+    "top shop leads (distinct)": ratio(s.shops.topShop?.leads ?? 0, s.shops.queries),
+    "top shop top-3 cards": ratio(s.shops.topShop?.cards ?? 0, s.shops.cards),
+    "shared-number leads": ratio(s.shops.shared.leads, s.shops.queries),
+    "shared-number top-3 cards": ratio(s.shops.shared.cards, s.shops.cards),
     "lead correct": ratio(s.labels.leadCorrect, s.labels.leadLabelled),
     "cards exact/reasonable": ratio(s.labels.cardsGood, s.labels.cardsLabelled),
     "wrong in top 3": s.labels.queries ? s.labels.wrongTop3 : null,

@@ -2,7 +2,7 @@
 
 import { useActionState, useId } from "react";
 import { CircleAlert, MailCheck, Send } from "lucide-react";
-import { btnLg, btnPrimary } from "@/components/styles";
+import { btnBusy, btnLg, btnPrimary } from "@/components/styles";
 import type { LoginState } from "@/lib/admin/rules";
 import { requestMagicLink } from "./actions";
 
@@ -18,7 +18,13 @@ export function LoginForm({ notice }: { notice: string | null }) {
   const message = state.status === "idle" ? notice : state.message;
 
   return (
-    <form action={formAction} className="mt-6 flex flex-col gap-4">
+    <form
+      action={formAction}
+      onSubmit={(e) => {
+        if (pending) e.preventDefault();
+      }}
+      className="mt-6 flex flex-col gap-4"
+    >
       {message && (
         <p
           role={sent ? "status" : "alert"}
@@ -62,7 +68,12 @@ export function LoginForm({ notice }: { notice: string | null }) {
         </p>
       </div>
 
-      <button type="submit" disabled={pending} className={`${btnPrimary} ${btnLg} w-full`}>
+      {/* aria-disabled, not disabled: the button keeps keyboard focus while the link is sent. */}
+      <button
+        type="submit"
+        aria-disabled={pending}
+        className={`${btnPrimary} ${btnLg} ${btnBusy} w-full`}
+      >
         <Send aria-hidden className="size-5 rtl:-scale-x-100" />
         {pending ? "שולחים..." : "שליחת קישור כניסה"}
       </button>

@@ -42,8 +42,8 @@ caching does not apply yet. At 1,000 searches that is about $6.6 (≈₪20) befo
 ## Round 3 (2026-09-27)
 
 Recording: `fixtures/llm/eval-v3-2026-09-27.json`. Run with
-`npx tsx --env-file=.env.local scripts/eval-llm.ts` (same 20 queries, about 40 LLM calls, hard cap
-45, 20-30 AliExpress calls). The script prints one table row per query as it runs, then the table
+`npx tsx --env-file=.env.local scripts/eval-llm.ts --v3` (same 20 queries, about 40 LLM calls, hard
+cap 45, 20-30 AliExpress calls; `--v3` since 2026-09-28, so no paid run starts without a flag). The script prints one table row per query as it runs, then the table
 and the summary. `npx tsx scripts/eval-llm.ts --replay <recording>` reprints them for any
 recording without API calls.
 

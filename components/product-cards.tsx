@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { Trophy } from "lucide-react";
-import { hasHebrew } from "@/lib/product-title";
 import type { LoggedResult } from "@/lib/search-url";
 import { BuyButton } from "./buy-button";
+import { StreamedLine, TitleText, type FinalResults } from "./card-lines";
 import { Price } from "./price";
 import { ProductImage } from "./product-image";
 import { btnLg, btnMd, btnSecondary, featured, card } from "./styles";
@@ -14,6 +14,13 @@ interface CardProps {
   rank: number;
   /** Query that produced this result, so the product page can link back. */
   q: string;
+  /**
+   * The results page while this card's lines are being written (plan item 15): the finished
+   * results, whose Hebrew title and line replace the ones shown now. Room for them is kept from the
+   * start (the title's two lines; the line's lines on phones, where a 120-character line takes 4 of
+   * the featured box at 360-390 px, and two from sm), so nothing below moves when they come.
+   */
+  final?: FinalResults;
 }
 
 function productHref(id: string, q: string) {
@@ -22,15 +29,36 @@ function productHref(id: string, q: string) {
 }
 
 /**
- * The card title. Without a Hebrew title of ours (a rejected or failed explain line) it is
- * AliExpress's English title, isolated left to right so its numbers and punctuation stay in order.
+ * The card's title (TitleText: AliExpress's English one until ours is written, or when it was
+ * rejected) and line: as they are, or streamed in place when `final` is given. `clamp`: the title
+ * at most two lines; `bars`: the placeholder lines of the room kept for the line.
  */
-function CardTitle({ title }: { title: string }) {
-  return hasHebrew(title) ? title : <bdi dir="ltr">{title}</bdi>;
+function lines(
+  { product, final }: Pick<CardProps, "product" | "final">,
+  { clamp, bars }: { clamp: boolean; bars: 2 | 3 },
+) {
+  if (!final) {
+    return { title: <TitleText title={product.title_he} clamp={clamp} />, why: product.why_he };
+  }
+  const id = product.product_id;
+  return {
+    title: (
+      <StreamedLine
+        final={final}
+        id={id}
+        field="title_he"
+        interim={product.title_he}
+        clamp={clamp}
+      />
+    ),
+    why: <StreamedLine final={final} id={id} field="why_he" interim={product.why_he} bars={bars} />,
+  };
 }
 
-export function FeaturedProductCard({ product, rank, q }: CardProps) {
+export function FeaturedProductCard({ product, rank, q, final }: CardProps) {
   const href = productHref(product.product_id, q);
+  // While the lines stream, the title is kept to two lines (their room is kept).
+  const { title, why } = lines({ product, final }, { clamp: Boolean(final), bars: 3 });
   return (
     <article className={`${featured} flex flex-col gap-5 p-4 sm:p-6`}>
       <div className="relative">
@@ -49,15 +77,19 @@ export function FeaturedProductCard({ product, rank, q }: CardProps) {
       </div>
 
       <div className="space-y-3">
-        <h2 className="text-xl leading-snug font-bold sm:text-2xl">
-          <Link href={href} className="hover:text-accent-ink">
-            <CardTitle title={product.title_he} />
+        <h2 className={`text-xl leading-snug font-bold sm:text-2xl ${final ? "min-h-[2lh]" : ""}`}>
+          <Link href={href} className="block hover:text-accent-ink">
+            {title}
           </Link>
         </h2>
-        {product.why_he && (
-          <p className="rounded-2xl bg-accent-soft px-4 py-3 text-[15px] leading-relaxed text-accent-ink">
+        {(final || product.why_he) && (
+          <p
+            className={`rounded-2xl bg-accent-soft px-4 py-3 text-[15px] leading-relaxed text-accent-ink ${
+              final ? "min-h-[calc(4lh_+_1.5rem)] sm:min-h-[calc(2lh_+_1.5rem)]" : ""
+            }`}
+          >
             <span className="font-bold">למה בחרנו: </span>
-            {product.why_he}
+            {why}
           </p>
         )}
       </div>
@@ -87,8 +119,10 @@ export function CompactProductCard({
   rank,
   q,
   src = "search_compact",
+  final,
 }: CardProps & { src?: string }) {
   const href = productHref(product.product_id, q);
+  const { title, why } = lines({ product, final }, { clamp: true, bars: 2 });
   return (
     <article className={`${card} flex flex-col gap-4 p-4`}>
       <div className="flex gap-4">
@@ -101,16 +135,25 @@ export function CompactProductCard({
         />
         <div className="min-w-0 space-y-2">
           <p className="text-xs font-semibold text-muted">מקום {rank} בדירוג</p>
-          <h3 className="line-clamp-2 leading-snug font-semibold">
-            <Link href={href} className="hover:text-accent-ink">
-              <CardTitle title={product.title_he} />
+          <h3 className={`leading-snug font-semibold ${final ? "min-h-[2lh]" : ""}`}>
+            <Link href={href} className="block hover:text-accent-ink">
+              {title}
             </Link>
           </h3>
           <Price product={product} size="sm" />
         </div>
       </div>
       <TrustMetrics product={product} short />
-      {product.why_he && <p className="text-sm leading-relaxed text-muted">{product.why_he}</p>}
+      {(final || product.why_he) && (
+        <p
+          // A 117-character line takes a fourth line under 340 px.
+          className={`text-sm leading-relaxed text-muted ${
+            final ? "min-h-[4lh] min-[340px]:min-h-[3lh] sm:min-h-[2lh]" : ""
+          }`}
+        >
+          {why}
+        </p>
+      )}
       <div className="mt-auto grid gap-2 sm:grid-cols-[1fr_auto] sm:items-start">
         <BuyButton
           productId={product.product_id}

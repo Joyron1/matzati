@@ -9,6 +9,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AliProduct } from "@/lib/aliexpress/schemas";
 import { deployEnv, type DeployEnv } from "@/lib/env";
+import { withoutSharedMark } from "@/lib/ranking/shared-numbers";
 import type { ClickRef } from "@/lib/search-url";
 import { usageRow, type LlmUsageRecord } from "@/lib/stats/usage";
 import { isFresh, isFreshResults } from "./cache-key";
@@ -77,6 +78,12 @@ export class SupabaseStore implements SearchStore {
    * row was made for, so updateResults can save added explanations under this env's own key.
    */
   private readonly borrowed = new Map<string, string>();
+  /**
+   * Outside production: the products rows this instance inserted, with the updated_at it wrote
+   * them with. A streamed search saves its cards' rows before their Hebrew titles exist; the titles
+   * then reach only rows this instance made (same product and time), never a row production serves.
+   */
+  private readonly inserted = new Map<string, string>();
 
   constructor(
     private readonly db: SupabaseClient,
@@ -223,6 +230,9 @@ export class SupabaseStore implements SearchStore {
   /**
    * Saves added explanations. A result set this instance read from production's key is copied to
    * this env's key instead (with the query and time of production's row), never written back.
+   * Only onto the entry `results` was read from (the same createdAt): when the result set was
+   * fetched again in the meantime, the newer entry stays, and the added lines are simply written
+   * again when next needed. The older one would otherwise come back under the new row's time.
    */
   async updateResults(filtersKey: string, results: CachedResults): Promise<void> {
     const borrowedQuery = this.borrowed.get(filtersKey);
@@ -235,7 +245,8 @@ export class SupabaseStore implements SearchStore {
       this.db
         .from("search_cache")
         .update({ response: results })
-        .eq("filters_key", this.own(filtersKey)),
+        .eq("filters_key", this.own(filtersKey))
+        .eq("response->>createdAt", results.createdAt),
     );
   }
 
@@ -314,7 +325,7 @@ export class SupabaseStore implements SearchStore {
    * Outside production (dev and preview share production's table) only rows production does not
    * have yet are written, and no price_history: a dev run with another explain prompt must never
    * change the Hebrew title, data or link /p, /go and /coupons serve; its own /go still finds the
-   * rows it added.
+   * rows it added, and a title saved later reaches a row this instance inserted (`inserted`).
    */
   async saveProducts(
     products: AliProduct[],
@@ -322,12 +333,32 @@ export class SupabaseStore implements SearchStore {
     checkedAt?: Date,
     { keepTitledRows = false }: { keepTitledRows?: boolean } = {},
   ): Promise<void> {
-    let unique = [...new Map(products.map((p) => [p.productId, p])).values()];
+    // The row holds the product as AliExpress described it: a shared-numbers mark belongs to the
+    // pool it was ranked in (lib/ranking/shared-numbers.ts), never to the product.
+    let unique = [...new Map(products.map((p) => [p.productId, withoutSharedMark(p)])).values()];
     if (!unique.length) return;
     const updatedAt = (checkedAt ?? new Date()).toISOString();
     const production = this.env === "production";
     if (!production) {
-      await this.insertNewProducts(unique, titlesHe, updatedAt);
+      const own = (p: AliProduct) => this.inserted.has(p.productId);
+      await Promise.all([
+        this.insertNewProducts(
+          unique.filter((p) => !own(p)),
+          titlesHe,
+          updatedAt,
+        ),
+        ...unique
+          .filter((p) => own(p) && titlesHe[p.productId])
+          .map((p) =>
+            this.write("saveProducts title (own row)", () =>
+              this.db
+                .from("products")
+                .update({ title_he: titlesHe[p.productId] })
+                .eq("product_id", p.productId)
+                .eq("updated_at", this.inserted.get(p.productId)!),
+            ),
+          ),
+      ]);
       return;
     }
     let insertOnly = false;
@@ -404,6 +435,9 @@ export class SupabaseStore implements SearchStore {
     titlesHe: Record<string, string | null>,
     updatedAt: string,
   ): Promise<void> {
+    if (!products.length) return;
+    // An insert production's row wins keeps that row's time, so a later title never matches it.
+    for (const p of products) this.inserted.set(p.productId, updatedAt);
     const rows = products.map((p) => ({
       product_id: p.productId,
       data: p,

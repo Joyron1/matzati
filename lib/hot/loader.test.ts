@@ -17,6 +17,7 @@ import {
   retryDelayMs,
   type HotFetchDeps,
 } from "./loader";
+import { LINK_MAX_AGE_MS, type StoredLinkRow } from "./links";
 import { PER_SHOP } from "./select";
 
 const METHOD = "aliexpress.affiliate.hotproduct.query";
@@ -373,6 +374,133 @@ describe("HotPoolLoader", () => {
       expect(t.log).toHaveBeenCalledWith(
         expect.stringContaining(`${asked.length - 2} of ${asked.length} hot links made`),
       );
+    });
+
+    describe("a refetch whose type 2 call gives no link", () => {
+      /**
+       * A loader whose saves go to a fake products table that storedLinks reads back, and whose
+       * link.generate answers per `mode` (switchable between fetches).
+       */
+      function withTable() {
+        const mode: { links: LinkMode } = { links: "ok" };
+        const t = setup([fixtureText("cat44-HE"), fixtureText("cat44-HE")], (sources) => {
+          if (mode.links === "banned") return BANNED;
+          if (mode.links === "denied") return DENIED;
+          return mode.links === "ok" ? linkAnswer(sources) : mode.links(sources);
+        });
+        const table = new Map<string, AliProduct>();
+        t.saveProducts.mockImplementation(async (products: AliProduct[], fetchedAt: Date) => {
+          t.saved.push({ products, fetchedAt });
+          for (const p of products) table.set(p.productId, p);
+        });
+        const storedLinks = vi.fn(async (ids: string[]): Promise<StoredLinkRow[]> =>
+          ids.flatMap((id) => {
+            const p = table.get(id);
+            return p
+              ? [
+                  {
+                    productId: id,
+                    promotionLink: p.promotionLink,
+                    promotionLinkType: p.promotionLinkType,
+                    promotionLinkAt: p.promotionLinkAt,
+                  },
+                ]
+              : [];
+          }),
+        );
+        const deps = (): HotFetchDeps => ({ ...t.deps(), storedLinks });
+        return { ...t, mode, deps, storedLinks };
+      }
+
+      const hot = (ps: AliProduct[]) => ps.filter((p) => p.promotionLinkType === 2);
+
+      it("keeps each product's fresh stored type 2 link, with its time, when the call fails", async () => {
+        for (const failure of ["banned", "denied"] as const) {
+          const t = withTable();
+          await t.loader.load("44", t.deps);
+          const first = t.saved[0].products;
+          expect(hot(first).length).toBeGreaterThan(30);
+          expect(t.storedLinks).not.toHaveBeenCalled(); // every link was made: nothing read
+
+          t.advance(HOT_LIST_TTL_MS);
+          t.mode.links = failure;
+          await t.loader.load("44", t.deps);
+          const second = t.saved[1].products;
+          expect(t.storedLinks).toHaveBeenCalledTimes(1);
+          expect(t.storedLinks).toHaveBeenCalledWith(hot(first).map((p) => p.productId));
+          const before = new Map(first.map((p) => [p.productId, p]));
+          for (const p of second) {
+            const was = before.get(p.productId)!;
+            if (was.promotionLinkType === 2) {
+              expect(p).toMatchObject({
+                promotionLink: was.promotionLink,
+                promotionLinkType: 2,
+                promotionLinkAt: was.promotionLinkAt,
+                source: "hot",
+              });
+            } else {
+              // Not asked for (the hot rate is not higher): the list's own link, as before.
+              expect(p.promotionLink).toMatch(/^https:\/\/s\.click\.aliexpress\.com\/s\//);
+              expect(p.promotionLinkType).toBeUndefined();
+            }
+          }
+          expect(t.log).toHaveBeenCalledWith(
+            expect.stringContaining(`${hot(first).length} of ${hot(first).length} kept`),
+          );
+        }
+      });
+
+      it("keeps a stored link for a product the call sends no usable link for", async () => {
+        const t = withTable();
+        await t.loader.load("44", t.deps);
+        const first = hot(t.saved[0].products);
+        const [skipped, bad] = first.map((p) => p.productId);
+        t.advance(HOT_LIST_TTL_MS);
+        t.mode.links = (sources) =>
+          linkAnswer(
+            sources.filter((s) => !s.includes(skipped)),
+            (id) =>
+              id === bad
+                ? "https://evil.test/redirect"
+                : `https://s.click.aliexpress.com/e/_n${id}`,
+          );
+        await t.loader.load("44", t.deps);
+        const byId = new Map(t.saved[1].products.map((p) => [p.productId, p]));
+        expect(t.storedLinks).toHaveBeenCalledWith([skipped, bad]);
+        for (const id of [skipped, bad]) {
+          expect(byId.get(id)).toMatchObject({
+            promotionLink: `https://s.click.aliexpress.com/e/_h${id}`,
+            promotionLinkType: 2,
+            promotionLinkAt: first[0].promotionLinkAt,
+          });
+        }
+        // The others got this fetch's new links.
+        expect(byId.get(first[2].productId)?.promotionLink).toBe(
+          `https://s.click.aliexpress.com/e/_n${first[2].productId}`,
+        );
+      });
+
+      it("goes back to the list's link once the stored one is LINK_MAX_AGE_DAYS old", async () => {
+        const t = withTable();
+        await t.loader.load("44", t.deps);
+        t.advance(LINK_MAX_AGE_MS - ALI_SPACING_MS);
+        t.mode.links = "banned";
+        await t.loader.load("44", t.deps);
+        expect(t.storedLinks).toHaveBeenCalledTimes(1);
+        const second = t.saved[1].products;
+        expect(second.every((p) => p.promotionLinkType === undefined)).toBe(true);
+        expect(second.every((p) => p.promotionLink?.includes("/s/"))).toBe(true);
+      });
+
+      it("keeps the list's links, and the list, when the stored links cannot be read", async () => {
+        const t = withTable();
+        t.mode.links = "banned";
+        t.storedLinks.mockRejectedValueOnce(new Error("db down"));
+        const pool = await t.loader.load("44", t.deps);
+        expect(pool.products.length).toBeGreaterThan(30);
+        expect(t.saved[0].products.every((p) => p.promotionLinkType === undefined)).toBe(true);
+        expect(t.log).toHaveBeenCalledWith(expect.stringContaining("stored hot links not read"));
+      });
     });
 
     it("makes no call when no kept product has a higher hot rate", async () => {

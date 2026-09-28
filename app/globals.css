@@ -72,8 +72,13 @@
 }
 
 @layer base {
+  /* --consent-banner-h: the space the fixed cookie banner takes at the bottom while it shows (set
+     by components/cookie-consent/cookie-banner.tsx, absent otherwise). Scroll padding keeps a
+     focused or scrolled-to element clear of it; the body padding lets the end of the page (the
+     footer) scroll above it. */
   html {
     -webkit-text-size-adjust: 100%;
+    scroll-padding-bottom: var(--consent-banner-h, 0px);
   }
 
   body {
@@ -81,6 +86,7 @@
     color: var(--ink);
     font-family: var(--font-sans);
     font-feature-settings: "tnum" 1;
+    padding-bottom: var(--consent-banner-h, 0px);
   }
 
   :focus-visible {

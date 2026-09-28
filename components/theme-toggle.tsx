@@ -17,7 +17,8 @@ export function ThemeToggle() {
     <div
       role="group"
       aria-label="ערכת צבעים"
-      className="flex items-center gap-0.5 rounded-full border border-line bg-surface p-0.5"
+      // 44px buttons (CLAUDE.md §9); no gap between them under 390px, where the header is tight.
+      className="flex items-center gap-0 rounded-full border border-line bg-surface p-0.5 min-[390px]:gap-0.5"
     >
       {OPTIONS.map(({ value, label, Icon }) => {
         const pressed = mounted && resolvedTheme === value;
@@ -28,7 +29,7 @@ export function ThemeToggle() {
             aria-label={label}
             aria-pressed={pressed}
             onClick={() => setTheme(value)}
-            className={`grid size-10 place-items-center rounded-full ${
+            className={`grid size-11 place-items-center rounded-full ${
               pressed ? "bg-ink text-bg" : "text-muted hover:text-ink"
             }`}
           >

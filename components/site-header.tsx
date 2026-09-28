@@ -33,7 +33,11 @@ export async function SiteHeader() {
           menu opens under this row. */}
       <div className="relative mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-4 sm:h-20 sm:gap-3 sm:px-6">
         <Logo />
-        <nav aria-label="ניווט ראשי" className="flex items-center gap-0.5 sm:gap-2">
+        {/* No gaps under 390px: the 44px targets (icons centered in them) keep their room. */}
+        <nav
+          aria-label="ניווט ראשי"
+          className="flex items-center gap-0 min-[390px]:gap-0.5 sm:gap-2"
+        >
           {/* From lg only: below it the logo links home, and the row needs the room. */}
           <Link
             href="/"

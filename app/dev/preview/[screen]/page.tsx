@@ -2,7 +2,8 @@
 // waiting screen, rendered with the real page views and made-up data, so every state can be looked
 // at (and screenshotted) in both themes without a database row or an API call:
 // /dev/preview/coupons, /dev/preview/sales, /dev/preview/product-extras, /dev/preview/product-hot
-// (a product opened from /hot, with AliExpress's Hebrew title), /dev/preview/search-loading.
+// (a product opened from /hot, with AliExpress's Hebrew title), /dev/preview/search-loading,
+// /dev/preview/search-results (the result cards while their lines stream in).
 // A 404 in production, noindex, disallowed in robots.txt and never
 // listed in the sitemap. Nothing here reads the database, AliExpress or an LLM.
 import type { Metadata } from "next";
@@ -12,12 +13,14 @@ import { CouponsView } from "@/app/coupons/coupons-view";
 import { ProductView } from "@/app/p/[productId]/product-view";
 import { SalesIntro, SalesView } from "@/app/sales/sales-view";
 import { DealsBoard } from "@/components/deals-board";
+import { ResultCards } from "@/components/result-cards";
 import { SaleCountdown } from "@/components/sale-countdown";
 import { SearchWaitScreen } from "@/components/search-wait/search-wait";
 import type { AliPromoCode } from "@/lib/aliexpress/promo-code";
 import type { AliSkuDetails } from "@/lib/aliexpress/schemas";
 import type { ApiCodeProduct } from "@/lib/coupons/api-codes";
 import type { Coupon, PublicCoupons } from "@/lib/coupons/types";
+import type { LoggedResult } from "@/lib/search-url";
 import type { ProductPageData } from "@/lib/search/server";
 import type { Deal } from "@/lib/types";
 
@@ -26,7 +29,14 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const SCREENS = ["coupons", "sales", "product-extras", "product-hot", "search-loading"] as const;
+const SCREENS = [
+  "coupons",
+  "sales",
+  "product-extras",
+  "product-hot",
+  "search-loading",
+  "search-results",
+] as const;
 type Screen = (typeof SCREENS)[number];
 
 const isScreen = (value: string): value is Screen => (SCREENS as readonly string[]).includes(value);
@@ -60,6 +70,74 @@ const FAKE_PRODUCT_ID = "1000000000000001";
 
 /** The waiting screen's sample query (the composer's own placeholder example). */
 const PREVIEW_QUERY = "אוזניות לריצה, עמידות למים, עד 100 ש״ח";
+
+/** How long the search-results preview takes to write its lines. */
+const PREVIEW_LINES_MS = 4_000;
+
+/** Three made-up results: as first shown (AliExpress's titles) and with their lines written. */
+function searchResultsData(): { initial: LoggedResult[]; done: LoggedResult[] } {
+  const base = {
+    original_price_ils: null,
+    price_is_approx: false,
+    discount_pct: null,
+    passed_tier: "standard" as const,
+    image_urls: [],
+    category_id: null,
+    search_uid: "00000000-0000-4000-8000-000000000002",
+  };
+  const initial: LoggedResult[] = [
+    {
+      ...base,
+      product_id: "1000000000000011",
+      title_he:
+        "6/8/10/12-Pack Adjustable Drawer Organizers, Clear Expandable Dresser Organizers for Storing Socks",
+      title_en:
+        "6/8/10/12-Pack Adjustable Drawer Organizers, Clear Expandable Dresser Organizers for Storing Socks",
+      why_he: "עבר את הסינון שלנו.",
+      price_ils: 11.23,
+      positive_feedback_pct: 98,
+      units_sold: 11268,
+      shared_numbers: { feedback: true, sales: true },
+    },
+    {
+      ...base,
+      product_id: "1000000000000012",
+      title_he: "Kitchen Drawer Organizer Rack, Multi-Purpose Storage Tray with Dividers",
+      title_en: "Kitchen Drawer Organizer Rack, Multi-Purpose Storage Tray with Dividers",
+      why_he: "3,050 נמכרו ב־30 הימים האחרונים.",
+      price_ils: 16.65,
+      positive_feedback_pct: 98,
+      units_sold: 3050,
+      shared_numbers: { feedback: true, sales: false },
+    },
+    {
+      ...base,
+      product_id: "1000000000000013",
+      title_he: "Adjustable Plastic Cutlery Drawer Organizer Divided Storage Tray",
+      title_en: "Adjustable Plastic Cutlery Drawer Organizer Divided Storage Tray",
+      why_he: "96.4% משוב חיובי ו־1,204 נמכרו ב־30 הימים האחרונים.",
+      price_ils: 16.93,
+      positive_feedback_pct: 96.4,
+      units_sold: 1204,
+    },
+  ];
+  const written = [
+    [
+      "מארגן מגירות מתכוונן, סט של 6 עד 12",
+      "מארגן מגירות שקוף ומתרחב לגרביים ולבגדים, בסט של 6 עד 12 יחידות לבחירה (נתונים מומצאים).",
+    ],
+    [
+      "מתקן מארגן למגירת מטבח עם מחיצות",
+      "מתקן רב־שימושי למגירת המטבח עם מחיצות לסכו״ם ולכלים קטנים (נתונים מומצאים).",
+    ],
+    [
+      "מארגן סכו״ם מתכוונן למגירה",
+      "מארגן סכו״ם מפלסטיק עם תאים ו־96.4% משוב חיובי (נתונים מומצאים).",
+    ],
+  ];
+  const done = initial.map((r, i) => ({ ...r, title_he: written[i][0], why_he: written[i][1] }));
+  return { initial, done };
+}
 
 function coupon(now: Date, over: Partial<Coupon>): Coupon {
   return {
@@ -353,6 +431,28 @@ export default async function PreviewPage({ params }: PageProps<"/dev/preview/[s
         </FakeDataNote>
         <div className="mx-auto max-w-6xl space-y-6 px-4 pt-6 sm:px-6 sm:pt-10">
           <SearchWaitScreen query={PREVIEW_QUERY} demo />
+        </div>
+      </>
+    );
+  }
+
+  if (screen === "search-results") {
+    // The first page of results while its lines are written (plan item 15): AliExpress's English
+    // titles, "being written" in the room kept for the lines, then the lines about 4 s later.
+    // Listings of a shop that shares numbers show which ones (lib/ranking/shared-numbers.ts).
+    // Inert: nothing on this page links anywhere.
+    const { initial, done } = searchResultsData();
+    const final = new Promise<LoggedResult[]>((resolve) =>
+      setTimeout(() => resolve(done), PREVIEW_LINES_MS),
+    );
+    return (
+      <>
+        <FakeDataNote>
+          כרטיסי התוצאות בזמן שהמשפטים נכתבים: הם מגיעים אחרי כ־4 שניות. רעננו את הדף כדי להתחיל
+          מחדש.
+        </FakeDataNote>
+        <div inert className="mx-auto max-w-6xl space-y-6 px-4 pt-6 sm:px-6 sm:pt-10">
+          <ResultCards initial={initial} final={final} q={PREVIEW_QUERY} />
         </div>
       </>
     );

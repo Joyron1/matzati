@@ -2,6 +2,7 @@ import Link from "next/link";
 import { RotateCcw, X } from "lucide-react";
 import { searchHref } from "@/lib/search-url";
 import type { FilterChip, SortPreference } from "@/lib/types";
+import { LinkPending, RestoreFocus } from "./pending-navigation";
 
 interface FilterChipsProps {
   chips: FilterChip[];
@@ -32,7 +33,11 @@ export function notFilteredNote(labels: string[]): string {
   return `את ${quotedList(labels)} לא סיננו, רק העדפנו מוצרים שהשם שלהם מזכיר ${them}.`;
 }
 
-/** "הבנתי ככה" row. Removing a chip re-runs the search without that filter. */
+/**
+ * "הבנתי ככה" row. Removing a chip searches without that filter: from the products already checked
+ * when enough of them pass (lib/search/pool.ts), else anew. The results on screen stay meanwhile
+ * (components/pending-navigation.tsx).
+ */
 export function FilterChips({
   chips,
   q,
@@ -55,10 +60,11 @@ export function FilterChips({
                 <Link
                   href={searchHref({ q, sort, without: [...without, chip.id] })}
                   aria-label={`הסרת הסינון: ${chip.label_he}`}
-                  className={`inline-flex min-h-11 items-center gap-1.5 rounded-full bg-accent-soft ps-4 pe-3 text-sm font-semibold text-accent-ink hover:bg-accent hover:text-on-accent ${ring}`}
+                  className={`relative inline-flex min-h-11 items-center gap-1.5 rounded-full bg-accent-soft ps-4 pe-3 text-sm font-semibold text-accent-ink hover:bg-accent hover:text-on-accent ${ring}`}
                 >
                   {chip.label_he}
                   <X aria-hidden className="size-4" />
+                  <LinkPending />
                 </Link>
               ) : (
                 <span className="inline-flex min-h-11 items-center rounded-full border border-line bg-surface px-4 text-sm font-semibold text-ink">
@@ -72,15 +78,19 @@ export function FilterChips({
       {without.length > 0 && (
         <Link
           href={searchHref({ q, sort })}
-          className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-2 text-sm font-medium text-muted underline-offset-4 hover:text-ink hover:underline"
+          data-restore-filters
+          className="relative inline-flex min-h-11 items-center gap-1.5 rounded-full px-2 text-sm font-medium text-muted underline-offset-4 hover:text-ink hover:underline"
         >
           <RotateCcw aria-hidden className="size-4" />
           החזרת כל הסינונים
+          <LinkPending />
         </Link>
       )}
       {notFiltered.length > 0 && (
         <p className="w-full text-sm text-pretty text-muted">{notFilteredNote(notFiltered)}</p>
       )}
+      {/* A removed chip took keyboard focus with it: it goes to the next place to act. */}
+      <RestoreFocus when={without.join(",")} targets={["a[data-restore-filters]", "a"]} />
     </div>
   );
 }

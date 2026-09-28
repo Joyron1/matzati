@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans_Hebrew, Secular_One } from "next/font/google";
+import { ConsentManager } from "@/components/cookie-consent/consent-manager";
+import { InPageLink } from "@/components/in-page-link";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -40,19 +42,30 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${plex.variable} ${secular.variable} antialiased`}
       suppressHydrationWarning
     >
-      <body className="flex min-h-dvh flex-col">
+      {/* The minimum height grows with the space the cookie banner reserves (--consent-banner-h,
+          the body's bottom padding in app/globals.css): otherwise that padding would shrink
+          <main> on a short page and move the footer up when the banner appears. */}
+      <body className="flex min-h-[calc(100dvh+var(--consent-banner-h,0px))] flex-col">
         <ThemeProvider>
-          <a
-            href="#main"
-            className="sr-only z-50 rounded-full bg-accent px-5 py-3 font-semibold text-on-accent focus:not-sr-only focus:absolute focus:start-4 focus:top-4"
+          {/* Moves focus into <main> without a history entry (InPageLink). The padding comes with
+              the focus variants: not-sr-only resets padding to 0, and as a focus: utility it would
+              override a plain px-5 py-3. */}
+          <InPageLink
+            targetId="main"
+            updateUrl={false}
+            className="sr-only z-50 rounded-full bg-accent font-semibold text-on-accent focus:not-sr-only focus:absolute focus:start-4 focus:top-4 focus:px-5 focus:py-3"
           >
             דלגו לתוכן
-          </a>
+          </InPageLink>
           <SiteHeader />
-          <main id="main" className="flex-1">
+          {/* The skip link's target: a landmark, not a control, so no focus ring around it. */}
+          <main id="main" className="flex-1 focus:outline-none">
             {children}
           </main>
           <SiteFooter />
+          {/* Last in the DOM: Tab reaches the cookie banner after the footer. Client-only, so the
+              layout reads no cookies and pages stay static. */}
+          <ConsentManager />
         </ThemeProvider>
       </body>
     </html>

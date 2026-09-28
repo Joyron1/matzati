@@ -1,0 +1,59 @@
+/* Entrances of the cookie banner and the settings dialog. Only when the visitor has not asked for
+   less motion (the global reduced-motion rule in app/globals.css stops them as well). */
+@media (prefers-reduced-motion: no-preference) {
+  .bannerIn {
+    animation: consent-rise 220ms ease-out both;
+  }
+
+  .dialogIn[open] {
+    animation: consent-rise 180ms ease-out both;
+  }
+}
+
+@keyframes consent-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* A phone on its side (wide but short): the text and the buttons side by side, closer to the
+   edges and a little tighter, so the banner takes about a quarter to a third of the height
+   instead of almost half. These rules are unlayered, so they win over the Tailwind utilities on
+   the same elements (components/cookie-consent/cookie-banner.tsx). */
+@media (min-width: 40rem) and (max-height: 31.25rem) {
+  .banner {
+    left: 0.5rem;
+    right: 0.5rem;
+    bottom: 0.5rem;
+  }
+
+  .card {
+    display: flex;
+    align-items: flex-end;
+    gap: 1rem;
+    padding: 0.75rem 0.75rem max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  .text {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .text p {
+    line-height: 1.375;
+  }
+
+  .actions {
+    flex: 0 0 auto;
+    margin-top: 0;
+  }
+
+  .actions button {
+    padding-inline: 0.75rem;
+  }
+}

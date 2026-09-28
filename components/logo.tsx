@@ -26,7 +26,8 @@ export function LogoMark({ className = "size-9" }: { className?: string }) {
 
 export function Logo() {
   return (
-    <Link href="/" className="flex min-h-11 items-center gap-2.5 rounded-full">
+    // A slightly tighter gap under 390px keeps the header row inside the page gutter.
+    <Link href="/" className="flex min-h-11 items-center gap-2 rounded-full min-[390px]:gap-2.5">
       <LogoMark />
       <span className="font-display text-2xl leading-none text-ink">{BRAND.name}</span>
     </Link>

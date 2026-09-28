@@ -1,5 +1,5 @@
 import { ExternalLink, MessageSquareText } from "lucide-react";
-import { AFFILIATE_DISCLOSURE } from "@/lib/copy";
+import { AffiliateNoteLink } from "./buy-button";
 import { btnMd, btnSecondary, card } from "./styles";
 
 /**
@@ -28,7 +28,8 @@ export function ReviewsCard({
         </h2>
       </div>
       <p className="leading-relaxed">את הביקורות עצמן אפשר לקרוא בעמוד המוצר באלי אקספרס.</p>
-      <div className="space-y-2">
+      {/* The reviews link is an affiliate link too (it goes through /go), so it has the note. */}
+      <div className="flex flex-col">
         <a
           href={`/go/${encodeURIComponent(productId)}?src=reviews`}
           target="_blank"
@@ -39,7 +40,7 @@ export function ReviewsCard({
           <ExternalLink aria-hidden className="size-[18px]" />
           <span className="sr-only">(נפתח בכרטיסייה חדשה)</span>
         </a>
-        <p className="text-xs leading-relaxed text-muted">{AFFILIATE_DISCLOSURE}</p>
+        <AffiliateNoteLink className="self-center" />
       </div>
     </section>
   );

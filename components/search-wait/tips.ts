@@ -11,8 +11,8 @@ export const WAIT_TIPS: readonly string[] = [
   `מציגים ${RESULTS_PER_PAGE} מוצרים בכל פעם, כדי שיהיה קל לבחור. אם עברו עוד, אפשר לבקש עוד ${RESULTS_PER_PAGE}.`,
   // Price and requirement chips are removable (lib/search/chips.ts).
   "את הסינונים שהבנו מהחיפוש, כמו תקציב, אפשר להסיר בלחיצה ולחפש בלעדיהם.",
-  // The affiliate disclosure, and commission only breaks exact ties (lib/ranking/rank.ts).
-  "אם תקנו דרך הקישורים שלנו נקבל עמלה קטנה, בלי תוספת למחיר שלכם. העמלה לא מקדמת מוצר על פני מוצר עם ציון גבוה ממנו.",
+  // The order (lib/ranking/rank.ts); the affiliate disclosure itself lives in /terms#affiliate.
+  "הסדר נקבע לפי משוב של קונים, מכירות, מחיר והתאמה למה שחיפשתם.",
   // APPROX_PRICE_NOTE; formatIls marks a price converted from USD with ≈.
   "המחיר הסופי מוצג באלי אקספרס. מחיר שהמרנו מדולר לשקלים מסומן ב־≈.",
 ];

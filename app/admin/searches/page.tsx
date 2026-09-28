@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CircleCheck, CloudOff, ExternalLink, X } from "lucide-react";
+import { CloudOff, ExternalLink, X } from "lucide-react";
 import { StateCard } from "@/components/state-card";
 import { btnMd, btnSecondary, card } from "@/components/styles";
 import { requireAdmin } from "@/lib/admin/auth";
@@ -15,6 +15,7 @@ import {
 import { RECENT_TEXT_MAX, type RecentSearch } from "@/lib/recent/types";
 import { firstParam } from "@/lib/search-url";
 import { SearchRowAction } from "./search-row-action";
+import { StatusMessage } from "../status-message";
 
 export const metadata: Metadata = {
   title: "חיפושים", // the admin layout adds "| ניהול | <brand>"
@@ -131,15 +132,7 @@ export default async function AdminSearchesPage({
         </Link>
       </div>
 
-      {status && (
-        <p
-          role="status"
-          className="flex items-center gap-2 rounded-2xl bg-accent-soft px-4 py-3 font-semibold text-accent-ink"
-        >
-          <CircleCheck aria-hidden className="size-5 shrink-0" />
-          {status}
-        </p>
-      )}
+      {status && <StatusMessage>{status}</StatusMessage>}
 
       {listed === null && hidden === null ? (
         <StateCard Icon={CloudOff} title="לא הצלחנו לטעון את החיפושים">

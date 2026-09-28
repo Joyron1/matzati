@@ -71,10 +71,9 @@ const FAQ: FaqItem[] = [
   {
     id: "faq-affiliate",
     question: "אתם מרוויחים מזה?",
-    answer: [
-      "כן. כשקונים דרך הקישורים שלנו, אלי אקספרס משלמת לנו עמלה קטנה, בלי תוספת למחיר שלכם. העמלה לא משפיעה על הדירוג: מוצר לא יעלה למעלה רק כי הוא משלם לנו יותר.",
-    ],
-    more: <MoreLink href="/disclosure" label="לגילוי הנאות המלא" />,
+    // Owner decision 2026-09-28: the disclosure itself is written once, in /terms#affiliate.
+    answer: ["כן, מתוכנית השותפים של אלי אקספרס. כל הפרטים בגילוי הנאות שבתקנון."],
+    more: <MoreLink href="/terms#affiliate" label="לגילוי הנאות" />,
   },
   {
     id: "faq-coupons",
@@ -92,10 +91,9 @@ const FAQ: FaqItem[] = [
     id: "faq-hot",
     question: "מה זה מוצרים חמים?",
     // The hot list is AliExpress's pool of products with a hot commission (docs/aliexpress-api.md,
-    // Hot products): the rate was higher than the standard one on most of them.
+    // Hot products). That is disclosed in /terms#affiliate and next to the list on /hot, not here.
     answer: [
       `מוצרים שנמכרים הרבה באלי אקספרס, מתוך רשימת המוצרים החמים שאלי אקספרס מפרסמת לשותפים שלה. גם אותם אנחנו מסננים: מוצג רק מוצר עם ${TRUST}. בעמוד המוצרים החמים אפשר לבחור קטגוריה ולסנן.`,
-      "על רוב המוצרים ברשימה הזאת אלי אקספרס מציעה לשותפים עמלה גבוהה יותר. המחיר שלכם לא משתנה, והעמלה לא משפיעה על הסינון ועל הסדר.",
     ],
     more: <MoreLink href="/hot" label="למוצרים החמים" />,
   },

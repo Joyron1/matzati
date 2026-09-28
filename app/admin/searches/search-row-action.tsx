@@ -2,7 +2,7 @@
 
 import { Eye, EyeOff } from "lucide-react";
 import { useActionState, useMemo } from "react";
-import { btnSecondary } from "@/components/styles";
+import { btnBusy, btnSecondary } from "@/components/styles";
 import { hideSearchAction, restoreSearchAction, type SearchActionState } from "./actions";
 
 const btnSm = "min-h-11 px-4 text-sm";
@@ -27,8 +27,19 @@ export function SearchRowAction({ queryNorm, query, mode }: SearchRowActionProps
   const [state, formAction, pending] = useActionState(bound, NO_ERROR);
 
   return (
-    <form action={formAction} className="flex shrink-0 flex-col gap-2 lg:items-end">
-      <button type="submit" disabled={pending} className={`${btnSecondary} ${btnSm}`}>
+    <form
+      action={formAction}
+      onSubmit={(e) => {
+        if (pending) e.preventDefault();
+      }}
+      className="flex shrink-0 flex-col gap-2 lg:items-end"
+    >
+      {/* aria-disabled, not disabled: the button keeps keyboard focus while the action runs. */}
+      <button
+        type="submit"
+        aria-disabled={pending}
+        className={`${btnSecondary} ${btnSm} ${btnBusy}`}
+      >
         <Icon aria-hidden className="size-4" />
         {pending ? pendingLabel : label}
         <span className="sr-only">: {query}</span>

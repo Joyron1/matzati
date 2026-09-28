@@ -22,11 +22,27 @@ import {
   type Spec,
 } from "./match";
 import { asksForSmall, coverageWords, relevance } from "./relevance";
+import {
+  feedbackForScore,
+  findSharedNumbers,
+  salesForScore,
+  withSharedMark,
+  type RankedProduct,
+  type SharedNumbers,
+} from "./shared-numbers";
 import { isRequestedProduct } from "./type-gate";
 
 export { dedupeListings, diversifyShops } from "./diversity";
 export { isRequestedProduct, productMatch } from "./type-gate";
 export { relevance } from "./relevance";
+export {
+  findSharedNumbers,
+  hasSharedNumbers,
+  sharedMarkOf,
+  withoutSharedMark,
+  type RankedProduct,
+  type SharedMark,
+} from "./shared-numbers";
 
 export type RejectReason = "feedback" | "volume" | "currency" | "price" | "type" | "requirement";
 
@@ -136,27 +152,40 @@ export interface ScoreContext {
   priceRange: { min: number; max: number };
   /** Search words for relevance (coverageWords of the filters). */
   words: readonly string[];
+  /** Shops of the candidate pool that share numbers (lib/ranking/shared-numbers.ts). */
+  shared: SharedNumbers;
 }
 
-export function scoreContext(filters: SearchFilters, passed: AliProduct[]): ScoreContext {
+/**
+ * `shared` comes from the whole candidate pool when the caller has it (rankWithFill does): more
+ * listings of a shop show more of what it repeats. By default, from the passers.
+ */
+export function scoreContext(
+  filters: SearchFilters,
+  passed: AliProduct[],
+  shared: SharedNumbers = findSharedNumbers(passed),
+): ScoreContext {
   return {
     filters,
     priceRange: priceRange(passed.map((p) => p.price)),
     words: coverageWords(filters),
+    shared,
   };
 }
 
 /**
  * Trust (feedback, volume), price fit and relevance. Within a maximum price the shopper stated,
  * every price fits fully: being cheaper than the budget is no merit (owner decision, item 6). The
- * discount is shown, never scored.
+ * discount is shown, never scored. A shop that shares numbers gets no feedback above the prior,
+ * and a sales number several of its listings share counts once (shared-numbers.ts).
  */
 export function score(p: AliProduct, ctx: ScoreContext): number {
   const { filters } = ctx;
   // 90% → 0, 100% → 1
-  const feedback = Math.max(0, (effectiveFeedbackPct(p) - FILTERS.minPositiveFeedbackPct) / 10);
+  const pct = feedbackForScore(p, effectiveFeedbackPct(p), ctx.shared);
+  const feedback = Math.max(0, (pct - FILTERS.minPositiveFeedbackPct) / 10);
   // 100 sales → 0.5, 10,000 → 1, capped so huge sellers don't drown everything else
-  const volume = Math.min(1.25, Math.log10(Math.max(1, p.unitsSold ?? 0)) / 4);
+  const volume = Math.min(1.25, Math.log10(Math.max(1, salesForScore(p, ctx.shared))) / 4);
   const { min, max } = ctx.priceRange;
   const withinBudget = filters.max_price_ils !== undefined;
   // At or below the floor price → 1, most expensive → 0
@@ -201,8 +230,10 @@ export function categoryOutliers(passers: readonly CategoryRef[]): Set<string> {
 
 /** A passer with what orders it. */
 interface Ranked {
-  p: AliProduct;
+  p: RankedProduct;
   score: number;
+  /** 30-day sales as the score counts them (salesForScore): a shared number counts once. */
+  sales: number;
   /** From another category than most passers (categoryOutliers): after all the others. */
   outlier: boolean;
   /** States the exact capacity asked for (or none was): before a bigger one. */
@@ -212,9 +243,9 @@ interface Ranked {
 /**
  * Category outliers last (the default sort only: "cheapest" and "most_popular" order every passer
  * by what their button says), then an exact capacity before a bigger one; then "cheapest" by
- * price, "most_popular" by 30-day sales, and the score. Commission only breaks exact ties, and
- * product id keeps the order deterministic after that: a worse product never ranks higher because
- * it pays more.
+ * price, "most_popular" by 30-day sales (a number several listings of one shop share counts once),
+ * and the score. Commission only breaks exact ties, and product id keeps the order deterministic
+ * after that: a worse product never ranks higher because it pays more.
  */
 function byRank(sort: SortPreference) {
   const byCategory = sort === "best_value";
@@ -222,7 +253,7 @@ function byRank(sort: SortPreference) {
     (byCategory ? Number(a.outlier) - Number(b.outlier) : 0) ||
     Number(b.exactCapacity) - Number(a.exactCapacity) ||
     (sort === "cheapest" ? a.p.price - b.p.price : 0) ||
-    (sort === "most_popular" ? (b.p.unitsSold ?? 0) - (a.p.unitsSold ?? 0) : 0) ||
+    (sort === "most_popular" ? b.sales - a.sales : 0) ||
     b.score - a.score ||
     (b.p.commissionRatePct ?? 0) - (a.p.commissionRatePct ?? 0) ||
     a.p.productId.localeCompare(b.p.productId);
@@ -238,19 +269,25 @@ function searchedTokens(filters: SearchFilters): Set<string> {
   return new Set(tokenize(searched.join(" ")));
 }
 
+/**
+ * `shared` is what the whole candidate pool says about shared numbers (findSharedNumbers): the
+ * passers of a shop that shares numbers are scored by it and marked `sharedNumbers`.
+ */
 function rankEntries(
   products: AliProduct[],
   filters: SearchFilters,
   trust: TrustThresholds,
+  shared: SharedNumbers,
 ): Ranked[] {
   const passed = products.filter((p) => passesFilters(p, filters, trust));
   if (!passed.length) return [];
-  const ctx = scoreContext(filters, passed);
+  const ctx = scoreContext(filters, passed, shared);
   const outliers = categoryOutliers(passed);
   const specs = capacitySpecs(filters);
-  const entries = passed.map((p) => ({
-    p,
+  const entries = passed.map((p): Ranked => ({
+    p: withSharedMark(p, shared),
     score: score(p, ctx),
+    sales: salesForScore(p, shared),
     outlier: outliers.has(p.productId),
     exactCapacity: statesExactCapacity(p.title, specs),
   }));
@@ -260,14 +297,15 @@ function rankEntries(
 
 /**
  * Filters, ranks and removes duplicate listings (see byRank for the order). The shop cap is
- * applied by rankWithFill, which makes the list that is shown.
+ * applied by rankWithFill, which makes the list that is shown. Products of a shop that shares
+ * numbers in `products` come back marked (RankedProduct.sharedNumbers).
  */
 export function rankProducts(
   products: AliProduct[],
   filters: SearchFilters,
   trust: TrustThresholds = FILTERS,
-): AliProduct[] {
-  return rankEntries(products, filters, trust).map((e) => e.p);
+): RankedProduct[] {
+  return rankEntries(products, filters, trust, findSharedNumbers(products)).map((e) => e.p);
 }
 
 export type TrustTier = "standard" | "fill";
@@ -291,18 +329,22 @@ export function trustTierOf(
  * when too few products meet FILTERS, then one shop per page of `target` (diversifyShops).
  * Standard products come first, except that "cheapest" orders the whole list by price, fill
  * products included; every other gate (price, type, requirements) applies to both tiers unchanged.
+ * Shared numbers are judged over every product checked (`products`), and the products of a shop
+ * that shares them come back marked (RankedProduct.sharedNumbers): the card notes it, and the
+ * explain step leaves their sales out (lib/llm/explain.ts).
  */
 export function rankWithFill(
   products: AliProduct[],
   filters: SearchFilters,
   target: number,
-): { ranked: AliProduct[]; fillIds: string[] } {
-  const standard = rankEntries(products, filters, FILTERS);
+): { ranked: RankedProduct[]; fillIds: string[] } {
+  const shared = findSharedNumbers(products);
+  const standard = rankEntries(products, filters, FILTERS, shared);
   let merged = standard;
   let fillIds: string[] = [];
   if (standard.length < target) {
     const taken = new Set(standard.map((e) => e.p.productId));
-    const extra = rankEntries(products, filters, FILL_TIER).filter(
+    const extra = rankEntries(products, filters, FILL_TIER, shared).filter(
       (e) => !taken.has(e.p.productId),
     );
     // Dedupe across tiers too, keeping the standard listing when two are the same product.

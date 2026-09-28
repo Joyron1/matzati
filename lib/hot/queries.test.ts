@@ -6,7 +6,26 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ unstable_cache: (fn: unknown) => fn }));
-vi.mock("@/lib/supabase/server", () => ({ serviceClient: () => ({}) }));
+// Just enough of the Supabase client for the stored links read: from().select().in(), awaited.
+const db = vi.hoisted(() => {
+  type Answer = { data: unknown; error: { message: string } | null };
+  const state: {
+    reads: { table: string; columns: string; column: string; ids: string[] }[];
+    answer: (ids: string[]) => Answer;
+  } = { reads: [], answer: () => ({ data: [], error: null }) };
+  const client = {
+    from: (table: string) => ({
+      select: (columns: string) => ({
+        in: async (column: string, ids: string[]) => {
+          state.reads.push({ table, columns, column, ids });
+          return state.answer(ids);
+        },
+      }),
+    }),
+  };
+  return { state, client };
+});
+vi.mock("@/lib/supabase/server", () => ({ serviceClient: () => db.client }));
 vi.mock("@/lib/env", () => ({
   aliexpressConfig: () => ({
     appKey: "k",
@@ -89,6 +108,8 @@ beforeEach(() => {
   vi.stubGlobal("fetch", fetchMock);
   errors = vi.spyOn(console, "error").mockImplementation(() => {});
   save.mockClear();
+  db.state.reads.length = 0;
+  db.state.answer = () => ({ data: [], error: null });
 });
 
 afterEach(() => {
@@ -166,6 +187,65 @@ describe("hotCarouselProducts", () => {
     expect(calls(LINK_METHOD)).toBe(0);
     expect(errors).toHaveBeenCalledTimes(MIX_CATEGORY_IDS.length);
     expect(save).not.toHaveBeenCalled();
+  });
+});
+
+describe("hot links on a refetch whose type 2 call fails", () => {
+  /** Category 44's list, with every link.generate call refused. */
+  function linksRefused() {
+    fetchMock.mockImplementation(async (_url, init) =>
+      methodOf(init) === LINK_METHOD ? new Response(FAILURE) : new Response(fixture("cat44-HE")),
+    );
+  }
+  const FRESH_AT = "2026-09-25T12:00:00.000Z";
+
+  it("reads the stored rows once and keeps their fresh type 2 links", async () => {
+    linksRefused();
+    db.state.answer = (ids) => ({
+      data: ids.map((id) => ({
+        product_id: id,
+        link: `https://s.click.aliexpress.com/e/_db${id}`,
+        type: 2,
+        at: FRESH_AT,
+      })),
+      error: null,
+    });
+    const { loadHotPool } = await import("./queries");
+    expect((await loadHotPool("44")).ok).toBe(true);
+    expect(db.state.reads).toHaveLength(1);
+    const [read] = db.state.reads;
+    expect(read).toMatchObject({ table: "products", column: "product_id" });
+    expect(read.columns).toBe(
+      "product_id, link:data->>promotionLink, type:data->promotionLinkType, at:data->>promotionLinkAt",
+    );
+    const [saved] = save.mock.calls[0] as unknown as [
+      { productId: string; promotionLink: string; promotionLinkType?: number }[],
+    ];
+    const hot = saved.filter((p) => p.promotionLinkType === 2);
+    expect(hot.map((p) => p.productId)).toEqual(read.ids);
+    expect(hot.length).toBeGreaterThan(30);
+    for (const p of hot) {
+      expect(p).toMatchObject({
+        promotionLink: `https://s.click.aliexpress.com/e/_db${p.productId}`,
+        promotionLinkAt: FRESH_AT,
+      });
+    }
+  });
+
+  it("shows the list with its own links when the read fails", async () => {
+    linksRefused();
+    db.state.answer = () => ({ data: null, error: { message: "timeout" } });
+    const { loadHotPool } = await import("./queries");
+    expect((await loadHotPool("44")).ok).toBe(true);
+    const [saved] = save.mock.calls[0] as unknown as [{ promotionLinkType?: number }[]];
+    expect(saved.every((p) => p.promotionLinkType === undefined)).toBe(true);
+  });
+
+  it("reads nothing when every hot link was made", async () => {
+    gateway({ "44": fixture("cat44-HE") });
+    const { loadHotPool } = await import("./queries");
+    expect((await loadHotPool("44")).ok).toBe(true);
+    expect(db.state.reads).toHaveLength(0);
   });
 });
 

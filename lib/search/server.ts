@@ -59,13 +59,17 @@ import {
   RESULTS_KEPT,
   runSearch,
   SearchError,
+  startSearch,
   toResultProduct,
   type SearchDeps,
   type SearchOrigin,
   type SearchOutcome,
+  type SearchStages,
+  type UnderstoodSearch,
 } from "./pipeline";
 import { hasHebrew } from "@/lib/product-title";
 import { normalizeQuery } from "./cache-key";
+import { RefreshGate } from "./refresh-gate";
 import type { SearchLogEntry, SearchStore } from "./store";
 import { SupabaseStore, type StoredProduct } from "./supabase-store";
 
@@ -202,7 +206,9 @@ export function dailySearchCap(): number {
  * wait as total_ms. Whether /searches may list it, and its origin, are decided again for its own
  * query and origin: the run it joined had the same source, chips removed and sort (all part of the
  * in-flight key) and showed the same results, but it may have been typed where this one came from
- * one of our links, or the other way round. Returns the row's uid; never throws.
+ * one of our links, or the other way round. `searchUid` is the row's uid when the request already
+ * gave it to its results (a streamed page), and `productsMs` its own wait for the products.
+ * Returns the row's uid; never throws.
  */
 async function logShared(
   store: () => SearchStore,
@@ -210,9 +216,12 @@ async function logShared(
   q: string,
   origin: Omit<SearchOrigin, "source">,
   waitedMs: number,
+  {
+    searchUid = crypto.randomUUID(),
+    productsMs = null,
+  }: { searchUid?: string; productsMs?: number | null } = {},
 ): Promise<string> {
   const joined: SearchOrigin = { ...origin, source: log.source };
-  const searchUid = crypto.randomUUID();
   try {
     await store().logSearch({
       ...log,
@@ -221,7 +230,13 @@ async function logShared(
       cache: "results",
       listable: isListableSearch(q, joined, log.resultsCount),
       origin: logOrigin(joined),
-      timings: { parse_ms: null, fetch_ms: null, explain_ms: null, total_ms: waitedMs },
+      timings: {
+        parse_ms: null,
+        fetch_ms: null,
+        explain_ms: null,
+        products_ms: productsMs,
+        total_ms: waitedMs,
+      },
       aliCalls: 0,
       searchUid,
       shared: true,
@@ -240,11 +255,28 @@ function tagged(response: SearchResponse, searchUid: string): LoggedSearchRespon
   return { ...response, results: response.results.map((r) => ({ ...r, search_uid: searchUid })) };
 }
 
-/** Runs a search for a request. `headers` are the incoming request headers (for the IP). */
-// Identical searches that arrive while one is still running share its result instead of paying
+/**
+ * Keeps the function alive until `work` settles (after(), waitUntil on Vercel): a streamed search
+ * caches and logs itself after the last of its page was sent. Outside a request (scripts, tests)
+ * there is no after(), and the work simply runs on.
+ */
+function keepAlive(work: Promise<unknown>): void {
+  const settled = work.then(
+    () => undefined,
+    () => undefined,
+  );
+  try {
+    after(() => settled);
+  } catch {
+    // Outside a request scope.
+  }
+}
+
+// Identical searches that arrive while one is still running share its stages instead of paying
 // for a second parse, fetch and explain (seen in testing: a refresh during a 10 s search ran it
-// twice). Per server instance; the 14-day cache covers everything after the first run completes.
-const inFlight = new Map<string, Promise<SearchOutcome>>();
+// twice): a request that joins sees the chips, the products and the lines as the run has them.
+// Per server instance; the 14-day cache covers everything after the run is cached.
+const inFlight = new Map<string, SearchStages>();
 
 interface SharedRunInput {
   q: string;
@@ -266,20 +298,21 @@ async function requestIsOwner(): Promise<boolean> {
 }
 
 /**
- * The run's outcome and the uid of this request's own search_log row. A joiner of a run that
- * fails logs nothing: the run logged the failure once.
+ * The stages of the run this request started or joined, and the uid of this request's own
+ * search_log row, known before the row is written so its results can carry it at once. A joiner
+ * logs its row once the run is done; a joiner of a run that fails logs nothing: the run logged the
+ * failure once, and only the run's own request reports its error.
  */
-async function sharedRun(
+function sharedRun(
   input: SharedRunInput,
   deps: SearchDeps,
-): Promise<{ response: SearchResponse; searchUid: string }> {
+): { stages: SearchStages; searchUid: string } {
   const { q, without, sort } = input;
   const key = JSON.stringify([normalizeQuery(q), [...without].sort(), sort ?? null]);
   const running = inFlight.get(key);
   if (running) {
     const started = performance.now();
-    const outcome = await running;
-    const waited = Math.round(performance.now() - started);
+    const searchUid = crypto.randomUUID();
     const origin = {
       without,
       sort,
@@ -287,23 +320,71 @@ async function sharedRun(
       arrival: input.arrival,
       ...(input.owner ? { owner: true } : {}),
     };
-    const searchUid = await logShared(() => deps.store, outcome.log, q, origin, waited);
-    return { response: outcome.response, searchUid };
+    const waited = (stage: Promise<unknown>) =>
+      stage.then(
+        () => Math.round(performance.now() - started),
+        () => null,
+      );
+    const shown = waited(running.products);
+    const finished = waited(running.final);
+    const logged = running.outcome.then(
+      async (outcome) =>
+        logShared(() => deps.store, outcome.log, q, origin, (await finished) ?? 0, {
+          searchUid,
+          productsMs: await shown,
+        }),
+      () => undefined,
+    );
+    keepAlive(logged);
+    return { stages: running, searchUid };
   }
-  const run = runSearch(input, deps).finally(() => inFlight.delete(key));
-  inFlight.set(key, run);
-  const outcome = await run;
-  return { response: outcome.response, searchUid: outcome.log.searchUid };
+  const stages = startSearch(input, deps);
+  inFlight.set(key, stages);
+  const done = stages.outcome.finally(() => inFlight.delete(key));
+  done.catch((err: unknown) => toFailure(err, "search"));
+  keepAlive(done);
+  return { stages, searchUid: stages.searchUid };
+}
+
+/** A stage of a search as one request sees it: its value, or the failure it is answered with. */
+export type Staged<T> =
+  { ok: true; value: T } | { ok: false; error: SearchFailure; retryAfterSec?: number };
+
+/** The products of a request's search, before (pending) or with every line. */
+export interface ProductsView {
+  response: LoggedSearchResponse;
+  /** Lines are still being written: `final` brings them. */
+  pending: boolean;
 }
 
 /**
+ * One request's search as the results page streams it (docs/search-quality-plan.md item 15): the
+ * chips once the query is understood, the products once they are ranked, then every line. Each
+ * stage resolves once, with its value or the failure; none rejects.
+ */
+export interface SearchStream {
+  /** The chips, and how long this request waited for them (the page's first wait). */
+  understood: Promise<Staged<UnderstoodSearch & { waitedMs: number }>>;
+  products: Promise<Staged<ProductsView>>;
+  final: Promise<Staged<LoggedSearchResponse>>;
+}
+
+function staged<T>(stage: Promise<T>): Promise<Staged<T>> {
+  return stage.then(
+    (value) => ({ ok: true as const, value }),
+    (err: unknown) => ({ ok: false as const, error: failureCode(err) }),
+  );
+}
+
+/**
+ * Starts (or joins) the search of one request, after the per-IP rate limit, and returns its stages.
  * `typed` is false for a query from one of our own links (a recent-search card, an example) or an
  * ad: it is searched and logged like any other, but never listed on /searches. It defaults to true
  * unless `arrival` says where the visitor came from (parseArrival in lib/search-url.ts), which
  * search_log.origin records. The results carry the uid of this request's search_log row, which
- * their /go links pass on.
+ * their /go links pass on. The search caches and logs itself after the page is sent (keepAlive).
  */
-export async function searchForRequest(
+export async function startSearchForRequest(
   input: {
     q: string;
     without?: string[];
@@ -312,9 +393,10 @@ export async function searchForRequest(
     arrival?: SearchArrival;
   },
   headers: Headers,
-): Promise<SearchPageResult> {
+): Promise<Staged<SearchStream>> {
   const q = input.q.trim();
   if (!q || q.length > MAX_QUERY_LENGTH) return { ok: false, error: "invalid_query" };
+  const started = performance.now();
   try {
     const env = guardEnv();
     if (!env.ipHashSalt) throw new ConfigError(["IP_HASH_SALT"]);
@@ -326,7 +408,7 @@ export async function searchForRequest(
     // A refused request is not logged: it did no work, and a flood of them would only add rows.
     const rate = await checkSearchRate(db, hashIp(clientIp(headers), env.ipHashSalt), new Date());
     if (!rate.ok) return { ok: false, error: "rate_limited", retryAfterSec: rate.retryAfterSec };
-    const { response, searchUid } = await sharedRun(
+    const { stages, searchUid } = sharedRun(
       {
         q,
         without: input.without ?? [],
@@ -337,10 +419,38 @@ export async function searchForRequest(
       },
       deps,
     );
-    return { ok: true, response: tagged(response, searchUid) };
+    return {
+      ok: true,
+      value: {
+        understood: staged(
+          stages.understood.then((understood) => ({
+            ...understood,
+            waitedMs: Math.round(performance.now() - started),
+          })),
+        ),
+        products: staged(
+          stages.products.then(({ response, pending }) => ({
+            response: tagged(response, searchUid),
+            pending,
+          })),
+        ),
+        final: staged(stages.final.then((response) => tagged(response, searchUid))),
+      },
+    };
   } catch (err) {
     return { ok: false, error: toFailure(err, "search") };
   }
+}
+
+/** Runs a search for a request and waits for every line (the JSON API). See startSearchForRequest. */
+export async function searchForRequest(
+  input: Parameters<typeof startSearchForRequest>[0],
+  headers: Headers,
+): Promise<SearchPageResult> {
+  const started = await startSearchForRequest(input, headers);
+  if (!started.ok) return started;
+  const final = await started.value.final;
+  return final.ok ? { ok: true, response: final.value } : final;
 }
 
 export type MoreResult =
@@ -558,9 +668,49 @@ interface PageProduct {
 }
 
 /**
+ * The /p refreshes of this server instance (lib/search/refresh-gate.ts): views of one product
+ * share its refresh; a product whose refresh failed, or that AliExpress no longer returns, is not
+ * refreshed again for FAILURE_COOLDOWN_MS; after an ApiCallLimit no product is refreshed for
+ * RATE_LIMIT_BACKOFF_MS (doubling while it repeats). Meanwhile the stored row is served.
+ */
+const pageRefreshes = new RefreshGate<PageProduct | null>({
+  isRateLimit: (err) => err instanceof AliExpressError && err.kind === "rate_limit",
+  remember: (value) => value === null,
+  onFailure: (err) => logError("product", err),
+});
+
+/**
+ * One refresh of a stored product: productdetail.get (plus link.generate or SKU details when
+ * needed, spaced), saved with the time of the refresh. Null when AliExpress no longer returns the
+ * product. Throws when a call fails; a failed save is logged and the fresh data still shown.
+ */
+async function refreshAndSave(
+  store: SupabaseStore,
+  stored: StoredProduct,
+  now: Date,
+): Promise<PageProduct | null> {
+  const { productId } = stored.product;
+  const ali = aliClient();
+  const spaced = aliSpacer();
+  let fresh = await refreshProduct(ali, spaced, stored, now);
+  if (fresh && SKU_DETAILS_ENABLED) {
+    fresh = { ...fresh, skuDetails: await spaced(() => skuDetailsFor(ali, productId)) };
+  }
+  if (!fresh) return null;
+  const titleHe = stored.titleHe;
+  await store
+    .saveProducts([fresh], { [productId]: titleHe })
+    .catch((err) => logError("product", err));
+  return { product: fresh, titleHe, updatedAt: now.toISOString() };
+}
+
+/**
  * Product saved by one of our searches; refreshed from productdetail.get when older than 24h.
  * Unknown ids return null (404): only products that went through our filters get a page, and a
- * crawler requesting random ids cannot spend AliExpress quota.
+ * crawler requesting random ids cannot spend AliExpress quota. A refresh that fails, or that
+ * pageRefreshes skips (a recent failure of this product, or the back-off after a rate limit),
+ * serves the stored row: real data from the last refresh, with its date, beats a 404 while
+ * AliExpress is down or throttling us.
  */
 async function loadPageProduct(productId: string): Promise<PageProduct | null> {
   const store = new SupabaseStore(serviceClient());
@@ -573,25 +723,8 @@ async function loadPageProduct(productId: string): Promise<PageProduct | null> {
   ) {
     return stored;
   }
-  let fresh: AliProduct | null;
-  try {
-    const ali = aliClient();
-    const spaced = aliSpacer();
-    fresh = await refreshProduct(ali, spaced, stored, now);
-    if (fresh && SKU_DETAILS_ENABLED) {
-      fresh = { ...fresh, skuDetails: await spaced(() => skuDetailsFor(ali, productId)) };
-    }
-  } catch (err) {
-    logError("product", err);
-    // Real data from the last refresh (with its date) beats a 404 while AliExpress is down.
-    return stored;
-  }
-  if (!fresh) return null;
-  const titleHe = stored.titleHe;
-  await store
-    .saveProducts([fresh], { [productId]: titleHe })
-    .catch((err) => logError("product", err));
-  return { product: fresh, titleHe, updatedAt: now.toISOString() };
+  const refreshed = await pageRefreshes.run(productId, () => refreshAndSave(store, stored, now));
+  return refreshed.ok ? refreshed.value : stored;
 }
 
 // One refresher per server instance, so concurrent views of a category share one LLM call.

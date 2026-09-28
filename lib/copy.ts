@@ -1,6 +1,16 @@
 // Fixed Hebrew strings that must read the same everywhere they appear.
-export const AFFILIATE_DISCLOSURE =
-  "גילוי נאות: זה קישור שותפים. אם תקנו דרכו נקבל עמלה קטנה, בלי תוספת למחיר שלכם.";
+
+/**
+ * The affiliate disclosure next to every link that leaves for AliExpress through /go (buy buttons,
+ * the reviews card; CLAUDE.md §1, §9). Owner decision 2026-09-28: a small "קישור שותפים" link to
+ * the full text in the terms (/terms#affiliate, AFFILIATE_SECTION_ID in lib/config/legal.ts)
+ * instead of the full sentence under every button. The accessible name contains the visible words.
+ */
+export const AFFILIATE_NOTE = {
+  label: "קישור שותפים",
+  ariaLabel: "מה זה קישור שותפים",
+  href: "/terms#affiliate",
+} as const;
 
 export const APPROX_PRICE_NOTE = "מחיר משוער בשקלים. המחיר הסופי מוצג באלי אקספרס.";
 

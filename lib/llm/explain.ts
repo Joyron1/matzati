@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { formatCount, formatPct } from "@/lib/format";
 import type { ParsedQuery, SortPreference } from "@/lib/search/filters";
+import type { SharedNumbersMark } from "@/lib/types";
 import { extractNumbers, numbersAreGrounded } from "./numbers";
 import {
   comparisonSizes,
@@ -43,7 +44,21 @@ export interface ExplainInput {
   discount_pct: number | null;
   positive_feedback_pct: number | null;
   units_sold_30d: number | null;
+  /**
+   * Its shop shows the same numbers on several listings (lib/ranking/shared-numbers.ts), and which
+   * of this product's numbers other listings of the shop show too. A shared number is not this
+   * product's own: the model never gets it, the line built from the data leaves it out, and no line
+   * of its batch may compare trust numbers (best-selling, best-rated), since the shop's numbers are
+   * not each product's own.
+   */
+  shared_numbers?: SharedNumbersMark;
 }
+
+/** The 30-day sales a line may state as this product's: none when other listings show them too. */
+const ownSales = (p: ExplainInput) => (p.shared_numbers?.sales ? null : p.units_sold_30d);
+/** The positive feedback a line may state as this product's: none when its shop repeats it. */
+const ownFeedback = (p: ExplainInput) =>
+  p.shared_numbers?.feedback ? null : p.positive_feedback_pct;
 
 /**
  * What the model knows about the search. Never the raw query: explanations are cached for 14
@@ -144,8 +159,8 @@ function productFacts(p: ExplainInput) {
     price_ils: p.price_ils,
     original_price_ils: p.original_price_ils,
     discount_pct: p.discount_pct,
-    positive_feedback_pct: p.positive_feedback_pct,
-    units_sold_30d: p.units_sold_30d,
+    positive_feedback_pct: ownFeedback(p),
+    units_sold_30d: ownSales(p),
   };
 }
 
@@ -165,13 +180,15 @@ function isBest(value: number | null, all: (number | null)[], pick: (...n: numbe
 function claimHolds(claim: Superlative, p: ExplainInput, batch: readonly ExplainInput[]): boolean {
   if (batch.length < 2) return false;
   const all = <K extends keyof ExplainInput>(key: K) => batch.map((b) => b[key]);
+  // A shared number is not its product's own: no trust comparison holds in its batch.
+  const ownTrust = batch.every((b) => !b.shared_numbers);
   switch (claim) {
     case "cheapest":
       return isBest(p.price_ils, all("price_ils"), Math.min);
     case "most_sold":
-      return isBest(p.units_sold_30d, all("units_sold_30d"), Math.max);
+      return ownTrust && isBest(p.units_sold_30d, all("units_sold_30d"), Math.max);
     case "top_feedback":
-      return isBest(p.positive_feedback_pct, all("positive_feedback_pct"), Math.max);
+      return ownTrust && isBest(p.positive_feedback_pct, all("positive_feedback_pct"), Math.max);
     case "top_discount":
       return isBest(p.discount_pct, all("discount_pct"), Math.max);
     case "unverifiable":
@@ -196,9 +213,14 @@ function whyProblem(
   if (writesPrice(why)) return "price_written";
   if (mentionsBudget(why) && context.max_price_ils === undefined) return "unstated_budget";
   // Only this product's facts and the budget: never another product's numbers or the raw query.
-  // Its prices are left out too, so a bare "27.31" cannot contradict the card's rounded "≈₪27".
-  const { title_en, discount_pct, positive_feedback_pct, units_sold_30d } = p;
-  const facts = { title_en, discount_pct, positive_feedback_pct, units_sold_30d };
+  // Its prices are left out too, so a bare "27.31" cannot contradict the card's rounded "≈₪27",
+  // and so are numbers other listings of its shop show too (ownFeedback, ownSales).
+  const facts = {
+    title_en: p.title_en,
+    discount_pct: p.discount_pct,
+    positive_feedback_pct: ownFeedback(p),
+    units_sold_30d: ownSales(p),
+  };
   const grounding = [facts, context.min_price_ils, context.max_price_ils];
   if (!numbersAreGrounded(why, grounding)) return "ungrounded_number";
   if (!superlativeClaims(why).every((c) => claimHolds(c, p, batch))) return "false_superlative";
@@ -322,13 +344,15 @@ export function checkExplanation(
 
 /**
  * The fallback line, built only from API data so it is always true:
- * "98% משוב חיובי ו־3,412 נמכרו ב־30 הימים האחרונים."
+ * "98% משוב חיובי ו־3,412 נמכרו ב־30 הימים האחרונים." A number other listings of its shop show
+ * too is left out (shared_numbers): it is not this product's achievement. With neither number of
+ * its own, the line says only that it passed (WHY_TEMPLATE).
  */
 export function whyFromData(p: ExplainInput): string {
-  const feedback =
-    p.positive_feedback_pct === null ? null : `${formatPct(p.positive_feedback_pct)} משוב חיובי`;
-  const sold =
-    p.units_sold_30d === null ? null : `${formatCount(p.units_sold_30d)} נמכרו ב־30 הימים האחרונים`;
+  const pct = ownFeedback(p);
+  const feedback = pct === null ? null : `${formatPct(pct)} משוב חיובי`;
+  const units = ownSales(p);
+  const sold = units === null ? null : `${formatCount(units)} נמכרו ב־30 הימים האחרונים`;
   if (feedback && sold) return `${feedback} ו־${sold}.`;
   if (feedback || sold) return `${feedback ?? sold}.`;
   return WHY_TEMPLATE;

@@ -2,6 +2,7 @@
 // in memory for the eval script and tests.
 import type { AliProduct } from "@/lib/aliexpress/schemas";
 import type { RejectReason } from "@/lib/ranking/rank";
+import { withoutSharedMark } from "@/lib/ranking/shared-numbers";
 import type { LlmUsageRecord } from "@/lib/stats/usage";
 import type { FilterBlocker } from "@/lib/types";
 import type { ParsedQuery, SortPreference } from "./filters";
@@ -45,6 +46,11 @@ export interface SearchTimings {
   /** AliExpress calls, filtering, ranking and link.generate. */
   fetch_ms: number | null;
   explain_ms: number | null;
+  /**
+   * From the start of the search to the moment its products could be shown, before their lines
+   * were written (the results page streams them first, plan item 15). Absent on older rows.
+   */
+  products_ms?: number | null;
   total_ms: number;
 }
 
@@ -109,6 +115,13 @@ export interface SearchDiag {
   demoted: string[];
   explain_failed: boolean;
   explain_rejected: number;
+  /**
+   * The results were ranked again from a pool already checked (a sort change or a removed
+   * requirement, plan item 13): no product.query call. Absent otherwise.
+   */
+  derived?: true;
+  /** Lines written earlier for other results of the same pool that still held here. */
+  lines_reused?: number;
 }
 
 export interface Explanation {
@@ -136,6 +149,41 @@ export interface CachedResults {
    * reused for EMPTY_RESULTS_TTL_HOURS only (isFreshResults), then explained again.
    */
   degraded?: boolean;
+  /**
+   * Set on the result set a fetch was made for (./pool.ts): the other sorts and the requirement
+   * chips a visitor can still remove, ranked from every product that fetch checked, so they are
+   * served without another product.query call. Absent on views ranked from it and on older
+   * entries.
+   */
+  pool?: CachedPool;
+}
+
+/**
+ * One view of a checked pool: a sort, perhaps with requirement chips removed, ranked when the pool
+ * was fetched (rankWithFill over every product checked, so its order and count are exactly what a
+ * fetch of the same pool would give).
+ */
+export interface CachedView {
+  /** The kept products (up to RESULTS_KEPT), in ranking order, before the first-page safety net. */
+  ids: string[];
+  /** "Y עברו" for this view. */
+  passed: number;
+  /** Fewer than a page: the filters whose removal lets more of the checked products through. */
+  blockers?: FilterBlocker[];
+}
+
+/** What a fetch keeps for the views ranked from it (docs/search-quality-plan.md item 13). */
+export interface CachedPool {
+  /** By viewKeyOf(sort, requirement chips removed) in ./pool.ts. */
+  views: Record<string, CachedView>;
+  /** Every product a view shows that the result set's own `products` does not hold. */
+  products: AliProduct[];
+  /**
+   * Lines the explain calls wrote for any view of this pool, by product id. A line compares its
+   * product with the others it was written with, so it is checked again for the products it is
+   * shown with before it is reused.
+   */
+  lines: Record<string, Explanation>;
 }
 
 export interface SearchStore {
@@ -149,7 +197,10 @@ export interface SearchStore {
   ): Promise<void>;
   getResults(filtersKey: string, now: Date): Promise<CachedResults | null>;
   putResults(filtersKey: string, query: string, results: CachedResults): Promise<void>;
-  /** Saves added explanations without touching the query that created the entry. */
+  /**
+   * Saves added explanations without touching the query that created the entry, and only onto the
+   * entry `results` was read from (the same createdAt): a result set fetched again meanwhile stays.
+   */
   updateResults(filtersKey: string, results: CachedResults): Promise<void>;
   /** No IP and no user data (CLAUDE.md §6.9). */
   logSearch(entry: SearchLogEntry): Promise<void>;
@@ -190,8 +241,9 @@ export class MemoryStore implements SearchStore {
   async putResults(key: string, _query: string, results: CachedResults) {
     this.results.set(key, results);
   }
+  /** Like SupabaseStore: only onto the entry it was read from, never over a newer fetch. */
   async updateResults(key: string, results: CachedResults) {
-    this.results.set(key, results);
+    if (this.results.get(key)?.createdAt === results.createdAt) this.results.set(key, results);
   }
   async logSearch(entry: SearchLogEntry) {
     this.logs.push(entry);
@@ -209,7 +261,9 @@ export class MemoryStore implements SearchStore {
   ) {
     this.savedAt.push(checkedAt?.toISOString() ?? null);
     for (const p of products) {
-      this.products.set(p.productId, { product: p, titleHe: titlesHe[p.productId] ?? null });
+      // Like SupabaseStore: the row never keeps a shared-numbers mark of the pool it came from.
+      const product = withoutSharedMark(p);
+      this.products.set(p.productId, { product, titleHe: titlesHe[p.productId] ?? null });
     }
   }
 }

@@ -39,6 +39,23 @@ vi.mock("@/lib/search/supabase-store", () => ({
 vi.mock("@/lib/search/pipeline", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/search/pipeline")>()),
   runSearch: m.runSearch,
+  // The server starts a visitor's search in stages (plan item 15): every stage of the faked run
+  // comes from its one outcome, whose row uid is "run-uid" (outcome() below).
+  startSearch: (...args: unknown[]) => {
+    const run = Promise.resolve(m.runSearch(...args) as Promise<SearchOutcome>);
+    const stage = <T>(pick: (o: SearchOutcome) => T) => {
+      const p = run.then(pick);
+      p.catch(() => {});
+      return p;
+    };
+    return {
+      searchUid: "run-uid",
+      understood: stage((o) => ({ query: o.response.query, chips: [], sort: o.response.sort })),
+      products: stage((o) => ({ response: o.response, pending: false })),
+      final: stage((o) => o.response),
+      outcome: run,
+    };
+  },
   loadMore: m.loadMore,
 }));
 
@@ -147,7 +164,13 @@ describe("searchForRequest: shared runs", () => {
       listable: true,
       // No work of its own: no calls, only its own wait, and a uid of its own.
       origin: "typed",
-      timings: { parse_ms: null, fetch_ms: null, explain_ms: null, total_ms: expect.any(Number) },
+      timings: {
+        parse_ms: null,
+        fetch_ms: null,
+        explain_ms: null,
+        products_ms: expect.any(Number),
+        total_ms: expect.any(Number),
+      },
       aliCalls: 0,
       searchUid: expect.any(String),
       shared: true,

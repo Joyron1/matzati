@@ -1,5 +1,6 @@
 import { buildSalesCalendar, spanLabel, type CalendarMonth } from "@/lib/deals/calendar";
 import type { Deal } from "@/lib/types";
+import { InPageLink } from "./in-page-link";
 import { saleAnchor } from "./sale-card";
 import { card } from "./styles";
 
@@ -27,8 +28,9 @@ function SaleLinks({
     <ul aria-label={label} className="space-y-2">
       {sales.map((sale) => (
         <li key={sale.id}>
-          <a
-            href={`#${saleAnchor(sale.id)}`}
+          {/* Not a plain #anchor: that breaks Back after a later navigation (InPageLink). */}
+          <InPageLink
+            targetId={saleAnchor(sale.id)}
             className={`flex min-h-11 items-center justify-between gap-3 rounded-2xl border border-line hover:border-accent ${
               compact ? "bg-surface-2 px-3 py-2 text-sm" : "bg-surface px-4 py-2.5"
             }`}
@@ -38,7 +40,7 @@ function SaleLinks({
               <span className="min-w-0 break-words">{sale.title}</span>
             </span>
             <span className="shrink-0 text-sm text-muted">{spanLabel(sale)}</span>
-          </a>
+          </InPageLink>
         </li>
       ))}
     </ul>
