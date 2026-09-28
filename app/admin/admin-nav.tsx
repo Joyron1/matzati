@@ -12,6 +12,7 @@ const LINKS = [
   { href: "/admin/stats", label: "נתונים", section: ["/admin/stats"] },
   { href: "/admin/seo", label: "עמודי SEO", section: ["/admin/seo"] },
   { href: "/admin/searches", label: "חיפושים", section: ["/admin/searches"] },
+  { href: "/admin/newsletter", label: "ניוזלטר", section: ["/admin/newsletter"] },
   { href: "/admin/settings", label: "הגדרות", section: ["/admin/settings"] },
 ] as const;
 

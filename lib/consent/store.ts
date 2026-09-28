@@ -2,6 +2,7 @@
 // the choice changes or when the settings should open. createConsentStore takes its environment
 // as arguments so it runs in unit tests; consentStore() binds it to the real document and window.
 import {
+  BASE_NOTICE,
   CONSENT_COOKIE,
   consentCookie,
   makeConsent,
@@ -9,6 +10,7 @@ import {
   readCookie,
   sameChoice,
   type ConsentChoice,
+  type ConsentNotice,
   type ConsentState,
 } from "./consent";
 
@@ -55,7 +57,14 @@ export interface ConsentStore {
  */
 const RECHECK_EVENTS = ["visibilitychange", "pageshow"] as const;
 
-export function createConsentStore(env: ConsentEnv): ConsentStore {
+/**
+ * `notice` is the cookie notice the page shows (./consent.ts consentNotice): which stored versions
+ * count as a choice, and the version a new choice is stored with.
+ */
+export function createConsentStore(
+  env: ConsentEnv,
+  notice: ConsentNotice = BASE_NOTICE,
+): ConsentStore {
   let read = false;
   let lastRaw: string | undefined;
   let lastState: ConsentState | null = null;
@@ -76,7 +85,7 @@ export function createConsentStore(env: ConsentEnv): ConsentStore {
     if (!read || raw !== lastRaw) {
       read = true;
       lastRaw = raw;
-      lastState = parseConsent(raw, env.now());
+      lastState = parseConsent(raw, env.now(), notice);
     }
     return unsaved ?? lastState;
   }
@@ -91,13 +100,13 @@ export function createConsentStore(env: ConsentEnv): ConsentStore {
   }
 
   function save(choice: ConsentChoice): ConsentState {
-    const state = makeConsent(choice, env.now());
+    const state = makeConsent(choice, env.now(), notice.version);
     try {
       env.writeCookie(consentCookie(state, { secure: env.secure() }));
     } catch {
       // Blocked: handled by the read-back below.
     }
-    const stored = parseConsent(cookieValue(), env.now());
+    const stored = parseConsent(cookieValue(), env.now(), notice);
     unsaved = stored && stored.ts === state.ts && sameChoice(stored, state) ? null : state;
     env.target.dispatchEvent(new CustomEvent(CONSENT_CHANGE_EVENT, { detail: state }));
     return state;
@@ -106,20 +115,31 @@ export function createConsentStore(env: ConsentEnv): ConsentStore {
   return { subscribe, getSnapshot, save };
 }
 
-let browserStore: ConsentStore | undefined;
+/** One store per notice version (a page uses one notice; the map only keeps them apart). */
+const browserStores = new Map<number, ConsentStore>();
 
-/** The page's store. Browser only (call it from event handlers, effects or store callbacks). */
-export function consentStore(): ConsentStore {
-  browserStore ??= createConsentStore({
-    readCookies: () => document.cookie,
-    writeCookie: (cookie) => {
-      document.cookie = cookie;
-    },
-    secure: () => window.location.protocol === "https:",
-    target: window,
-    now: () => Date.now(),
-  });
-  return browserStore;
+/**
+ * The page's store for the notice it shows. Browser only (call it from event handlers, effects
+ * or store callbacks). Every store reads the same cookie and hears every save.
+ */
+export function consentStore(notice: ConsentNotice = BASE_NOTICE): ConsentStore {
+  let store = browserStores.get(notice.version);
+  if (!store) {
+    store = createConsentStore(
+      {
+        readCookies: () => document.cookie,
+        writeCookie: (cookie) => {
+          document.cookie = cookie;
+        },
+        secure: () => window.location.protocol === "https:",
+        target: window,
+        now: () => Date.now(),
+      },
+      notice,
+    );
+    browserStores.set(notice.version, store);
+  }
+  return store;
 }
 
 /** Opens the cookie settings dialog from anywhere on the page (ConsentManager listens). */

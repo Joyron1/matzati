@@ -1,11 +1,15 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
-import { consentAllows, type ConsentCategory, type ConsentState } from "./consent";
+import { useCallback, useSyncExternalStore } from "react";
+import {
+  BASE_NOTICE,
+  consentAllows,
+  type ConsentCategory,
+  type ConsentNotice,
+  type ConsentState,
+} from "./consent";
 import { consentStore, openConsentSettings } from "./store";
 
-const subscribe = (listener: () => void) => consentStore().subscribe(listener);
-const getSnapshot = () => consentStore().getSnapshot();
 // The server has no cookie to read (the root layout never calls cookies(), so pages stay
 // static): "unknown" until the browser has read it, which keeps the banner and every gated part
 // out of the server HTML and out of hydration.
@@ -23,8 +27,18 @@ export interface UseConsent {
   openSettings(): void;
 }
 
-/** The visitor's cookie choice. Updates when it changes, without a reload. */
-export function useConsent(): UseConsent {
+/**
+ * The visitor's cookie choice under the notice the page shows (BASE_NOTICE, or ANALYTICS_NOTICE
+ * while Google Analytics is configured: see consentNotice). Updates when it changes, without a
+ * reload.
+ */
+export function useConsent(notice: ConsentNotice = BASE_NOTICE): UseConsent {
+  // The store is created on first use in the browser (it binds document and window).
+  const subscribe = useCallback(
+    (listener: () => void) => consentStore(notice).subscribe(listener),
+    [notice],
+  );
+  const getSnapshot = useCallback(() => consentStore(notice).getSnapshot(), [notice]);
   const consent = useSyncExternalStore<ConsentState | null | undefined>(
     subscribe,
     getSnapshot,

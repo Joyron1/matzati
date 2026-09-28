@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   ACCEPT_ALL,
+  ANALYTICS_NOTICE,
+  BASE_NOTICE,
   CONSENT_COOKIE,
   CONSENT_MAX_AGE_DAYS,
   CONSENT_VERSION,
@@ -8,12 +10,19 @@ import {
   consentAllows,
   consentCookie,
   consentFromCookies,
+  consentNotice,
   makeConsent,
   parseConsent,
   readCookie,
   type ConsentState,
 } from "./consent";
-import { CONSENT_CATEGORIES, STORAGE_INVENTORY } from "./categories";
+import {
+  analyticsStorage,
+  CONSENT_CATEGORIES,
+  consentCategories,
+  STORAGE_INVENTORY,
+  storageInventory,
+} from "./categories";
 
 const NOW = Date.UTC(2026, 8, 28, 12);
 const DAY = 86_400_000;
@@ -109,6 +118,34 @@ describe("policy versioning", () => {
   });
 });
 
+describe("the notice while Google Analytics is configured", () => {
+  const choiceUnder = (version: number) =>
+    readCookie(
+      consentCookie(makeConsent(ACCEPT_ALL, NOW, version), { secure: true }).split(";")[0],
+      CONSENT_COOKIE,
+    );
+
+  it("asks everyone again: a choice made before it (statistics said unused) does not count", () => {
+    expect(consentNotice(true)).toBe(ANALYTICS_NOTICE);
+    expect(consentNotice(false)).toBe(BASE_NOTICE);
+    expect(ANALYTICS_NOTICE.version).not.toBe(CONSENT_VERSION);
+    expect(parseConsent(choiceUnder(BASE_NOTICE.version), NOW, ANALYTICS_NOTICE)).toBeNull();
+    const cookies = `${CONSENT_COOKIE}=${choiceUnder(BASE_NOTICE.version)}`;
+    expect(consentFromCookies(cookies, NOW, ANALYTICS_NOTICE)).toBeNull();
+  });
+
+  it("honors a choice made under it", () => {
+    const state = parseConsent(choiceUnder(ANALYTICS_NOTICE.version), NOW, ANALYTICS_NOTICE);
+    expect(state?.analytics).toBe(true);
+    expect(consentAllows(state, "analytics")).toBe(true);
+  });
+
+  it("without it, a choice made under it still counts (a failed settings read asks no one again)", () => {
+    expect(parseConsent(choiceUnder(ANALYTICS_NOTICE.version), NOW, BASE_NOTICE)).not.toBeNull();
+    expect(parseConsent(choiceUnder(ANALYTICS_NOTICE.version), NOW)).not.toBeNull();
+  });
+});
+
 describe("readCookie and consentFromCookies", () => {
   it("finds the cookie among others, by its exact name", () => {
     const cookies = `a=1; x${CONSENT_COOKIE}=nope; ${CONSENT_COOKIE}=${stored()}; b=2`;
@@ -176,14 +213,33 @@ describe("what the notice says", () => {
     expect(CONSENT_CATEGORIES[0].inUse).toBe(true);
   });
 
-  it("marks a category in use only when some stored item belongs to it", () => {
-    for (const category of CONSENT_CATEGORIES) {
-      const used = STORAGE_INVENTORY.some((item) => item.category === category.id);
-      expect(category.inUse, category.id).toBe(used);
+  it("marks a category in use only when some stored item belongs to it, with or without GA", () => {
+    for (const measurementId of [null, "G-AB12CD34EF"]) {
+      const inventory = storageInventory(measurementId);
+      for (const category of consentCategories(measurementId !== null)) {
+        const used = inventory.some((item) => item.category === category.id);
+        expect(category.inUse, `${category.id} ${measurementId}`).toBe(used);
+      }
     }
+    expect(consentCategories(false)).toBe(CONSENT_CATEGORIES);
+    expect(storageInventory(null)).toBe(STORAGE_INVENTORY);
   });
 
   it("lists the consent cookie itself", () => {
     expect(STORAGE_INVENTORY.map((item) => item.name)).toContain(CONSENT_COOKIE);
+  });
+
+  it("lists Google Analytics's cookies as statistics from Google, for 2 years", () => {
+    const items = analyticsStorage("G-AB12CD34EF");
+    expect(items.map((item) => item.name)).toEqual(["_ga", "_ga_AB12CD34EF"]);
+    for (const item of items) {
+      expect(item).toMatchObject({ kind: "cookie", category: "analytics" });
+      expect(item.provider).toContain("Google");
+      expect(item.duration).toContain("שנתיים");
+    }
+    expect(consentCategories(true).find((c) => c.id === "analytics")?.description).toContain(
+      "Google Analytics",
+    );
+    expect(consentCategories(true).find((c) => c.id === "marketing")?.inUse).toBe(false);
   });
 });

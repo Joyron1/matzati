@@ -5,8 +5,14 @@ import { LegalSection, StaticPage, type PageSection } from "@/components/static-
 import { btnMd, btnSecondary, card } from "@/components/styles";
 import { BRAND } from "@/lib/config/brand";
 import { AFFILIATE_SECTION_ID, LEGAL_PATHS } from "@/lib/config/legal";
-import { CONSENT_CATEGORIES, STORAGE_INVENTORY, type StorageItem } from "@/lib/consent/categories";
+import {
+  consentCategories,
+  storageInventory,
+  type ConsentCategoryInfo,
+  type StorageItem,
+} from "@/lib/consent/categories";
 import { CONSENT_COOKIE } from "@/lib/consent/consent";
+import { googleAnalyticsId } from "@/lib/settings/queries";
 
 export const metadata: Metadata = {
   title: "מדיניות עוגיות",
@@ -18,8 +24,8 @@ const KIND_LABEL: Record<StorageItem["kind"], string> = {
   localStorage: "אחסון מקומי בדפדפן (localStorage)",
 };
 
-const categoryLabel = (id: StorageItem["category"]) =>
-  CONSENT_CATEGORIES.find((c) => c.id === id)?.label ?? id;
+const categoryLabel = (categories: readonly ConsentCategoryInfo[], id: StorageItem["category"]) =>
+  categories.find((c) => c.id === id)?.label ?? id;
 
 const SEC = {
   inUse: { id: "in-use", title: "מה נשמר בדפדפן" },
@@ -29,13 +35,20 @@ const SEC = {
   choices: { id: "choices", title: "איך משנים את הבחירה" },
 } as const satisfies Record<string, PageSection>;
 
-function StorageCard({ item }: { item: StorageItem }) {
+function StorageCard({
+  item,
+  categories,
+}: {
+  item: StorageItem;
+  categories: readonly ConsentCategoryInfo[];
+}) {
   const rows: [string, string][] = [
     ["סוג", KIND_LABEL[item.kind]],
-    ["קטגוריה", categoryLabel(item.category)],
+    ["קטגוריה", categoryLabel(categories, item.category)],
     ["למי", item.who],
     ["למה", item.purpose],
     ["לכמה זמן", item.duration],
+    ...(item.provider ? [["ספק", item.provider] as [string, string]] : []),
   ];
   return (
     <div className={`${card} p-5`}>
@@ -56,7 +69,12 @@ function StorageCard({ item }: { item: StorageItem }) {
   );
 }
 
-export default function CookiesPage() {
+// Google Analytics is described only while the owner has set its id (/admin/settings): the page
+// reads the same cached setting as the root layout, so it stays static and changes with it.
+export default async function CookiesPage() {
+  const measurementId = await googleAnalyticsId();
+  const analytics = measurementId !== null;
+  const categories = consentCategories(analytics);
   return (
     <StaticPage
       page="cookies"
@@ -67,25 +85,40 @@ export default function CookiesPage() {
             עוגייה (cookie) היא קובץ טקסט קטן שאתר שומר בדפדפן. אתרים יכולים לשמור מידע גם באחסון
             המקומי של הדפדפן. כאן מפורט כל מה שהאתר שומר בדפדפן שלכם, ולמה.
           </p>
-          <p>
-            בקצרה: היום אנחנו שומרים רק מה שהכרחי כדי שהאתר יעבוד ויזכור בחירות שעשיתם. אין באתר
-            עוגיות של סטטיסטיקה, פרסום או צד שלישי.
-          </p>
+          {analytics ? (
+            <p>
+              בקצרה: אנחנו שומרים מה שהכרחי כדי שהאתר יעבוד ויזכור בחירות שעשיתם. אם תאשרו עוגיות
+              סטטיסטיקה, נפעיל גם את Google Analytics, שמודד את השימוש באתר. בלי האישור שלכם הוא לא
+              נטען. אין באתר עוגיות פרסום.
+            </p>
+          ) : (
+            <p>
+              בקצרה: היום אנחנו שומרים רק מה שהכרחי כדי שהאתר יעבוד ויזכור בחירות שעשיתם. אין באתר
+              עוגיות של סטטיסטיקה, פרסום או צד שלישי.
+            </p>
+          )}
         </>
       }
     >
       <LegalSection {...SEC.inUse}>
         <div className="grid gap-4">
-          {STORAGE_INVENTORY.map((item) => (
-            <StorageCard key={item.name} item={item} />
+          {storageInventory(measurementId).map((item) => (
+            <StorageCard key={item.name} item={item} categories={categories} />
           ))}
         </div>
         <p>עוגיות ממשק הניהול נשמרות רק אצל מי שנכנס לעמודי הניהול. גולשים באתר לא מקבלים אותן.</p>
+        {analytics && (
+          <p>
+            עוגיות Google Analytics נשמרות רק אצל מי שאישר עוגיות סטטיסטיקה. הן נשמרות בדומיין של
+            האתר, והמידע שבהן נשלח ל־Google. מה בדיוק נשלח מפורט ב
+            <Link href={`${LEGAL_PATHS.privacy}#tracking`}>מדיניות הפרטיות</Link>.
+          </p>
+        )}
       </LegalSection>
 
       <LegalSection {...SEC.categories}>
         <ul>
-          {CONSENT_CATEGORIES.map((category) => (
+          {categories.map((category) => (
             <li key={category.id}>
               <span className="font-semibold">{category.label}:</span> {category.description}{" "}
               {category.id === "necessary"
@@ -101,8 +134,10 @@ export default function CookiesPage() {
           <bdi dir="ltr" className="font-mono">
             {CONSENT_COOKIE}
           </bdi>{" "}
-          ל־12 חודשים, ואז נשאל שוב. אם נוסיף כלי סטטיסטיקה או שיווק, הוא יפעל רק אחרי שתאשרו אותו,
-          נעדכן את העמוד הזה ונשאל אתכם מחדש.
+          ל־12 חודשים, ואז נשאל שוב.{" "}
+          {analytics
+            ? "Google Analytics פועל רק אחרי שאישרתם סטטיסטיקה. אם נוסיף כלי שיווק, הוא יפעל רק אחרי שתאשרו אותו, נעדכן את העמוד הזה ונשאל אתכם מחדש."
+            : "אם נוסיף כלי סטטיסטיקה או שיווק, הוא יפעל רק אחרי שתאשרו אותו, נעדכן את העמוד הזה ונשאל אתכם מחדש."}
         </p>
       </LegalSection>
 
@@ -110,9 +145,11 @@ export default function CookiesPage() {
         {/* components/share-link.tsx and whatsapp-cta.tsx are plain wa.me links: nothing loads
             from WhatsApp until one is followed. */}
         <p>
-          אין באתר כלי אנליטיקה, פיקסלים של רשתות פרסום, תוספים שנטענים מרשתות חברתיות או סקריפטים
-          של צד שלישי. כפתור השיתוף לוואטסאפ והקישור לערוץ הוואטסאפ הם קישורים רגילים, ושום דבר לא
-          נטען מוואטסאפ עד שלוחצים עליהם. הגופנים ותמונות המוצרים מוגשים מהשרתים של האתר.
+          {analytics
+            ? "אין באתר פיקסלים של רשתות פרסום, תוספים שנטענים מרשתות חברתיות או סקריפטים של צד שלישי, מלבד Google Analytics, שנטען מהשרתים של Google רק אחרי שאישרתם עוגיות סטטיסטיקה."
+            : "אין באתר כלי אנליטיקה, פיקסלים של רשתות פרסום, תוספים שנטענים מרשתות חברתיות או סקריפטים של צד שלישי."}{" "}
+          כפתור השיתוף לוואטסאפ והקישור לערוץ הוואטסאפ הם קישורים רגילים, ושום דבר לא נטען מוואטסאפ
+          עד שלוחצים עליהם. הגופנים ותמונות המוצרים מוגשים מהשרתים של האתר.
         </p>
       </LegalSection>
 
@@ -132,6 +169,15 @@ export default function CookiesPage() {
 
       <LegalSection {...SEC.choices}>
         <p>אפשר לשנות את הבחירה בכל רגע: בכפתור כאן, או בקישור ״הגדרות עוגיות״ בתחתית כל עמוד.</p>
+        {analytics && (
+          <p>
+            ביטול ההסכמה לסטטיסטיקה עוצר מיד את השליחה ל־Google Analytics ומוחק את עוגיות{" "}
+            <bdi dir="ltr" className="font-mono">
+              _ga
+            </bdi>{" "}
+            מהדפדפן. הסקריפט עצמו יורד מהעמוד בטעינה הבאה שלו.
+          </p>
+        )}
         <CookieSettingsButton className={`${btnSecondary} ${btnMd} print:hidden`} />
         <p>
           אפשר גם למחוק עוגיות ונתוני אתרים בהגדרות הדפדפן. אחרי מחיקה נשאל שוב על העוגיות, וערכת

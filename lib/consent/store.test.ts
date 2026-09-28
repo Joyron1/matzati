@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { ACCEPT_ALL, CONSENT_COOKIE, NECESSARY_ONLY, type ConsentState } from "./consent";
+import {
+  ACCEPT_ALL,
+  ANALYTICS_NOTICE,
+  BASE_NOTICE,
+  CONSENT_COOKIE,
+  NECESSARY_ONLY,
+  type ConsentState,
+} from "./consent";
 import {
   CONSENT_CHANGE_EVENT,
   CONSENT_OPEN_EVENT,
@@ -121,6 +128,18 @@ describe("createConsentStore", () => {
       ),
     );
     expect(createConsentStore(env).getSnapshot()).toBeNull();
+  });
+
+  it("under the Google Analytics notice, asks again and stores the choice with its version", () => {
+    const { env } = fakeEnv();
+    // A choice made while the banner said statistics were not in use.
+    createConsentStore(env, BASE_NOTICE).save(ACCEPT_ALL);
+    const store = createConsentStore(env, ANALYTICS_NOTICE);
+    expect(store.getSnapshot()).toBeNull();
+    expect(store.save(ACCEPT_ALL).v).toBe(ANALYTICS_NOTICE.version);
+    expect(store.getSnapshot()?.analytics).toBe(true);
+    // The page without Google Analytics (e.g. its setting could not be read) still honors it.
+    expect(createConsentStore(env, BASE_NOTICE).getSnapshot()?.analytics).toBe(true);
   });
 
   it("keeps a choice for this page view when the browser blocks cookies", () => {

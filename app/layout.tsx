@@ -1,11 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans_Hebrew, Secular_One } from "next/font/google";
+import { GoogleAnalytics } from "@/components/analytics/google-analytics";
 import { ConsentManager } from "@/components/cookie-consent/consent-manager";
 import { InPageLink } from "@/components/in-page-link";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { ThemeProvider } from "@/components/theme-provider";
 import { BRAND } from "@/lib/config/brand";
+import { publicSettings } from "@/lib/settings/queries";
 import "./globals.css";
 
 const plex = IBM_Plex_Sans_Hebrew({
@@ -22,10 +24,17 @@ const secular = Secular_One({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: { default: `${BRAND.name} | ${BRAND.tagline}`, template: `%s | ${BRAND.name}` },
-  description: BRAND.description,
-};
+// The owner settings are read through a 5-minute cache under the "settings" tag (the admin's save
+// expires it), so pages stay static; a failed read is an empty setting, never an error.
+export async function generateMetadata(): Promise<Metadata> {
+  const { siteVerification } = await publicSettings();
+  return {
+    title: { default: `${BRAND.name} | ${BRAND.tagline}`, template: `%s | ${BRAND.name}` },
+    description: BRAND.description,
+    // Search Console's HTML-tag verification (/admin/settings): the validated token only.
+    ...(siteVerification ? { verification: { google: siteVerification } } : {}),
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: [
@@ -34,7 +43,8 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const { measurementId } = await publicSettings();
   return (
     <html
       lang="he"
@@ -65,7 +75,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <SiteFooter />
           {/* Last in the DOM: Tab reaches the cookie banner after the footer. Client-only, so the
               layout reads no cookies and pages stay static. */}
-          <ConsentManager />
+          <ConsentManager analyticsInUse={measurementId !== null} />
+          {/* Google Analytics only while the owner has set an id, and inside it nothing loads
+              before the visitor accepts statistics (ConsentGate). Renders no HTML. */}
+          {measurementId && <GoogleAnalytics measurementId={measurementId} />}
         </ThemeProvider>
       </body>
     </html>

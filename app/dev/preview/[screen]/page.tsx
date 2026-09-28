@@ -6,7 +6,9 @@
 // /dev/preview/product-hot (opened from /hot, with AliExpress's Hebrew title and the hot list's
 // similar products), and the /search view (./search-previews.tsx): /dev/preview/search-loading
 // (the wait, then the results), /dev/preview/search-results and /dev/preview/search-update, and
-// /dev/preview/admin-settings (the /admin/settings form, whose action here saves nothing).
+// /dev/preview/admin-settings (the /admin/settings form, whose action here saves nothing),
+// /dev/preview/footer (the footer and its newsletter form, which stores nothing here) and
+// /dev/preview/admin-newsletter (the /admin/newsletter view) from ./footer-previews.tsx.
 // A 404 in production, noindex, disallowed in robots.txt and never
 // listed in the sitemap. Nothing here reads the database, AliExpress or an LLM.
 import type { Metadata } from "next";
@@ -32,8 +34,10 @@ import {
 import type { Deal } from "@/lib/types";
 import { SettingsIntro } from "@/app/admin/settings/settings-intro";
 import { DEFAULT_SHOP_CAP_MODE, isShopCapMode } from "@/lib/ranking/config";
+import { AdminNewsletterPreview, FooterPreview } from "./footer-previews";
 import { RecentStripPreview } from "./home-previews";
 import { PreviewSettingsForm } from "./preview-controls";
+import { PreviewCommunityForm, PreviewGoogleForm } from "./settings-previews";
 import { isSearchScreen, SearchPreview } from "./search-previews";
 
 export const metadata: Metadata = {
@@ -51,6 +55,8 @@ const SCREENS = [
   "search-update",
   "recent-strip",
   "admin-settings",
+  "footer",
+  "admin-newsletter",
 ] as const;
 type Screen = (typeof SCREENS)[number];
 
@@ -477,10 +483,24 @@ export default async function PreviewPage({
   }
 
   if (screen === "admin-settings") {
-    // The /admin/settings form (sign-in only there), with an action that saves nothing.
-    // ?mode=max2 selects the other choice, ?error=1 shows the "could not save" message.
+    // The /admin/settings forms (sign-in only there), with actions that save nothing.
+    // ?mode=max2 selects the other choice, ?error=1 shows the "could not save" message and the
+    // field messages, ?google=none shows no Google connection, ?community=on a shown community
+    // button and ?community=none no link.
     const params = await searchParams;
     const mode = isShopCapMode(params.mode) ? params.mode : DEFAULT_SHOP_CAP_MODE;
+    const google =
+      params.google === "none"
+        ? { measurementId: null, siteVerification: null }
+        : { measurementId: "G-PREVIEW123", siteVerification: "PreviewToken_made-up_0123456789" };
+    const community =
+      params.community === "none"
+        ? { url: null, label: "הצטרפו לקהילה שלנו", enabled: false }
+        : {
+            url: "https://chat.whatsapp.com/PreviewMadeUpInvite",
+            label: "הצטרפו לקהילה שלנו",
+            enabled: params.community === "on",
+          };
     return (
       <>
         <FakeDataNote>כמו דף ההגדרות בניהול. השמירה כאן לא שומרת כלום.</FakeDataNote>
@@ -488,7 +508,31 @@ export default async function PreviewPage({
           <SettingsIntro />
           <p className="text-sm text-muted">נשמרה לאחרונה ב־28.9.2026, 23:00 (לדוגמה).</p>
           <PreviewSettingsForm mode={mode} failed={params.error === "1"} />
+          <div className="space-y-10 pt-6">
+            <PreviewGoogleForm stored={google} failed={params.error === "1"} />
+            <PreviewCommunityForm stored={community} failed={params.error === "1"} />
+          </div>
         </div>
+      </>
+    );
+  }
+
+  if (screen === "footer") {
+    // The footer and its newsletter form, which stores nothing here (./footer-previews.tsx).
+    return (
+      <FooterPreview
+        params={await searchParams}
+        note={(text) => <FakeDataNote>{text}</FakeDataNote>}
+      />
+    );
+  }
+
+  if (screen === "admin-newsletter") {
+    // The /admin/newsletter view with ?n= made-up subscribers (./footer-previews.tsx).
+    return (
+      <>
+        <FakeDataNote>כמו דף הניוזלטר בניהול, עם רשומים מומצאים. אין כאן ייצוא.</FakeDataNote>
+        <AdminNewsletterPreview params={await searchParams} now={now} />
       </>
     );
   }

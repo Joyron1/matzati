@@ -39,6 +39,26 @@ export async function selectSetting(
   return { value: row.data.value, updatedAt: row.data.updated_at };
 }
 
+const keyedRowSchema = rowSchema.extend({ key: z.string() });
+
+/**
+ * The stored values of `keys` in one query, by key; a key without a row is absent from the map.
+ * Throws SettingsDbError.
+ */
+export async function selectSettings(
+  db: SettingsClient,
+  keys: readonly string[],
+): Promise<Map<string, StoredSetting>> {
+  const { data, error } = await db
+    .from(SETTINGS_TABLE)
+    .select("key, value, updated_at")
+    .in("key", [...keys]);
+  if (error) throw new SettingsDbError("select", { cause: error });
+  const rows = z.array(keyedRowSchema).safeParse(data ?? []);
+  if (!rows.success) throw new SettingsDbError("select (row shape)");
+  return new Map(rows.data.map((r) => [r.key, { value: r.value, updatedAt: r.updated_at }]));
+}
+
 /** Stores `value` under `key` (updated_at is set by the database). Throws SettingsDbError. */
 export async function upsertSetting(
   db: SettingsClient,
@@ -46,5 +66,14 @@ export async function upsertSetting(
   value: unknown,
 ): Promise<void> {
   const { error } = await db.from(SETTINGS_TABLE).upsert({ key, value }, { onConflict: "key" });
+  if (error) throw new SettingsDbError("upsert", { cause: error });
+}
+
+/** Stores several settings in one statement (all or none). Throws SettingsDbError. */
+export async function upsertSettings(
+  db: SettingsClient,
+  rows: readonly { key: string; value: unknown }[],
+): Promise<void> {
+  const { error } = await db.from(SETTINGS_TABLE).upsert([...rows], { onConflict: "key" });
   if (error) throw new SettingsDbError("upsert", { cause: error });
 }

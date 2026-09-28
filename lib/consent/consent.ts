@@ -17,6 +17,42 @@ export const CONSENT_COOKIE = "matzati_consent";
  */
 export const CONSENT_VERSION = 1;
 
+/**
+ * Added to CONSENT_VERSION while Google Analytics is configured (/admin/settings, "חיבור לגוגל"):
+ * the banner then says statistics are available, so a choice made under the notice without it
+ * (which said statistics were not in use) is not consent to it, and every visitor is asked again.
+ */
+export const ANALYTICS_NOTICE_OFFSET = 1000;
+
+/** The notice a page shows: the version it stores with a new choice and the ones it honors. */
+export interface ConsentNotice {
+  /** Stored with a new choice. */
+  version: number;
+  /** Stored versions this notice honors. */
+  accepts: readonly number[];
+}
+
+/**
+ * While no optional tool is configured. It also honors a choice made under ANALYTICS_NOTICE:
+ * nothing optional runs here, and a moment when the setting cannot be read (the page then renders
+ * as if Google Analytics were not configured) must not ask everyone again.
+ */
+export const BASE_NOTICE: ConsentNotice = {
+  version: CONSENT_VERSION,
+  accepts: [CONSENT_VERSION, CONSENT_VERSION + ANALYTICS_NOTICE_OFFSET],
+};
+
+/** While Google Analytics is configured: only a choice made under this notice counts. */
+export const ANALYTICS_NOTICE: ConsentNotice = {
+  version: CONSENT_VERSION + ANALYTICS_NOTICE_OFFSET,
+  accepts: [CONSENT_VERSION + ANALYTICS_NOTICE_OFFSET],
+};
+
+/** The notice for a page: ANALYTICS_NOTICE while Google Analytics is configured. */
+export function consentNotice(analyticsInUse: boolean): ConsentNotice {
+  return analyticsInUse ? ANALYTICS_NOTICE : BASE_NOTICE;
+}
+
 /** A choice is kept this long, then the visitor is asked again (12 months). */
 export const CONSENT_MAX_AGE_DAYS = 365;
 
@@ -56,14 +92,16 @@ const storedSchema = z.object({
 
 /**
  * The stored choice from the cookie's value, or null when there is none to honor: missing,
- * malformed, another policy version, dated in the future or older than CONSENT_MAX_AGE_DAYS.
- * Null means "ask". Extra keys are dropped.
+ * malformed, a policy version the notice does not honor (`version`: a notice, or the one version
+ * to accept), dated in the future or older than CONSENT_MAX_AGE_DAYS. Null means "ask". Extra
+ * keys are dropped.
  */
 export function parseConsent(
   value: string | null | undefined,
   now: number = Date.now(),
-  version: number = CONSENT_VERSION,
+  version: number | ConsentNotice = BASE_NOTICE,
 ): ConsentState | null {
+  const accepted = typeof version === "number" ? [version] : version.accepts;
   if (!value) return null;
   let json: unknown;
   try {
@@ -74,7 +112,7 @@ export function parseConsent(
   const parsed = storedSchema.safeParse(json);
   if (!parsed.success) return null;
   const { v, analytics, marketing, ts } = parsed.data;
-  if (v !== version || !Number.isFinite(ts)) return null;
+  if (!accepted.includes(v) || !Number.isFinite(ts)) return null;
   if (ts > now + CLOCK_SKEW_MS || now - ts > CONSENT_MAX_AGE_DAYS * DAY_MS) return null;
   return { v, necessary: true, analytics, marketing, ts };
 }
@@ -90,14 +128,22 @@ export function readCookie(cookies: string, name: string): string | undefined {
 }
 
 /** The stored choice from a whole `document.cookie` string. */
-export function consentFromCookies(cookies: string, now: number = Date.now()): ConsentState | null {
-  return parseConsent(readCookie(cookies, CONSENT_COOKIE), now);
+export function consentFromCookies(
+  cookies: string,
+  now: number = Date.now(),
+  notice: ConsentNotice = BASE_NOTICE,
+): ConsentState | null {
+  return parseConsent(readCookie(cookies, CONSENT_COOKIE), now, notice);
 }
 
-/** A new choice under the current policy version. */
-export function makeConsent(choice: ConsentChoice, now: number = Date.now()): ConsentState {
+/** A new choice under the given policy version (the current notice's). */
+export function makeConsent(
+  choice: ConsentChoice,
+  now: number = Date.now(),
+  version: number = CONSENT_VERSION,
+): ConsentState {
   return {
-    v: CONSENT_VERSION,
+    v: version,
     necessary: true,
     analytics: choice.analytics === true,
     marketing: choice.marketing === true,

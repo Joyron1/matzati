@@ -41,15 +41,19 @@ function trapTab(event: KeyboardEvent<HTMLDialogElement>) {
  * "הגדרות עוגיות": a native modal <dialog>. showModal() moves focus to its first control (the
  * close button) and makes the page inert; Esc closes it (the native cancel), and so do the close
  * button and every choice. On close, ConsentManager returns focus to the button that opened it.
+ * `categories`: consentCategories() for the page (statistics in use while Google Analytics is
+ * configured).
  */
 export function CookieSettingsDialog({
   open,
+  categories = CONSENT_CATEGORIES,
   consent,
   onSave,
   onLeave,
   onClose,
 }: {
   open: boolean;
+  categories?: readonly ConsentCategoryInfo[];
   consent: ConsentState | null | undefined;
   onSave(choice: ConsentChoice): void;
   /** The policy link is being followed in this tab (called just before the dialog closes). */
@@ -82,6 +86,7 @@ export function CookieSettingsDialog({
       {/* The content mounts on every opening, so the switches start from the stored choice. */}
       {open && (
         <SettingsContent
+          categories={categories}
           consent={consent}
           titleId={titleId}
           descriptionId={descriptionId}
@@ -98,6 +103,7 @@ export function CookieSettingsDialog({
 }
 
 function SettingsContent({
+  categories,
   consent,
   titleId,
   descriptionId,
@@ -105,6 +111,7 @@ function SettingsContent({
   onLeave,
   onDismiss,
 }: {
+  categories: readonly ConsentCategoryInfo[];
   consent: ConsentState | null | undefined;
   titleId: string;
   descriptionId: string;
@@ -139,7 +146,7 @@ function SettingsContent({
           ״הגדרות עוגיות״ בתחתית כל עמוד.
         </p>
         <ul className="mt-2 divide-y divide-line">
-          {CONSENT_CATEGORIES.map((info) => (
+          {categories.map((info) => (
             <CategoryRow
               key={info.id}
               info={info}

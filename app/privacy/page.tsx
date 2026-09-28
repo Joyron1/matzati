@@ -9,9 +9,18 @@ import {
 } from "@/components/static-page";
 import { ADMIN_LOGINS_PER_HOUR } from "@/lib/admin/login-rate";
 import { BRAND } from "@/lib/config/brand";
-import { LEGAL_PATHS, RETENTION } from "@/lib/config/legal";
+import { RETENTION } from "@/lib/config/legal";
 import { SEARCHES_PER_DAY, SEARCHES_PER_HOUR } from "@/lib/guard/rate-limit";
 import { CACHE_TTL_DAYS } from "@/lib/search/cache-key";
+import { googleAnalyticsId } from "@/lib/settings/queries";
+import {
+  AnalyticsBasisItem,
+  AnalyticsRetentionItem,
+  AnalyticsSharingItem,
+  AnalyticsSummary,
+  AnalyticsTracking,
+} from "./analytics";
+import { NEWSLETTER_PRIVACY_SECTION, NewsletterPrivacy } from "./newsletter";
 
 export const metadata: Metadata = {
   title: "מדיניות פרטיות",
@@ -36,6 +45,7 @@ const SEC = {
   retention: { id: "retention", title: "כמה זמן המידע נשמר" },
   sharing: { id: "sharing", title: "עם מי המידע משותף" },
   tracking: { id: "tracking", title: "עוגיות וכלי מעקב" },
+  newsletter: NEWSLETTER_PRIVACY_SECTION,
   security: { id: "security", title: "אבטחת מידע" },
   rights: { id: "rights", title: "הזכויות שלכם" },
   children: { id: "children", title: "ילדים" },
@@ -43,7 +53,10 @@ const SEC = {
   contact: { id: "contact", title: "יצירת קשר" },
 } as const satisfies Record<string, PageSection>;
 
-export default function PrivacyPage() {
+export default async function PrivacyPage() {
+  // Google Analytics (./analytics.tsx) is described only while the owner has set its id: the same
+  // cached setting the root layout reads, so the page stays static and changes with it.
+  const analytics = (await googleAnalyticsId()) !== null;
   return (
     <StaticPage
       page="privacy"
@@ -55,9 +68,10 @@ export default function PrivacyPage() {
             מתארת את האתר כפי שהוא בנוי היום.
           </p>
           <p>
-            בקצרה: אין באתר הרשמה, אנחנו לא מבקשים שם, טלפון או אימייל, ולא משתמשים בכלי אנליטיקה,
-            פרסום או מעקב. את מה שאתם כותבים בחיפוש אנחנו שומרים בלי פרטים על מי שחיפש, ואת כתובת
-            ה־IP שלכם שומרים במסד הנתונים שלנו רק כערך מגובב (hash) חד־כיווני, לזמן קצר.
+            בקצרה: אין באתר חשבונות משתמש, ואנחנו לא מבקשים שם או טלפון. אימייל נבקש רק אם תבחרו
+            להירשם לעדכונים על מבצעים וקופונים. <AnalyticsSummary inUse={analytics} /> את מה שאתם
+            כותבים בחיפוש אנחנו שומרים בלי פרטים על מי שחיפש, ואת כתובת ה־IP שלכם שומרים במסד
+            הנתונים שלנו רק כערך מגובב (hash) חד־כיווני, לזמן קצר.
           </p>
         </>
       }
@@ -161,6 +175,7 @@ export default function PrivacyPage() {
           <li>את החיפוש אנחנו שומרים ומעבדים כי הוא נדרש כדי לתת את השירות שביקשתם.</li>
           <li>את הערך המגובב של כתובת ה־IP אנחנו שומרים לצורך אבטחה ומניעת שימוש לרעה.</li>
           <li>נתוני השימוש, בלי פרטים מזהים, משמשים לשיפור השירות ולסטטיסטיקה.</li>
+          <AnalyticsBasisItem inUse={analytics} />
         </ul>
       </LegalSection>
 
@@ -190,6 +205,7 @@ export default function PrivacyPage() {
           <li>כתובות האימייל של מנהלי האתר: עד שהמשתמש שלהם נמחק.</li>
           <li>רשומות ההתחברות של מנהלי האתר והיומנים של שירות הכניסה: לפי המדיניות של Supabase.</li>
           <li>היומנים של ספק האחסון: לפי המדיניות של Vercel.</li>
+          <AnalyticsRetentionItem inUse={analytics} />
         </ul>
         <p>המחיקה נעשית אוטומטית פעם ביום, ולכן רשומה עשויה להישאר עד יום אחד אחרי המועד.</p>
       </LegalSection>
@@ -218,6 +234,7 @@ export default function PrivacyPage() {
             אקספרס או מפעילים סרטון מוצר, הדפדפן שלכם פונה אליה ישירות, והיא פועלת לפי מדיניות
             הפרטיות שלה.
           </li>
+          <AnalyticsSharingItem inUse={analytics} />
         </ul>
         <p>
           הספקים נמצאים מחוץ לישראל, באיחוד האירופי, בארצות הברית ובסינגפור, ולכן המידע מועבר אליהם
@@ -225,17 +242,14 @@ export default function PrivacyPage() {
         </p>
       </LegalSection>
 
+      {/* Analytics (Google Analytics, while the owner has set its id): ./analytics.tsx. */}
       <LegalSection {...SEC.tracking}>
-        <p>
-          האתר לא משתמש היום בכלי אנליטיקה, בפיקסלים או בעוגיות פרסום, ולא טוען סקריפטים של צד
-          שלישי. הגופנים ותמונות המוצרים מוגשים מהשרתים של האתר. בדפדפן נשמרים רק דברים שהאתר צריך
-          כדי לעבוד ולזכור בחירות שעשיתם, והפירוט המלא ב
-          <Link href={LEGAL_PATHS.cookies}>מדיניות העוגיות</Link>.
-        </p>
-        <p>
-          אם נוסיף בעתיד כלי אנליטיקה או פרסום, הוא יפעל רק אחרי שתאשרו אותו בהגדרות העוגיות, ונעדכן
-          את המדיניות לפני כן.
-        </p>
+        <AnalyticsTracking inUse={analytics} />
+      </LegalSection>
+
+      {/* Newsletter (the footer's sign-up for email updates): ./newsletter.tsx. */}
+      <LegalSection {...SEC.newsletter}>
+        <NewsletterPrivacy />
       </LegalSection>
 
       <LegalSection {...SEC.security}>
@@ -275,8 +289,9 @@ export default function PrivacyPage() {
 
       <LegalSection {...SEC.children}>
         <p>
-          האתר לא מיועד במיוחד לילדים, ואין בו הרשמה או בקשה לפרטים מזהים. הורים: אם ילד כתב בחיפוש
-          פרטים אישיים, פנו אלינו ונמחק אותם.
+          האתר לא מיועד במיוחד לילדים, ואין בו חשבונות משתמש. הפרט המזהה היחיד שאפשר למסור בו הוא
+          אימייל להרשמה לעדכונים, מרצון. הורים: אם ילד כתב בחיפוש פרטים אישיים או נרשם לעדכונים, פנו
+          אלינו ונמחק אותם.
         </p>
       </LegalSection>
 

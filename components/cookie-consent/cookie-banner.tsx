@@ -21,12 +21,15 @@ const button = "min-h-11 grow px-2.5 text-sm sm:grow-0 sm:px-4";
  * 370px the first one shows "הכרחיות בלבד", its full name staying in the accessible name), so it
  * fits without scrolling inside. On a phone on its side the text and the buttons sit side by
  * side (cookie-consent.module.css). From sm the fixed box itself is the centered card, so no
- * invisible strip beside it catches clicks meant for the page.
+ * invisible strip beside it catches clicks meant for the page. `analyticsInUse`: Google Analytics
+ * is configured, so the text says statistics are available, and only with consent.
  */
 export function CookieBanner({
+  analyticsInUse = false,
   onChoose,
   onOpenSettings,
 }: {
+  analyticsInUse?: boolean;
   onChoose(choice: ConsentChoice): void;
   onOpenSettings(): void;
 }) {
@@ -73,8 +76,9 @@ export function CookieBanner({
           </h2>
           {/* What is stored, item by item: /cookies (STORAGE_INVENTORY). */}
           <p className="mt-1 text-sm leading-relaxed text-muted">
-            אנחנו שומרים בדפדפן רק את מה שהכרחי לאתר. עוגיות סטטיסטיקה ושיווק לא בשימוש, ונפעיל אותן
-            רק אם תאשרו.{" "}
+            {analyticsInUse
+              ? "אנחנו שומרים בדפדפן את מה שהכרחי לאתר. עוגיות סטטיסטיקה (Google Analytics) יופעלו רק אם תאשרו, ועוגיות שיווק לא בשימוש."
+              : "אנחנו שומרים בדפדפן רק את מה שהכרחי לאתר. עוגיות סטטיסטיקה ושיווק לא בשימוש, ונפעיל אותן רק אם תאשרו."}{" "}
             <Link
               href={LEGAL_PATHS.cookies}
               className="font-medium whitespace-nowrap text-accent-ink underline underline-offset-4 hover:no-underline"

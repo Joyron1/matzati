@@ -18,15 +18,27 @@ vi.mock("next/cache", () => ({
 }));
 
 import { DEFAULT_SHOP_CAP_MODE } from "@/lib/ranking/config";
-import { saveShopCapMode } from "./admin";
+import { saveCommunityLink, saveGoogleSettings, saveShopCapMode } from "./admin";
+import { getCommunityLink } from "./community";
+import { COMMUNITY_KEY, DEFAULT_COMMUNITY_LABEL } from "./community-link";
 import {
   selectSetting,
+  selectSettings,
   SettingsDbError,
   upsertSetting,
   SETTINGS_TABLE,
   type SettingsClient,
 } from "./db";
-import { shopCapMode, shopCapSettingForAdmin } from "./queries";
+import { GOOGLE_ANALYTICS_KEY, SEARCH_CONSOLE_KEY } from "./google";
+import {
+  EMPTY_PUBLIC_SETTINGS,
+  googleAnalyticsId,
+  publicSettings,
+  publicSettingsForAdmin,
+  shopCapMode,
+  shopCapSettingForAdmin,
+  withDevOverride,
+} from "./queries";
 import {
   parseSettingsForm,
   SETTINGS_TAG,
@@ -34,6 +46,8 @@ import {
   SHOP_CAP_KEY,
   shopCapModeOf,
 } from "./schema";
+
+type Payload = { key: string; value: unknown };
 
 /** A fake site_settings table: one row per key, and every call recorded. */
 class FakeTable {
@@ -52,17 +66,33 @@ class FakeTable {
               return { data: this.rows.get(key) ?? null, error: null };
             },
           }),
+          in: async (_col: string, keys: string[]) => {
+            this.calls.push({ op: "select-in", table, payload: keys });
+            if (this.failing) return { data: null, error: { message: "relation does not exist" } };
+            const data = keys.flatMap((key) => {
+              const row = this.rows.get(key);
+              return row ? [{ key, ...row }] : [];
+            });
+            return { data, error: null };
+          },
         }),
-        upsert: async (payload: { key: string; value: unknown }) => {
+        upsert: async (payload: Payload | Payload[]) => {
           this.calls.push({ op: "upsert", table, payload });
           if (this.failing) return { error: { message: "down" } };
-          this.rows.set(payload.key, { value: payload.value, updated_at: "2026-09-28T23:00:00Z" });
+          for (const row of Array.isArray(payload) ? payload : [payload]) {
+            this.rows.set(row.key, { value: row.value, updated_at: "2026-09-28T23:00:00Z" });
+          }
           return { error: null };
         },
       }),
     };
   }
 }
+
+const GA_ID = "G-AB12CD34EF";
+const TOKEN = "rXkTz3m9_Q-abcdEFGHijklMNOP0123456789xyzAB";
+const INVITE = "https://chat.whatsapp.com/AbCdEf123";
+const AT = "2026-09-28T23:00:00Z";
 
 let table: FakeTable;
 /** The fake as the queries' client type. */
@@ -211,6 +241,240 @@ describe("saveShopCapMode (the admin's write)", () => {
   it("does not expire the cache when the write fails", async () => {
     table.failing = true;
     await expect(saveShopCapMode({ mode: "max2" })).rejects.toBeInstanceOf(SettingsDbError);
+    expect(m.updateTag).not.toHaveBeenCalled();
+  });
+});
+
+describe("selectSettings", () => {
+  it("reads several keys in one query, by key", async () => {
+    table.rows.set(GOOGLE_ANALYTICS_KEY, { value: { measurementId: GA_ID }, updated_at: AT });
+    const rows = await selectSettings(client(), [GOOGLE_ANALYTICS_KEY, SEARCH_CONSOLE_KEY]);
+    expect([...rows.keys()]).toEqual([GOOGLE_ANALYTICS_KEY]);
+    expect(rows.get(GOOGLE_ANALYTICS_KEY)).toEqual({
+      value: { measurementId: GA_ID },
+      updatedAt: AT,
+    });
+    expect(table.calls).toHaveLength(1);
+    table.failing = true;
+    await expect(selectSettings(client(), [SHOP_CAP_KEY])).rejects.toBeInstanceOf(SettingsDbError);
+  });
+});
+
+describe("publicSettings (every page's read)", () => {
+  it("is empty while nothing is stored", async () => {
+    expect(await publicSettings()).toEqual(EMPTY_PUBLIC_SETTINGS);
+    expect(await getCommunityLink()).toBeNull();
+    expect(await googleAnalyticsId()).toBeNull();
+  });
+
+  it("reads the id, the token and a shown community link in one query", async () => {
+    table.rows.set(GOOGLE_ANALYTICS_KEY, { value: { measurementId: GA_ID }, updated_at: AT });
+    table.rows.set(SEARCH_CONSOLE_KEY, { value: { verification: TOKEN }, updated_at: AT });
+    table.rows.set(COMMUNITY_KEY, {
+      value: { url: INVITE, label: "בואו לקבוצה", enabled: true },
+      updated_at: AT,
+    });
+    expect(await publicSettings()).toEqual({
+      measurementId: GA_ID,
+      siteVerification: TOKEN,
+      community: { url: INVITE, label: "בואו לקבוצה" },
+    });
+    expect(table.calls).toEqual([
+      {
+        op: "select-in",
+        table: SETTINGS_TABLE,
+        payload: [GOOGLE_ANALYTICS_KEY, SEARCH_CONSOLE_KEY, COMMUNITY_KEY],
+      },
+    ]);
+    expect(await getCommunityLink()).toEqual({ url: INVITE, label: "בואו לקבוצה" });
+    expect(await googleAnalyticsId()).toBe(GA_ID);
+  });
+
+  it("hides the community link while it is switched off", async () => {
+    table.rows.set(COMMUNITY_KEY, {
+      value: { url: INVITE, label: DEFAULT_COMMUNITY_LABEL, enabled: false },
+      updated_at: AT,
+    });
+    expect(await getCommunityLink()).toBeNull();
+  });
+
+  it("reads a cleared value as unset, and a hand-edited one as unset (logged, value not printed)", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      table.rows.set(GOOGLE_ANALYTICS_KEY, { value: { measurementId: null }, updated_at: AT });
+      table.rows.set(SEARCH_CONSOLE_KEY, { value: { verification: null }, updated_at: AT });
+      expect(await publicSettings()).toEqual(EMPTY_PUBLIC_SETTINGS);
+      expect(errors).not.toHaveBeenCalled();
+      table.rows.set(GOOGLE_ANALYTICS_KEY, {
+        value: { measurementId: "<script>alert(1)</script>" },
+        updated_at: AT,
+      });
+      table.rows.set(COMMUNITY_KEY, {
+        value: { url: "javascript:alert(1)", label: "x!", enabled: true },
+        updated_at: AT,
+      });
+      expect(await publicSettings()).toEqual(EMPTY_PUBLIC_SETTINGS);
+      expect(errors).toHaveBeenCalledTimes(2);
+      expect(errors.mock.calls.join(" ")).not.toContain("script");
+    } finally {
+      errors.mockRestore();
+    }
+  });
+
+  it("never throws: a failed read is empty, and the next minute does not read again", async () => {
+    vi.useFakeTimers();
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      table.rows.set(GOOGLE_ANALYTICS_KEY, { value: { measurementId: GA_ID }, updated_at: AT });
+      table.failing = true;
+      expect(await publicSettings()).toEqual(EMPTY_PUBLIC_SETTINGS);
+      expect(await getCommunityLink()).toBeNull();
+      const reads = table.calls.length;
+      expect(await publicSettings()).toEqual(EMPTY_PUBLIC_SETTINGS);
+      expect(table.calls).toHaveLength(reads);
+      table.failing = false;
+      vi.advanceTimersByTime(60_000);
+      expect((await publicSettings()).measurementId).toBe(GA_ID);
+      expect(errors).toHaveBeenCalledTimes(1);
+    } finally {
+      errors.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("withDevOverride", () => {
+  const dev = (vars: Record<string, string>) => ({ NODE_ENV: "development", ...vars });
+
+  it("replaces the stored values in `next dev` only, through the same extraction", () => {
+    const env = dev({
+      DEV_GOOGLE_ANALYTICS_ID: "g-dev12345",
+      DEV_GOOGLE_SITE_VERIFICATION: `<meta name="google-site-verification" content="${TOKEN}">`,
+      DEV_COMMUNITY_URL: INVITE,
+    });
+    expect(withDevOverride(EMPTY_PUBLIC_SETTINGS, env)).toEqual({
+      measurementId: "G-DEV12345",
+      siteVerification: TOKEN,
+      community: { url: INVITE, label: DEFAULT_COMMUNITY_LABEL },
+    });
+    for (const NODE_ENV of ["production", "test", undefined]) {
+      expect(withDevOverride(EMPTY_PUBLIC_SETTINGS, { ...env, NODE_ENV })).toEqual(
+        EMPTY_PUBLIC_SETTINGS,
+      );
+    }
+  });
+
+  it("ignores a value that is not usable (logged) and keeps the stored one", () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const stored = { ...EMPTY_PUBLIC_SETTINGS, measurementId: GA_ID };
+      expect(
+        withDevOverride(
+          stored,
+          dev({ DEV_GOOGLE_ANALYTICS_ID: "UA-1234-1", DEV_COMMUNITY_URL: "http://x.y" }),
+        ),
+      ).toEqual(stored);
+      expect(errors).toHaveBeenCalledTimes(2);
+    } finally {
+      errors.mockRestore();
+    }
+  });
+});
+
+describe("publicSettingsForAdmin", () => {
+  it("reads fresh what is stored, with when it was saved; null when it cannot read", async () => {
+    expect(await publicSettingsForAdmin()).toEqual({
+      google: { measurementId: null, siteVerification: null, updatedAt: null },
+      community: { url: null, label: DEFAULT_COMMUNITY_LABEL, enabled: false, updatedAt: null },
+    });
+    table.rows.set(GOOGLE_ANALYTICS_KEY, { value: { measurementId: GA_ID }, updated_at: AT });
+    table.rows.set(SEARCH_CONSOLE_KEY, {
+      value: { verification: TOKEN },
+      updated_at: "2026-09-28T23:30:00Z",
+    });
+    table.rows.set(COMMUNITY_KEY, {
+      value: { url: INVITE, label: DEFAULT_COMMUNITY_LABEL, enabled: false },
+      updated_at: AT,
+    });
+    expect(await publicSettingsForAdmin()).toEqual({
+      google: { measurementId: GA_ID, siteVerification: TOKEN, updatedAt: "2026-09-28T23:30:00Z" },
+      community: { url: INVITE, label: DEFAULT_COMMUNITY_LABEL, enabled: false, updatedAt: AT },
+    });
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      table.failing = true;
+      expect(await publicSettingsForAdmin()).toBeNull();
+    } finally {
+      errors.mockRestore();
+    }
+  });
+});
+
+describe("saveGoogleSettings (the admin's write)", () => {
+  it("checks the admin, writes both keys in one statement and expires the settings tag", async () => {
+    expect(await saveGoogleSettings({ measurementId: GA_ID, siteVerification: TOKEN })).toEqual({
+      measurementId: GA_ID,
+      siteVerification: TOKEN,
+    });
+    expect(m.requireAdmin).toHaveBeenCalledTimes(1);
+    expect(table.calls).toEqual([
+      {
+        op: "upsert",
+        table: SETTINGS_TABLE,
+        payload: [
+          { key: GOOGLE_ANALYTICS_KEY, value: { measurementId: GA_ID } },
+          { key: SEARCH_CONSOLE_KEY, value: { verification: TOKEN } },
+        ],
+      },
+    ]);
+    expect(m.updateTag).toHaveBeenCalledWith(SETTINGS_TAG);
+  });
+
+  it("stores null for a cleared connection", async () => {
+    await saveGoogleSettings({ measurementId: null, siteVerification: null });
+    expect(table.rows.get(GOOGLE_ANALYTICS_KEY)?.value).toEqual({ measurementId: null });
+    expect(table.rows.get(SEARCH_CONSOLE_KEY)?.value).toEqual({ verification: null });
+  });
+
+  it("never stores pasted text, and writes nothing without an admin or on a failed write", async () => {
+    await expect(
+      saveGoogleSettings({ measurementId: "<script>gtag()</script>", siteVerification: null }),
+    ).rejects.toThrow();
+    await expect(
+      saveGoogleSettings({ measurementId: null, siteVerification: '<meta name="x">' }),
+    ).rejects.toThrow();
+    expect(table.calls).toEqual([]);
+    m.requireAdmin.mockRejectedValueOnce(new Error("NEXT_REDIRECT"));
+    await expect(
+      saveGoogleSettings({ measurementId: GA_ID, siteVerification: null }),
+    ).rejects.toThrow("NEXT_REDIRECT");
+    expect(table.calls).toEqual([]);
+    table.failing = true;
+    await expect(
+      saveGoogleSettings({ measurementId: GA_ID, siteVerification: null }),
+    ).rejects.toBeInstanceOf(SettingsDbError);
+    expect(m.updateTag).not.toHaveBeenCalled();
+  });
+});
+
+describe("saveCommunityLink (the admin's write)", () => {
+  it("checks the admin, validates, writes and expires the settings tag", async () => {
+    const value = { url: INVITE, label: DEFAULT_COMMUNITY_LABEL, enabled: true };
+    expect(await saveCommunityLink(value)).toEqual(value);
+    expect(m.requireAdmin).toHaveBeenCalledTimes(1);
+    expect(table.rows.get(COMMUNITY_KEY)?.value).toEqual(value);
+    expect(m.updateTag).toHaveBeenCalledWith(SETTINGS_TAG);
+  });
+
+  it("writes nothing that breaks a rule", async () => {
+    for (const value of [
+      { url: "http://example.com/", label: "בואו", enabled: false },
+      { url: null, label: "בואו", enabled: true },
+      { url: INVITE, label: "", enabled: false },
+    ]) {
+      await expect(saveCommunityLink(value)).rejects.toThrow();
+    }
+    expect(table.calls).toEqual([]);
     expect(m.updateTag).not.toHaveBeenCalled();
   });
 });

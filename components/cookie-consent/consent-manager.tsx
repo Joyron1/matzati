@@ -3,7 +3,8 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { LEGAL_PATHS } from "@/lib/config/legal";
-import type { ConsentChoice } from "@/lib/consent/consent";
+import { consentCategories } from "@/lib/consent/categories";
+import { consentNotice, type ConsentChoice } from "@/lib/consent/consent";
 import {
   CONSENT_OPEN_EVENT,
   COOKIE_SETTINGS_BUTTON_ID,
@@ -55,9 +56,13 @@ function focusMain() {
  * an empty live region: the banner appears after the cookie is read in the browser, and only
  * when there is no valid choice, so a returning visitor never sees it flash. The settings dialog
  * opens from the banner or from anywhere through openConsentSettings() (the footer button).
+ * `analyticsInUse`: Google Analytics is configured (the root layout reads the admin setting). The
+ * banner and the dialog then say statistics are available with consent, and the notice version
+ * changes (consentNotice), so a choice made before it does not count.
  */
-export function ConsentManager() {
-  const { consent } = useConsent();
+export function ConsentManager({ analyticsInUse = false }: { analyticsInUse?: boolean }) {
+  const notice = consentNotice(analyticsInUse);
+  const { consent } = useConsent(notice);
   const pathname = usePathname();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [bannerNotice, setBannerNotice] = useState("");
@@ -118,7 +123,7 @@ export function ConsentManager() {
 
   function choose(choice: ConsentChoice) {
     keyboardChoice.current = keyboardFocused();
-    consentStore().save(choice);
+    consentStore(notice).save(choice);
     // The banner (and the button just pressed) goes away: confirm the choice to screen readers.
     setSavedNotice(SAVED_NOTICE);
     clearTimeout(savedTimer.current);
@@ -152,10 +157,15 @@ export function ConsentManager() {
         {savedNotice || (showBanner ? bannerNotice : "")}
       </div>
       {showBanner && (
-        <CookieBanner onChoose={choose} onOpenSettings={() => openConsentSettings()} />
+        <CookieBanner
+          analyticsInUse={analyticsInUse}
+          onChoose={choose}
+          onOpenSettings={() => openConsentSettings()}
+        />
       )}
       <CookieSettingsDialog
         open={settingsOpen}
+        categories={consentCategories(analyticsInUse)}
         consent={consent}
         onSave={choose}
         onLeave={() => {

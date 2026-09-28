@@ -2,6 +2,11 @@
 // and the storage the site actually uses (for the /cookies page). Every line must stay true of the
 // code: when a tool is added, list its storage here, mark its category as in use and bump
 // CONSENT_VERSION (./consent.ts) so visitors are asked again.
+//
+// Google Analytics is on only while the owner has set its measurement id (/admin/settings): the
+// pages then use consentCategories(true) and storageInventory(id), and the notice version changes
+// on its own (consentNotice in ./consent.ts). CONSENT_CATEGORIES and STORAGE_INVENTORY are the
+// site without it.
 import type { ConsentCategory } from "./consent";
 
 export interface ConsentCategoryInfo {
@@ -34,6 +39,21 @@ export const CONSENT_CATEGORIES: readonly ConsentCategoryInfo[] = [
   },
 ];
 
+/** The statistics category while Google Analytics is configured. */
+const ANALYTICS_IN_USE: ConsentCategoryInfo = {
+  id: "analytics",
+  label: "סטטיסטיקה",
+  description:
+    "מדידת השימוש באתר עם Google Analytics, כדי להבין מה עובד ומה כדאי לשפר. פועלות רק אם תפעילו אותן.",
+  inUse: true,
+};
+
+/** The categories the banner, the settings dialog and /cookies show. */
+export function consentCategories(analyticsInUse: boolean): readonly ConsentCategoryInfo[] {
+  if (!analyticsInUse) return CONSENT_CATEGORIES;
+  return CONSENT_CATEGORIES.map((c) => (c.id === "analytics" ? ANALYTICS_IN_USE : c));
+}
+
 export interface StorageItem {
   /** As the browser's developer tools show it. */
   name: string;
@@ -43,12 +63,15 @@ export interface StorageItem {
   who: string;
   purpose: string;
   duration: string;
+  /** A third party that receives what it holds; unset for the site's own storage. */
+  provider?: string;
   /** The code that writes it (for maintainers, not shown to visitors). */
   source: string;
 }
 
 /**
- * Everything the site stores in the visitor's browser today. The site sets no analytics or
+ * Everything the site stores in the visitor's browser without Google Analytics (storageInventory
+ * adds its cookies while it is configured). Apart from it, the site sets no analytics or
  * marketing cookies and loads no third-party scripts. Pages of AliExpress (after a buy link, or
  * the product video, which loads from AliExpress only when played) are under AliExpress's policy.
  */
@@ -96,3 +119,45 @@ export const STORAGE_INVENTORY: readonly StorageItem[] = [
     source: "app/(admin-public)/admin/login/actions.ts (@supabase/ssr)",
   },
 ];
+
+/**
+ * The cookies Google Analytics 4 sets once the visitor accepts statistics
+ * (components/analytics/gtag.ts: host-only, cookie_expires 2 years, renewed on each visit; deleted
+ * when the consent is withdrawn). `_ga_<container>` is named after the measurement id without "G-".
+ */
+export function analyticsStorage(measurementId: string): StorageItem[] {
+  const who = "מי שאישר עוגיות סטטיסטיקה";
+  const provider = "Google (Google Analytics)";
+  const duration = "שנתיים מהביקור האחרון, או עד שתבטלו את ההסכמה";
+  const source = "components/analytics/gtag.ts (gtag.js)";
+  return [
+    {
+      name: "_ga",
+      kind: "cookie",
+      category: "analytics",
+      who,
+      purpose:
+        "מזהה אקראי של הדפדפן, כדי ש־Google Analytics יבחין בין מבקרים חדשים לחוזרים ויספור ביקורים.",
+      duration,
+      provider,
+      source,
+    },
+    {
+      name: `_ga_${measurementId.replace(/^G-/, "")}`,
+      kind: "cookie",
+      category: "analytics",
+      who,
+      purpose: "שומרת את מצב הביקור הנוכחי (מתי התחיל ומספר הביקור), כדי למדוד ביקורים ומשכם.",
+      duration,
+      provider,
+      source,
+    },
+  ];
+}
+
+/** Everything the site stores in the browser, with Google Analytics's cookies while it is set. */
+export function storageInventory(measurementId: string | null): readonly StorageItem[] {
+  return measurementId
+    ? [...STORAGE_INVENTORY, ...analyticsStorage(measurementId)]
+    : STORAGE_INVENTORY;
+}
