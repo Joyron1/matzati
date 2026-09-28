@@ -95,8 +95,9 @@ export interface SearchLogEntry {
   /** A request that joined an identical search already running (no work of its own). */
   shared: boolean;
   /**
-   * Made while a signed-in admin (the owner) browsed: logged, never counted in the stats and never
-   * listed on /searches (search_log.owner). Absent means false.
+   * Made while a signed-in admin (the owner) browsed: logged and never counted in the stats
+   * (search_log.owner); a typed one is still listed on /searches (isListableSearch). Absent means
+   * false.
    */
   owner?: boolean;
   /** How a search that did its own work went, beyond the counts (search_log.diag). */

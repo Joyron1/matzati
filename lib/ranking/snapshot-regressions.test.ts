@@ -101,6 +101,33 @@ describe.skipIf(!available)("recorded cases on their snapshot pools", () => {
     },
   );
 
+  it.skipIf(!existsSync(`${DIR}/cheapest-cable.json`))(
+    "cheapest cable: no cable whose only plug is Lightning, with the stored or the live parse",
+    () => {
+      // The live site (2026-09-28) showed "USB C To Lightning" cables at #2-#4 of "כבל USB-C
+      // לאייפון 15": its parse asked for "usb-c to lightning cable" (fixtures/llm/
+      // eval-v3-2026-09-28-subset.json), and every title says "For iPhone 15 14 13 ...".
+      const { snap, pool, label } = load("cheapest-cable");
+      const live = {
+        ...snap.parse.parsed,
+        keywords_en: "usb-c lightning cable iphone 15",
+        product_terms: ["usb-c cable", "usb-c to lightning cable"],
+        requirements: [{ en: "iphone 15", alt: ["lightning connector"], he: "לאייפון 15" }],
+      };
+      for (const parsed of [snap.parse.parsed, live]) {
+        for (const sort of ["cheapest", "best_value", "most_popular"] as const) {
+          const f = { ...parsed, sort_preference: sort };
+          const list = rankWithFill(pool, f, RESULTS_PER_PAGE, "none").ranked;
+          // "Toocki PD 20W USB C To Lightnin Cable For iPhone 15 14 13 ..." (labelled wrong).
+          expect(list.map((p) => p.productId)).not.toContain("1005013255643267");
+          const page = list.slice(0, RESULTS_PER_PAGE);
+          expect(page.some((p) => /lightnin|8[\s-]?pin/i.test(p.title))).toBe(false);
+          expect(page.map(label)).not.toContain("wrong");
+        }
+      }
+    },
+  );
+
   it("shared numbers: only the store with 98.0% on nearly every listing, in every pool", () => {
     // Owner decision 2026-09-28. The rule names no shop; on the real pools it finds exactly one.
     const stone = "1103573332";

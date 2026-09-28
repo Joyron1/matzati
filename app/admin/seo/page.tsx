@@ -6,7 +6,13 @@ import { btnMd, btnPrimary, card } from "@/components/styles";
 import { requireAdmin } from "@/lib/admin/auth";
 import { formatDateTime } from "@/lib/format";
 import { firstParam, searchHref } from "@/lib/search-url";
-import { listAllSeoPages, type SeoPage } from "@/lib/seo/queries";
+import {
+  listAllSeoPages,
+  listSnapshotStatuses,
+  type SeoPage,
+  type SnapshotStatusRow,
+} from "@/lib/seo/queries";
+import { readSnapshot, refreshNoteText } from "@/lib/seo/snapshot";
 import { SeoRowActions } from "./seo-row-actions";
 import { StatusMessage } from "../status-message";
 
@@ -15,23 +21,85 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+// "רענון עכשיו" runs a fresh search inside its server action (7-15 s, a retry included up to
+// about 45 s): the actions of this page get Vercel Hobby's full limit.
+export const maxDuration = 60;
+
+const REFRESHING = " התוצאות שלו נשמרות ברקע תוך כחצי דקה.";
+
 const STATUS: Record<string, string> = {
   created: "הדף נשמר. אם סימנתם פרסום, הוא כבר באתר.",
+  "created-refreshing": `הדף נשמר ופורסם.${REFRESHING}`,
   updated: "השינויים נשמרו.",
+  "updated-refreshing": `השינויים נשמרו.${REFRESHING}`,
   deleted: "הדף נמחק.",
 };
 
 const pill = "inline-flex items-center rounded-full px-3 py-1 text-xs font-bold whitespace-nowrap";
 
+function logError(err: unknown) {
+  console.error(
+    `[admin-seo] ${err instanceof Error ? `${err.name}: ${err.message}` : String(err)}`,
+  );
+}
+
 async function loadPages(): Promise<SeoPage[] | null> {
   try {
     return await listAllSeoPages();
   } catch (err) {
-    console.error(
-      `[admin-seo] ${err instanceof Error ? `${err.name}: ${err.message}` : String(err)}`,
-    );
+    logError(err);
     return null;
   }
+}
+
+/** Null when they cannot be read (also before the snapshot migration is applied). */
+async function loadStatuses(): Promise<Map<string, SnapshotStatusRow> | null> {
+  try {
+    return await listSnapshotStatuses();
+  } catch (err) {
+    logError(err);
+    return null;
+  }
+}
+
+/** The page's stored results (count and date) and, when it stored nothing, why. */
+function SnapshotStatus({
+  page,
+  status,
+}: {
+  page: SeoPage;
+  status: SnapshotStatusRow | undefined;
+}) {
+  const snapshot = status ? readSnapshot(status, page.query) : null;
+  const count = snapshot?.response.results.length ?? 0;
+  return (
+    <dl className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted">
+      <div className="flex gap-1">
+        <dt>תוצאות שמורות:</dt>
+        <dd className="text-ink">
+          {snapshot ? (
+            <>
+              {count === 1 ? "מוצר אחד" : `${count} מוצרים`}, עודכן ב־
+              <time dateTime={snapshot.resultsAt}>{formatDateTime(snapshot.resultsAt)}</time>
+            </>
+          ) : page.published ? (
+            "עוד אין"
+          ) : (
+            "עוד אין (יישמרו אחרי הפרסום)"
+          )}
+        </dd>
+      </div>
+      {status?.note && status.attemptedAt && (
+        <div className="flex flex-wrap gap-x-1">
+          <dt>
+            רענון אחרון (
+            <time dateTime={status.attemptedAt}>{formatDateTime(status.attemptedAt)}</time>):
+          </dt>
+          <dd className="text-ink">{refreshNoteText(status.note, snapshot !== null)}</dd>
+        </div>
+      )}
+    </dl>
+  );
 }
 
 function PageMeta({ page }: { page: SeoPage }) {
@@ -57,7 +125,8 @@ function PageMeta({ page }: { page: SeoPage }) {
         </dd>
       </div>
       <div className="flex gap-1">
-        <dt>עודכן:</dt>
+        {/* The admin's last save; the stored results have their own date below. */}
+        <dt>נשמר:</dt>
         <dd className="text-ink">{formatDateTime(page.updated_at)}</dd>
       </div>
     </dl>
@@ -74,7 +143,7 @@ export default async function AdminSeoPage({
   // Own keys only: "?status=__proto__" must not pick up Object.prototype.
   const statusKey = firstParam((await searchParams).status);
   const status = Object.hasOwn(STATUS, statusKey) ? STATUS[statusKey] : undefined;
-  const pages = await loadPages();
+  const [pages, statuses] = await Promise.all([loadPages(), loadStatuses()]);
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-4 pt-8 sm:px-6 sm:pt-12">
@@ -82,8 +151,9 @@ export default async function AdminSeoPage({
         <div className="space-y-2">
           <h1 className="font-display text-4xl">דפי חיפוש</h1>
           <p className="max-w-2xl text-muted">
-            כל דף מציג תוצאות אמיתיות לחיפוש אחד ומתעדכן לבד. דפים מפורסמים מופיעים בדף הבית, במפת
-            האתר ובמנועי חיפוש. טיוטות נראות רק כאן.
+            כל דף מציג תוצאות אמיתיות לחיפוש אחד. התוצאות נשמרות ומתעדכנות לבד פעם בשבוע, ומוחלפות
+            רק בתוצאות טובות לפחות באותה מידה. דפים מפורסמים מופיעים בדף הבית, במפת האתר ובמנועי
+            חיפוש. טיוטות נראות רק כאן.
           </p>
         </div>
         <Link href="/admin/seo/new" className={`${btnPrimary} ${btnMd}`}>
@@ -93,6 +163,9 @@ export default async function AdminSeoPage({
       </div>
 
       {status && <StatusMessage>{status}</StatusMessage>}
+      {pages && pages.length > 0 && statuses === null && (
+        <p className="text-sm text-muted">לא הצלחנו לטעון את מצב התוצאות השמורות.</p>
+      )}
 
       {pages === null ? (
         <StateCard Icon={CloudOff} title="לא הצלחנו לטעון את הדפים">
@@ -119,6 +192,7 @@ export default async function AdminSeoPage({
                 </div>
                 <h2 className="text-lg leading-snug font-bold break-words">{page.title_he}</h2>
                 <PageMeta page={page} />
+                {statuses && <SnapshotStatus page={page} status={statuses.get(page.slug)} />}
               </div>
               <SeoRowActions slug={page.slug} title={page.title_he} published={page.published} />
             </li>

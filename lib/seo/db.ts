@@ -1,9 +1,12 @@
-// Queries against `seo_pages` (and one read of `search_cache`), taking the Supabase client as a
-// parameter so tests can pass a fake. lib/seo/queries.ts binds them to the real clients: the anon
-// key for public reads (RLS only lets anon see published rows) and the service role for admin
-// writes. Published is checked again in code on public reads.
+// Queries against `seo_pages`, taking the Supabase client as a parameter so tests can pass a fake.
+// lib/seo/queries.ts binds them to the real clients: the anon key for public reads (RLS only lets
+// anon see published rows) and the service role for admin writes and the stored results
+// (./snapshot.ts, ./refresh.ts). Published is checked again in code on public reads.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import type { SearchResponse } from "@/lib/types";
+import type { RefreshState, SnapshotStore, SnapshotWrite } from "./refresh";
+import type { RefreshRow } from "./snapshot";
 import { isValidSlug } from "./slug";
 
 export type SeoClient = Pick<SupabaseClient, "from">;
@@ -30,10 +33,23 @@ export type SeoPageInput = Pick<SeoPage, "slug" | "query" | "title_he" | "intro_
 
 /** The database failed. The message comes from PostgREST and holds no secrets. */
 export class SeoDbError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    /** The Postgres or PostgREST error code, when there is one. */
+    readonly code?: string,
+  ) {
     super(message);
     this.name = "SeoDbError";
   }
+}
+
+// A column the query names does not exist: Postgres for a read, PostgREST's schema cache for a
+// write. Before 20260929010000_seo_snapshots.sql is applied, the snapshot columns are missing.
+const MISSING_COLUMN_CODES: ReadonlySet<string> = new Set(["42703", "PGRST204"]);
+
+/** True when the snapshot columns do not exist yet (the migration is not applied). */
+export function isMissingColumnError(err: unknown): boolean {
+  return err instanceof SeoDbError && err.code !== undefined && MISSING_COLUMN_CODES.has(err.code);
 }
 
 export class SeoPageNotFoundError extends Error {
@@ -92,7 +108,7 @@ async function run(query: PromiseLike<DbResult>, slug?: string): Promise<unknown
   const { data, error } = await query;
   if (error) {
     if (slug !== undefined && error.code === UNIQUE_VIOLATION) throw new SeoSlugTakenError(slug);
-    throw new SeoDbError(error.message);
+    throw new SeoDbError(error.message, error.code);
   }
   return data;
 }
@@ -180,22 +196,183 @@ export async function removeSeoPage(db: SeoClient, slug: string): Promise<void> 
   await run(db.from(SEO_TABLE).delete().eq("slug", slug));
 }
 
-// Freshness of the results a page shows (service role: search_cache is not public).
+// Stored results (./snapshot.ts). The public read goes through anon (RLS, and the column grants of
+// 20260929010000_seo_snapshots.sql: anon may read results and results_at, never the refresh
+// columns); the refresh and the admin list use the service role.
 
-const FILTERS_KEY = /^[0-9a-f]{64}$/;
+/** What a public page reads besides the page itself. */
+export const SNAPSHOT_COLUMNS = "results, results_at";
+const STATE_COLUMNS = "slug, query, published, results, results_at";
+const ROW_COLUMNS = "slug, published, results_at, refresh_attempted_at, refresh_error";
+const STATUS_COLUMNS = "slug, results, results_at, refresh_attempted_at, refresh_error";
 
-/**
- * When the results cached under this filters key were fetched from AliExpress (ISO), or null when
- * unknown. The landing page shows it as "עודכן לאחרונה".
- */
-export async function selectResultsFetchedAt(
+/** A page's stored results as read, results_at exactly as the database returned it. */
+export interface StoredSnapshot {
+  results: unknown;
+  resultsAt: string | null;
+}
+
+/** Kept as the database wrote it: the write's compare-and-set needs the same value back. */
+const rawTimestamp = z.string().refine((s) => Number.isFinite(Date.parse(s)));
+const optionalTimestamp = z
+  .string()
+  .nullable()
+  .transform((s) => {
+    const t = s === null ? Number.NaN : Date.parse(s);
+    return Number.isFinite(t) ? new Date(t).toISOString() : null;
+  });
+const note = z
+  .string()
+  .nullable()
+  .transform((s) => (s?.trim() ? s.trim() : null));
+
+const snapshotRowSchema = z.object({ results: z.unknown(), results_at: rawTimestamp.nullable() });
+
+/** The stored results of a published page, or null (no page, a draft, nothing stored). */
+export async function selectPublishedSnapshot(
   db: SeoClient,
-  filtersKey: string,
-): Promise<string | null> {
-  if (!FILTERS_KEY.test(filtersKey)) return null;
+  slug: string,
+): Promise<StoredSnapshot | null> {
+  if (!isValidSlug(slug)) return null;
   const data = await run(
-    db.from("search_cache").select("created_at").eq("filters_key", filtersKey).maybeSingle(),
+    db
+      .from(SEO_TABLE)
+      .select(SNAPSHOT_COLUMNS)
+      .eq("slug", slug)
+      .eq("published", true)
+      .maybeSingle(),
   );
-  const parsed = z.object({ created_at: timestamp }).safeParse(data);
-  return parsed.success ? parsed.data.created_at : null;
+  const row = data ? snapshotRowSchema.safeParse(data) : null;
+  return row?.success ? { results: row.data.results, resultsAt: row.data.results_at } : null;
+}
+
+/** The admin list's view of a page's stored results and last refresh. */
+export interface SnapshotStatusRow {
+  results: unknown;
+  resultsAt: string | null;
+  /** When the last refresh started (ISO). */
+  attemptedAt: string | null;
+  /** seo_pages.refresh_error: why it stored nothing, or "degraded". */
+  note: string | null;
+}
+
+const statusRowSchema = z.object({
+  slug: z.string(),
+  results: z.unknown(),
+  results_at: optionalTimestamp,
+  refresh_attempted_at: optionalTimestamp,
+  refresh_error: note,
+});
+
+/** Every page's stored results and last refresh, by slug (admin). */
+export async function selectSnapshotStatuses(
+  db: SeoClient,
+): Promise<Map<string, SnapshotStatusRow>> {
+  const data = await run(db.from(SEO_TABLE).select(STATUS_COLUMNS).limit(LIST_LIMIT));
+  const statuses = new Map<string, SnapshotStatusRow>();
+  for (const row of Array.isArray(data) ? data : []) {
+    const parsed = statusRowSchema.safeParse(row);
+    if (!parsed.success) continue;
+    const r = parsed.data;
+    statuses.set(r.slug, {
+      results: r.results,
+      resultsAt: r.results_at,
+      attemptedAt: r.refresh_attempted_at,
+      note: r.refresh_error,
+    });
+  }
+  return statuses;
+}
+
+const stateRowSchema = z.object({
+  slug: z.string().refine(isValidSlug),
+  query: z.string().min(1),
+  published: z.boolean(),
+  results: z.unknown(),
+  results_at: rawTimestamp.nullable(),
+});
+
+const refreshRowSchema = z.object({
+  slug: z.string().refine(isValidSlug),
+  published: z.boolean(),
+  results_at: optionalTimestamp,
+  refresh_attempted_at: optionalTimestamp,
+  refresh_error: note,
+});
+
+/** Rows the update touched: [] when its conditions matched nothing. */
+function touched(data: unknown): boolean {
+  return Array.isArray(data) && data.length > 0;
+}
+
+/** The refresh's reads and writes on seo_pages (service role). Every method throws SeoDbError. */
+export function supabaseSnapshotStore(db: SeoClient): SnapshotStore {
+  return {
+    async readState(slug: string): Promise<RefreshState | null> {
+      if (!isValidSlug(slug)) return null;
+      const data = await run(
+        db.from(SEO_TABLE).select(STATE_COLUMNS).eq("slug", slug).maybeSingle(),
+      );
+      const row = data ? stateRowSchema.safeParse(data) : null;
+      if (!row?.success) return null;
+      const { results_at, ...rest } = row.data;
+      return { ...rest, resultsAt: results_at };
+    },
+
+    async claim(slug: string, at: Date, windowMs: number): Promise<boolean> {
+      const before = new Date(at.getTime() - windowMs).toISOString();
+      const data = await run(
+        db
+          .from(SEO_TABLE)
+          .update({ refresh_attempted_at: at.toISOString() })
+          .eq("slug", slug)
+          .eq("published", true)
+          .or(`refresh_attempted_at.is.null,refresh_attempted_at.lt.${before}`)
+          .select("slug"),
+      );
+      return touched(data);
+    },
+
+    async store(write: SnapshotWrite): Promise<boolean> {
+      const results: SearchResponse = write.response;
+      const update = db
+        .from(SEO_TABLE)
+        .update({ results, results_at: write.resultsAt, refresh_error: write.note })
+        .eq("slug", write.slug)
+        .eq("query", write.query);
+      const data = await run(
+        (write.expectedResultsAt === null
+          ? update.is("results_at", null)
+          : update.eq("results_at", write.expectedResultsAt)
+        ).select("slug"),
+      );
+      return touched(data);
+    },
+
+    async recordNote(slug: string, query: string, text: string): Promise<void> {
+      await run(
+        db.from(SEO_TABLE).update({ refresh_error: text }).eq("slug", slug).eq("query", query),
+      );
+    },
+
+    async refreshRows(): Promise<RefreshRow[]> {
+      const data = await run(
+        db.from(SEO_TABLE).select(ROW_COLUMNS).eq("published", true).limit(LIST_LIMIT),
+      );
+      return (Array.isArray(data) ? data : []).flatMap((row) => {
+        const parsed = refreshRowSchema.safeParse(row);
+        if (!parsed.success) return [];
+        const r = parsed.data;
+        return [
+          {
+            slug: r.slug,
+            published: r.published,
+            resultsAt: r.results_at,
+            attemptedAt: r.refresh_attempted_at,
+            error: r.refresh_error,
+          },
+        ];
+      });
+    },
+  };
 }

@@ -17,6 +17,10 @@ owner on 2026-09-28. Nothing is committed, no migration is applied and nothing i
 - עדכון (28.9): 5 תוצאות בעמוד והגדרה בניהול למוצרים מאותה חנות (״ללא הגבלה״ כברירת מחדל, או ״עד 2
   מאותה חנות מתוך 5״). בלי הגבלה יותר כרטיסים טובים (92% לעומת 88%), אבל החנות עם המספרים המשותפים
   ממלאת את רוב העמודים הראשונים. הפרטים בסעיף ״Five results״ למטה.
+- עדכון (29.9): בחיפוש כבל לאייפון 15 ומעלה לא יוצגו עוד כבלים שנגמרים בלייטנינג (ולאייפון 14
+  ומטה לא כבלי USB-C לשני הצדדים), ומילים באנגלית שנכתבו באותיות עבריות מתוקנות גם בשורות ״למה
+  בחרנו״ (״לדרור״ ← ״למגירה״, ״טבלוואר״ ← ״כלי אוכל״). הפרטים בסעיף ״Device connectors and loan
+  words״ למטה.
 
 ## Paid calls in the whole wave
 
@@ -277,9 +281,51 @@ npm run eval:offline -- --shop-cap none,max2           # both modes, compared qu
 npm run eval:offline -- --compare current-6,current     # the fetch target
 ```
 
+## Device connectors and loan words (2026-09-29)
+
+Two problems of the owner's live validation run of 2026-09-28
+(`fixtures/llm/eval-v3-2026-09-28-subset.json`). Built and measured offline: no LLM or
+AliExpress call, nothing applied or deployed.
+
+- **Device connectors** (`lib/ranking/connectors.ts`, `RANKING_VERSION` 9). "הכי זול: כבל USB-C
+  לאייפון 15" showed "USB C To Lightning" cables at #2-#4: that parse asked for a "usb-c to
+  lightning cable" with the alternative "lightning connector", and sellers put "For iPhone 15 14 13
+  12" in every cable title. A small table (`DEVICE_PORTS`: iPhone 15 and newer USB-C, iPhone 5 to
+  14 and every SE Lightning) now decides, whatever the parse says. For a cable search, a title
+  whose only plug at the device end is the other connector ("... To Lightning", "Lightning Cable",
+  "8 Pin") fails the type gate; one that also offers the device's own plug ("Type C to Type C/USB
+  Lightning", "USB Type C Cable ... Type C To Lightning Cable") goes after the ones that fit, in
+  every sort. For an iPhone 14 or older only "USB-C to USB-C" counts as wrong ("USB-C cable for
+  iPhone 14" usually means USB-C to Lightning). Chargers and adapters are only moved down, and an
+  adapter's plug is read from "male" only ("USB-C to Lightning Adapter" plugs USB-C in). No rule
+  when the shopper's own chip names Lightning, and none for products that do not plug in (cases,
+  screen protectors) or a search without a known device.
+- **Measured**, `npm run eval:offline -- --against connector-before` (stored parses): 0 of 32
+  queries change their shown pages; cheapest-cable's first page stays EEEwE (with the stored parse
+  no Lightning cable reached it); filter false positives 36 → 35 (the "Toocki PD 20W USB C To
+  Lightnin Cable", labelled wrong, no longer passes); good products the type gate rejects stay 280,
+  so no good product is lost. The same with `--sort cheapest` and `--renormalize`. The harness
+  cannot replay the live parse (its keywords have no snapshot call). With the live parse on the
+  snapshot pool plus the five live cards: page 1 by price stays EREwE, and passers with a Lightning
+  plug fall from 4 to 2, both last (#35 and #36 of 36). On the live page itself, the two cables
+  whose only plug is Lightning (#2, #3) no longer pass and the two mixed ones (#4, #5) follow the
+  USB-C cable (`lib/ranking/connectors.test.ts`, `snapshot-regressions.test.ts`).
+- **Loan words in the "why" lines.** `fixTransliterations` now runs on `why_he` too: in the explain
+  post-check before the checks (so a line with "קולפסיבילי" is repaired, not rejected) and at
+  render time in `toResultProduct`, so cached lines are fixed without a cache bump (no
+  `EXPLAIN_VERSION` change). New entries: "לדרור" / "בדרור" → "למגירה" / "במגירה" (only with ל or
+  ב, and only when the English title says drawer or an organizer comes before it in the clause:
+  "דרור" is also a word and a name), "טבלוואר" → "כלי אוכל", "בנד צווארוני" → "רצועת צוואר". Every
+  recorded line in `fixtures/llm/` was read: the other English-sounding words are accepted Hebrew
+  (גיימינג, קליפ, אקריליק, סאב וופר, ספטולה) or garbled words no table can fix ("שיחוק קוויק",
+  "מחסוריות", "ברקות שמן", "להינה"), left as they are.
+
+`RANKING_VERSION` 9 empties the results cache on deploy: warm the examples again.
+
 ## Re-running
 
 ```
+npm run eval:offline -- --against connector-before         # against the state before RANKING_VERSION 9
 npm run eval:offline -- --against wave-a                  # a ranking change against this state
 npm run eval:offline -- --renormalize --against wave-a-renorm
 npx tsx scripts/snapshot-pools.ts --report                # pool statistics, live fetch policy

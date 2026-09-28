@@ -13,6 +13,10 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+// Publishing the page or changing its query runs a refresh after the response (after() in the
+// save action): a fresh search of 7-15 s, a retry included up to about 45 s.
+export const maxDuration = 60;
+
 // Under /edit/ so a page whose slug is "new" never collides with /admin/seo/new.
 export default async function EditSeoPage({ params }: { params: Promise<{ slug: string }> }) {
   await requireAdmin();

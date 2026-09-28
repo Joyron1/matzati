@@ -12,6 +12,7 @@ import {
   type ShopCapMode,
   type TrustThresholds,
 } from "./config";
+import { connectorFit } from "./connectors";
 import { dedupeBy, diversifyShops } from "./diversity";
 import {
   isCapacitySpec,
@@ -237,21 +238,29 @@ interface Ranked {
   sales: number;
   /** From another category than most passers (categoryOutliers): after all the others. */
   outlier: boolean;
+  /**
+   * May not fit the port of the device searched for (connectorFit "doubtful": "Type C to Type
+   * C/USB Lightning" for an iPhone 15): after the ones that fit, in every sort.
+   */
+  doubtfulFit: boolean;
   /** States the exact capacity asked for (or none was): before a bigger one. */
   exactCapacity: boolean;
 }
 
 /**
  * Category outliers last (the default sort only: "cheapest" and "most_popular" order every passer
- * by what their button says), then an exact capacity before a bigger one; then "cheapest" by
- * price, "most_popular" by 30-day sales (a number several listings of one shop share counts once),
- * and the score. Commission only breaks exact ties, and product id keeps the order deterministic
- * after that: a worse product never ranks higher because it pays more.
+ * by what their button says), then a plug that may not fit the searched device after the ones
+ * that fit (every sort: the cheapest cable an iPhone 15 cannot take is no answer), then an exact
+ * capacity before a bigger one; then "cheapest" by price, "most_popular" by 30-day sales (a number
+ * several listings of one shop share counts once), and the score. Commission only breaks exact
+ * ties, and product id keeps the order deterministic after that: a worse product never ranks
+ * higher because it pays more.
  */
 function byRank(sort: SortPreference) {
   const byCategory = sort === "best_value";
   return (a: Ranked, b: Ranked) =>
     (byCategory ? Number(a.outlier) - Number(b.outlier) : 0) ||
+    Number(a.doubtfulFit) - Number(b.doubtfulFit) ||
     Number(b.exactCapacity) - Number(a.exactCapacity) ||
     (sort === "cheapest" ? a.p.price - b.p.price : 0) ||
     (sort === "most_popular" ? b.sales - a.sales : 0) ||
@@ -290,6 +299,7 @@ function rankEntries(
     score: score(p, ctx),
     sales: salesForScore(p, shared),
     outlier: outliers.has(p.productId),
+    doubtfulFit: connectorFit(p.title, filters) === "doubtful",
     exactCapacity: statesExactCapacity(p.title, specs),
   }));
   entries.sort(byRank(filters.sort_preference));

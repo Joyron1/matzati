@@ -474,6 +474,52 @@ describe("Hebrew checks (docs/search-quality-plan.md A9)", () => {
     ).toBe("מארגן ביגוד בעיצוב מתקפל 1/2/3 חלקים");
   });
 
+  it("writes the loan words of the live run of 2026-09-28 in Hebrew, in the line too", () => {
+    // Home-drawer's cards on the live site (fixtures/llm/eval-v3-2026-09-28-subset.json).
+    const tray: ExplainInput = {
+      product_id: "1005013004164872",
+      title_en:
+        "UpgradedAdjustable Plastic Cutlery Drawer Organizer Divided Storage Tray Space Saving Holder for Kitchen Knives Spoons Tableware",
+      price_ils: 16.93,
+      original_price_ils: null,
+      discount_pct: null,
+      positive_feedback_pct: 100,
+      units_sold_30d: 370,
+    };
+    const out = check(
+      {
+        title_he: "מארגן מגירה לסכו״ם וסכינים מטבח מחולק שטח חוסך",
+        why_he: "מארגן כלים וטבלוואר למטבח עם משוב חיובי של 100% בקרב 370 קונים.",
+      },
+      tray,
+    );
+    expect(out.why_he).toBe("מארגן כלים וכלי אוכל למטבח עם משוב חיובי של 100% בקרב 370 קונים.");
+    expect(out.why_problem).toBeNull();
+    const spice: ExplainInput = {
+      ...tray,
+      product_id: "1005008429982440",
+      title_en:
+        "4 Layers Kitchen Spice Drawer Organizer Adjustable Spice Rack for Spice Jars Seasoning Bottles Cabinet Pantry Kitchen Organizer",
+      positive_feedback_pct: 98,
+    };
+    const spiceLine = "מארגן תבלינים וצנצנות תיבול מתאים למגירות מטבח וארון אחסון.";
+    const spiceOut = check(
+      { title_he: "מארגן תבלינים לדרור 4 שכבות עם מדפים הרחבים", why_he: spiceLine },
+      spice,
+    );
+    expect(spiceOut.title_he).toBe("מארגן תבלינים למגירה 4 שכבות עם מדפים הרחבים");
+    expect(spiceOut.why_he).toBe(spiceLine);
+    // A line with a known transliteration (constructed; the live site had it in a title) is
+    // repaired, not rejected as garbled.
+    const organizer = { ...tray, title_en: "1/2/3PCS Collapsible Clothing Organizer" };
+    const collapsible = check(
+      { title_he: "מארגן ביגוד", why_he: "מארגן ביגוד קולפסיבילי לארון, 100% משוב חיובי." },
+      organizer,
+    );
+    expect(collapsible.why_he).toBe("מארגן ביגוד בעיצוב מתקפל לארון, 100% משוב חיובי.");
+    expect(collapsible.why_problem).toBeNull();
+  });
+
   it("rejects a title with no Hebrew left, or with a garbled word", () => {
     expect(
       check({ title_he: "Expandable Kitchen Drawer Organizer", why_he: why }, drawer),

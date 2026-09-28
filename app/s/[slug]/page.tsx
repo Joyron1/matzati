@@ -16,17 +16,21 @@ import { APPROX_PRICE_NOTE } from "@/lib/copy";
 import { formatCount, formatDateTime } from "@/lib/format";
 import { FILTERS } from "@/lib/ranking/config";
 import { searchHref } from "@/lib/search-url";
+import { staleFetchedAt } from "@/lib/search/freshness";
 import { seoPageView } from "@/lib/seo/page-view";
 import { seoPath } from "@/lib/seo/slug";
 import { itemListJsonLd, jsonLdScript, seoDescription, seoTitle } from "@/lib/seo/structured-data";
 import type { FilterChip, ResultProduct, SearchResponse } from "@/lib/types";
 
 // Landing pages are generated on the first visit and regenerated in the background (ISR), never
-// at build time: each one runs a real search, and a build must not spend the LLM or AliExpress
-// budget. Only slugs of published rows render; any other slug is a 404 without a search.
+// at build time. They show the page's stored results (lib/seo/page-view.ts), which a refresh
+// replaces about weekly and then revalidates the page; only a page without stored results runs a
+// real search, and a build must not spend the LLM or AliExpress budget. Only slugs of published
+// rows render; any other slug is a 404 without a search.
 export const revalidate = 86400;
 export const dynamicParams = true;
-// A fresh search (parse, up to 3 AliExpress calls, explain) takes 7-15 s; give it room.
+// A page without stored results runs a fresh search (parse, up to 3 AliExpress calls, explain):
+// 7-15 s; give it room.
 export const maxDuration = 60;
 
 export function generateStaticParams(): { slug: string }[] {
@@ -69,7 +73,7 @@ export async function generateMetadata({ params }: LandingPageProps): Promise<Me
 export default async function SeoLandingPage({ params }: LandingPageProps) {
   const view = await seoPageView((await params).slug);
   if (!view) notFound();
-  const { page, response, fetchedAt } = view;
+  const { page, response, checkedAt } = view;
   const origin = siteUrl();
   const results = response?.results ?? [];
 
@@ -96,8 +100,9 @@ export default async function SeoLandingPage({ params }: LandingPageProps) {
           {page.title_he}
         </h1>
         {page.intro_he && <p className="text-lg leading-relaxed text-muted">{page.intro_he}</p>}
-        {fetchedAt && (
-          <p className="text-sm text-muted">עודכן לאחרונה: {formatDateTime(fetchedAt)}</p>
+        {checkedAt && (
+          // Rendered by ISR: "now" is when the page was generated, at most a day before it shows.
+          <CheckedAt iso={checkedAt} stale={staleFetchedAt(checkedAt, new Date()) !== null} />
         )}
       </header>
 
@@ -109,6 +114,20 @@ export default async function SeoLandingPage({ params }: LandingPageProps) {
         <Results response={response} query={page.query} />
       )}
     </div>
+  );
+}
+
+/**
+ * When the results and their prices were fetched from AliExpress. The stored results are up to
+ * about a week old, so once they are older than STALE_RESULTS_HOURS the line says prices may have
+ * changed since (the buy button leads to AliExpress's current price).
+ */
+function CheckedAt({ iso, stale }: { iso: string; stale: boolean }) {
+  return (
+    <p className="text-sm text-muted">
+      התוצאות והמחירים נבדקו ב־<time dateTime={iso}>{formatDateTime(iso)}</time>.
+      {stale && " ייתכן שהמחירים השתנו מאז."}
+    </p>
   );
 }
 

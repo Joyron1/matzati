@@ -8,15 +8,19 @@ import { unstable_cache } from "next/cache";
 import { serviceClient } from "@/lib/supabase/server";
 import {
   insertSeoPage,
+  isMissingColumnError,
   removeSeoPage,
   selectAllSeoPages,
   selectPublishedSeoPage,
   selectPublishedSeoPages,
-  selectResultsFetchedAt,
+  selectPublishedSnapshot,
   selectSeoPage,
+  selectSnapshotStatuses,
   updateSeoPage,
   type SeoPage,
   type SeoPageInput,
+  type SnapshotStatusRow,
+  type StoredSnapshot,
 } from "./db";
 import { validateSeoInput, type SeoFieldErrors } from "./schema";
 
@@ -26,6 +30,7 @@ export {
   SeoSlugTakenError,
   type SeoPage,
   type SeoPageInput,
+  type SnapshotStatusRow,
 } from "./db";
 
 /** saveSeoPage was given input that fails validation. `errors` are Hebrew, per field. */
@@ -106,15 +111,16 @@ export async function popularSearches(): Promise<PopularSearch[]> {
 }
 
 /**
- * When the results a landing page shows were fetched from AliExpress (ISO), or null when unknown.
- * Never throws: the date is left out rather than failing the page.
+ * The stored results of a published landing page (lib/seo/snapshot.ts), or null. Throws when the
+ * database fails, so a hiccup is never rendered as a page without its results; before the
+ * snapshot migration is applied (no such columns) it reads as "nothing stored".
  */
-export async function resultsFetchedAt(filtersKey: string | undefined): Promise<string | null> {
-  if (!filtersKey) return null;
+export async function getPublishedSnapshot(slug: string): Promise<StoredSnapshot | null> {
   try {
-    return await selectResultsFetchedAt(serviceClient(), filtersKey);
+    return await selectPublishedSnapshot(publicClient(), slug);
   } catch (err) {
-    logError("fetched-at", err);
+    if (!isMissingColumnError(err)) throw err;
+    logError("snapshot", err);
     return null;
   }
 }
@@ -123,6 +129,11 @@ export async function resultsFetchedAt(filtersKey: string | undefined): Promise<
 
 export async function listAllSeoPages(): Promise<SeoPage[]> {
   return selectAllSeoPages(serviceClient());
+}
+
+/** Every page's stored results and last refresh, by slug. Throws when the database fails. */
+export async function listSnapshotStatuses(): Promise<Map<string, SnapshotStatusRow>> {
+  return selectSnapshotStatuses(serviceClient());
 }
 
 export async function getSeoPage(slug: string): Promise<SeoPage | null> {

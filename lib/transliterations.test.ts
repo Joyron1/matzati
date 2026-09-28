@@ -27,6 +27,48 @@ describe("fixTransliterations", () => {
     );
   });
 
+  it("fixes the loan words of the live run of 2026-09-28 and the recorded evals", () => {
+    const spiceDrawer =
+      "4 Layers Kitchen Spice Drawer Organizer Adjustable Spice Rack for Spice Jars Seasoning Bottles Cabinet Pantry Kitchen Organizer";
+    expect(fixTransliterations("מארגן תבלינים לדרור 4 שכבות עם מדפים הרחבים", spiceDrawer)).toBe(
+      "מארגן תבלינים למגירה 4 שכבות עם מדפים הרחבים",
+    );
+    const cutleryTray =
+      "UpgradedAdjustable Plastic Cutlery Drawer Organizer Divided Storage Tray Space Saving Holder for Kitchen Knives Spoons Tableware";
+    expect(
+      fixTransliterations(
+        "מארגן כלים וטבלוואר למטבח עם משוב חיובי של 100% בקרב 370 קונים.",
+        cutleryTray,
+      ),
+    ).toBe("מארגן כלים וכלי אוכל למטבח עם משוב חיובי של 100% בקרב 370 קונים.");
+    expect(
+      fixTransliterations(
+        "אוזניות בלוטוס לריצה עם בנד צווארוני וווי אוזן, אטומות למים ועם 98% משוב חיובי.",
+      ),
+    ).toBe("אוזניות בלוטוס לריצה עם רצועת צוואר וווי אוזן, אטומות למים ועם 98% משוב חיובי.");
+  });
+
+  it("reads 'דרור' as a drawer only with ל or ב and a drawer in the English title or an organizer before it", () => {
+    // AliExpress's own Hebrew (no English title): the organizer before it makes it sure.
+    expect(fixTransliterations("מארגן תבלינים לדרור 4 שכבות")).toBe("מארגן תבלינים למגירה 4 שכבות");
+    expect(fixTransliterations("ארגונית סכו״ם בדרור")).toBe("ארגונית סכו״ם במגירה");
+    expect(fixTransliterations("מתלה לדרור", "Kitchen Drawer Rack")).toBe("מתלה למגירה");
+    expect(fixTransliterations("מארגן לדרורים", "Drawer Organizer Set")).toBe("מארגן למגירות");
+    // A word or a name: freedom, a sparrow, "Dror".
+    for (const [text, en] of [
+      ["שיר לדרור", undefined],
+      ["כרזה לדרור ולשלום", "Peace Poster Wall Art"],
+      ["ציור דרור על ענף", "Sparrow Bird Painting"],
+      ["מתנה לדרור", undefined],
+      // The organizer is in another clause.
+      ["מארגן תבלינים, מתנה לדרור", undefined],
+      // Without ל or ב, even for a drawer.
+      ["מארגן דרור למטבח", "Kitchen Drawer Organizer"],
+    ] as const) {
+      expect(fixTransliterations(text, en), text).toBe(text);
+    }
+  });
+
   it("replaces a spelling that also means something else only when the English title says so", () => {
     // "פלאש" is also a camera flash or a flash drive.
     expect(fixTransliterations("פלאש למצלמה", "Camera Flash Speedlite")).toBe("פלאש למצלמה");
@@ -62,7 +104,8 @@ describe("fixTransliterations", () => {
     for (const t of TRANSLITERATIONS) {
       for (const w of t.words) {
         const english = `${t.en.source.replace(/[^a-z ]/gi, "")} product`;
-        const once = fixTransliterations(`מוצר ${w} חדש`, english);
+        const form = t.needsPrefix ? `${t.prefixes[0]}${w}` : w;
+        const once = fixTransliterations(`מוצר ${form} חדש`, english);
         expect(once).not.toContain(w);
         expect(fixTransliterations(once, english)).toBe(once);
       }

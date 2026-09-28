@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   insertSeoPage,
+  isMissingColumnError,
   removeSeoPage,
   SEO_COLUMNS,
   SEO_TABLE,
@@ -10,8 +11,11 @@ import {
   selectAllSeoPages,
   selectPublishedSeoPage,
   selectPublishedSeoPages,
-  selectResultsFetchedAt,
+  selectPublishedSnapshot,
   selectSeoPage,
+  selectSnapshotStatuses,
+  SNAPSHOT_COLUMNS,
+  supabaseSnapshotStore,
   toSeoPage,
   updateSeoPage,
   type SeoClient,
@@ -46,6 +50,12 @@ class FakeQuery implements PromiseLike<Result> {
   }
   eq(...a: unknown[]) {
     return this.add("eq", a);
+  }
+  is(...a: unknown[]) {
+    return this.add("is", a);
+  }
+  or(...a: unknown[]) {
+    return this.add("or", a);
   }
   order(...a: unknown[]) {
     return this.add("order", a);
@@ -244,27 +254,200 @@ describe("admin", () => {
   });
 });
 
-describe("selectResultsFetchedAt", () => {
-  const KEY = "a".repeat(64);
+describe("stored results (snapshots)", () => {
+  const SLUG = "אוזניות-לריצה";
+  // As PostgREST returns a timestamptz: kept exactly, for the write's compare-and-set.
+  const RAW_AT = "2026-09-28T10:00:00.123456+00:00";
+  const RESULTS = { query: "אוזניות לריצה", results: [{ product_id: "1" }] };
 
-  it("reads created_at of the cached results", async () => {
+  it("reads a published page's results and results_at (anon), results_at as stored", async () => {
+    const { db, queries } = fakeDb({ data: { results: RESULTS, results_at: RAW_AT }, error: null });
+    expect(await selectPublishedSnapshot(db, SLUG)).toEqual({
+      results: RESULTS,
+      resultsAt: RAW_AT,
+    });
+    expect(queries[0].calls).toEqual([
+      ["select", SNAPSHOT_COLUMNS],
+      ["eq", "slug", SLUG],
+      ["eq", "published", true],
+      ["maybeSingle"],
+    ]);
+    expect(SNAPSHOT_COLUMNS).not.toContain("refresh_");
+  });
+
+  it("reads nothing stored as null, and never queries a slug that cannot exist", async () => {
+    expect(await selectPublishedSnapshot(fakeDb({ data: null, error: null }).db, SLUG)).toBe(null);
+    const nothing = fakeDb({ data: { results: null, results_at: null }, error: null });
+    expect(await selectPublishedSnapshot(nothing.db, SLUG)).toEqual({
+      results: null,
+      resultsAt: null,
+    });
+    const { db, queries } = fakeDb();
+    expect(await selectPublishedSnapshot(db, "../x")).toBe(null);
+    expect(queries).toHaveLength(0);
+  });
+
+  it("tells a missing column (migration not applied) from other failures", async () => {
+    const missing = fakeDb({ data: null, error: { message: "no column", code: "42703" } });
+    const err = await selectPublishedSnapshot(missing.db, SLUG).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(SeoDbError);
+    expect(isMissingColumnError(err)).toBe(true);
+    expect(isMissingColumnError(new SeoDbError("x", "PGRST204"))).toBe(true);
+    expect(isMissingColumnError(new SeoDbError("timeout"))).toBe(false);
+    expect(isMissingColumnError(new Error("42703"))).toBe(false);
+  });
+
+  it("lists every page's status for the admin, times as ISO", async () => {
     const { db, queries } = fakeDb({
-      data: { created_at: "2026-09-27T09:00:00+00:00" },
+      data: [
+        {
+          slug: SLUG,
+          results: RESULTS,
+          results_at: RAW_AT,
+          refresh_attempted_at: "2026-09-29T01:00:00+00:00",
+          refresh_error: "smaller",
+        },
+        {
+          slug: "b",
+          results: null,
+          results_at: null,
+          refresh_attempted_at: null,
+          refresh_error: " ",
+        },
+        { nonsense: true },
+      ],
       error: null,
     });
-    expect(await selectResultsFetchedAt(db, KEY)).toBe("2026-09-27T09:00:00.000Z");
-    expect(queries[0].table).toBe("search_cache");
+    const statuses = await selectSnapshotStatuses(db);
+    expect([...statuses.keys()]).toEqual([SLUG, "b"]);
+    expect(statuses.get(SLUG)).toEqual({
+      results: RESULTS,
+      resultsAt: "2026-09-28T10:00:00.123Z",
+      attemptedAt: "2026-09-29T01:00:00.000Z",
+      note: "smaller",
+    });
+    expect(statuses.get("b")).toEqual({
+      results: null,
+      resultsAt: null,
+      attemptedAt: null,
+      note: null,
+    });
+    expect(queries[0].calls[0]).toEqual([
+      "select",
+      "slug, results, results_at, refresh_attempted_at, refresh_error",
+    ]);
+  });
+});
+
+describe("supabaseSnapshotStore", () => {
+  const SLUG = "אוזניות-לריצה";
+  const AT = new Date("2026-09-29T01:00:00.000Z");
+
+  it("reads a page's state with results_at exactly as stored", async () => {
+    const raw = "2026-09-28T10:00:00.123456+00:00";
+    const { db, queries } = fakeDb({
+      data: { slug: SLUG, query: "אוזניות לריצה", published: true, results: null, results_at: raw },
+      error: null,
+    });
+    expect(await supabaseSnapshotStore(db).readState(SLUG)).toEqual({
+      slug: SLUG,
+      query: "אוזניות לריצה",
+      published: true,
+      results: null,
+      resultsAt: raw,
+    });
     expect(queries[0].calls).toEqual([
-      ["select", "created_at"],
-      ["eq", "filters_key", KEY],
+      ["select", "slug, query, published, results, results_at"],
+      ["eq", "slug", SLUG],
       ["maybeSingle"],
     ]);
   });
 
-  it("returns null for a missing row or a key that is not a filters key", async () => {
-    expect(await selectResultsFetchedAt(fakeDb({ data: null, error: null }).db, KEY)).toBe(null);
-    const { db, queries } = fakeDb();
-    expect(await selectResultsFetchedAt(db, "nope")).toBe(null);
-    expect(queries).toHaveLength(0);
+  it("claims a published page only when no refresh started within the window", async () => {
+    const { db, queries } = fakeDb({ data: [{ slug: SLUG }], error: null });
+    expect(await supabaseSnapshotStore(db).claim(SLUG, AT, 120_000)).toBe(true);
+    expect(queries[0].calls).toEqual([
+      ["update", { refresh_attempted_at: "2026-09-29T01:00:00.000Z" }],
+      ["eq", "slug", SLUG],
+      ["eq", "published", true],
+      ["or", "refresh_attempted_at.is.null,refresh_attempted_at.lt.2026-09-29T00:58:00.000Z"],
+      ["select", "slug"],
+    ]);
+    const taken = fakeDb({ data: [], error: null });
+    expect(await supabaseSnapshotStore(taken.db).claim(SLUG, AT, 120_000)).toBe(false);
+  });
+
+  it("stores only onto the state it decided against (same query, same results_at)", async () => {
+    const response = { query: "q" } as never;
+    const write = {
+      slug: SLUG,
+      query: "אוזניות לריצה",
+      response,
+      resultsAt: AT.toISOString(),
+      note: null,
+    };
+    const first = fakeDb({ data: [{ slug: SLUG }], error: null });
+    expect(await supabaseSnapshotStore(first.db).store({ ...write, expectedResultsAt: null })).toBe(
+      true,
+    );
+    expect(first.queries[0].calls).toEqual([
+      ["update", { results: response, results_at: AT.toISOString(), refresh_error: null }],
+      ["eq", "slug", SLUG],
+      ["eq", "query", "אוזניות לריצה"],
+      ["is", "results_at", null],
+      ["select", "slug"],
+    ]);
+    const raced = fakeDb({ data: [], error: null });
+    const raw = "2026-09-20T01:00:00+00:00";
+    expect(await supabaseSnapshotStore(raced.db).store({ ...write, expectedResultsAt: raw })).toBe(
+      false,
+    );
+    expect(raced.queries[0].calls[3]).toEqual(["eq", "results_at", raw]);
+  });
+
+  it("records a note while the page keeps the query", async () => {
+    const { db, queries } = fakeDb({ data: null, error: null });
+    await supabaseSnapshotStore(db).recordNote(SLUG, "אוזניות לריצה", "upstream");
+    expect(queries[0].calls).toEqual([
+      ["update", { refresh_error: "upstream" }],
+      ["eq", "slug", SLUG],
+      ["eq", "query", "אוזניות לריצה"],
+    ]);
+  });
+
+  it("lists the published pages for the cron, skipping bad rows", async () => {
+    const { db, queries } = fakeDb({
+      data: [
+        {
+          slug: SLUG,
+          published: true,
+          results_at: "2026-09-20T01:00:00+00:00",
+          refresh_attempted_at: null,
+          refresh_error: null,
+        },
+        { slug: "Bad Slug", published: true, results_at: null, refresh_attempted_at: null },
+      ],
+      error: null,
+    });
+    expect(await supabaseSnapshotStore(db).refreshRows()).toEqual([
+      {
+        slug: SLUG,
+        published: true,
+        resultsAt: "2026-09-20T01:00:00.000Z",
+        attemptedAt: null,
+        error: null,
+      },
+    ]);
+    expect(queries[0].calls).toEqual([
+      ["select", "slug, published, results_at, refresh_attempted_at, refresh_error"],
+      ["eq", "published", true],
+      ["limit", 1000],
+    ]);
+  });
+
+  it("throws SeoDbError when the database fails", async () => {
+    const { db } = fakeDb({ data: null, error: { message: "boom" } });
+    await expect(supabaseSnapshotStore(db).refreshRows()).rejects.toBeInstanceOf(SeoDbError);
+    await expect(supabaseSnapshotStore(db).claim(SLUG, AT, 1)).rejects.toBeInstanceOf(SeoDbError);
   });
 });

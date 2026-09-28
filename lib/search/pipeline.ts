@@ -171,7 +171,10 @@ export interface SearchInput {
   typed?: boolean;
   /** How the visitor reached this URL when they did not type the query (search_log.origin). */
   arrival?: SearchArrival;
-  /** A signed-in admin (the owner) asked: logged with owner true, never listed on /searches. */
+  /**
+   * A signed-in admin (the owner) asked: logged with owner true, so the stats leave it out. A
+   * typed one is still listed on /searches (isListableSearch).
+   */
   owner?: boolean;
 }
 
@@ -318,7 +321,7 @@ export function toResultProduct(p: AliProduct, e: Explanation | undefined): Resu
     // A cached title of ours is read with the known transliterations fixed (lib/transliterations).
     title_he: e?.title_he != null ? fixTransliterations(e.title_he, p.title) : p.title,
     title_en: p.title,
-    why_he: e?.why_he ?? "",
+    why_he: fixTransliterations(e?.why_he ?? "", p.title),
     price_ils: p.price,
     original_price_ils: p.originalPrice,
     price_is_approx: p.currency !== "ILS",
@@ -678,14 +681,14 @@ async function logFailure(
 /**
  * Whether a search may appear on the public recent-searches page (/searches): only a query a
  * visitor typed (source "search", not from one of our links, no chips removed, no sort override,
- * so the card's link rebuilds exactly these filters; never the owner's own) that showed results,
- * and only when the query passes the privacy check (no phone or ID numbers, emails, links or
- * handles).
+ * so the card's link rebuilds exactly these filters) that showed results, and only when the query
+ * passes the privacy check (no phone or ID numbers, emails, links or handles). The owner's own
+ * typed searches are real searches and are listed too (owner decision 2026-09-29); owner only
+ * keeps a row out of the stats.
  */
 export function isListableSearch(q: string, origin: SearchOrigin, resultsCount: number): boolean {
   return (
     origin.source === "search" &&
-    origin.owner !== true &&
     origin.typed &&
     origin.without.length === 0 &&
     origin.sort === undefined &&

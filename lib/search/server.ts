@@ -70,6 +70,8 @@ import {
   type UnderstoodSearch,
 } from "./pipeline";
 import { hasHebrew } from "@/lib/product-title";
+import { withoutResultsCache } from "@/lib/seo/fresh-store";
+import { retryOnce } from "@/lib/seo/retry";
 import { normalizeQuery } from "./cache-key";
 import { RefreshGate } from "./refresh-gate";
 import type { SearchLogEntry, SearchStore } from "./store";
@@ -298,8 +300,9 @@ interface SharedRunInput {
 
 /**
  * True when a signed-in admin (the owner) made this request: their searches and clicks are logged
- * with owner true, left out of the stats and never listed on /searches (plan item 10). Visitors
- * have no auth cookie, so for them this makes no network call (lib/admin/auth.ts).
+ * with owner true and left out of the stats (plan item 10); their typed searches are listed on
+ * /searches like anyone's (owner decision 2026-09-29). Visitors have no auth cookie, so for them
+ * this makes no network call (lib/admin/auth.ts).
  */
 async function requestIsOwner(): Promise<boolean> {
   return (await getAdminUser()) !== null;
@@ -858,17 +861,68 @@ export const productForPage = cache(async (productId: string): Promise<ProductPa
   }
 });
 
-const PREVIEW_RETRY_MS = 10 * 60_000;
-const previews = new Map<string, { run: Promise<SearchOutcome | null>; failedAt?: number }>();
+/**
+ * One run for an SEO landing page (lib/seo/refresh.ts): its response and whether its explain call
+ * failed (lines built from the data), or the failure code it was answered with.
+ */
+export type SeoRun =
+  { ok: true; response: SearchResponse; degraded: boolean } | { ok: false; error: SearchFailure };
 
-async function runPreview(q: string): Promise<SearchOutcome | null> {
+type PreviewRun = { ok: true; outcome: SearchOutcome } | { ok: false; error: SearchFailure };
+
+const PREVIEW_RETRY_MS = 10 * 60_000;
+const previews = new Map<string, { run: Promise<PreviewRun>; failedAt?: number }>();
+
+async function runPreview(q: string): Promise<PreviewRun> {
   try {
     const { deps } = searchDeps(guardEnv().dailyCap, await shopCapMode());
-    return await runSearch({ q, source: "preview" }, deps);
+    return { ok: true, outcome: await runSearch({ q, source: "preview" }, deps) };
   } catch (err) {
-    toFailure(err, "preview");
-    return null;
+    return { ok: false, error: toFailure(err, "preview") };
   }
+}
+
+function seoRunOf(outcome: SearchOutcome): SeoRun {
+  return { ok: true, response: outcome.response, degraded: outcome.meta.explainFailed === true };
+}
+
+/**
+ * examplePreview with how the run went (the first render of a landing page without stored
+ * results, lib/seo/refresh.ts firstRun): its response and whether its explain call failed, or the
+ * failure code.
+ */
+export async function examplePreviewRun(q: string): Promise<SeoRun> {
+  // Renders arriving together while the cache is cold share one paid run per instance. A failure
+  // is remembered for a while: during an outage every landing page render would otherwise start a
+  // new paid run and use up the daily LLM budget that real searches need.
+  const key = q.trim();
+  const entry = previews.get(key);
+  const retry = entry?.failedAt !== undefined && Date.now() - entry.failedAt >= PREVIEW_RETRY_MS;
+  if (entry && !retry) {
+    const started = performance.now();
+    const shared = await entry.run;
+    if (!shared.ok) return shared;
+    const origin = { without: [], typed: false };
+    const waited = Math.round(performance.now() - started);
+    await logShared(
+      () => new SupabaseStore(serviceClient()),
+      shared.outcome.log,
+      key,
+      origin,
+      waited,
+    );
+    // Not tagged with a search uid: the landing page is static for a day (ISR), so its clicks
+    // would all name one render's row.
+    return seoRunOf(shared.outcome);
+  }
+  const run: Promise<PreviewRun> = runPreview(key).then((result) => {
+    if (result.ok) previews.delete(key);
+    else previews.set(key, { run, failedAt: Date.now() });
+    return result;
+  });
+  previews.set(key, { run });
+  const result = await run;
+  return result.ok ? seoRunOf(result.outcome) : result;
 }
 
 /**
@@ -880,31 +934,43 @@ async function runPreview(q: string): Promise<SearchOutcome | null> {
  * include those views.)
  */
 export async function examplePreview(q: string): Promise<SearchResponse | null> {
-  // Renders arriving together while the cache is cold share one paid run per instance. A failure
-  // is remembered for a while: during an outage every landing page render would otherwise start a
-  // new paid run and use up the daily LLM budget that real searches need.
-  const key = q.trim();
-  const entry = previews.get(key);
-  const retry = entry?.failedAt !== undefined && Date.now() - entry.failedAt >= PREVIEW_RETRY_MS;
-  if (entry && !retry) {
-    const started = performance.now();
-    const shared = await entry.run;
-    if (shared) {
-      const origin = { without: [], typed: false };
-      const waited = Math.round(performance.now() - started);
-      await logShared(() => new SupabaseStore(serviceClient()), shared.log, key, origin, waited);
+  const run = await examplePreviewRun(q);
+  return run.ok ? run.response : null;
+}
+
+/** Wait before the second try of an SEO page refresh (AliExpress's frequency ban is ~1 s). */
+const SEO_REFRESH_BACKOFF_MS = 3_000;
+/** Time a second try may need (parse from the cache, fetch, explain): none with less left. */
+const SEO_REFRESH_RETRY_ROOM_MS = 25_000;
+
+/**
+ * A fresh run for an SEO landing page's stored results (lib/seo/refresh.ts): the page's query
+ * through the same pipeline as a visitor's search (filters, ranking and explanations exactly the
+ * site's), but never served from the results cache, so the products and prices are new; the parse
+ * may come from the parse cache, and the new result set is cached for visitors as usual. Logged
+ * as source "preview" (never a search in the stats), under the daily LLM budget. An upstream
+ * failure (AliExpress, its rate limit included) is tried once more after a short back-off when
+ * there is time before `deadline` (epoch ms). Never throws.
+ */
+export async function refreshSearch(
+  q: string,
+  { deadline }: { deadline: number },
+): Promise<SeoRun> {
+  const attempt = async (): Promise<SeoRun> => {
+    try {
+      const { deps } = searchDeps(guardEnv().dailyCap, await shopCapMode());
+      const store = withoutResultsCache(deps.store);
+      return seoRunOf(await runSearch({ q: q.trim(), source: "preview" }, { ...deps, store }));
+    } catch (err) {
+      return { ok: false, error: toFailure(err, "seo-refresh") };
     }
-    // Not tagged with a search uid: the landing page is static for a day (ISR), so its clicks
-    // would all name one render's row.
-    return shared?.response ?? null;
-  }
-  const run: Promise<SearchOutcome | null> = runPreview(key).then((outcome) => {
-    if (outcome) previews.delete(key);
-    else previews.set(key, { run, failedAt: Date.now() });
-    return outcome;
+  };
+  return retryOnce(attempt, {
+    retryable: (run) => !run.ok && run.error === "upstream",
+    backoffMs: SEO_REFRESH_BACKOFF_MS,
+    roomMs: SEO_REFRESH_RETRY_ROOM_MS,
+    deadline,
   });
-  previews.set(key, { run });
-  return (await run)?.response ?? null;
 }
 
 /**

@@ -1,7 +1,8 @@
 // Product-type check (CLAUDE.md §6.5, docs/search-quality-plan.md item 3): does a title name the
 // requested product itself, and where. Pure: no I/O, no LLM.
-import type { SearchFilters } from "@/lib/search/filters";
+import type { ParsedQuery, SearchFilters } from "@/lib/search/filters";
 import { CATEGORY_LABELS, TYPE_GATE } from "./config";
+import { connectorFit } from "./connectors";
 import { phraseSpans, requirementPhrases, stem, tokenize, type Span } from "./match";
 import { PRODUCT_KINDS, PRODUCT_SYNONYM_GROUPS } from "./synonyms";
 
@@ -307,7 +308,8 @@ export function termPhrasings(
 }
 
 type GateFilters = Pick<SearchFilters, "keywords_en" | "product_terms"> &
-  Partial<Pick<SearchFilters, "requirements">>;
+  Partial<Pick<SearchFilters, "requirements">> &
+  Partial<Pick<ParsedQuery, "product_he">>;
 
 /** The shopper's own words; naming one holder noun names them all (HOLDER_NOUNS). */
 function searchedWords(f: GateFilters): Set<string> {
@@ -367,13 +369,16 @@ function saysForAfter(words: string[], end: number, forWords: string[]): boolean
  * does not follow an object ("Car Neck Pillow"); no accessory noun before it, no accessory or
  * holder noun right after it, and no unsearched object ("Car ...") opening the title. An
  * accessory or object noun the shopper searched for ("phone case", "car phone holder") is
- * allowed. A pretend-play toy is kept only when the search is for kids or toys. No product
+ * allowed. A pretend-play toy is kept only when the search is for kids or toys, and a cable whose
+ * only plug is another connector than the searched device's port is not the product ("USB C To
+ * Lightning Cable For iPhone 15 14 13" for an iPhone 15; connectorFit in ./connectors). No product
  * terms: no check.
  * Product terms match whole singular words, not stems: a stem would let "charger" match
  * "Charging Cable", "light" match "Lighter" and "mount" match "Mounting Tape".
  */
 export function productMatch(title: string, f: GateFilters): ProductMatch | null {
   if (!f.product_terms.length) return { position: 0, forOtherObject: false, primary: true };
+  if (connectorFit(title, f) === "wrong") return null;
   const words = tokenize(title);
   const searched = searchedWords(f);
   const searchedStems = new Set([...searched].map(stem));

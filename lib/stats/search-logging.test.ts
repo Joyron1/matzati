@@ -181,7 +181,8 @@ describe("searchForRequest: shared runs", () => {
     expect(m.logSearch.mock.calls[0][0].searchUid).not.toBe("run-uid");
   });
 
-  it("marks the owner's own search and its joiner, and never lists them", async () => {
+  it("marks the owner's own search and its joiner, and lists a typed one", async () => {
+    // Owner decision 2026-09-29: owner keeps the rows out of the stats, not off /searches.
     const q = "מטען נייד";
     m.getAdminUser.mockResolvedValue({ email: "owner@example.com" });
     const release = deferredRun(outcome(q, "search"));
@@ -191,7 +192,7 @@ describe("searchForRequest: shared runs", () => {
     release();
     await Promise.all([first, second]);
     expect(m.runSearch.mock.calls[0][0]).toMatchObject({ q, owner: true });
-    expect(m.logSearch.mock.calls[0][0]).toMatchObject({ owner: true, listable: false });
+    expect(m.logSearch.mock.calls[0][0]).toMatchObject({ owner: true, listable: true });
   });
 
   it("decides whether /searches may list the joiner for its own spelling", async () => {

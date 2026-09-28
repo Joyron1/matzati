@@ -258,7 +258,8 @@ export function SeoForm({
         <span className="space-y-1">
           <span className="block font-semibold">לפרסם באתר</span>
           <span className="block text-sm leading-relaxed text-muted">
-            דף מפורסם מופיע בדף הבית, במפת האתר ובמנועי חיפוש. טיוטה נראית רק כאן.
+            דף מפורסם מופיע בדף הבית, במפת האתר ובמנועי חיפוש. התוצאות שלו נשמרות מיד אחרי הפרסום
+            ומתעדכנות פעם בשבוע. טיוטה נראית רק כאן.
           </span>
         </span>
       </label>

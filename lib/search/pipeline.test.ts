@@ -1001,12 +1001,16 @@ describe("affiliate links (plan item 7)", () => {
 });
 
 describe("search_log owner and diag (plan item 10)", () => {
-  it("logs the owner's search with owner true and never lists it", async () => {
+  it("logs the owner's search with owner true and lists a typed one like anyone's", async () => {
+    // Owner decision 2026-09-29: owner keeps the row out of the stats only.
     const { deps, store } = setup();
     await runSearch({ q: Q, owner: true }, deps);
-    expect(store.logs[0]).toMatchObject({ owner: true, listable: false });
+    expect(store.logs[0]).toMatchObject({ owner: true, listable: true });
     await runSearch({ q: Q }, deps);
     expect(store.logs[1]).toMatchObject({ owner: false, listable: true });
+    // Not typed (one of our links): never listed, owner or not.
+    await runSearch({ q: Q, owner: true, arrival: "recent" }, deps);
+    expect(store.logs[2]).toMatchObject({ owner: true, listable: false });
   });
 
   it("records how a fresh search went, and nothing for a full cache hit", async () => {

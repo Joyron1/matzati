@@ -192,5 +192,6 @@ export const DEDUP = {
  * Bump when any filter or ranking rule changes, so cached results ranked the old way are not
  * reused. 7: shared numbers (SHARED_NUMBERS), which also marks listings in the cached results.
  * 8: pages of 5 (RESULTS_PER_PAGE, RESULTS_KEPT 15) and the shop cap setting (SHOP_CAP_MODES).
+ * 9: device connector fit (./connectors.ts: no Lightning cable for an iPhone 15).
  */
-export const RANKING_VERSION = 8;
+export const RANKING_VERSION = 9;

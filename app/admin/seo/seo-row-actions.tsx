@@ -1,15 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { ExternalLink, Pencil, Trash2 } from "lucide-react";
+import { ExternalLink, Pencil, RefreshCw, Trash2 } from "lucide-react";
 import { useActionState, useEffect, useId, useMemo, useRef, useState } from "react";
 import { btnBusy, btnPrimary, btnSecondary } from "@/components/styles";
 import { seoPath } from "@/lib/seo/slug";
-import { deleteSeoPageAction, type SeoRowActionState } from "./actions";
+import {
+  deleteSeoPageAction,
+  refreshSeoPageAction,
+  type SeoRefreshState,
+  type SeoRowActionState,
+} from "./actions";
 
 // Busy buttons are aria-disabled, not disabled, so they keep keyboard focus (btnBusy).
 const btnSm = `min-h-11 px-4 text-sm ${btnBusy}`;
 const NO_ERROR: SeoRowActionState = { error: null };
+const NOT_REFRESHED: SeoRefreshState = { message: null, stored: false };
 
 interface SeoRowActionsProps {
   slug: string;
@@ -17,10 +23,16 @@ interface SeoRowActionsProps {
   published: boolean;
 }
 
-/** View (published only), edit and delete (with a confirm step) for one landing page. */
+/**
+ * View and "רענון עכשיו" (published only), edit and delete (with a confirm step) for one landing
+ * page. The refresh runs a fresh search and stores it when it is at least as good as the stored
+ * results (lib/seo/refresh.ts); the line under the buttons says how it went.
+ */
 export function SeoRowActions({ slug, title, published }: SeoRowActionsProps) {
   const remove = useMemo(() => deleteSeoPageAction.bind(null, slug), [slug]);
   const [deleteState, deleteAction, deleting] = useActionState(remove, NO_ERROR);
+  const refresh = useMemo(() => refreshSeoPageAction.bind(null, slug), [slug]);
+  const [refreshState, refreshAction, refreshing] = useActionState(refresh, NOT_REFRESHED);
 
   const [confirming, setConfirming] = useState(false);
   const questionId = useId();
@@ -84,6 +96,27 @@ export function SeoRowActions({ slug, title, published }: SeoRowActionsProps) {
               <span className="sr-only">: {title} (נפתח בכרטיסייה חדשה)</span>
             </Link>
           )}
+          {published && (
+            <form
+              action={refreshAction}
+              onSubmit={(e) => {
+                if (refreshing) e.preventDefault();
+              }}
+            >
+              <button
+                type="submit"
+                aria-disabled={refreshing}
+                className={`${btnSecondary} ${btnSm}`}
+              >
+                <RefreshCw
+                  aria-hidden
+                  className={`size-4 ${refreshing ? "motion-safe:animate-spin" : ""}`}
+                />
+                {refreshing ? "מרעננים…" : "רענון עכשיו"}
+                <span className="sr-only">: {title}</span>
+              </button>
+            </form>
+          )}
           <Link
             href={`/admin/seo/edit/${encodeURIComponent(slug)}`}
             className={`${btnSecondary} ${btnSm}`}
@@ -107,6 +140,21 @@ export function SeoRowActions({ slug, title, published }: SeoRowActionsProps) {
       {deleteState.error && (
         <p role="alert" className="text-sm font-semibold">
           {deleteState.error}
+        </p>
+      )}
+      {/* Always in the page (sr-only while empty), so screen readers announce what is written. */}
+      {published && (
+        <p
+          role="status"
+          className={
+            refreshing || refreshState.message
+              ? "max-w-xs text-sm font-semibold lg:text-end"
+              : "sr-only"
+          }
+        >
+          {refreshing
+            ? "מחפשים מוצרים עדכניים. זה לוקח בדרך כלל עד חצי דקה."
+            : (refreshState.message ?? "")}
         </p>
       )}
     </div>

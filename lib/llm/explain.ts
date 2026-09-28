@@ -322,7 +322,9 @@ export function checkExplanation(
   context: ExplainContext,
 ): CheckedCopy {
   const caveat = withoutUnrequestedCaveat(tidyHebrew(item.why_he.trim()), context.requirements_he);
-  const why = caveat.why;
+  // An English word written in Hebrew letters becomes Hebrew in the line too ("מארגן כלים
+  // וטבלוואר" → "מארגן כלים וכלי אוכל"), before the checks, so they judge the line that is shown.
+  const why = fixTransliterations(caveat.why, p.title_en);
   // A Latin word that is not a brand, model or spec is dropped rather than failing the title,
   // which would show the English title_en instead ("מארגן מגירות Expandable" → "מארגן מגירות"),
   // and an English word written in Hebrew letters becomes Hebrew ("פלוש" → "מפרווה רכה").

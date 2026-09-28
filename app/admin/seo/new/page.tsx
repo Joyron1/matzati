@@ -11,6 +11,10 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+// Saving a published page runs its first refresh after the response (after() in the save action):
+// a fresh search of 7-15 s, a retry included up to about 45 s, inside this page's function.
+export const maxDuration = 60;
+
 /** ?q= prefills the query, title and slug (the stats dashboard links popular searches here). */
 export default async function NewSeoPage({
   searchParams,
