@@ -6,6 +6,7 @@ import { hasPublishedDeals, hasUpcomingSales } from "@/lib/deals/queries";
 import { LogoMark } from "./logo";
 
 const LINKS = [
+  { href: "/hot", label: "מוצרים חמים" },
   { href: "/searches", label: "חיפושים אחרונים" },
   { href: "/disclosure", label: "גילוי נאות" },
   { href: "/privacy", label: "מדיניות פרטיות" },

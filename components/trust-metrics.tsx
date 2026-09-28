@@ -8,10 +8,15 @@ type TrustFields = Pick<ResultProduct, "positive_feedback_pct" | "units_sold">;
 export const SOLD_30D_LABEL = "נמכרו ב־30 הימים האחרונים";
 const SOLD_30D_SHORT = "נמכרו ב־30 יום";
 
-/** Only shows numbers AliExpress actually returned. Missing values are omitted, never guessed. */
+/**
+ * Only shows numbers AliExpress actually returned. Missing values are omitted, never guessed.
+ * `short` is for narrow cards: the shorter sales label, and each label kept on one line, so a
+ * line breaks between the number and its label, never inside the label ("ב־30" / "יום").
+ */
 export function TrustMetrics({ product, short }: { product: TrustFields; short?: boolean }) {
   const { positive_feedback_pct, units_sold } = product;
   if (positive_feedback_pct === null && units_sold === null) return null;
+  const label = short ? "whitespace-nowrap" : undefined;
   return (
     <ul className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-muted">
       {positive_feedback_pct !== null && (
@@ -21,7 +26,7 @@ export function TrustMetrics({ product, short }: { product: TrustFields; short?:
             <bdi dir="ltr" className="font-semibold text-ink">
               {formatPct(positive_feedback_pct)}
             </bdi>{" "}
-            משוב חיובי
+            <span className={label}>משוב חיובי</span>
           </span>
         </li>
       )}
@@ -32,7 +37,7 @@ export function TrustMetrics({ product, short }: { product: TrustFields; short?:
             <bdi dir="ltr" className="font-semibold text-ink">
               {formatCount(units_sold)}
             </bdi>{" "}
-            {short ? SOLD_30D_SHORT : SOLD_30D_LABEL}
+            <span className={label}>{short ? SOLD_30D_SHORT : SOLD_30D_LABEL}</span>
           </span>
         </li>
       )}

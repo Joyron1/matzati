@@ -111,6 +111,12 @@ export interface AliProduct {
   promotionLinkAt?: string | null;
   /** product.sku.detail.get, fetched with the /p refresh while SKU_DETAILS_ENABLED is on. */
   skuDetails?: AliSkuDetails | null;
+  /**
+   * "hot" for a row saved from a hot list (lib/hot/loader.ts): its title is AliExpress's Hebrew
+   * machine translation and its link came with that list. Absent for product.query and
+   * productdetail.get data in English. Never set by a parse.
+   */
+  source?: "hot";
 }
 
 export const productSchema = rawProductSchema.transform((p, ctx): AliProduct => {

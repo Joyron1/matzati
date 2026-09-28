@@ -12,6 +12,7 @@ import type { ApiCodeProduct } from "@/lib/coupons/api-codes";
 import { formatIsraelTime } from "@/lib/coupons/display";
 import type { PublicCoupons } from "@/lib/coupons/queries";
 import { formatShortDate } from "@/lib/format";
+import { HOT_TITLES_NOTE, SOME_TITLES_NOTE } from "@/lib/hot/copy";
 
 export const COUPONS_TITLE = "קופונים לאלי אקספרס";
 
@@ -127,7 +128,15 @@ function ApiCodeCard({ item, now }: { item: ApiCodeProduct; now: Date }) {
   );
 }
 
+/** Said once for the section: products saved from a hot list carry AliExpress's Hebrew titles. */
+function titlesNote(codes: ApiCodeProduct[] | null): string | null {
+  const machine = codes?.filter((item) => item.machineTranslated).length ?? 0;
+  if (machine === 0) return null;
+  return machine === codes?.length ? HOT_TITLES_NOTE : SOME_TITLES_NOTE;
+}
+
 function ApiCodes({ codes, now }: { codes: ApiCodeProduct[] | null; now: Date }) {
+  const note = titlesNote(codes);
   return (
     <section aria-labelledby="ali-codes-title" className="space-y-4">
       <div className="max-w-2xl space-y-2">
@@ -136,7 +145,7 @@ function ApiCodes({ codes, now }: { codes: ApiCodeProduct[] | null; now: Date })
         </h2>
         <p className="leading-relaxed text-muted">
           לחלק מהמוצרים אלי אקספרס מצמידה קוד הנחה משלה. אלה הקודים שהופיעו במוצרים שבדקנו ביומיים
-          האחרונים, כל עוד הם בתוקף לפי התאריכים של אלי אקספרס.
+          האחרונים, כל עוד הם בתוקף לפי התאריכים של אלי אקספרס.{note && ` ${note}`}
         </p>
       </div>
       {codes === null ? (

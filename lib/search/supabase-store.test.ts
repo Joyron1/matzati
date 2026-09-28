@@ -109,11 +109,13 @@ class FakeQuery implements PromiseLike<{ data: unknown; error: { message: string
       rows.filter(matches).forEach((r) => Object.assign(r, structuredClone(this.payload as Row)));
     } else {
       const pk = PRIMARY_KEY[table];
+      const ignoreDuplicates = (this.options as { ignoreDuplicates?: boolean } | undefined)
+        ?.ignoreDuplicates;
       for (const p of payload) {
         const copy = structuredClone(p);
         const existing = op === "upsert" ? rows.find((r) => r[pk] === p[pk]) : undefined;
-        if (existing) Object.assign(existing, copy);
-        else rows.push({ ...DEFAULTS[table], ...copy });
+        if (existing && !ignoreDuplicates) Object.assign(existing, copy);
+        else if (!existing) rows.push({ ...DEFAULTS[table], ...copy });
       }
     }
     return { data: null, error: null };
@@ -488,6 +490,69 @@ describe("SupabaseStore", () => {
           data: b,
           updated_at: checkedAt.toISOString(),
         });
+      });
+    });
+
+    describe("from a hot list (keepTitledRows)", () => {
+      const fetchedAt = new Date(Date.now() - 60_000);
+      const [a, b, c] = PRODUCTS;
+      // A hot list's data: AliExpress's Hebrew title (lib/hot/loader.ts).
+      const hot = (p: AliProduct): AliProduct => ({
+        ...p,
+        title: `כותרת ${p.productId}`,
+        source: "hot",
+      });
+      const searchedAt = new Date(Date.now() - 5 * 86_400_000).toISOString();
+
+      it("leaves a row a search titled untouched, and saves the others", async () => {
+        const db = new FakeDb();
+        db.rows("products").push(
+          { product_id: a.productId, data: a, title_he: "כבל טעינה", updated_at: searchedAt },
+          { product_id: b.productId, data: b, title_he: null, updated_at: searchedAt },
+        );
+        const store = new SupabaseStore(db.client());
+        await store.saveProducts([hot(a), hot(b), hot(c)], {}, fetchedAt, { keepTitledRows: true });
+        // a: our title over English data, as the search saved it.
+        expect(await store.getProduct(a.productId)).toEqual({
+          product: a,
+          titleHe: "כבל טעינה",
+          updatedAt: searchedAt,
+        });
+        // b (untitled, older) and c (new) take the hot list's data and time.
+        for (const p of [b, c]) {
+          expect(await store.getProduct(p.productId)).toEqual({
+            product: hot(p),
+            titleHe: null,
+            updatedAt: fetchedAt.toISOString(),
+          });
+        }
+        expect(db.rows("price_history").map((h) => h.product_id)).toEqual([
+          b.productId,
+          c.productId,
+        ]);
+      });
+
+      it("writes only new rows when the stored rows cannot be read", async () => {
+        const db = new FakeDb();
+        db.rows("products").push({
+          product_id: a.productId,
+          data: a,
+          title_he: "כבל טעינה",
+          updated_at: searchedAt,
+        });
+        db.failing.add("products:select");
+        await new SupabaseStore(db.client()).saveProducts([hot(a), hot(b)], {}, fetchedAt, {
+          keepTitledRows: true,
+        });
+        expect(db.rows("products")).toEqual([
+          { product_id: a.productId, data: a, title_he: "כבל טעינה", updated_at: searchedAt },
+          {
+            product_id: b.productId,
+            data: hot(b),
+            title_he: null,
+            updated_at: fetchedAt.toISOString(),
+          },
+        ]);
       });
     });
   });

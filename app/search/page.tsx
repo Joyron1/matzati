@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import {
   Clock,
   CloudOff,
@@ -14,6 +15,8 @@ import {
 import { FilterChips } from "@/components/filter-chips";
 import { CompactProductCard, FeaturedProductCard } from "@/components/product-cards";
 import { SearchComposer } from "@/components/search-composer";
+import { ResultsAnnouncer } from "@/components/search-wait/results-announcer";
+import { SearchWait } from "@/components/search-wait/search-wait";
 import { ShareLink } from "@/components/share-link";
 import { ShowMore } from "@/components/show-more";
 import { SortBar } from "@/components/sort-bar";
@@ -22,7 +25,14 @@ import { btnMd, btnPrimary, btnSecondary } from "@/components/styles";
 import { APPROX_PRICE_NOTE } from "@/lib/copy";
 import { formatCount, formatDateTime, formatWait } from "@/lib/format";
 import { FILTERS } from "@/lib/ranking/config";
-import { firstParam, parseFrom, parseSort, parseWithout, searchHref } from "@/lib/search-url";
+import {
+  firstParam,
+  parseFrom,
+  parseSort,
+  parseWithout,
+  searchHref,
+  type SearchFrom,
+} from "@/lib/search-url";
 import { staleFetchedAt } from "@/lib/search/freshness";
 import { MAX_QUERY_LENGTH } from "@/lib/search/pipeline";
 import { searchForRequest, type SearchFailure } from "@/lib/search/server";
@@ -45,25 +55,62 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
   const without = parseWithout(params.without);
   // A recent-search card or an example query: searched as usual, never listed on /searches.
   const from = parseFrom(params.from);
+  const href = searchHref({ q, sort, without, from });
+
+  // The wait is this boundary's fallback, keyed by the search: loading.tsx does not show again
+  // when only the search params change (a new query in the bar, a removed chip, another sort), and
+  // an already revealed boundary keeps the old results on screen during that navigation. A new
+  // key is a new boundary, which shows its fallback.
+  return (
+    <div className="mx-auto max-w-6xl space-y-6 px-4 pt-6 sm:px-6 sm:pt-10">
+      <SearchComposer variant="bar" defaultValue={q} />
+      <Suspense
+        key={href}
+        fallback={<SearchWait query={q} reusesParse={without.length > 0 || sort !== undefined} />}
+      >
+        <SearchResults q={q} sort={sort} without={without} from={from} retryHref={href} />
+      </Suspense>
+    </div>
+  );
+}
+
+async function SearchResults({
+  q,
+  sort,
+  without,
+  from,
+  retryHref,
+}: {
+  q: string;
+  sort?: SortPreference;
+  without: string[];
+  from?: SearchFrom;
+  retryHref: string;
+}) {
   const result = await searchForRequest(
     { q, without, sort, typed: from === undefined },
     await headers(),
   );
+  const outcome = !result.ok
+    ? failureCopy(result.error, result.retryAfterSec).title
+    : result.response.results.length > 0
+      ? `בדקנו ${formatCount(result.response.checked_count)} מוצרים. ${formatCount(result.response.passed_count)} עברו את הסינון.`
+      : "לא מצאנו מוצרים שעוברים את הסינון.";
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 px-4 pt-6 sm:px-6 sm:pt-10">
+    <>
       <h1 className="sr-only">תוצאות חיפוש עבור {q}</h1>
-      <SearchComposer variant="bar" defaultValue={q} />
+      <ResultsAnnouncer text={outcome} />
       {result.ok ? (
         <Results response={result.response} q={q} sort={sort} without={without} />
       ) : (
         <SearchError
           error={result.error}
           retryAfterSec={result.retryAfterSec}
-          retryHref={searchHref({ q, sort, without, from })}
+          retryHref={retryHref}
         />
       )}
-    </div>
+    </>
   );
 }
 

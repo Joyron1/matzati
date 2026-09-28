@@ -43,6 +43,7 @@ import {
   type SearchOrigin,
   type SearchOutcome,
 } from "./pipeline";
+import { hasHebrew } from "@/lib/product-title";
 import { normalizeQuery } from "./cache-key";
 import type { SearchLogEntry, SearchStore } from "./store";
 import { SupabaseStore, type StoredProduct } from "./supabase-store";
@@ -336,9 +337,20 @@ function linkIsFresh(stored: StoredProduct, now: Date): boolean {
 }
 
 /**
+ * A row saved from a hot list (lib/hot/loader.ts): AliExpress's Hebrew title and that list's link.
+ * Rows saved before `source` was stored are known by a Hebrew AliExpress title and no title of
+ * ours: every other save is in English.
+ */
+const fromHotList = (stored: StoredProduct) =>
+  stored.product.source === "hot" || (stored.titleHe === null && hasHebrew(stored.product.title));
+
+/**
  * Fresh details with an affiliate link, or null when AliExpress no longer returns the product.
  * When productdetail.get sends no link, the stored one is kept (with the time it was made) while it
- * is fresh; otherwise a new one is generated.
+ * is fresh; otherwise a new one is generated. A product from a hot list is refreshed in Hebrew, so
+ * its title stays the one its card shows, and keeps the list's link while it is fresh: whether that
+ * link earns the hot commission is unconfirmed (docs/aliexpress-api.md), so it is not swapped for
+ * productdetail.get's.
  */
 async function refreshProduct(
   ali: AliExpressClient,
@@ -347,14 +359,17 @@ async function refreshProduct(
   now: Date,
 ): Promise<AliProduct | null> {
   const { productId } = stored.product;
-  const page = await spaced(() => getProductDetails(ali, [productId]));
-  const product = page.products.find((p) => p.productId === productId);
-  if (!product) return null;
-  if (product.promotionLink) return product;
+  const hot = fromHotList(stored);
+  const page = await spaced(() => getProductDetails(ali, [productId], hot ? "HE" : "EN"));
+  const found = page.products.find((p) => p.productId === productId);
+  if (!found) return null;
+  const product: AliProduct = hot ? { ...found, source: "hot" } : found;
   const known = stored.product.promotionLink;
-  if (known && linkIsFresh(stored, now)) {
+  const keepKnown = known && linkIsFresh(stored, now);
+  if (keepKnown && (hot || !product.promotionLink)) {
     return { ...product, promotionLink: known, promotionLinkAt: linkMadeAt(stored) };
   }
+  if (product.promotionLink) return product;
   const promotionLink = await spaced(() => generateLink(ali, productId));
   return promotionLink ? { ...product, promotionLink } : null; // never show what we cannot link
 }

@@ -18,12 +18,34 @@ import { card, featured } from "@/components/styles";
 import { SOLD_30D_LABEL } from "@/components/trust-metrics";
 import { APPROX_PRICE_NOTE } from "@/lib/copy";
 import { formatCount, formatDateTime, formatPct } from "@/lib/format";
+import { PRODUCT_TITLE_NOTE } from "@/lib/hot/copy";
+import { productTitleView } from "@/lib/product-title";
 import { FILL_TIER, FILTERS } from "@/lib/ranking/config";
 import { searchHref } from "@/lib/search-url";
 import type { ProductPageData } from "@/lib/search/server";
 
-/** `q` is the search the visitor came from ("" for none); `now` is the time of the render. */
-export function ProductView({ data, q, now }: { data: ProductPageData; q: string; now: Date }) {
+/** The back link: to the search the visitor came from, to /hot, or to a new search. */
+function backLink(q: string, hotBack: string | null) {
+  if (q) return { href: searchHref({ q }), label: "חזרה לתוצאות" };
+  if (hotBack) return { href: hotBack, label: "חזרה למוצרים החמים" };
+  return { href: "/", label: "לחיפוש חדש" };
+}
+
+/**
+ * `q` is the search the visitor came from ("" for none); `hotBack` the /hot list a card was opened
+ * from (hotBackHref), or null; `now` is the time of the render.
+ */
+export function ProductView({
+  data,
+  q,
+  hotBack = null,
+  now,
+}: {
+  data: ProductPageData;
+  q: string;
+  hotBack?: string | null;
+  now: Date;
+}) {
   const {
     product,
     shopName,
@@ -59,17 +81,19 @@ export function ProductView({ data, q, now }: { data: ProductPageData; q: string
     },
   ];
   const allPass = checks.every((c) => c.passes);
-  // Without a Hebrew title the page falls back to the English one.
-  const englishOnly = product.title_he === product.title_en;
+  // Without a Hebrew title of ours the page shows AliExpress's: English, or its Hebrew machine
+  // translation for a product saved from a hot list. The direction comes from the letters.
+  const title = productTitleView(product.title_he, product.title_en);
+  const back = backLink(q, hotBack);
 
   return (
     <div className="mx-auto max-w-6xl px-4 pt-4 sm:px-6 sm:pt-8">
       <Link
-        href={q ? searchHref({ q }) : "/"}
+        href={back.href}
         className="inline-flex min-h-11 items-center gap-1 rounded-full pe-3 font-semibold text-muted hover:text-ink"
       >
         <ChevronRight aria-hidden className="size-5" />
-        {q ? "חזרה לתוצאות" : "לחיפוש חדש"}
+        {back.label}
       </Link>
 
       {/* The video comes after the product details in the DOM, so on phones (and for screen
@@ -82,16 +106,17 @@ export function ProductView({ data, q, now }: { data: ProductPageData; q: string
         <div className="min-w-0 space-y-6 lg:col-start-2 lg:row-span-2 lg:row-start-1">
           <div className="space-y-2">
             <h1 className="text-2xl leading-snug font-bold sm:text-3xl">
-              {englishOnly ? <bdi dir="ltr">{product.title_en}</bdi> : product.title_he}
+              {title.ltr ? <bdi dir="ltr">{title.text}</bdi> : title.text}
             </h1>
-            {!englishOnly && (
+            {title.original !== null && (
               <p className="text-sm text-muted">
                 השם באלי אקספרס:{" "}
                 <bdi dir="ltr" className="text-ink/80">
-                  {product.title_en}
+                  {title.original}
                 </bdi>
               </p>
             )}
+            {title.machineTranslated && <p className="text-sm text-muted">{PRODUCT_TITLE_NOTE}</p>}
             {shopName && (
               <p className="text-sm text-muted">
                 החנות: <bdi className="text-ink/80">{shopName}</bdi>

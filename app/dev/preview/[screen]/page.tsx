@@ -1,7 +1,9 @@
-// Development-only visual previews of the coupon, sale and product-page sections, rendered with
-// the real page views and made-up data, so every state can be looked at (and screenshotted) in
-// both themes without a database row or an API call: /dev/preview/coupons, /dev/preview/sales,
-// /dev/preview/product-extras. A 404 in production, noindex, disallowed in robots.txt and never
+// Development-only visual previews of the coupon, sale and product-page sections and of the search
+// waiting screen, rendered with the real page views and made-up data, so every state can be looked
+// at (and screenshotted) in both themes without a database row or an API call:
+// /dev/preview/coupons, /dev/preview/sales, /dev/preview/product-extras, /dev/preview/product-hot
+// (a product opened from /hot, with AliExpress's Hebrew title), /dev/preview/search-loading.
+// A 404 in production, noindex, disallowed in robots.txt and never
 // listed in the sitemap. Nothing here reads the database, AliExpress or an LLM.
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -11,6 +13,7 @@ import { ProductView } from "@/app/p/[productId]/product-view";
 import { SalesIntro, SalesView } from "@/app/sales/sales-view";
 import { DealsBoard } from "@/components/deals-board";
 import { SaleCountdown } from "@/components/sale-countdown";
+import { SearchWaitScreen } from "@/components/search-wait/search-wait";
 import type { AliPromoCode } from "@/lib/aliexpress/promo-code";
 import type { AliSkuDetails } from "@/lib/aliexpress/schemas";
 import type { ApiCodeProduct } from "@/lib/coupons/api-codes";
@@ -23,7 +26,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const SCREENS = ["coupons", "sales", "product-extras"] as const;
+const SCREENS = ["coupons", "sales", "product-extras", "product-hot", "search-loading"] as const;
 type Screen = (typeof SCREENS)[number];
 
 const isScreen = (value: string): value is Screen => (SCREENS as readonly string[]).includes(value);
@@ -54,6 +57,9 @@ function israelMidnight(now: Date, days: number): string {
 }
 
 const FAKE_PRODUCT_ID = "1000000000000001";
+
+/** The waiting screen's sample query (the composer's own placeholder example). */
+const PREVIEW_QUERY = "אוזניות לריצה, עמידות למים, עד 100 ש״ח";
 
 function coupon(now: Date, over: Partial<Coupon>): Coupon {
   return {
@@ -93,6 +99,7 @@ function apiCode(now: Date, n: number, title: string, code: AliPromoCode): ApiCo
     productId: `10000000000000${10 + n}`,
     title,
     titleIsHebrew: !/^[A-Za-z]/.test(title),
+    machineTranslated: false,
     imageUrl: null,
     checkedAt: at(now, -(n + 1) * HOUR),
     promoCode: code,
@@ -335,6 +342,22 @@ export default async function PreviewPage({ params }: PageProps<"/dev/preview/[s
     );
   }
 
+  if (screen === "search-loading") {
+    // The search page's waiting screen (the Suspense fallback in app/search/page.tsx) with a
+    // sample query. The bar is inert here, so nothing on this page can start a search.
+    return (
+      <>
+        <FakeDataNote>
+          מסך ההמתנה לתוצאות חיפוש, עם חיפוש לדוגמה. אין כאן חיפוש אמיתי: השלבים מתקדמים לפי זמן.
+          רעננו את הדף כדי להתחיל מחדש.
+        </FakeDataNote>
+        <div className="mx-auto max-w-6xl space-y-6 px-4 pt-6 sm:px-6 sm:pt-10">
+          <SearchWaitScreen query={PREVIEW_QUERY} demo />
+        </div>
+      </>
+    );
+  }
+
   if (screen === "sales") {
     const data = salesData(now);
     const [, next] = data.sales;
@@ -357,6 +380,25 @@ export default async function PreviewPage({ params }: PageProps<"/dev/preview/[s
           </div>
           <DealsBoard deals={[data.sales[0], next]} />
         </div>
+      </>
+    );
+  }
+
+  if (screen === "product-hot") {
+    // Saved from a hot list: no title of ours, and AliExpress's title is its Hebrew machine
+    // translation, with Latin words and numbers that must stay in reading order.
+    const base = productData(now);
+    const title = "מוצר לדוגמה: כיסוי טלפון לאייפון 17, 18 Pro Max עם MagSafe (נתונים מומצאים)";
+    const data: ProductPageData = {
+      ...base,
+      product: { ...base.product, title_he: title, title_en: title },
+      ownerCoupons: [],
+      skuDetails: null,
+    };
+    return (
+      <>
+        <FakeDataNote>כמו דף מוצר שנפתח מהמוצרים החמים, עם השם של אלי אקספרס בעברית.</FakeDataNote>
+        <ProductView data={data} q="" hotBack="/hot?cat=44" now={now} />
       </>
     );
   }

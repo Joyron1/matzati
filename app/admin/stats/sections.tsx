@@ -6,6 +6,7 @@ import { FilePlus2 } from "lucide-react";
 import { btnSecondary, card } from "@/components/styles";
 import type { UsdIlsRate } from "@/lib/fx/boi";
 import { formatCount, formatDateTime } from "@/lib/format";
+import { hasHebrew } from "@/lib/product-title";
 import {
   formatIlsAmount,
   formatIsraelDay,
@@ -418,7 +419,13 @@ export function TopProductsTable({ rows }: { rows: TopProduct[] | null }) {
                   href={`/p/${r.productId}`}
                   className="inline-flex min-h-11 items-center font-semibold text-accent-ink underline underline-offset-4"
                 >
-                  {r.titleHe ?? <bdi dir="ltr">{r.titleEn ?? r.productId}</bdi>}
+                  {/* A hot product's AliExpress title is Hebrew (lib/product-title.ts). */}
+                  {r.titleHe ??
+                    (r.titleEn && hasHebrew(r.titleEn) ? (
+                      r.titleEn
+                    ) : (
+                      <bdi dir="ltr">{r.titleEn ?? r.productId}</bdi>
+                    ))}
                 </Link>
               </Td>
               <Td numeric>{formatCount(r.clicks)}</Td>

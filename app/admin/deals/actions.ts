@@ -43,14 +43,16 @@ function logError(where: string, err: unknown) {
 }
 
 /**
- * Everything that shows deals: the public board, the sales calendar, the home countdown and the
- * admin list. The tag also refreshes the menu links (hasPublishedDeals, hasUpcomingSales).
+ * Everything that shows deals: the public board, the sales calendar and the admin list. The tag
+ * also refreshes the menu links (hasPublishedDeals, hasUpcomingSales). Not revalidatePath("/"):
+ * the home page renders per visit and reads its countdown uncached, and expiring its path would
+ * drop the cached hot lists it reads too (the next view would fetch them again, with no stale list
+ * to fall back on).
  */
 function revalidateDeals() {
   updateTag(DEALS_TAG);
   revalidatePath("/deals");
   revalidatePath("/sales");
-  revalidatePath("/");
   revalidatePath("/admin");
 }
 

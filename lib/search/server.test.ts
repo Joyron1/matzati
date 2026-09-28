@@ -58,7 +58,8 @@ const m = vi.hoisted(() => {
     couponsForProduct: vi.fn<(productId: string, now: Date) => Promise<Coupon[]>>(),
     readCategoryTips: vi.fn<(categoryId: string, now: Date) => Promise<TipsEntry | null>>(),
     refresh: vi.fn(async () => {}),
-    getProductDetails: vi.fn<(client: unknown, ids: string[]) => Promise<ProductPage>>(),
+    getProductDetails:
+      vi.fn<(client: unknown, ids: string[], language?: "EN" | "HE") => Promise<ProductPage>>(),
     generateLinks: vi.fn<(client: unknown, urls: string[]) => Promise<AliPromotionLink[]>>(),
     getSkuDetails: vi.fn<(client: unknown, id: string) => Promise<AliSkuDetails | null>>(),
   };
@@ -410,7 +411,10 @@ describe("productForPage: refresh after 24 hours", () => {
     detailsReturn({ ...PRODUCT, promotionLink: FRESH_LINK, videoUrl, promoCode: code });
     const data = await productForPage(ID);
     expect(m.getProductDetails).toHaveBeenCalledTimes(1);
+    // A product a search saved (English title) is refreshed in English.
+    expect(m.getProductDetails).toHaveBeenCalledWith(expect.anything(), [ID], "EN");
     expect(m.saveProducts).toHaveBeenCalledTimes(1);
+    expect(m.saveProducts.mock.calls[0][0][0].promotionLink).toBe(FRESH_LINK);
     expect(data).toMatchObject({ videoUrl, apiCoupon: code, skuDetails: null });
     expect(m.getSkuDetails).not.toHaveBeenCalled();
   });
@@ -470,6 +474,56 @@ describe("productForPage: refresh after 24 hours", () => {
     expect(m.saveProducts.mock.calls[0][0][0].promotionLink).toBe(
       "https://s.click.aliexpress.com/e/_new",
     );
+  });
+
+  describe("a product saved from a hot list", () => {
+    const HOT_TITLE = "אוזניות אלחוטיות TWS 5.3 עם מיקרופון";
+    const HOT_LINK = "https://s.click.aliexpress.com/s/hot-list";
+    const hotRow = (product: Partial<AliProduct>, updatedAt = daysAgo(2)) => ({
+      product: { ...PRODUCT, title: HOT_TITLE, promotionLink: HOT_LINK, ...product },
+      titleHe: null,
+      updatedAt,
+    });
+
+    it("is refreshed in Hebrew and keeps the list's link, marked as from the list", async () => {
+      const row = hotRow({ source: "hot" });
+      m.getProduct.mockResolvedValue(row);
+      detailsReturn({ ...PRODUCT, title: `${HOT_TITLE} חדש`, promotionLink: FRESH_LINK });
+      const data = await productForPage(ID);
+      expect(m.getProductDetails).toHaveBeenCalledWith(expect.anything(), [ID], "HE");
+      const [[saved], titles] = m.saveProducts.mock.calls[0];
+      expect(saved).toMatchObject({
+        title: `${HOT_TITLE} חדש`,
+        promotionLink: HOT_LINK,
+        promotionLinkAt: row.updatedAt,
+        source: "hot",
+      });
+      expect(titles).toEqual({ [ID]: null });
+      // The page shows AliExpress's Hebrew title as it is (lib/product-title.ts).
+      expect(data?.product).toMatchObject({
+        title_he: `${HOT_TITLE} חדש`,
+        title_en: `${HOT_TITLE} חדש`,
+      });
+    });
+
+    it("is known by its Hebrew title when it was saved before rows were marked", async () => {
+      m.getProduct.mockResolvedValue(hotRow({}));
+      detailsReturn({ ...PRODUCT, title: HOT_TITLE, promotionLink: FRESH_LINK });
+      await productForPage(ID);
+      expect(m.getProductDetails).toHaveBeenCalledWith(expect.anything(), [ID], "HE");
+      expect(m.saveProducts.mock.calls[0][0][0]).toMatchObject({
+        promotionLink: HOT_LINK,
+        source: "hot",
+      });
+    });
+
+    it("takes productdetail's link once the list's link is older than LINK_MAX_AGE_DAYS", async () => {
+      m.getProduct.mockResolvedValue(hotRow({ source: "hot" }, daysAgo(91)));
+      detailsReturn({ ...PRODUCT, title: HOT_TITLE, promotionLink: FRESH_LINK });
+      await productForPage(ID);
+      expect(m.generateLinks).not.toHaveBeenCalled();
+      expect(m.saveProducts.mock.calls[0][0][0].promotionLink).toBe(FRESH_LINK);
+    });
   });
 });
 

@@ -116,3 +116,17 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* A <details> that is a disclosure on phones and always open from sm (the /hot filters): the
+   summary goes and the content shows even while closed. A browser without ::details-content keeps
+   the disclosure at every width, so nothing becomes unreachable. */
+@supports selector(::details-content) {
+  @media (width >= 40rem) {
+    details.open-from-sm > summary {
+      display: none;
+    }
+    details.open-from-sm::details-content {
+      content-visibility: visible;
+    }
+  }
+}

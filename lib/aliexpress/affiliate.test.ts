@@ -1,9 +1,12 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import {
   chunk,
   generateLinks,
   getSkuDetails,
+  hotProductQueryParams,
   productQueryParams,
+  queryHotProducts,
   queryProducts,
   toMinorUnits,
 } from "./affiliate";
@@ -91,6 +94,69 @@ describe("queryProducts", () => {
       skipped: 0,
       totalRecords: 0,
     });
+  });
+});
+
+describe("hotProductQueryParams", () => {
+  it("defaults to the probed params: HE titles, no category, no keywords or price bounds", () => {
+    expect(hotProductQueryParams({}, "trk")).toEqual({
+      category_ids: undefined,
+      page_no: 1,
+      page_size: 50,
+      sort: "LAST_VOLUME_DESC",
+      target_currency: "ILS",
+      target_language: "HE",
+      ship_to_country: "IL",
+      tracking_id: "trk",
+    });
+  });
+  it("sends one category id and caps page size at 50", () => {
+    const p = hotProductQueryParams({ categoryId: "44", pageSize: 80, language: "EN" }, "trk");
+    expect(p.category_ids).toBe("44");
+    expect(p.page_size).toBe(50);
+    expect(p.target_language).toBe("EN");
+  });
+});
+
+describe("queryHotProducts", () => {
+  // The masked response of the probe (fixtures/aliexpress/probe-hot, 2026-09-28).
+  const fixture = JSON.parse(
+    readFileSync(
+      "fixtures/aliexpress/probe-hot/aliexpress.affiliate.hotproduct.query.cat44-HE.json",
+      "utf8",
+    ),
+  );
+
+  it("calls hotproduct.query with the category and parses every product", async () => {
+    const { client, fetchMock } = clientReturning([fixture]);
+    const page = await queryHotProducts(client, { categoryId: "44" });
+    const f = sentFields(fetchMock);
+    expect(f.get("method")).toBe("aliexpress.affiliate.hotproduct.query");
+    expect(f.get("category_ids")).toBe("44");
+    expect(f.get("target_language")).toBe("HE");
+    expect(f.get("target_currency")).toBe("ILS");
+    expect(f.get("ship_to_country")).toBe("IL");
+    expect(f.get("tracking_id")).toBe("trk");
+    expect(f.has("keywords")).toBe(false);
+    expect(page.products).toHaveLength(46);
+    expect(page.skipped).toBe(0);
+    expect(page.products.every((p) => p.currency === "ILS" && p.promotionLink)).toBe(true);
+  });
+
+  it("sends no category for the whole list and turns resp_code 405 into an empty page", async () => {
+    const { client, fetchMock } = clientReturning([
+      {
+        aliexpress_affiliate_hotproduct_query_response: {
+          resp_result: { resp_code: 405, resp_msg: "The result is empty" },
+        },
+      },
+    ]);
+    await expect(queryHotProducts(client)).resolves.toEqual({
+      products: [],
+      skipped: 0,
+      totalRecords: 0,
+    });
+    expect(sentFields(fetchMock).has("category_ids")).toBe(false);
   });
 });
 

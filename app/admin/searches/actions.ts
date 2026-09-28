@@ -16,11 +16,14 @@ function logError(where: string, err: unknown) {
   console.error(`[admin-searches] ${where}: ${text.slice(0, 300)}`);
 }
 
-/** Everything that shows recent searches: /searches, the home strip and the admin list. */
+/**
+ * Everything that shows recent searches: /searches, the home strip and the admin list. The home
+ * strip reads through RECENT_TAG, so no revalidatePath("/"): the home page renders per visit, and
+ * expiring its path would drop the cached hot lists it reads too.
+ */
 function revalidateRecent() {
   updateTag(RECENT_TAG);
   revalidatePath("/searches");
-  revalidatePath("/");
   revalidatePath("/admin/searches");
 }
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { History } from "lucide-react";
+import { Flame, History } from "lucide-react";
 import { DEALS_ENABLED } from "@/lib/config/site";
+import { HOT_PATH } from "@/lib/hot/params";
 import { hasPublishedCoupons } from "@/lib/coupons/queries";
 import { hasPublishedDeals, hasUpcomingSales } from "@/lib/deals/queries";
 import { Logo } from "./logo";
@@ -26,27 +27,41 @@ export async function SiteHeader() {
   const offers = await offerLinks();
   return (
     <header className="border-b border-line bg-bg">
-      {/* Tight gaps and icon-only links on phones: logo, recent searches, one offers icon (or the
-          offers menu) and the theme toggle fit at 360px, and at 320px without a horizontal scroll
-          (the nav then takes most of the side padding). Relative: the offers menu opens under
-          this row. */}
+      {/* Tight gaps and icon-only links on phones: logo, recent searches, hot products, one offers
+          icon (or the offers menu) and the theme toggle fit from 375px; at 320px without a
+          horizontal scroll (the nav then takes most of the side padding). Relative: the offers
+          menu opens under this row. */}
       <div className="relative mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-4 sm:h-20 sm:gap-3 sm:px-6">
         <Logo />
         <nav aria-label="ניווט ראשי" className="flex items-center gap-0.5 sm:gap-2">
+          {/* From lg only: below it the logo links home, and the row needs the room. */}
           <Link
             href="/"
-            className="hidden min-h-11 items-center rounded-full px-4 font-medium text-muted hover:text-ink sm:flex"
+            className="hidden min-h-11 items-center rounded-full px-4 font-medium text-muted hover:text-ink lg:flex"
           >
             חיפוש
           </Link>
-          {/* Icon only on phones, to keep the header uncluttered. */}
+          {/* Icon only on phones, to keep the header uncluttered. With an offers icon as well,
+              five items do not fit under 375px, so there it gives way to the hot products (the
+              home page's recent searches and the footer link to /searches too). */}
           <Link
             href="/searches"
             aria-label="חיפושים אחרונים"
-            className="flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-full font-medium text-muted hover:text-ink sm:px-4"
+            className={`flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-full font-medium text-muted hover:text-ink sm:px-4 ${
+              offers.length ? "max-[374px]:hidden" : ""
+            }`}
           >
             <History aria-hidden className="size-[18px]" />
             <span className="hidden sm:inline">חיפושים אחרונים</span>
+          </Link>
+          {/* Icon only below lg, where a label would crowd the row. */}
+          <Link
+            href={HOT_PATH}
+            aria-label="מוצרים חמים"
+            className="flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-full font-medium text-muted hover:text-ink lg:px-4"
+          >
+            <Flame aria-hidden className="size-[18px]" />
+            <span className="hidden lg:inline">מוצרים חמים</span>
           </Link>
           <OffersNav links={offers} />
           <ThemeToggle />

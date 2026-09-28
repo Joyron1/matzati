@@ -190,40 +190,64 @@ export class SupabaseStore implements SearchStore {
   }
 
   /**
-   * Ids of stored products whose updated_at is at or after `checkedAt`: their data is at least as
-   * new as data checked then. Null when the read failed.
+   * Of the stored products among `ids`: those whose updated_at is at or after `checkedAt` (their
+   * data is at least as new as data checked then), and those with a Hebrew title of ours. Null
+   * when the read failed.
    */
-  private async checkedSince(ids: string[], checkedAt: string): Promise<Set<string> | null> {
-    const rows = await this.read<{ product_id: string; updated_at: string }[]>(
-      "saveProducts newer",
-      () => this.db.from("products").select("product_id, updated_at").in("product_id", ids),
+  private async storedState(
+    ids: string[],
+    checkedAt: string,
+  ): Promise<{ newer: Set<string>; titled: Set<string> } | null> {
+    type Row = { product_id: string; updated_at: string; title_he: string | null };
+    const rows = await this.read<Row[]>("saveProducts newer", () =>
+      this.db.from("products").select("product_id, updated_at, title_he").in("product_id", ids),
     );
     if (rows === null) return null;
     const since = Date.parse(checkedAt);
-    return new Set(rows.filter((r) => Date.parse(r.updated_at) >= since).map((r) => r.product_id));
+    const idsWhere = (keep: (r: Row) => boolean) =>
+      new Set(rows.filter(keep).map((r) => r.product_id));
+    return {
+      newer: idsWhere((r) => Date.parse(r.updated_at) >= since),
+      titled: idsWhere((r) => Boolean(r.title_he)),
+    };
   }
 
   /**
    * `checkedAt` is when the data was fetched from AliExpress, for products from a cached result set
-   * ("עוד 3 אפשרויות" serves results cached up to 14 days). The rows and their price_history get
-   * that time, never the time of the save, since /p, /coupons and /go read updated_at as when the
-   * price, the promo code and the link were checked. A row already stored with data as new or newer
-   * (a /p refresh, a newer search) keeps it; only its Hebrew title is written.
+   * ("עוד 3 אפשרויות" serves results cached up to 14 days) or a hot list. The rows and their
+   * price_history get that time, never the time of the save, since /p, /coupons and /go read
+   * updated_at as when the price, the promo code and the link were checked. A row already stored
+   * with data as new or newer (a /p refresh, a newer search) keeps it; only its Hebrew title is
+   * written.
+   *
+   * `keepTitledRows` (hot lists, with `checkedAt`): a row with a Hebrew title of ours is not
+   * touched at all. Its data came from a search in English, and a hot list's AliExpress Hebrew
+   * title would replace the English original /p shows under our title; /p refreshes its price
+   * after a day anyway. When the rows cannot be read, only new rows are written.
    */
   async saveProducts(
     products: AliProduct[],
     titlesHe: Record<string, string | null>,
     checkedAt?: Date,
+    { keepTitledRows = false }: { keepTitledRows?: boolean } = {},
   ): Promise<void> {
     let unique = [...new Map(products.map((p) => [p.productId, p])).values()];
     if (!unique.length) return;
     const updatedAt = (checkedAt ?? new Date()).toISOString();
+    let insertOnly = false;
     if (checkedAt) {
-      // A failed read saves everything: the rows then carry the older time, which is still true.
-      const newer = await this.checkedSince(
+      // A failed read saves everything (with keepTitledRows: every new row); the rows then carry
+      // the older time, which is still true.
+      const stored = await this.storedState(
         unique.map((p) => p.productId),
         updatedAt,
       );
+      if (keepTitledRows) {
+        if (stored === null) insertOnly = true;
+        else unique = unique.filter((p) => !stored.titled.has(p.productId));
+        if (!unique.length) return;
+      }
+      const newer = stored?.newer;
       if (newer?.size) {
         await Promise.all(
           unique
@@ -256,7 +280,9 @@ export class SupabaseStore implements SearchStore {
         .filter(([group]) => group.length)
         .map(async ([group, rows]) => {
           const ok = await this.write("saveProducts", () =>
-            this.db.from("products").upsert(rows, { onConflict: "product_id" }),
+            this.db
+              .from("products")
+              .upsert(rows, { onConflict: "product_id", ignoreDuplicates: insertOnly }),
           );
           if (ok) saved.push(...group);
         }),

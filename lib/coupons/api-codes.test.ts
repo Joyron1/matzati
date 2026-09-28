@@ -49,6 +49,7 @@ describe("toApiCodeProducts", () => {
         productId: r.product_id,
         title: "מחזיק טלפון לרכב",
         titleIsHebrew: true,
+        machineTranslated: false,
         imageUrl: r.image,
         checkedAt: "2026-10-01T08:00:00.000Z",
         promoCode: PROMO,
@@ -64,8 +65,23 @@ describe("toApiCodeProducts", () => {
     expect(item).toMatchObject({
       title: "Car Phone Holder",
       titleIsHebrew: false,
+      machineTranslated: false,
       imageUrl: null,
       promoCode: { code: "ILSALE3", offer: null, offerText: PROMO.offerText },
+    });
+  });
+
+  it("reads AliExpress's Hebrew title of a hot product as Hebrew, machine-translated", () => {
+    // Saved from a hot list: data.title is AliExpress's Hebrew and there is no title_he. It used to
+    // be laid out left to right, which reversed "Joyroom 125W" and the words around it.
+    const [item] = toApiCodeProducts(
+      [row({ title_he: null, title: "מטען רכב Joyroom 125W עם 3 יציאות" })],
+      NOW,
+    );
+    expect(item).toMatchObject({
+      title: "מטען רכב Joyroom 125W עם 3 יציאות",
+      titleIsHebrew: true,
+      machineTranslated: true,
     });
   });
 

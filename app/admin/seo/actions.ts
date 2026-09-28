@@ -27,13 +27,14 @@ function logError(where: string, err: unknown) {
 
 /**
  * Everything that shows landing pages: the pages themselves (old and new slug on a rename), the
- * sitemap, the home "חיפושים פופולריים" list and the admin list.
+ * sitemap, the home "חיפושים פופולריים" list and the admin list. The home list reads through
+ * SEO_TAG, so no revalidatePath("/"): the home page renders per visit, and expiring its path would
+ * drop the cached hot lists it reads too.
  */
 function revalidateSeo(slugs: string[]) {
   updateTag(SEO_TAG);
   for (const slug of new Set(slugs)) revalidatePath(`/s/${slug}`);
   revalidatePath("/sitemap.xml");
-  revalidatePath("/");
   revalidatePath("/admin/seo");
 }
 

@@ -1,0 +1,885 @@
+/*
+ * Motion of the search waiting screen. Only transform and opacity move. The scene reads its stage
+ * from cumulative classes on its root (.s1 ... .s4, set from the schedule), its timing from CSS
+ * variables set from scene-timing.ts (--cycle, --gap, --belt, --glint-at, per card --delay and
+ * --iter, per slot --fill-at), and the pointer from --mx / --my in [-1, 1]. Under
+ * prefers-reduced-motion the scene is not shown at all (the steps, bar and tips carry the wait as
+ * text), and .paused (the pause button) or .offscreen stops every animation inside.
+ * Every animation shorthand names its keyframes: Lightning CSS turns a shorthand without a name
+ * into "none".
+ */
+
+/* ---- Whole wait: a short delay, so a cached search that returns at once barely flashes. ---- */
+
+.enter {
+  animation: wait-enter 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) 0.18s both;
+}
+
+@keyframes wait-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+.paused *,
+.paused *::before,
+.paused *::after,
+.offscreen *,
+.offscreen *::before,
+.offscreen *::after {
+  animation-play-state: paused !important;
+}
+
+/* Paused, a change the schedule still makes (a slot, a text) appears without moving. */
+.paused *,
+.paused *::before,
+.paused *::after {
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
+}
+
+/* ---- Progress bar: one long ease toward the cap (its width), never full. ---- */
+
+.bar {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transform-origin: right center;
+  /* Duration, curve and start offset come from schedule.ts (PROGRESS_EASE). */
+  animation-name: bar-ease;
+  animation-fill-mode: both;
+}
+
+:global([dir="ltr"]) .bar {
+  transform-origin: left center;
+}
+
+@keyframes bar-ease {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar {
+    animation-name: none;
+    transform: scaleX(var(--p-step, 0));
+  }
+}
+
+/*
+ * ---- Ticker: texts stacked in one grid cell (no height change). The outgoing one leaves upward,
+ * then the incoming one rises in. A past text rests above, a coming one below. ----
+ */
+
+.ticker {
+  opacity: 0;
+  transform: translateY(var(--ticker-y, 6px));
+  transition:
+    opacity 0.2s ease-in,
+    transform 0.2s ease-in;
+}
+
+.tickerPast {
+  transform: translateY(calc(var(--ticker-y, 6px) * -1));
+}
+
+.tickerOn {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) 0.15s,
+    transform 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) 0.15s;
+}
+
+/* ---- Scene frame: a slight tilt toward the pointer, only while it aims (no 3D layer at rest). ---- */
+
+.tilt {
+  transition: transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.scene[data-aim] .tilt {
+  transform: perspective(1100px) rotateX(calc(var(--my, 0) * -2.2deg))
+    rotateY(calc(var(--mx, 0) * 3deg)) scale(1.03);
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Phones: the parts that carry the story are drawn larger, and the dot pattern goes. */
+.cardBody {
+  transform: scale(var(--card-k, 1));
+}
+
+.badgeK {
+  transform: scale(var(--badge-k, 1));
+}
+
+.queryK {
+  transform-origin: 492px 55px;
+}
+
+@media (max-width: 639px) {
+  .scene {
+    --card-k: 1.2;
+    --badge-k: 1.12;
+  }
+  .queryK {
+    transform: scale(1.12);
+  }
+  .layerBack {
+    display: none;
+  }
+}
+
+/* ---- Palette: tokens only, so both themes follow. ---- */
+
+.bgTop {
+  stop-color: var(--accent-soft);
+}
+.bgBottom {
+  stop-color: var(--surface);
+}
+.dot {
+  fill: var(--line);
+}
+.panel {
+  fill: var(--surface);
+  stroke: var(--line);
+  stroke-width: 1.5;
+}
+.inkFaint {
+  fill: var(--ink);
+  opacity: 0.22;
+}
+.inkSoft {
+  fill: var(--ink);
+  opacity: 0.4;
+}
+.inkPrice {
+  fill: var(--ink);
+  opacity: 0.62;
+}
+.accentFill {
+  fill: var(--accent);
+}
+.accentSoft {
+  fill: var(--accent-soft);
+}
+.accentInk {
+  fill: var(--accent-ink);
+  opacity: 0.7;
+}
+.goldSoft {
+  fill: var(--gold-soft);
+}
+/* The soft tints are near each other in dark mode; there the cards take the hue itself. */
+:global([data-theme="dark"]) .goldSoft {
+  fill: var(--gold);
+  fill-opacity: 0.18;
+}
+:global([data-theme="dark"]) .accentSoft {
+  fill: var(--accent);
+  fill-opacity: 0.22;
+}
+.surface2 {
+  fill: var(--surface-2);
+}
+.shade {
+  fill: var(--ink);
+  opacity: 0.08;
+}
+.strokeMuted {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.strokeAccentInk {
+  fill: none;
+  stroke: var(--accent-ink);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+.checkMark {
+  fill: none;
+  stroke: var(--on-accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.crossDisc {
+  fill: var(--surface-2);
+}
+.crossMark {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  opacity: 0.6;
+}
+
+/* ---- Parallax layers: nearer layers follow the pointer more. ---- */
+
+.layerBack,
+.layerSlots,
+.layerQuery,
+.layerFloor,
+.lensAim {
+  transition: transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.layerBack {
+  transform: translate(calc(var(--mx, 0) * -8px), calc(var(--my, 0) * -6px));
+}
+.layerSlots {
+  transform: translate(calc(var(--mx, 0) * 4px), calc(var(--my, 0) * 3px));
+}
+.layerQuery {
+  transform: translate(calc(var(--mx, 0) * 6px), calc(var(--my, 0) * 4px));
+}
+.layerFloor {
+  transform: translate(calc(var(--mx, 0) * 10px), calc(var(--my, 0) * 5px));
+}
+/* The magnifier leans toward the pointer. */
+.lensAim {
+  transform: translate(calc(var(--mx, 0) * 30px), calc(var(--my, 0) * 18px));
+}
+
+/* ---- Query bubble: the query is typed in (the caret leads), read, then split into chips. ---- */
+
+.typed {
+  transform-box: fill-box;
+  transform-origin: right center;
+  animation: type 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes type {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+/* The caret sits at the left edge of each word as it lands (x 580, 494, 434, then 388). */
+.caret {
+  fill: var(--accent);
+  animation:
+    caret-type 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) both,
+    blink 1s steps(1) 1.2s infinite;
+  transition: opacity 0.3s ease;
+}
+
+@keyframes caret-type {
+  0%,
+  12% {
+    transform: translateX(192px);
+  }
+  46% {
+    transform: translateX(106px);
+  }
+  75% {
+    transform: translateX(46px);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.s1 .caret {
+  opacity: 0;
+  animation: none;
+}
+
+.chip {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(0.6);
+  transition:
+    opacity 0.35s ease,
+    transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.s1 .chip {
+  opacity: 1;
+  transform: none;
+}
+
+/* ---- Belt: ticks slide in the reading direction (right to left) as fast as a card rides it. ---- */
+
+.belt {
+  fill: var(--surface-2);
+  stroke: var(--line);
+  stroke-width: 1.5;
+}
+
+.floorTop {
+  stop-color: var(--surface-2);
+  stop-opacity: 0.9;
+}
+
+.floorBottom {
+  stop-color: var(--surface-2);
+  stop-opacity: 0;
+}
+
+.tick {
+  fill: var(--muted);
+  opacity: 0.35;
+}
+
+.s1 .ticks {
+  animation-name: belt;
+  animation-duration: var(--belt);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes belt {
+  to {
+    transform: translateX(-40px);
+  }
+}
+
+/*
+ * ---- Product cards (scene-timing.ts). Everything on the stream's clock (.clocked) waits, paused,
+ * until the stream starts at .s1, so the first card already sits on the belt while the query is
+ * read, and every card, badge and slot fill keeps the offsets it was given. ----
+ */
+
+.clocked {
+  animation-duration: var(--cycle);
+  animation-delay: var(--delay, 0s);
+  animation-iteration-count: var(--iter, infinite);
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+  animation-play-state: paused;
+}
+
+.s1 .clocked {
+  animation-play-state: running;
+}
+
+.cards {
+  opacity: 0.55;
+  transition: opacity 0.6s ease;
+}
+
+.s1 .cards {
+  opacity: 1;
+}
+
+.card {
+  opacity: 0;
+  transform: translate(700px, 244px);
+}
+
+.toA {
+  animation-name: card-to-a;
+}
+.toB {
+  animation-name: card-to-b;
+}
+.toC {
+  animation-name: card-to-c;
+}
+.toFail {
+  animation-name: card-fail;
+}
+
+/*
+ * One cycle: 0-30% locked to the belt (x 700 to 420, the belt's own speed), eased into the
+ * magnifier and lifted by 30-36%, 36-46% under it (the verdict pops at 39-43%), then a check flies
+ * up to its slot by 57% (CARD_LANDS) and fades there, or a cross drops away by 52%, before the next
+ * card arrives. The keyframe shares match scene-timing.ts.
+ */
+@keyframes card-to-a {
+  0% {
+    opacity: 0;
+    transform: translate(700px, 244px) scale(0.92);
+  }
+  5% {
+    opacity: 1;
+  }
+  30% {
+    transform: translate(420px, 244px) scale(1);
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1);
+  }
+  36%,
+  46% {
+    transform: translate(360px, 236px) scale(1.14);
+    animation-timing-function: cubic-bezier(0.5, 0, 0.2, 1);
+  }
+  57% {
+    opacity: 1;
+    transform: translate(205px, 101px) scale(0.5);
+  }
+  60%,
+  100% {
+    opacity: 0;
+    transform: translate(205px, 101px) scale(0.5);
+  }
+}
+
+@keyframes card-to-b {
+  0% {
+    opacity: 0;
+    transform: translate(700px, 244px) scale(0.92);
+  }
+  5% {
+    opacity: 1;
+  }
+  30% {
+    transform: translate(420px, 244px) scale(1);
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1);
+  }
+  36%,
+  46% {
+    transform: translate(360px, 236px) scale(1.14);
+    animation-timing-function: cubic-bezier(0.5, 0, 0.2, 1);
+  }
+  57% {
+    opacity: 1;
+    transform: translate(83px, 61px) scale(0.5);
+  }
+  60%,
+  100% {
+    opacity: 0;
+    transform: translate(83px, 61px) scale(0.5);
+  }
+}
+
+@keyframes card-to-c {
+  0% {
+    opacity: 0;
+    transform: translate(700px, 244px) scale(0.92);
+  }
+  5% {
+    opacity: 1;
+  }
+  30% {
+    transform: translate(420px, 244px) scale(1);
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1);
+  }
+  36%,
+  46% {
+    transform: translate(360px, 236px) scale(1.14);
+    animation-timing-function: cubic-bezier(0.5, 0, 0.2, 1);
+  }
+  57% {
+    opacity: 1;
+    transform: translate(83px, 141px) scale(0.5);
+  }
+  60%,
+  100% {
+    opacity: 0;
+    transform: translate(83px, 141px) scale(0.45);
+  }
+}
+
+@keyframes card-fail {
+  0% {
+    opacity: 0;
+    transform: translate(700px, 244px) rotate(0deg) scale(0.92);
+  }
+  5%,
+  40% {
+    opacity: 1;
+  }
+  30% {
+    transform: translate(420px, 244px) rotate(0deg) scale(1);
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1);
+  }
+  36%,
+  46% {
+    transform: translate(360px, 236px) rotate(0deg) scale(1.14);
+    animation-timing-function: cubic-bezier(0.55, 0, 1, 0.45);
+  }
+  44% {
+    opacity: 0.45;
+  }
+  52%,
+  100% {
+    opacity: 0;
+    transform: translate(338px, 300px) rotate(-10deg) scale(0.8);
+  }
+}
+
+/* The verdict pops above the card while it is under the magnifier, clear of the glass. */
+.badge {
+  animation-name: badge;
+}
+
+@keyframes badge {
+  0%,
+  39% {
+    transform: scale(0);
+    animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  43%,
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* A check also outlines its card and throws a ring of dots. */
+.passRing {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  animation-name: pass-ring;
+}
+
+@keyframes pass-ring {
+  0%,
+  40% {
+    opacity: 0;
+  }
+  43%,
+  100% {
+    opacity: 1;
+  }
+}
+
+.burst {
+  animation-name: burst;
+}
+
+@keyframes burst {
+  0%,
+  40% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  40.5% {
+    opacity: 1;
+    transform: scale(0.5);
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  43% {
+    opacity: 1;
+  }
+  46%,
+  100% {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+
+/* ---- Magnifier: reads the query, then swoops down in an arc and zooms in over the belt. ---- */
+
+.lensX {
+  transform: translateX(492px);
+  transition: transform 1.1s cubic-bezier(0.45, 0, 0.55, 1);
+}
+
+.lensY {
+  transform: translateY(68px) rotate(0deg) scale(0.8);
+  transition: transform 1.1s cubic-bezier(0.55, 0, 0.85, 0.35);
+}
+
+.s1 .lensX {
+  transform: translateX(360px);
+}
+
+.s1 .lensY {
+  transform: translateY(244px) rotate(-90deg) scale(1);
+}
+
+.lensIdle {
+  animation: lens-read 2.6s ease-in-out infinite;
+}
+
+@keyframes lens-read {
+  25% {
+    transform: translateX(-22px);
+  }
+  75% {
+    transform: translateX(22px);
+  }
+}
+
+.s1 .lensIdle {
+  animation: lens-breathe 2.8s ease-in-out infinite;
+}
+
+@keyframes lens-breathe {
+  50% {
+    transform: scale(1.035);
+  }
+}
+
+.glass {
+  fill: var(--accent-soft);
+  opacity: 0.5;
+}
+
+.glassEdge {
+  fill: none;
+  stroke: var(--surface);
+  stroke-width: 1.5;
+  opacity: 0.6;
+}
+
+.ring {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 9;
+}
+
+.handle {
+  fill: none;
+  stroke: var(--accent-ink);
+  stroke-width: 13;
+  stroke-linecap: round;
+}
+
+.collar {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 15;
+  stroke-linecap: butt;
+}
+
+/* A tap: a ripple from the rim (Web Animations in wait-scene.tsx). */
+.ripple {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+  opacity: 0;
+}
+
+/* A highlight across the glass: light on light, a soft ink sheen in dark mode (never a dark band). */
+.glint {
+  fill: var(--surface);
+  fill-opacity: 0.55;
+  opacity: 0;
+  transform: translateX(80px);
+  animation: glint 2.6s ease-in-out 0.8s infinite;
+}
+
+:global([data-theme="dark"]) .glint {
+  fill: var(--ink);
+  fill-opacity: 0.2;
+}
+
+/* On the stream's clock: its own name restarts it at .s1, a sweep while each card is under it. */
+.s1 .glint {
+  animation-name: glint-scan;
+  animation-duration: var(--gap);
+  animation-delay: var(--glint-at);
+}
+
+@keyframes glint {
+  0% {
+    opacity: 0;
+    transform: translateX(80px);
+  }
+  8%,
+  40% {
+    opacity: 1;
+  }
+  48%,
+  100% {
+    opacity: 0;
+    transform: translateX(-80px);
+  }
+}
+
+@keyframes glint-scan {
+  0% {
+    opacity: 0;
+    transform: translateX(80px);
+  }
+  8%,
+  40% {
+    opacity: 1;
+  }
+  48%,
+  100% {
+    opacity: 0;
+    transform: translateX(-80px);
+  }
+}
+
+/*
+ * ---- Result slots: numbered 1-3 from the start; the featured and the second fill as their card
+ * lands (on the stream's clock), the third shows a pending draft from "prepare" on. ----
+ */
+
+.slotEmpty {
+  fill: var(--surface);
+  fill-opacity: 0.4;
+  stroke: var(--muted);
+  stroke-opacity: 0.5;
+  stroke-width: 1.5;
+  stroke-dasharray: 6 6;
+}
+
+.slotNum {
+  fill: var(--ink);
+  opacity: 0.22;
+  font-size: 34px;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+  transition: opacity 0.6s ease;
+}
+
+.s4 .num3 {
+  opacity: 0;
+}
+
+.slotFill {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation-name: slot-fill;
+  animation-duration: 0.6s;
+  animation-delay: var(--fill-at);
+  animation-fill-mode: both;
+  animation-play-state: paused;
+}
+
+@keyframes slot-fill {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.94);
+    animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  45% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.slotRing {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation-name: ring;
+  animation-duration: 1.1s;
+  animation-timing-function: ease-out;
+  animation-delay: var(--fill-at);
+  /* No fill: hidden (opacity 0) before and after its one pulse. */
+  animation-fill-mode: none;
+  animation-play-state: paused;
+}
+
+/* The featured pick's moment takes the highlight color (CLAUDE.md §9: marigold for highlights). */
+.ringA {
+  stroke: var(--gold);
+}
+
+.s1 .slotFill,
+.s1 .slotRing {
+  animation-play-state: running;
+}
+
+@keyframes ring {
+  0% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.12);
+  }
+}
+
+/* "Why we picked it" lines are written in, from the start (right) side. */
+.why {
+  transform-box: fill-box;
+  transform-origin: right center;
+  transform: scaleX(0);
+  transition: transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.whyBox {
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.s3 .whyBox {
+  opacity: 1;
+}
+
+.s3 .why {
+  transform: none;
+}
+
+.s3 .why1 {
+  transition-delay: 0.25s;
+}
+.s3 .why2 {
+  transition-delay: 0.85s;
+}
+.s3 .why3 {
+  transition-delay: 1.5s;
+}
+
+.prep {
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+.s4 .prep {
+  opacity: 1;
+}
+
+/* The last pick stays pending: its outline breathes and a wide, soft band passes, then rests. */
+.s4 .slotC {
+  animation: pending 1.6s ease-in-out infinite;
+}
+
+@keyframes pending {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.sweep {
+  transform: translateX(160px);
+}
+
+.s4 .sweep {
+  animation: sweep 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes sweep {
+  0% {
+    transform: translateX(160px);
+  }
+  64%,
+  100% {
+    transform: translateX(-160px);
+  }
+}
+
+.sweepMid {
+  stop-color: var(--accent);
+  stop-opacity: 0.12;
+}
+
+.sweepEdge {
+  stop-color: var(--accent);
+  stop-opacity: 0;
+}

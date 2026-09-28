@@ -14,6 +14,7 @@ import {
   readStoredPromoCode,
   type AliPromoCode,
 } from "@/lib/aliexpress/promo-code";
+import { hasHebrew } from "@/lib/product-title";
 import { serviceClient } from "@/lib/supabase/server";
 
 export type ProductsClient = Pick<SupabaseClient, "from">;
@@ -27,9 +28,15 @@ export const API_CODES_COLUMNS =
 
 export interface ApiCodeProduct {
   productId: string;
-  /** Hebrew title when a search wrote one, else the AliExpress title (English). */
+  /**
+   * Hebrew title when a search wrote one, else the AliExpress title: English, or AliExpress's
+   * Hebrew machine translation for a product saved from a hot list (lib/product-title.ts).
+   */
   title: string;
+  /** Read from the letters: a hot product's AliExpress title is Hebrew too. */
   titleIsHebrew: boolean;
+  /** The title is AliExpress's Hebrew machine translation, not one of ours. */
+  machineTranslated: boolean;
   /** products.data.mainImageUrl; null when missing. */
   imageUrl: string | null;
   /** When the product (and so the code) was last checked at AliExpress: products.updated_at. */
@@ -81,7 +88,8 @@ export function toApiCodeProduct(row: unknown, now: Date): ApiCodeProduct | null
   return {
     productId: r.product_id,
     title,
-    titleIsHebrew: titleHe !== null,
+    titleIsHebrew: hasHebrew(title),
+    machineTranslated: titleHe === null && hasHebrew(title),
     imageUrl: r.image?.trim() || null,
     checkedAt: r.updated_at,
     promoCode: promo,
@@ -120,10 +128,11 @@ export async function selectApiCodes(db: ProductsClient, now: Date): Promise<Api
   return toApiCodeProducts(data, now);
 }
 
-// Cached rows; the time rules are applied again with the time of each visit.
+// Cached rows; the time rules are applied again with the time of each visit. The version part
+// changes with the cached shape (2: titleIsHebrew read from the letters, machineTranslated).
 const cachedApiCodes = unstable_cache(
   async () => selectApiCodes(serviceClient(), new Date()),
-  ["api-promo-codes"],
+  ["api-promo-codes", "2"],
   { revalidate: 300 },
 );
 

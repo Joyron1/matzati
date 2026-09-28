@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { BadgePercent, CalendarClock, Flame, TicketPercent } from "lucide-react";
+import { BadgePercent, CalendarClock, Tag, TicketPercent } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
-const ICONS = { deals: Flame, sales: CalendarClock, coupons: TicketPercent } as const;
+// Not Flame for deals: the header's Flame is "מוצרים חמים".
+const ICONS = { deals: Tag, sales: CalendarClock, coupons: TicketPercent } as const;
 
 export interface OfferLink {
   key: keyof typeof ICONS;
@@ -25,7 +26,7 @@ function listLabel(labels: string[]): string {
 /**
  * The header's deals, sales and coupons links (only those with content). One link shows as an
  * icon on phones and with its label from sm, as before. Several links would overflow the header
- * on phones (logo, recent searches and the theme toggle leave room for one 44px icon at 320px),
+ * on phones (logo, hot products and the theme toggle leave room for one 44px icon at 320px),
  * so below lg they sit behind one button that opens a list; from lg they are spelled out.
  */
 export function OffersNav({ links }: { links: OfferLink[] }) {

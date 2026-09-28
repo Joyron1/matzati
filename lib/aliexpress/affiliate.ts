@@ -6,8 +6,10 @@
 // - target_language=HE returns machine-translated Hebrew titles. We search in EN so the §6.5
 //   must_have check runs on the original English title; the LLM writes title_he (§6.8)
 // - default ordering is poor for keyword searches; LAST_VOLUME_DESC surfaces established products
-// - hotproduct.query returns InsufficientPermission for this app (needs approval in the AE console),
-//   and so does product.sku.detail.get (2026-09-28): getSkuDetails stays behind SKU_DETAILS_ENABLED
+// - hotproduct.query works since the owner activated the Advanced API group (probed 2026-09-28,
+//   scripts/probe-hot.ts): the same 33 product fields, ILS accepted although undocumented
+// - product.sku.detail.get returns InsufficientPermission (2026-09-28): getSkuDetails stays behind
+//   SKU_DETAILS_ENABLED
 import type { AliExpressClient, ParamValue } from "./client";
 import { AliExpressError } from "./errors";
 import {
@@ -86,6 +88,52 @@ export function queryProducts(client: AliExpressClient, q: ProductQuery): Promis
     client,
     "aliexpress.affiliate.product.query",
     productQueryParams(q, client.trackingId),
+  );
+}
+
+export interface HotProductQuery {
+  /** One first-level category id; omitted, the whole hot list (mostly phone cases, per the probe). */
+  categoryId?: string;
+  pageNo?: number;
+  pageSize?: number;
+  sort?: ProductSort;
+  language?: Language;
+}
+
+/**
+ * Params of hotproduct.query (doc 700) as probed on 2026-09-28. HE by default: the hot list is
+ * shown as AliExpress sends it (machine-translated titles), with no must_have check to run. No
+ * keywords or price bounds: /hot filters the fetched list itself.
+ */
+export function hotProductQueryParams(
+  q: HotProductQuery,
+  trackingId: string,
+): Record<string, ParamValue> {
+  return {
+    category_ids: q.categoryId,
+    page_no: q.pageNo ?? 1,
+    page_size: Math.min(q.pageSize ?? MAX_PAGE_SIZE, MAX_PAGE_SIZE),
+    sort: q.sort ?? "LAST_VOLUME_DESC",
+    target_currency: CURRENCY,
+    target_language: q.language ?? "HE",
+    ship_to_country: SHIP_TO,
+    tracking_id: trackingId,
+  };
+}
+
+/**
+ * AliExpress's hot products for affiliates (products with a hot-product commission). A page of 50
+ * brings 45 to 47 products, sorted by 30-day sales in bands rather than strictly, and two calls
+ * seconds apart share few ids: treat one call as the list (docs/aliexpress-api.md, Hot products).
+ */
+export function queryHotProducts(
+  client: AliExpressClient,
+  q: HotProductQuery = {},
+): Promise<ProductPage> {
+  return productCall(
+    client,
+    "aliexpress.affiliate.hotproduct.query",
+    hotProductQueryParams(q, client.trackingId),
   );
 }
 

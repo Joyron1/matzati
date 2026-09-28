@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { siteUrl } from "@/lib/config/site";
 import { hasPublishedCoupons } from "@/lib/coupons/queries";
 import { hasPublishedDeals, hasUpcomingSales } from "@/lib/deals/queries";
+import { HOT_PATH } from "@/lib/hot/params";
 import { listPublishedSeoPages } from "@/lib/seo/queries";
 import { buildSitemap } from "@/lib/seo/sitemap";
 
@@ -22,9 +23,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       return [];
     }),
   ]);
-  // /sales and /coupons are listed only while they have something to show, like /deals (and the
-  // menu links). They go right after the home page.
+  // /hot always has a page (its empty and error states included). /sales and /coupons are listed
+  // only while they have something to show, like /deals (and the menu links). They go right after
+  // the home page. The /hot category pages are reached from /hot's pills, not listed: each is
+  // fetched from AliExpress only when opened.
   const offers: MetadataRoute.Sitemap = [
+    HOT_PATH,
     ...(hasSales ? ["/sales"] : []),
     ...(hasCoupons ? ["/coupons"] : []),
   ].map((path) => ({ url: `${origin}${path}`, changeFrequency: "daily", priority: 0.7 }));

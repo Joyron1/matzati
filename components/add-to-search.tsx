@@ -5,9 +5,9 @@ import { keepPricesTogether } from "@/lib/format";
 import { COMPOSER_INPUT_ID } from "./search-composer";
 
 /**
- * A typed example under "איך לחפש": a click adds its text to the home page composer and moves the
- * focus there, so the visitor can edit it and search. It never submits, so it never starts a
- * (paid) search.
+ * A typed example in the home page FAQ ("איך מחפשים נכון?"): a click adds its text to the composer
+ * at the top of the page, scrolls there and moves the focus into it, so the visitor can edit it and
+ * search. It never submits, so it never starts a (paid) search.
  */
 export function AddToSearch({ text }: { text: string }) {
   function add() {

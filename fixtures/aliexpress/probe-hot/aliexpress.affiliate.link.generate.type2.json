@@ -1,0 +1,30 @@
+{
+  "aliexpress_affiliate_link_generate_response": {
+    "resp_result": {
+      "result": {
+        "total_result_count": 3,
+        "promotion_links": {
+          "promotion_link": [
+            {
+              "promotion_link": "https://s.click.aliexpress.com/e/_c2yIJ7i5",
+              "source_value": "https://www.aliexpress.com/item/1005006590652214.html"
+            },
+            {
+              "promotion_link": "https://s.click.aliexpress.com/e/_c348tZLP",
+              "source_value": "https://www.aliexpress.com/item/1005006338829917.html"
+            },
+            {
+              "promotion_link": "https://s.click.aliexpress.com/e/_c3DhY6Wv",
+              "source_value": "https://www.aliexpress.com/item/1005007785012911.html"
+            }
+          ]
+        },
+        "tracking_id": "<ALIEXPRESS_TRACKING_ID>"
+      },
+      "resp_code": 200,
+      "resp_msg": "Call succeeds"
+    },
+    "request_id": "2140c5a217905724072377051",
+    "_trace_id_": "21013cc017905724072366605e0cec"
+  }
+}

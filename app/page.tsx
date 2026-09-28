@@ -8,13 +8,18 @@ import {
   Sparkles,
   SlidersHorizontal,
 } from "lucide-react";
+import { HomeFaq } from "@/components/home-faq";
+import {
+  HotProductsCarousel,
+  HotProductsCarouselPlaceholder,
+} from "@/components/hot-products-carousel";
 import {
   RecentSearchesStrip,
   RecentSearchesStripPlaceholder,
 } from "@/components/recent-searches-strip";
 import { SaleCountdown } from "@/components/sale-countdown";
 import { SearchComposer } from "@/components/search-composer";
-import { SearchIdeas, SearchTips } from "@/components/search-guide";
+import { SearchIdeas } from "@/components/search-guide";
 import { card } from "@/components/styles";
 import { BRAND } from "@/lib/config/brand";
 import { nextSale } from "@/lib/deals/queries";
@@ -97,13 +102,13 @@ async function PopularSearches() {
 export default function HomePage() {
   return (
     <>
-      {/* One centered column: the composer is the focal point, hot searches right under it. */}
+      {/* One centered column: the composer is the focal point, recent searches right under it. */}
       <section aria-labelledby="hero-title" className="relative isolate">
         {/* A soft cobalt glow behind the hero; clipped here so it never widens the page. */}
         <div aria-hidden className="absolute inset-x-0 top-0 -z-10 h-[34rem] overflow-hidden">
           <div className="mx-auto h-full max-w-5xl bg-[radial-gradient(closest-side,var(--color-accent-soft),transparent)]" />
         </div>
-        {/* Tighter on phones, so the whole composer and the first hot searches fit the screen. */}
+        {/* Tighter on phones, so the whole composer and the first recent searches fit the screen. */}
         <div className="mx-auto max-w-3xl px-4 pt-6 text-center sm:px-6 sm:pt-12 lg:pt-14">
           {/* The one line that says what the site is, on phones too. */}
           <p className="inline-flex items-center gap-2 rounded-full bg-accent-soft px-3.5 py-1.5 text-sm font-semibold text-accent-ink">
@@ -129,17 +134,24 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Wider than the composer, so 6 pills fit in one row on desktop. */}
-        <div className="mx-auto mt-5 max-w-5xl px-4 sm:mt-6 sm:px-6">
+        {/* As wide as the sections below, so 6 photo tiles fit in one row on desktop. */}
+        <div className="mx-auto mt-6 max-w-6xl px-4 sm:mt-8 sm:px-6">
           <Suspense fallback={<RecentSearchesStripPlaceholder />}>
             <RecentSearchesStrip />
           </Suspense>
         </div>
       </section>
 
-      {/* One section gap (mt-16 sm:mt-20) between the page's sections. */}
-      <div className="mx-auto mt-16 grid max-w-6xl gap-4 px-4 sm:mt-20 sm:px-6 lg:grid-cols-2 lg:gap-6">
-        <SearchTips />
+      {/* One section gap (mt-16 sm:mt-20) between the page's sections. The carousel brings its own
+          width and gutters; when it renders nothing, this margin collapses into the next one. */}
+      <div className="mt-16 sm:mt-20">
+        <Suspense fallback={<HotProductsCarouselPlaceholder />}>
+          <HotProductsCarousel />
+        </Suspense>
+      </div>
+
+      {/* Compact, right under the hot products: another way in for a visitor with no query yet. */}
+      <div className="mt-12 sm:mt-16">
         <SearchIdeas />
       </div>
 
@@ -194,6 +206,8 @@ export default function HomePage() {
           </Link>
         </section>
       </div>
+
+      <HomeFaq />
 
       <Suspense fallback={null}>
         <PopularSearches />

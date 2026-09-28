@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { hotBackHref } from "@/lib/hot/params";
 import { firstParam } from "@/lib/search-url";
 import { productForPage } from "@/lib/search/server";
 import { ProductView } from "./product-view";
@@ -15,11 +16,10 @@ export async function generateMetadata({ params }: PageProps<"/p/[productId]">):
 
 export default async function ProductPage({ params, searchParams }: PageProps<"/p/[productId]">) {
   const { productId } = await params;
-  const q = firstParam((await searchParams).q)
-    .trim()
-    .slice(0, 200);
+  const query = await searchParams;
+  const q = firstParam(query.q).trim().slice(0, 200);
   const data = await productForPage(productId);
   if (!data) notFound();
 
-  return <ProductView data={data} q={q} now={new Date()} />;
+  return <ProductView data={data} q={q} hotBack={hotBackHref(query)} now={new Date()} />;
 }
