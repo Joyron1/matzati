@@ -3,6 +3,7 @@ import type { ParsedQuery } from "@/lib/search/filters";
 import {
   checkExplanation,
   EXPLAIN_SYSTEM,
+  EXPLAIN_TOKENS,
   explainContextFrom,
   explainProducts,
   whyFromData,
@@ -255,6 +256,40 @@ describe("checkExplanation", () => {
       expect(check(cheapest, chargers[2], chargers.slice(1))).toBe("false_superlative");
       expect(check(ofTwo, chargers[2], chargers.slice(1))).toBeNull();
     });
+
+    // A page of 5 (RESULTS_PER_PAGE, owner decision 2026-09-28): the scope names the batch's size.
+    const pricier = (i: number): ExplainInput => ({
+      ...chargers[i % 3],
+      product_id: `9${i}`,
+      price_ils: 60 + i,
+      units_sold_30d: 500 + i,
+    });
+    const four = [...chargers, pricier(3)];
+    const five = [...chargers, pricier(3), pricier(4)];
+    const line = (scope: string) => `מטען GaN מהיר לטלפון ולמחשב נייד, הזול מבין ${scope}.`;
+
+    it("keeps a true comparison of four or five in the scope of that number", () => {
+      expect(check(line("החמישה"), chargers[2], five)).toBeNull();
+      expect(check(line("הארבעה"), chargers[2], four)).toBeNull();
+      expect(check(line("ארבעת המוצרים"), chargers[2], four)).toBeNull();
+      expect(check("מטען GaN, הנמכר ביותר מבין החמישה.", chargers[1], five)).toBeNull();
+    });
+
+    it("rejects a scope of another size, and a false claim in the right scope", () => {
+      for (const [scope, batch] of [
+        ["השלושה", five],
+        ["הארבעה", five],
+        ["החמישה", four],
+        ["החמישה", chargers],
+        ["השניים", five],
+      ] as const) {
+        expect(check(line(scope), chargers[2], batch), `${scope} of ${batch.length}`).toBe(
+          "false_superlative",
+        );
+      }
+      expect(check(line("החמישה"), chargers[0], five)).toBe("false_superlative");
+      expect(check(line("החמישה"), chargers[2], [chargers[2]])).toBe("false_superlative");
+    });
   });
 });
 
@@ -421,6 +456,22 @@ describe("Hebrew checks (docs/search-quality-plan.md A9)", () => {
     expect(out.title_problem).toBeNull();
     const brand = check({ title_he: "שעון חכם OPPO עם מד דופק", why_he: why }, watch);
     expect(brand.title_he).toBe("שעון חכם עם מד דופק");
+  });
+
+  it("writes an English word the model wrote in Hebrew letters in Hebrew (the live 'פלוש')", () => {
+    const bed: ExplainInput = {
+      ...drawer,
+      title_en:
+        "40-90cm 6 Sizes Round Pet Bed for Large Dog Bed Super Soft Cat Bed Plush Dog House Winter Warm Sleeping",
+    };
+    const out = check({ title_he: "מיטת כלב עגולה פלוש חמה לחורף", why_he: why }, bed);
+    expect(out.title_he).toBe("מיטת כלב עגולה מפרווה רכה חמה לחורף");
+    expect(out.title_problem).toBeNull();
+    // A known transliteration is repaired rather than rejected.
+    const organizer = { ...drawer, title_en: "1/2/3PCS Collapsible Clothing Organizer" };
+    expect(
+      check({ title_he: "מארגן ביגוד קולפסיבילי 1/2/3 חלקים", why_he: why }, organizer).title_he,
+    ).toBe("מארגן ביגוד בעיצוב מתקפל 1/2/3 חלקים");
   });
 
   it("rejects a title with no Hebrew left, or with a garbled word", () => {
@@ -601,12 +652,12 @@ describe("explainProducts", () => {
   };
 
   function fakeLlm(data: unknown) {
-    const requests: { system: string; user: string }[] = [];
+    const requests: { system: string; user: string; maxTokens?: number }[] = [];
     const llm: LlmProvider = {
       name: "anthropic",
       model: "fake-model",
       async generateStructured(req) {
-        requests.push({ system: req.system, user: req.user });
+        requests.push({ system: req.system, user: req.user, maxTokens: req.maxTokens });
         return {
           data: data === null ? null : req.schema.parse(data),
           usage: USAGE,
@@ -632,6 +683,8 @@ describe("explainProducts", () => {
 
     expect(requests).toHaveLength(1);
     expect(requests[0].system).toBe(EXPLAIN_SYSTEM);
+    // The output cap grows with the batch: 1,024 for 3 as before, 1,536 for a page of 5.
+    expect(requests[0].maxTokens).toBe(1024);
     const sent = JSON.parse(requests[0].user);
     expect(sent.search).toEqual(chargerContext);
     expect(sent.products.map((p: { id: string }) => p.id)).toEqual(["1", "2", "3"]);
@@ -656,6 +709,32 @@ describe("explainProducts", () => {
       why_from_model: false,
       rejected: { title_problem: "missing", why_problem: "missing" },
     });
+  });
+
+  it("gives a page of five room for five titles and lines", async () => {
+    const { llm, requests } = fakeLlm({ items: [] });
+    const five = [
+      ...chargers,
+      { ...chargers[0], product_id: "4" },
+      { ...chargers[1], product_id: "5" },
+    ];
+    await explainProducts(llm, chargerContext, five);
+    expect(requests[0].maxTokens).toBe(EXPLAIN_TOKENS.base + 5 * EXPLAIN_TOKENS.perProduct);
+    expect(requests[0].maxTokens).toBe(1536);
+    expect(JSON.parse(requests[0].user).products.map((p: { id: string }) => p.id)).toEqual([
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+    ]);
+  });
+
+  it("tells the model the comparison scope for every batch size, and none for one", () => {
+    for (const scope of ["מבין החמישה", "מבין הארבעה", "מבין השלושה", "מבין השניים"]) {
+      expect(EXPLAIN_SYSTEM).toContain(`"${scope}"`);
+    }
+    expect(EXPLAIN_SYSTEM).toContain("none for one");
   });
 
   it("records what a check rejected and falls back to data", async () => {

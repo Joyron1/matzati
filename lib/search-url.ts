@@ -78,11 +78,11 @@ export function searchHref({ q, sort, without = [], from }: SearchHrefInput): st
 
 // --- Click-out links (/go) -----------------------------------------------------------------------
 
-/** Positions a click can report: the cards of one search (RESULTS_KEPT is 12), with room to spare. */
+/** Positions a click can report: the cards of one search (RESULTS_KEPT, 15), with room to spare. */
 export const MAX_CLICK_POSITION = 100;
 
 /**
- * A result as the server sends it to /search and "עוד 3 אפשרויות": tagged with the search_log row
+ * A result as the server sends it to /search and "עוד N אפשרויות": tagged with the search_log row
  * it was logged under (search_log.search_uid), so its buy button can tell /go which search the
  * click came from. Absent on results that were not logged for this visitor (SEO landing pages).
  */
@@ -91,7 +91,7 @@ export type LoggedResult = ResultProduct & { search_uid?: string };
 /** Which search and card a click came from (clicks.search_uid, clicks.position). Logging only. */
 export interface ClickRef {
   searchUid: string | null;
-  /** 1-based rank of the card: 1 is the featured result, 4 and up "עוד 3 אפשרויות". */
+  /** 1-based rank of the card: 1 is the featured card; past RESULTS_PER_PAGE, "עוד N אפשרויות". */
   position: number | null;
 }
 

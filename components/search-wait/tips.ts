@@ -5,9 +5,9 @@ import { formatCount } from "@/lib/format";
 import { FILL_TIER, FILTERS } from "@/lib/ranking/config";
 
 export const WAIT_TIPS: readonly string[] = [
-  // FILTERS, and FILL_TIER, which only fills up to 3 results when too few meet FILTERS.
+  // FILTERS, and FILL_TIER, which only fills up to a page of results when too few meet FILTERS.
   `כל מוצר שתראו עבר את הסינון: לפחות ${FILTERS.minPositiveFeedbackPct}% משוב חיובי ו־${formatCount(FILTERS.minUnitsSold)} מכירות ב־30 הימים האחרונים (או ${FILL_TIER.minPositiveFeedbackPct}% ו־${formatCount(FILL_TIER.minUnitsSold)} מכירות, כשאין מספיק מוצרים כאלה).`,
-  // RESULTS_PER_PAGE, and "עוד 3 אפשרויות" when more products passed (more_available).
+  // RESULTS_PER_PAGE, and "עוד N אפשרויות" when more products passed (more_available).
   `מציגים ${RESULTS_PER_PAGE} מוצרים בכל פעם, כדי שיהיה קל לבחור. אם עברו עוד, אפשר לבקש עוד ${RESULTS_PER_PAGE}.`,
   // Price and requirement chips are removable (lib/search/chips.ts).
   "את הסינונים שהבנו מהחיפוש, כמו תקציב, אפשר להסיר בלחיצה ולחפש בלעדיהם.",

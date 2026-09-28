@@ -117,6 +117,13 @@ export interface HotPoolLoaderOptions {
   clock?: () => number;
   sleep?: (ms: number) => Promise<void>;
   log?: (message: string) => void;
+  /**
+   * Asked before a new fetch starts: false refuses it (a HotPoolError that is `waiting`, and no
+   * failure is recorded, so the next caller that may fetch is not held back). Joining a fetch that
+   * is running, or a list fetched in the last RECENT_MS, costs no call and is still allowed. Used by
+   * readers that may only show what is already cached (cachedHotPool in ./queries.ts, /p).
+   */
+  mayFetch?: () => boolean;
 }
 
 const errorText = (err: unknown) =>
@@ -141,6 +148,7 @@ export class HotPoolLoader {
   private readonly clock: () => number;
   private readonly sleep: (ms: number) => Promise<void>;
   private readonly log: (message: string) => void;
+  private readonly mayFetch: () => boolean;
 
   constructor(options: HotPoolLoaderOptions = {}) {
     this.recentMs = options.recentMs ?? RECENT_MS;
@@ -148,6 +156,7 @@ export class HotPoolLoader {
     this.clock = options.clock ?? Date.now;
     this.sleep = options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
     this.log = options.log ?? ((m) => console.error(`[hot] ${m.slice(0, 500)}`));
+    this.mayFetch = options.mayFetch ?? (() => true);
   }
 
   /** True while `key` failed and waits for its retry time: load() would make no call. */
@@ -171,6 +180,9 @@ export class HotPoolLoader {
     const failed = this.failures.get(key);
     if (failed && now < failed.retryAt) {
       return Promise.reject(new HotPoolError(failed.reason, `${key}: waiting to retry`, true));
+    }
+    if (!this.mayFetch()) {
+      return Promise.reject(new HotPoolError("failed", `${key}: not fetched (read only)`, true));
     }
 
     const run = this.fetch(key, deps)

@@ -26,9 +26,12 @@ export interface FilterRelaxation {
   sizeCap: boolean;
 }
 
-/** "Y עברו" for a pool: standard passers, topped up from FILL_TIER to one page, as the pipeline. */
+/**
+ * "Y עברו" for a pool: standard passers, topped up from FILL_TIER to one page, as the pipeline.
+ * The shop cap only reorders the list, so the count is the same under every mode ("none" here).
+ */
 export function passedCount(pool: readonly AliProduct[], filters: SearchFilters): number {
-  return rankWithFill([...pool], filters, RESULTS_PER_PAGE).ranked.length;
+  return rankWithFill([...pool], filters, RESULTS_PER_PAGE, "none").ranked.length;
 }
 
 /**

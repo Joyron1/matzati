@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { AliExpressClient } from "@/lib/aliexpress/client";
+import { RESULTS_KEPT, RESULTS_PER_PAGE } from "@/lib/config/site";
 import { EXPLAIN_SYSTEM } from "@/lib/llm/explain";
 import type { ParsedQueryRaw } from "@/lib/llm/parse";
 import type { LlmProvider, StructuredRequest } from "@/lib/llm/provider";
@@ -36,11 +37,14 @@ const PARSE: ParsedQueryRaw = {
   category_hint: null,
 };
 
-// One line per card, all different: a batch with two identical lines may be rejected.
+// One line per card of a page (RESULTS_PER_PAGE), all different: a batch with two identical lines
+// may be rejected.
 const WHYS = [
   "עבר את הסינון עם משוב חיובי גבוה ומכירות רבות בחודש האחרון.",
   "מתאים לחיפוש ונמכר הרבה בחודש האחרון, עם משוב חיובי גבוה.",
   "בחירה פופולרית שעברה את הסינון, עם משוב חיובי גבוה.",
+  "כבל שעבר את הסינון שלנו, עם משוב חיובי גבוה מקונים.",
+  "מתאים למה שחיפשתם, עם הרבה מכירות ומשוב חיובי גבוה.",
 ];
 
 class FakeLlm implements LlmProvider {
@@ -87,14 +91,14 @@ function setup(parse?: ParsedQueryRaw | null) {
 }
 
 describe("runSearch", () => {
-  it("parses, fetches, ranks, explains and returns at most 3 grounded results", async () => {
+  it("parses, fetches, ranks, explains and returns at most a page of grounded results", async () => {
     const { deps, llm, fetchMock } = setup();
     const { response, meta } = await runSearch({ q: "כבל USB עד 40 ש״ח" }, deps);
     expect(llm.calls).toEqual(["parse", "explain"]);
     expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(1);
     expect(meta.cache).toBe("none");
     expect(response.results.length).toBeGreaterThan(0);
-    expect(response.results.length).toBeLessThanOrEqual(3);
+    expect(response.results.length).toBeLessThanOrEqual(RESULTS_PER_PAGE);
     for (const r of response.results) {
       expect(r.price_ils).toBeLessThanOrEqual(40);
       expect(r.positive_feedback_pct).toBeGreaterThanOrEqual(90);
@@ -883,7 +887,8 @@ describe("LLM failures and limits (plan item 7)", () => {
         expect(r.why_he).toMatch(dataLine(r));
         expect(store.products.has(r.product_id)).toBe(true); // its /go link works
       }
-      expect(Object.keys(store.results.get(fk)!.explanations)).toHaveLength(3);
+      // Only the first page's lines: the failed page's are not saved.
+      expect(Object.keys(store.results.get(fk)!.explanations)).toHaveLength(RESULTS_PER_PAGE);
     } finally {
       errors.mockRestore();
     }
@@ -1050,6 +1055,65 @@ describe("stated needs no title can show (plan item 8)", () => {
   });
 });
 
+describe("products a fetch saves (the similar products of /p)", () => {
+  it("saves every kept product in one batch before the cards show, titles only where written", async () => {
+    const { deps, store, llm } = setup({ ...PARSE, max_price_ils: null });
+    const save = vi.spyOn(store, "saveProducts");
+    const { response } = await runSearch({ q: "כבל USB" }, deps);
+    const kept = store.results.get(response.filters_key!)!.products.map((p) => p.productId);
+    expect(kept.length).toBeGreaterThan(RESULTS_PER_PAGE);
+    expect(kept.length).toBeLessThanOrEqual(RESULTS_KEPT);
+    // First: every product the fetch kept, with no title (no line was written yet).
+    const [first, firstTitles] = save.mock.calls[0];
+    expect(first.map((p) => p.productId).sort()).toEqual([...kept].sort());
+    expect(Object.values(firstTitles).filter(Boolean)).toEqual([]);
+    // Then only the titles written for the page shown, and nothing else.
+    expect(save).toHaveBeenCalledTimes(2);
+    const [titled, titles] = save.mock.calls[1];
+    expect(titled.map((p) => p.productId)).toEqual(response.results.map((r) => r.product_id));
+    expect(Object.values(titles).every((t) => t === "כבל טעינה מהיר")).toBe(true);
+    for (const id of kept.slice(RESULTS_PER_PAGE)) {
+      expect(store.products.get(id)).toMatchObject({ titleHe: null });
+    }
+    expect(llm.calls).toEqual(["parse", "explain"]);
+  });
+
+  it("saves nothing more for a cached search", async () => {
+    const { deps, store } = setup({ ...PARSE, max_price_ils: null });
+    await runSearch({ q: "כבל USB" }, deps);
+    const save = vi.spyOn(store, "saveProducts");
+    const again = await runSearch({ q: "כבל USB" }, deps);
+    expect(again.response.cached).toBe(true);
+    expect(save).not.toHaveBeenCalled();
+  });
+});
+
+describe("the shop cap mode (the admin's setting)", () => {
+  it("keys the results by the mode: a switch fetches again instead of serving the other list", async () => {
+    const { deps, llm, fetchMock, store } = setup({ ...PARSE, max_price_ils: null });
+    const none = await runSearch({ q: "כבל USB" }, { ...deps, shopCap: "none" });
+    const calls = fetchMock.mock.calls.length;
+    const max2 = await runSearch({ q: "כבל USB" }, { ...deps, shopCap: "max2" });
+    expect(max2.response.filters_key).not.toBe(none.response.filters_key);
+    expect(max2.meta.cache).toBe("parse");
+    expect(fetchMock.mock.calls.length).toBeGreaterThan(calls);
+    expect(llm.calls).toEqual(["parse", "explain", "explain"]);
+    // Under "max2" no shop has more than 2 products on the first page (one fixture shop has 20).
+    const page = (key: string) =>
+      store.results
+        .get(key)!
+        .products.slice(0, RESULTS_PER_PAGE)
+        .map((p) => p.shop.id);
+    const most = (shops: (string | null)[]) =>
+      Math.max(...shops.map((s) => shops.filter((t) => t === s).length));
+    expect(most(page(max2.response.filters_key!))).toBeLessThanOrEqual(2);
+    expect(most(page(none.response.filters_key!))).toBeGreaterThan(2);
+    // The default is "none".
+    const plain = await runSearch({ q: "כבל USB" }, deps);
+    expect(plain.response).toMatchObject({ cached: true, filters_key: none.response.filters_key });
+  });
+});
+
 describe("first-page safety net (plan item 2, demoteFlaggedLeads)", () => {
   it("moves a first-page product whose line says it is another product off the first page", async () => {
     const { deps, llm, store } = setup({ ...PARSE, product_he: "כבל טעינה", max_price_ils: null });
@@ -1060,8 +1124,10 @@ describe("first-page safety net (plan item 2, demoteFlaggedLeads)", () => {
     const [demoted] = meta.demoted!;
     expect(response.results.map((r) => r.product_id)).not.toContain(demoted);
     expect(store.results.get(response.filters_key!)?.products.at(-1)?.productId).toBe(demoted);
-    // The product that moved up gets the sentence from the data, with no extra call.
-    expect(response.results[2].why_he).toMatch(dataLine(response.results[2]));
+    // The product that moved up (the last of the page) gets the sentence from the data, with no
+    // extra call.
+    const movedUp = response.results[RESULTS_PER_PAGE - 1];
+    expect(movedUp.why_he).toMatch(dataLine(movedUp));
     expect(llm.calls).toEqual(["parse", "explain"]);
     // Saved, so its card on a later page can still go through /go.
     expect(store.products.has(demoted)).toBe(true);
@@ -1070,8 +1136,11 @@ describe("first-page safety net (plan item 2, demoteFlaggedLeads)", () => {
 
 describe("shared numbers (owner decision 2026-09-28, lib/ranking/shared-numbers.ts)", () => {
   it("marks the cards of a shop that shares numbers, and explain never gets a shared one", async () => {
-    // The fixture holds 20 listings of one shop, every one at exactly 98.0%.
-    const { deps, llm } = setup();
+    // The fixture holds 20 listings of one shop, every one at exactly 98.0%. Under "max2" the first
+    // page shows other shops too (under "none" that shop may fill it).
+    const setUp = setup();
+    const { llm } = setUp;
+    const deps = { ...setUp.deps, shopCap: "max2" as const };
     const generate = vi.spyOn(llm, "generateStructured");
     const { response } = await runSearch({ q: Q }, deps);
     const marked = response.results.filter((r) => r.shared_numbers);

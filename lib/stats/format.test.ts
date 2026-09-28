@@ -1,4 +1,6 @@
+import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { RESULTS_PER_PAGE } from "@/lib/config/site";
 import { SEARCH_ORIGINS } from "@/lib/search/store";
 import {
   clickPositionLabel,
@@ -91,5 +93,21 @@ describe("origin, failure and click position labels", () => {
 
   it("names every click position group", () => {
     for (const group of CLICK_POSITION_GROUPS) expect(clickPositionLabel(group)).toMatch(hebrew);
+    expect(clickPositionLabel("first_page")).toContain(`2 עד ${RESULTS_PER_PAGE}`);
+    expect(clickPositionLabel("more")).toContain(`מקום ${RESULTS_PER_PAGE + 1} ומעלה`);
+  });
+
+  it("labels the bounds the latest stats_click_positions migration groups by", () => {
+    // The newest migration that (re)defines the function is the one the database runs.
+    const dir = "supabase/migrations";
+    const latest = readdirSync(dir)
+      .filter((f) => f.endsWith(".sql"))
+      .sort()
+      .map((f) => readFileSync(`${dir}/${f}`, "utf8"))
+      .filter((sql) => sql.includes("function public.stats_click_positions("))
+      .at(-1)!;
+    expect(latest).toContain("when k.position = 1 then 'featured'");
+    expect(latest).toContain(`when k.position between 2 and ${RESULTS_PER_PAGE} then 'first_page'`);
+    for (const group of CLICK_POSITION_GROUPS) expect(latest).toContain(`'${group}'`);
   });
 });

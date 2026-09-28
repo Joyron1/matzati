@@ -9,6 +9,7 @@ import {
   PRICE_FIT,
   SMALL_CAPACITY_FACTOR,
   WEIGHTS,
+  type ShopCapMode,
   type TrustThresholds,
 } from "./config";
 import { dedupeBy, diversifyShops } from "./diversity";
@@ -326,17 +327,19 @@ export function trustTierOf(
 
 /**
  * The list a search shows: standard ranking, topped up to `target` results from FILL_TIER only
- * when too few products meet FILTERS, then one shop per page of `target` (diversifyShops).
- * Standard products come first, except that "cheapest" orders the whole list by price, fill
- * products included; every other gate (price, type, requirements) applies to both tiers unchanged.
- * Shared numbers are judged over every product checked (`products`), and the products of a shop
- * that shares them come back marked (RankedProduct.sharedNumbers): the card notes it, and the
- * explain step leaves their sales out (lib/llm/explain.ts).
+ * when too few products meet FILTERS, then the shop cap of `shopCap` over pages of `target`
+ * (diversifyShops; the admin's setting, lib/settings). Standard products come first, except that
+ * "cheapest" orders the whole list by price, fill products included; every other gate (price,
+ * type, requirements) applies to both tiers unchanged. Shared numbers are judged over every
+ * product checked (`products`), and the products of a shop that shares them come back marked
+ * (RankedProduct.sharedNumbers): the card notes it, and the explain step leaves their sales out
+ * (lib/llm/explain.ts). The shop cap only reorders, so the list's length is the same in every mode.
  */
 export function rankWithFill(
   products: AliProduct[],
   filters: SearchFilters,
   target: number,
+  shopCap: ShopCapMode,
 ): { ranked: RankedProduct[]; fillIds: string[] } {
   const shared = findSharedNumbers(products);
   const standard = rankEntries(products, filters, FILTERS, shared);
@@ -358,6 +361,7 @@ export function rankWithFill(
     ranked: diversifyShops(
       merged.map((e) => e.p),
       target,
+      shopCap,
     ),
     fillIds,
   };

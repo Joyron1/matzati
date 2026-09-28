@@ -15,6 +15,7 @@ import {
   type RecentSearchFilter,
   type RecentSearchList,
 } from "@/lib/recent/types";
+import { RESULTS_PER_PAGE } from "@/lib/config/site";
 
 export const metadata: Metadata = {
   title: "חיפושים אחרונים",
@@ -40,8 +41,8 @@ function NothingYet() {
   return (
     <StateCard Icon={History} title="עוד אין חיפושים להצגה">
       <p className="max-w-md leading-relaxed text-muted">
-        חיפושים שמוצאים מוצרים יופיעו כאן. בינתיים כתבו בחיפוש מה אתם צריכים, ונציג 3 מוצרים שעברו
-        את הסינון.
+        חיפושים שמוצאים מוצרים יופיעו כאן. בינתיים כתבו בחיפוש מה אתם צריכים, ונציג{" "}
+        {RESULTS_PER_PAGE} מוצרים שעברו את הסינון.
       </p>
       <Link href="/" className={`${btnPrimary} ${btnMd}`}>
         לחיפוש מוצר

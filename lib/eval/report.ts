@@ -1,7 +1,7 @@
 // Runs variants over the snapshots and summarizes and compares the runs. Pure: the script
 // (scripts/eval-offline.ts) does the file I/O.
 import { RESULTS_PER_PAGE } from "@/lib/config/site";
-import { RANKING_VERSION } from "@/lib/ranking/config";
+import { DEFAULT_SHOP_CAP_MODE, RANKING_VERSION, type ShopCapMode } from "@/lib/ranking/config";
 import { labelLetter, labelsFor, type LabelBook } from "./labels";
 import {
   cardMetrics,
@@ -27,23 +27,25 @@ export interface RunSummary {
   checked: number;
   passed: number;
   noResults: string[];
-  /** 1 or 2 results: fewer than a page. */
+  /** Fewer than a page (RESULTS_PER_PAGE) passed, but some did. */
   underOnePage: string[];
-  /** Exactly one page passed, so there is no "עוד 3 אפשרויות". */
+  /** Exactly one page passed, so there is no "עוד N אפשרויות". */
   exactlyOnePage: string[];
   /** At least two pages passed (the A11 gate wants 90% of queries here). */
   twoPagesOrMore: number;
   moreAvailable: number;
-  /** Queries with two or more of one shop in the top 3. */
+  /** Queries with two or more of one shop on the first page (the name is from pages of 3). */
   sameShopTop3: string[];
+  /** Queries with three or more of one shop on the first page (absent in older saved reports). */
+  sameShop3Plus?: string[];
   /** Mean of budgetShare over the queries with a maximum price and results. */
   meanBudgetShare: number | null;
   /**
    * How much one store leads, over the distinct queries (copies of another query left out) that
-   * show results: `queries` and `cards` count those queries and their top-3 cards; `topShop` is the
-   * shop with the most first results (then the most cards), with its first results and cards; and
-   * `shared` counts the first results and cards whose shop shares numbers (a saved run from before
-   * the shared-numbers rule has none marked).
+   * show results: `queries` and `cards` count those queries and their first-page cards; `topShop`
+   * is the shop with the most first results (then the most cards), with its first results and
+   * cards; and `shared` counts the first results and cards whose shop shares numbers (a saved run
+   * from before the shared-numbers rule has none marked).
    */
   shops: {
     queries: number;
@@ -77,6 +79,10 @@ export interface VariantInfo {
   sort: string | null;
   without: string[];
   adjustedParse: boolean;
+  /** The shop cap mode the ranking ran under (absent in reports from before the setting). */
+  shopCap?: ShopCapMode;
+  /** Results per page the run was measured with (absent in reports from pages of 3). */
+  pageSize?: number;
 }
 
 export interface EvalRun {
@@ -136,6 +142,7 @@ export function summarize(results: QueryResult[]): RunSummary {
     twoPagesOrMore: ids((r) => r.passed >= 2 * RESULTS_PER_PAGE).length,
     moreAvailable: ids((r) => r.moreAvailable).length,
     sameShopTop3: ids((r) => r.sameShopTop3 >= 2),
+    sameShop3Plus: ids((r) => r.sameShopTop3 >= 3),
     meanBudgetShare: budgets.length
       ? Math.round((sum(budgets) / budgets.length) * 100) / 100
       : null,
@@ -166,6 +173,8 @@ export function variantInfo(v: Variant): VariantInfo {
     sort: v.sort ?? null,
     without: [...(v.without ?? [])],
     adjustedParse: v.adjustParse !== undefined,
+    shopCap: v.shopCap ?? DEFAULT_SHOP_CAP_MODE,
+    pageSize: RESULTS_PER_PAGE,
   };
 }
 
@@ -223,7 +232,7 @@ export interface QueryBrief {
   next3: string[];
   sameShopTop3: number;
   moreAvailable: boolean;
-  /** Label letters of the top 3 (see labelLetter). */
+  /** Label letters of the first page (see labelLetter). */
   top3Labels: string;
   wrongTop3: number | null;
 }
@@ -286,9 +295,9 @@ function queryChanges(a: QueryBrief, b: QueryBrief): string[] {
   if (a.missing !== b.missing) out.push(`missing ${a.missing ?? "-"}→${b.missing ?? "-"}`);
   num("checked", a.checked, b.checked);
   num("passed", a.passed, b.passed);
-  const top = listChange("top3", a.top3, b.top3);
+  const top = listChange("page 1", a.top3, b.top3);
   if (top) out.push(top);
-  const next = listChange("next3", a.next3, b.next3);
+  const next = listChange("page 2", a.next3, b.next3);
   if (next) out.push(next);
   if (a.top3Labels !== b.top3Labels)
     out.push(`labels ${a.top3Labels || "-"}→${b.top3Labels || "-"}`);
@@ -308,20 +317,24 @@ export function totalsOf(s: RunSummary): Record<string, number | string | null> 
     "AliExpress calls": s.aliCalls,
     checked: s.checked,
     "no results": s.noResults.length,
-    "1-2 results": s.underOnePage.length,
-    "exactly 3 (no more)": s.exactlyOnePage.length,
-    "6+ passed": s.twoPagesOrMore,
+    "under one page": s.underOnePage.length,
+    "exactly one page (no more)": s.exactlyOnePage.length,
+    "two pages+ passed": s.twoPagesOrMore,
     "more available": s.moreAvailable,
-    "2+ same shop in top 3": s.sameShopTop3.length,
+    "2+ same shop on page 1": s.sameShopTop3.length,
+    "3+ same shop on page 1": s.sameShop3Plus?.length ?? null,
     "mean budget share": s.meanBudgetShare,
     "top shop": s.shops.topShop?.id ?? null,
     "top shop leads (distinct)": ratio(s.shops.topShop?.leads ?? 0, s.shops.queries),
-    "top shop top-3 cards": ratio(s.shops.topShop?.cards ?? 0, s.shops.cards),
+    "top shop page-1 cards": ratio(s.shops.topShop?.cards ?? 0, s.shops.cards),
     "shared-number leads": ratio(s.shops.shared.leads, s.shops.queries),
-    "shared-number top-3 cards": ratio(s.shops.shared.cards, s.shops.cards),
+    "shared-number page-1 cards": ratio(s.shops.shared.cards, s.shops.cards),
     "lead correct": ratio(s.labels.leadCorrect, s.labels.leadLabelled),
     "cards exact/reasonable": ratio(s.labels.cardsGood, s.labels.cardsLabelled),
-    "wrong in top 3": s.labels.queries ? s.labels.wrongTop3 : null,
+    "cards shown / labelled": s.labels.queries
+      ? `${s.labels.cardsShown}/${s.labels.cardsLabelled}`
+      : null,
+    "wrong on page 1": s.labels.queries ? s.labels.wrongTop3 : null,
     "type-gate false negatives": s.labels.queries ? s.labels.typeFalseNegatives : null,
     "filter false positives": s.labels.queries ? s.labels.falsePositives : null,
   };

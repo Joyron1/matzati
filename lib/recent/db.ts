@@ -13,6 +13,7 @@ import { normalizeQuery } from "@/lib/search/cache-key";
 import { buildChips } from "@/lib/search/chips";
 import type { ParsedQuery } from "@/lib/search/filters";
 import { categoryLabelHe } from "@/lib/tips/category";
+import { fixTransliterations } from "@/lib/transliterations";
 import { cleanRecentText } from "./params";
 import { isListableQuery } from "./privacy";
 import {
@@ -118,7 +119,10 @@ function toImages(value: unknown, fallbackAlt: string): RecentSearchImage[] {
     const image = imageSchema.safeParse(item);
     if (!image.success || !isAllowedImage(image.data.src) || seen.has(image.data.src)) continue;
     seen.add(image.data.src);
-    images.push({ src: image.data.src, alt: image.data.alt?.trim() || fallbackAlt });
+    // The alt is the product's Hebrew title (recent_search_cards), read with the known
+    // transliterations fixed (lib/transliterations); it is never shown as text.
+    const alt = image.data.alt?.trim();
+    images.push({ src: image.data.src, alt: alt ? fixTransliterations(alt) : fallbackAlt });
   }
   return images.slice(0, RESULTS_SHOWN);
 }

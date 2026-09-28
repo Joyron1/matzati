@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import type { z } from "zod";
 import { AliExpressClient } from "@/lib/aliexpress/client";
+import { RESULTS_PER_PAGE } from "@/lib/config/site";
 import { EXPLAIN_SYSTEM } from "@/lib/llm/explain";
 import type { ParsedQueryRaw } from "@/lib/llm/parse";
 import type { LlmProvider, StructuredRequest } from "@/lib/llm/provider";
@@ -51,6 +52,8 @@ const LINES = [
   "כבל שעבר את הסינון ונבחר על ידי קונים רבים.",
 ];
 const TITLE = "כבל טעינה מהיר";
+/** A comparison's scope by the number of products compared, as EXPLAIN_SYSTEM lists them. */
+const SCOPES: Record<number, string> = { 2: "השניים", 3: "השלושה", 4: "הארבעה", 5: "החמישה" };
 
 class FakeLlm implements LlmProvider {
   readonly name = "anthropic" as const;
@@ -63,7 +66,7 @@ class FakeLlm implements LlmProvider {
   /** How long each explain call takes (setTimeout, so fake timers can run it). */
   delayMs = 0;
   failing = false;
-  /** The cheapest of a batch of two or three says so, as the prompt allows. */
+  /** The cheapest of a batch of two to five says so, as the prompt allows. */
   compare = false;
   /** Lines to write next, one per product, before the usual ones. */
   nextLines: string[] = [];
@@ -84,7 +87,7 @@ class FakeLlm implements LlmProvider {
     if (this.gate) await this.gate;
     if (this.failing) throw new Error("explain: request timed out");
     const cheapest = Math.min(...products.map((p) => p.price_ils));
-    const scope = products.length === 3 ? "השלושה" : products.length === 2 ? "השניים" : null;
+    const scope = SCOPES[products.length] ?? null;
     const items = products.map((p) => ({
       id: p.id,
       title_he: TITLE,
@@ -155,7 +158,7 @@ describe("products before their lines (plan item 15)", () => {
 
     const shown = await stages.products;
     expect(shown.pending).toBe(true);
-    expect(shown.response.results).toHaveLength(3);
+    expect(shown.response.results).toHaveLength(RESULTS_PER_PAGE);
     for (const r of shown.response.results) {
       // AliExpress's title and the line from the data until the product's own line arrives.
       expect(r.title_he).toBe(r.title_en);
@@ -321,7 +324,7 @@ describe("views of a checked pool (plan item 13)", () => {
       for (const without of [[], ["x"]]) {
         const { response } = await runSearch({ q: Q, sort, without }, deps);
         const cheapest = Math.min(...response.results.map((r) => r.price_ils));
-        const scope = response.results.length === 3 ? "השלושה" : "השניים";
+        const scope = SCOPES[response.results.length];
         for (const r of response.results) {
           if (!r.why_he.includes("הזול מבין")) continue;
           expect(r.price_ils).toBe(cheapest);
@@ -337,8 +340,9 @@ describe("views of a checked pool (plan item 13)", () => {
     const entry = store.results.get(first.response.filters_key!)!;
     const pool = poolOf(entry)!;
     const [cheapestId, secondId] = pool.views[viewKeyOf("cheapest", [])].ids;
-    // Lines written for other pages: "the cheapest of the three" holds there, not on this one.
-    const claim = "כבל שעבר את הסינון שלנו, והזול מבין השלושה.";
+    // Lines written for other pages: "the cheapest of the five" holds there, and on this page
+    // only for the cheapest.
+    const claim = "כבל שעבר את הסינון שלנו, והזול מבין החמישה.";
     pool.lines[cheapestId] = { title_he: TITLE, why_he: claim };
     pool.lines[secondId] = { title_he: TITLE, why_he: claim };
     const calls = llm.explained.length;
@@ -354,26 +358,29 @@ describe("views of a checked pool (plan item 13)", () => {
     const { deps, llm, store } = setup();
     const first = await runSearch({ q: Q }, deps);
     const pool = poolOf(store.results.get(first.response.filters_key!)!)!;
-    const page = pool.views[viewKeyOf("cheapest", [])].ids.slice(0, 3);
+    const page = pool.views[viewKeyOf("cheapest", [])].ids.slice(0, RESULTS_PER_PAGE);
     // Lines written earlier for these products; the lead's says it is not the searched product.
     const partial = "אביזר משלים, לא הכבל עצמו: מארגן שעבר את הסינון שלנו.";
     pool.lines[page[0]] = { title_he: TITLE, why_he: partial };
-    pool.lines[page[1]] = { title_he: TITLE, why_he: LINES[5] };
-    pool.lines[page[2]] = { title_he: TITLE, why_he: LINES[6] };
+    page.slice(1).forEach((id, i) => (pool.lines[id] = { title_he: TITLE, why_he: LINES[5 + i] }));
     const calls = llm.explained.length;
     const stages = startSearch({ q: Q, sort: "cheapest" }, deps);
     const shown = await stages.products;
     const final = await stages.final;
     const { meta } = await stages.outcome;
-    expect(meta).toMatchObject({ derived: true, linesReused: 3, demoted: [page[0]] });
+    expect(meta).toMatchObject({
+      derived: true,
+      linesReused: RESULTS_PER_PAGE,
+      demoted: [page[0]],
+    });
     expect(llm.explained).toHaveLength(calls);
     // Nothing pending, so the page never swaps: what shows first is the order that is kept.
     expect(shown.pending).toBe(false);
     expect(shown.response).toEqual(final);
     expect(ids(shown.response)).not.toContain(page[0]);
-    expect(ids(shown.response).slice(0, 2)).toEqual(page.slice(1));
+    expect(ids(shown.response).slice(0, RESULTS_PER_PAGE - 1)).toEqual(page.slice(1));
     // The product that moved up shows the line from the data, and its /go row is saved.
-    const [, , up] = shown.response.results;
+    const up = shown.response.results[RESULTS_PER_PAGE - 1];
     expect(up.why_he).toMatch(dataLine(up));
     for (const id of ids(shown.response)) expect(store.products.has(id)).toBe(true);
   });
@@ -383,22 +390,23 @@ describe("views of a checked pool (plan item 13)", () => {
     const first = await runSearch({ q: Q }, deps);
     const entry = store.results.get(first.response.filters_key!)!;
     const pool = poolOf(entry)!;
-    const page = pool.views[viewKeyOf("most_popular", [])].ids.slice(0, 3);
-    // The first card has no line yet; the other two show lines written earlier.
+    const page = pool.views[viewKeyOf("most_popular", [])].ids.slice(0, RESULTS_PER_PAGE);
+    // The first card has no line yet; the others show lines written earlier.
     delete entry.explanations[page[0]];
     delete pool.lines[page[0]];
-    pool.lines[page[1]] = { title_he: TITLE, why_he: LINES[5] };
-    pool.lines[page[2]] = { title_he: TITLE, why_he: LINES[6] };
-    // The model's new line for the first card repeats the third card's, which is on screen.
-    llm.nextLines = [LINES[6]];
+    const earlier = page.slice(1).map((_, i) => LINES[5 + i]);
+    page.slice(1).forEach((id, i) => (pool.lines[id] = { title_he: TITLE, why_he: earlier[i] }));
+    // The model's new line for the first card repeats the last card's, which is on screen.
+    const last = earlier.at(-1)!;
+    llm.nextLines = [last];
     const stages = startSearch({ q: Q, sort: "most_popular" }, deps);
     const shown = await stages.products;
     expect(shown.pending).toBe(true);
-    expect(shown.response.results.map((r) => r.why_he).slice(1)).toEqual([LINES[5], LINES[6]]);
+    expect(shown.response.results.map((r) => r.why_he).slice(1)).toEqual(earlier);
     const final = await stages.final;
     expect(ids(final)).toEqual(page);
     // The line read already stays; the new one falls back to the data sentence.
-    expect(final.results[2].why_he).toBe(LINES[6]);
+    expect(final.results[RESULTS_PER_PAGE - 1].why_he).toBe(last);
     expect(final.results[0].why_he).toMatch(dataLine(final.results[0]));
     expect(llm.explained.at(-1)).toHaveLength(1);
   });
@@ -447,7 +455,7 @@ describe("views of a checked pool (plan item 13)", () => {
     // Without both, a page passes: ranked from the pool.
     const both = await runSearch({ q, without: ["req:magnetic", "req:braided"] }, deps);
     expect(both.meta.derived).toBe(true);
-    expect(both.response.results.length).toBe(3);
+    expect(both.response.results.length).toBe(RESULTS_PER_PAGE);
     expect(queries(fetchMock)).toBe(fetches);
     // Without one, fewer than a page: searched again without its words.
     const one = await runSearch({ q, without: ["req:magnetic"] }, deps);
@@ -518,14 +526,14 @@ describe("views of a checked pool (plan item 13)", () => {
     expect(view.meta.explainFailed).toBe(true);
   });
 
-  it("serves 'עוד 3' of a view ranked from the pool", async () => {
+  it("serves 'עוד N' of a view ranked from the pool", async () => {
     const { deps, fetchMock } = setup();
     await runSearch({ q: Q }, deps);
     const fetches = queries(fetchMock);
     const view = await runSearch({ q: Q, sort: "most_popular" }, deps);
     expect(view.response.more_available).toBe(true);
     const more = await loadMore(view.response.filters_key!, 1, deps);
-    expect(more?.results).toHaveLength(3);
+    expect(more?.results).toHaveLength(RESULTS_PER_PAGE);
     expect(more!.results.some((r) => ids(view.response).includes(r.product_id))).toBe(false);
     expect(queries(fetchMock)).toBe(fetches);
   });

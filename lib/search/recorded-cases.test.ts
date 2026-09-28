@@ -18,6 +18,7 @@ import { RESULTS_PER_PAGE } from "@/lib/config/site";
 import { loadSnapshots, SNAPSHOT_DIR } from "@/lib/eval/files";
 import type { Snapshot } from "@/lib/eval/snapshot";
 import type { LlmProvider } from "@/lib/llm/provider";
+import { SHOP_CAP_MODES, type ShopCapMode } from "@/lib/ranking/config";
 import { normalizeQuery, queryKey } from "./cache-key";
 import { runSearch } from "./pipeline";
 import { MemoryStore } from "./store";
@@ -46,8 +47,14 @@ const ali = new AliExpressClient(
 const snapshots = existsSync(SNAPSHOT_DIR) ? loadSnapshots() : [];
 const byId = (id: string) => snapshots.find((s) => s.id === id)!;
 
-/** The search as the pipeline runs it on this snapshot: its shown page and every kept product. */
-async function search(snap: Snapshot): Promise<{ shown: AliProduct[]; kept: AliProduct[] }> {
+/**
+ * The search as the pipeline runs it on this snapshot, under the admin's shop cap mode (the
+ * default "none" unless given): its shown page and every kept product.
+ */
+async function search(
+  snap: Snapshot,
+  shopCap: ShopCapMode = "none",
+): Promise<{ shown: AliProduct[]; kept: AliProduct[] }> {
   vi.mocked(queryProducts).mockImplementation(async (_client, q) => {
     const c = snap.calls.find(
       (c) =>
@@ -76,7 +83,7 @@ async function search(snap: Snapshot): Promise<{ shown: AliProduct[]; kept: AliP
   await store.putParse(queryKey(snap.query), normalizeQuery(snap.query), snap.parse.parsed, NOW);
   const { response } = await runSearch(
     { q: snap.query },
-    { llm, ali, store, now: () => NOW, sleep: async () => {}, aliSpacingMs: 0 },
+    { llm, ali, store, now: () => NOW, sleep: async () => {}, aliSpacingMs: 0, shopCap },
   );
   const kept = store.results.get(response.filters_key!)!.products;
   return { shown: kept.slice(0, RESULTS_PER_PAGE), kept };
@@ -93,17 +100,22 @@ describe.skipIf(!snapshots.length)("recorded cases (fixtures/snapshots)", () => 
     expect(titles(shown).filter((t) => /\bcar\b|under seat/i.test(t))).toEqual([]);
   });
 
-  it("soundbar: one shop never fills the first page while another shop has a result", async () => {
-    const { shown, kept } = await search(byId("live-soundbar"));
+  it("soundbar: under max2, one shop never fills the first page while another shop has a result", async () => {
+    const { shown, kept } = await search(byId("live-soundbar"), "max2");
     expect(shown).toHaveLength(RESULTS_PER_PAGE);
     const shops = shown.map((p) => p.shop.id);
-    const twice = shops.some((s, i) => shops.indexOf(s) !== i);
+    const overCap = shops.some((s) => shops.filter((t) => t === s).length > 2);
     const otherShopLeft = kept.slice(RESULTS_PER_PAGE).some((p) => !shops.includes(p.shop.id));
     expect(new Set(shops).size).toBeGreaterThan(1);
-    expect(twice && otherShopLeft).toBe(false);
-    // "Soundbar Stand Base" was #4: no stand or bracket on the first two pages.
-    const firstTwoPages = kept.slice(0, 2 * RESULTS_PER_PAGE);
-    expect(titles(firstTwoPages).filter((t) => /\bstand\b|bracket/i.test(t))).toEqual([]);
+    expect(overCap && otherShopLeft).toBe(false);
+    // "Soundbar Stand Base" was #4: no stand or bracket on the first two pages, in either mode.
+    for (const mode of SHOP_CAP_MODES) {
+      const firstTwoPages = (await search(byId("live-soundbar"), mode)).kept.slice(
+        0,
+        2 * RESULTS_PER_PAGE,
+      );
+      expect(titles(firstTwoPages).filter((t) => /\bstand\b|bracket/i.test(t))).toEqual([]);
+    }
   });
 
   it("garden gift: the knife sharpener (edge grinder) is not the first result, nor on the first page", async () => {

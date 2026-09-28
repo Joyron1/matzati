@@ -2,6 +2,7 @@
 // make no network call, and never show a product that did not pass the filters (CLAUDE.md §1).
 import { existsSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { RESULTS_PER_PAGE } from "@/lib/config/site";
 import { FILL_TIER, FILTERS } from "@/lib/ranking/config";
 import { passesFilters } from "@/lib/ranking/rank";
 import { loadLabels, loadSnapshots, SNAPSHOT_DIR } from "./files";
@@ -46,7 +47,7 @@ describe.skipIf(!present)("offline evaluation of the real snapshots", () => {
         const snap = byId.get(q.id)!;
         const filters = filtersFor(snap, { name: policy.name, policy })!;
         const products = new Map(distinctProducts(snap.calls).map((p) => [p.productId, p]));
-        expect(q.shown).toBeLessThanOrEqual(3);
+        expect(q.shown).toBeLessThanOrEqual(RESULTS_PER_PAGE);
         expect(q.passed).toBeGreaterThanOrEqual(q.shown);
         expect(q.checked).toBeLessThanOrEqual(q.snapshotPool);
         expect(q.fetch.calls).toBeLessThanOrEqual(policy === ALL_CAPTURED ? 10 : 3);

@@ -113,7 +113,7 @@ const RPC: Record<string, unknown> = {
   ],
   stats_click_positions: [
     { position_group: "featured", clicks: 5 },
-    { position_group: "top3", clicks: 2 },
+    { position_group: "first_page", clicks: 2 },
   ],
 };
 
@@ -223,7 +223,7 @@ describe("loadAdminStats", () => {
     ]);
     expect(stats.clickPositions).toEqual([
       { group: "featured", clicks: 5 },
-      { group: "top3", clicks: 2 },
+      { group: "first_page", clicks: 2 },
     ]);
     expect(stats).toMatchObject({ budgetCounter: 1234, budgetCap: 2000, fx: FX });
     // Today's global LLM counter: the Israel day that started at 21:00Z (IDT).

@@ -62,49 +62,67 @@ export function SearchComposer({ variant = "hero", defaultValue = "" }: SearchCo
     );
   }
 
-  // Home page hero: the page's one focal point. The whole box reads as the field (it takes the
-  // site focus ring), with a visible label, a search icon and the "חיפוש" button inside it.
+  // Home page hero: the page's one focal point, a card with a visible label, the field and the
+  // "חיפוש" button. The field is a box of its own inside the card (an inset tint, a border that
+  // darkens on hover and turns cobalt with the site focus ring on focus), with a caret at its start
+  // while it is empty and not focused (blinking, still under reduced motion). A cobalt border that
+  // turns slowly a few times after the page loads (never under reduced motion) and a soft cobalt
+  // glow set the card apart (.composer-frame and .composer-caret in globals.css).
   return (
     <div className="space-y-3">
-      <Form
-        ref={formRef}
-        action="/search"
-        role="search"
-        className="rounded-composer border border-line bg-surface p-2 text-start shadow-soft has-[textarea:focus-visible]:border-accent has-[textarea:focus-visible]:outline-3 has-[textarea:focus-visible]:outline-offset-2 has-[textarea:focus-visible]:outline-accent sm:p-3"
-      >
-        <label
-          htmlFor={COMPOSER_INPUT_ID}
-          className="flex items-center gap-2 px-3 pt-2.5 text-base font-bold text-ink sm:px-4 sm:pt-3"
+      <div className="composer-frame">
+        <Form
+          ref={formRef}
+          action="/search"
+          role="search"
+          className="rounded-[calc(var(--radius-composer)_-_2px)] bg-surface p-3 text-start sm:p-4"
         >
-          <Search aria-hidden className="size-5 shrink-0 text-accent-ink" strokeWidth={2.25} />
-          מה אתם מחפשים?
-        </label>
-        <textarea
-          id={COMPOSER_INPUT_ID}
-          name="q"
-          required
-          maxLength={200}
-          rows={2}
-          defaultValue={defaultValue}
-          placeholder={PLACEHOLDER}
-          onKeyDown={onKeyDown}
-          // The keyboard's Enter key reads "search", which is what Enter does here.
-          enterKeyHint="search"
-          aria-describedby={`${hintId} ${noteId}`}
-          // Grows with the text where field-sizing is supported; 2 rows elsewhere.
-          className="mt-1 block max-h-48 min-h-[4.75rem] w-full resize-none bg-transparent px-3 py-1 text-lg leading-relaxed text-ink outline-none field-sizing-content placeholder:text-muted sm:px-4 sm:text-xl"
-        />
-        <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:ps-4">
-          {/* Hidden on phones to keep the button in view; still read as the field's description. */}
-          <p id={hintId} className="hidden text-sm text-muted sm:block">
-            אפשר לכתוב תקציב, למי זה ומה חשוב לכם.
-          </p>
-          <button type="submit" className={`${btnPrimary} ${btnLg} w-full text-lg sm:w-auto`}>
-            <Search aria-hidden className="size-5" />
-            חיפוש
-          </button>
-        </div>
-      </Form>
+          <label
+            htmlFor={COMPOSER_INPUT_ID}
+            className="flex items-center gap-2 px-1 pb-2.5 text-lg font-bold text-ink sm:px-1.5"
+          >
+            <Search
+              aria-hidden
+              className="size-[22px] shrink-0 text-accent-ink"
+              strokeWidth={2.5}
+            />
+            מה אתם מחפשים?
+          </label>
+          <div className="relative">
+            <textarea
+              id={COMPOSER_INPUT_ID}
+              name="q"
+              required
+              maxLength={200}
+              rows={2}
+              defaultValue={defaultValue}
+              placeholder={PLACEHOLDER}
+              onKeyDown={onKeyDown}
+              // The keyboard's Enter key reads "search", which is what Enter does here.
+              enterKeyHint="search"
+              aria-describedby={`${hintId} ${noteId}`}
+              // 22px and up, so phones never zoom in on focus. Grows with the text where
+              // field-sizing is supported; 2 rows elsewhere. The site focus ring (globals.css).
+              className="block max-h-60 min-h-[6.5rem] w-full resize-none rounded-2xl border-2 border-muted/70 bg-bg px-4 py-3 text-[1.375rem] leading-relaxed text-ink field-sizing-content placeholder:text-muted hover:border-muted focus-visible:border-accent sm:min-h-[7rem] sm:px-5 sm:py-3.5 sm:text-[1.625rem]"
+            />
+            <span aria-hidden className="composer-caret" />
+          </div>
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:ps-1.5">
+            {/* Hidden on phones to keep the button in view; still read as the field's description. */}
+            <p id={hintId} className="hidden text-sm text-muted sm:block">
+              אפשר לכתוב תקציב, למי זה ומה חשוב לכם.
+            </p>
+            {/* The page's primary action: full width on phones, where the thumb reaches it. */}
+            <button
+              type="submit"
+              className={`${btnPrimary} ${btnLg} w-full text-lg font-bold shadow-[0_12px_24px_-12px_var(--accent)] sm:w-auto sm:px-9`}
+            >
+              <Search aria-hidden className="size-5" strokeWidth={2.5} />
+              חיפוש
+            </button>
+          </div>
+        </Form>
+      </div>
       {/* Said before searching: the query itself may be shown to other visitors. */}
       <p
         id={noteId}

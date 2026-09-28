@@ -20,10 +20,13 @@ const PARSE: ParsedQueryRaw = {
   sort_preference: "best_value",
   category_hint: null,
 };
+// One line per card of a page (RESULTS_PER_PAGE), all different.
 const WHYS = [
   "עבר את הסינון עם משוב חיובי גבוה ומכירות רבות בחודש האחרון.",
   "מתאים לחיפוש ונמכר הרבה בחודש האחרון, עם משוב חיובי גבוה.",
   "בחירה פופולרית שעברה את הסינון, עם משוב חיובי גבוה.",
+  "כבל שעבר את הסינון שלנו, עם משוב חיובי גבוה מקונים.",
+  "מתאים למה שחיפשתם, עם הרבה מכירות ומשוב חיובי גבוה.",
 ];
 
 const m = vi.hoisted(() => ({
@@ -33,6 +36,7 @@ const m = vi.hoisted(() => ({
   gate: null as Promise<void> | null,
   explainCalls: 0,
   parseCalls: 0,
+  shopCapMode: vi.fn(async (): Promise<"none" | "max2"> => "none"),
 }));
 
 vi.mock("server-only", () => ({}));
@@ -52,6 +56,8 @@ vi.mock("@/lib/guard/rate-limit", async (importOriginal) => ({
   consumeDailyLlmBudget: vi.fn(async () => true),
 }));
 vi.mock("@/lib/admin/auth", () => ({ getAdminUser: vi.fn(async () => null) }));
+// The admin's shop cap setting (lib/settings/queries.ts), read once per request.
+vi.mock("@/lib/settings/queries", () => ({ shopCapMode: m.shopCapMode }));
 vi.mock("@/lib/env", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/env")>()),
   aliexpressConfig: () => ({
@@ -108,6 +114,8 @@ beforeEach(() => {
   m.gate = null;
   m.explainCalls = 0;
   m.parseCalls = 0;
+  m.shopCapMode.mockReset();
+  m.shopCapMode.mockImplementation(async () => "none");
   fetchMock.mockClear();
   fetchMock.mockImplementation(async () => new Response(PRODUCTS));
 });
@@ -218,5 +226,38 @@ describe("searchForRequest (the JSON API)", () => {
     const uid = result.response.results[0].search_uid;
     await afterJobs();
     expect(m.store.logs[0].searchUid).toBe(uid);
+  });
+});
+
+describe("the admin's shop cap setting", () => {
+  it("is read once per request and keys the results: a switch never serves the other mode's list", async () => {
+    const none = await searchForRequest(Q, HEADERS);
+    m.shopCapMode.mockResolvedValueOnce("max2");
+    const max2 = await searchForRequest(Q, HEADERS);
+    if (!none.ok || !max2.ok) throw new Error("search failed");
+    // Another result set: fetched and explained again, the parse reused.
+    expect(max2.response.filters_key).not.toBe(none.response.filters_key);
+    expect(max2.response.cached).toBe(false);
+    expect(m.parseCalls).toBe(1);
+    expect(m.explainCalls).toBe(2);
+    // Switched back: the list ranked under "none" is served from the cache again.
+    const back = await searchForRequest(Q, HEADERS);
+    if (!back.ok) throw new Error(back.error);
+    expect(back.response).toMatchObject({ cached: true, filters_key: none.response.filters_key });
+    expect(m.shopCapMode).toHaveBeenCalledTimes(3);
+  });
+
+  it("never lets a request join a run of the other mode", async () => {
+    let release!: () => void;
+    m.gate = new Promise<void>((r) => (release = r));
+    const first = await startSearchForRequest(Q, HEADERS);
+    m.shopCapMode.mockResolvedValueOnce("max2");
+    const second = await startSearchForRequest(Q, HEADERS);
+    if (!first.ok || !second.ok) throw new Error("not started");
+    release();
+    const [a, b] = await Promise.all([first.value.final, second.value.final]);
+    if (!a.ok || !b.ok) throw new Error("search failed");
+    expect(a.value.filters_key).not.toBe(b.value.filters_key);
+    expect(m.explainCalls).toBe(2);
   });
 });

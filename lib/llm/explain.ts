@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { formatCount, formatPct } from "@/lib/format";
 import type { ParsedQuery, SortPreference } from "@/lib/search/filters";
+import { fixTransliterations } from "@/lib/transliterations";
 import type { SharedNumbersMark } from "@/lib/types";
 import { extractNumbers, numbersAreGrounded } from "./numbers";
 import {
@@ -25,9 +26,11 @@ import type { LlmProvider, LlmUsage } from "./provider";
 
 /**
  * Part of the results cache key: bump it whenever the prompt or the checks change. 5: the Hebrew
- * checks of docs/search-quality-plan.md A9 (Latin words, budget, repeated lines, spelling).
+ * checks of docs/search-quality-plan.md A9 (Latin words, budget, repeated lines, spelling). 6:
+ * batches of up to 5 (RESULTS_PER_PAGE), a comparison's scope by the batch size ("מבין החמישה",
+ * "מבין הארבעה", "מבין השלושה", "מבין השניים"; owner decision 2026-09-28).
  */
-export const EXPLAIN_VERSION = 5;
+export const EXPLAIN_VERSION = 6;
 
 export const WHY_MAX = 120;
 export const WHY_MIN = 25;
@@ -109,12 +112,12 @@ why_he: one sentence of 40-${WHY_MAX} chars ending with a period: how it fits th
 - No price, budget or currency; "מתחת לתקציב שלכם" is fine if a budget was given.
 - Trust data only as "<positive_feedback_pct>% משוב חיובי" and "<units_sold_30d> נמכרו ב־30 הימים האחרונים".
 - At most two numbers, copied exactly, no rounding or arithmetic.
-- Comparisons only when true in this input: "הזול", "הנמכר ביותר" or "המשוב החיובי הגבוה ביותר" + "מבין השלושה" ("מבין השניים" for two, none for one). No other superlatives (הכי טוב, משתלם, מושלם).
+- Comparisons only when true in this input: "הזול", "הנמכר ביותר" or "המשוב החיובי הגבוה ביותר" + the scope for the number of products: "מבין החמישה" (5), "מבין הארבעה" (4), "מבין השלושה" (3), "מבין השניים" (2), none for one. No other superlatives (הכי טוב, משתלם, מושלם).
 - No personal details (age, recipient, names): the line is reused for other shoppers.
 
 Both fields: plural gender-neutral address (שלכם, תוכלו; never שלך, אתה). Natural Israeli Hebrew. Hebrew letters; Latin only for brands, models and specs, with a maqaf after a prefix (ב־4K). Abbreviations with ״ ׳ never ASCII quotes (ס״מ). No emoji or exclamation marks.
 
-Example: search {"product_he":"מזרן יוגה","requirements_he":["נגד החלקה"]}, title_en "TPE Yoga Mat 6mm Non Slip", cheapest of three, 97.5% feedback -> title_he "מזרן יוגה TPE 6mm", why_he "מזרן נגד החלקה, 97.5% משוב חיובי והזול מבין השלושה."`;
+Example: search {"product_he":"מזרן יוגה","requirements_he":["נגד החלקה"]}, title_en "TPE Yoga Mat 6mm Non Slip", cheapest of five, 97.5% feedback -> title_he "מזרן יוגה TPE 6mm", why_he "מזרן נגד החלקה, 97.5% משוב חיובי והזול מבין החמישה."`;
 
 export type CopyProblem =
   | "missing"
@@ -171,7 +174,7 @@ function modelProduct(p: ExplainInput, id: string) {
 
 const shortId = (index: number) => String(index + 1);
 
-/** True when `value` is the best of the batch (ties count), so "הזול מבין השלושה" holds. */
+/** True when `value` is the best of the batch (ties count), so "הזול מבין החמישה" holds. */
 function isBest(value: number | null, all: (number | null)[], pick: (...n: number[]) => number) {
   const known = all.filter((v): v is number => v !== null);
   return value !== null && value === pick(...known);
@@ -224,7 +227,7 @@ function whyProblem(
   const grounding = [facts, context.min_price_ils, context.max_price_ils];
   if (!numbersAreGrounded(why, grounding)) return "ungrounded_number";
   if (!superlativeClaims(why).every((c) => claimHolds(c, p, batch))) return "false_superlative";
-  // "הזול מבין השלושה" is false when only two products were shown.
+  // "הזול מבין החמישה" is false when four products were shown: the scope must name this batch.
   if (comparisonSizes(why).some((n) => n !== batch.length)) return "false_superlative";
   return null;
 }
@@ -321,9 +324,10 @@ export function checkExplanation(
   const caveat = withoutUnrequestedCaveat(tidyHebrew(item.why_he.trim()), context.requirements_he);
   const why = caveat.why;
   // A Latin word that is not a brand, model or spec is dropped rather than failing the title,
-  // which would show the English title_en instead ("מארגן מגירות Expandable" → "מארגן מגירות").
+  // which would show the English title_en instead ("מארגן מגירות Expandable" → "מארגן מגירות"),
+  // and an English word written in Hebrew letters becomes Hebrew ("פלוש" → "מפרווה רכה").
   const written = tidyHebrew(item.title_he.trim());
-  const title = withoutForeignWords(written, p.title_en);
+  const title = fixTransliterations(withoutForeignWords(written, p.title_en), p.title_en);
   let wp = caveat.problem ?? whyProblem(why, p, batch, context);
   // Too little left after our own cut is not a line the model cut off, so the title stays.
   if (caveat.cut && (wp === "empty" || wp === "truncated")) wp = "unrequested_caveat";
@@ -445,7 +449,20 @@ const NO_USAGE: LlmUsage = {
   cacheWriteTokens: 0,
 };
 
-/** One call for the batch shown together (up to 3). Returns one item per product, in order. */
+/**
+ * The output cap of one explain call: EXPLAIN_TOKENS.base plus EXPLAIN_TOKENS.perProduct per
+ * product (1,024 for 3, as before; 1,536 for 5). A cut-off answer is invalid JSON and every line of
+ * the batch falls back to data, so the cap sits far above use: the final paid check (2026-09-28,
+ * fixtures/llm/eval-final-2026-09-28.json) used 237-320 output tokens for 3 products, at most
+ * about 107 per product (a title near 60 and a line near 120 Hebrew characters, plus the JSON), so
+ * 5 need about 535. Tokens are paid as used, never by the cap.
+ */
+export const EXPLAIN_TOKENS = { base: 256, perProduct: 256 } as const;
+
+/**
+ * One call for the batch shown together (up to RESULTS_PER_PAGE). Returns one item per product, in
+ * order.
+ */
 export async function explainProducts(
   llm: LlmProvider,
   context: ExplainContext,
@@ -459,7 +476,7 @@ export async function explainProducts(
       products: products.map((p, i) => modelProduct(p, shortId(i))),
     }),
     schema: explainSchema,
-    maxTokens: 1024,
+    maxTokens: EXPLAIN_TOKENS.base + EXPLAIN_TOKENS.perProduct * products.length,
   });
   const byId = new Map<string, { title_he: string; why_he: string }>();
   for (const item of res.data?.items ?? []) {

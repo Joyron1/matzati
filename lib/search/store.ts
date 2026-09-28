@@ -13,7 +13,7 @@ export type CacheLevel = "none" | "parse" | "results";
 
 /**
  * Who asked: a visitor's search (including chip removals and sort changes), examplePreview (the
- * SEO landing pages; older rows also the home page example), or "עוד 3 אפשרויות". Only "search"
+ * SEO landing pages; older rows also the home page example), or "עוד N אפשרויות". Only "search"
  * rows count as searches in the stats.
  */
 export type SearchSource = "search" | "preview" | "more";
@@ -21,7 +21,7 @@ export type SearchSource = "search" | "preview" | "more";
 /**
  * How the search was asked for (search_log.origin, logOrigin in ./pipeline.ts): typed by the
  * visitor, one of our example queries or recent-search cards, a chip removal or a sort change on
- * the results page, "עוד 3 אפשרויות", an SEO landing page (preview), or a landing from an ad or
+ * the results page, "עוד N אפשרויות", an SEO landing page (preview), or a landing from an ad or
  * campaign link (utm_source / gclid on the URL).
  */
 export const SEARCH_ORIGINS = [
@@ -136,7 +136,7 @@ export interface CachedResults {
   passed: number;
   /** Ranked products that passed every filter (up to RESULTS_KEPT). */
   products: AliProduct[];
-  /** Explanations by product id; the first 3 are written up front, the next 3 on "show more". */
+  /** Explanations by product id: the first page's up front, each next page's on "show more". */
   explanations: Record<string, Explanation>;
   createdAt: string;
   /**

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hasHebrew, productTitleView } from "./product-title";
+import { hasHebrew, hotTitle, productTitleView } from "./product-title";
 
 // A hot product's title as AliExpress sent it (probe of 2026-09-28): Hebrew with Latin and numbers.
 const MACHINE_HE = "כיסוי טלפון בעיצוב פרחוני לאייפון 17, 18 פרו מקס";
@@ -42,6 +42,19 @@ describe("productTitleView", () => {
       original: null,
       machineTranslated: true,
     });
+  });
+
+  it("fixes the known transliterated loan words of a machine-translated title, still labelled", () => {
+    const hot = "מיטת כלב עגולה פלוש חמה לחורף, ווטרפרוף";
+    expect(productTitleView(hot, hot)).toEqual({
+      text: "מיטת כלב עגולה מפרווה רכה חמה לחורף, עם עמידות למים",
+      ltr: false,
+      original: null,
+      machineTranslated: true,
+    });
+    // Without the English title, a spelling with another meaning stays ("פלאש" is also a flash).
+    expect(hotTitle("פלאש למצלמה")).toBe("פלאש למצלמה");
+    expect(hotTitle(MACHINE_HE)).toBe(MACHINE_HE);
   });
 
   it("never shows a Hebrew AliExpress title as the English original", () => {

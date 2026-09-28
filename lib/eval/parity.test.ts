@@ -13,13 +13,15 @@ vi.mock("@/lib/aliexpress/affiliate", async (importOriginal) => {
 
 import { generateLinks, queryProducts } from "@/lib/aliexpress/affiliate";
 import { AliExpressClient } from "@/lib/aliexpress/client";
+import { RESULTS_PER_PAGE } from "@/lib/config/site";
 import type { LlmProvider } from "@/lib/llm/provider";
+import { SHOP_CAP_MODES, type ShopCapMode } from "@/lib/ranking/config";
 import { normalizeQuery, queryKey } from "@/lib/search/cache-key";
 import { runSearch } from "@/lib/search/pipeline";
 import { MemoryStore } from "@/lib/search/store";
 import { loadSnapshots, SNAPSHOT_DIR } from "./files";
 import { CURRENT_POLICY } from "./policies";
-import { rankLikePipeline, replayFetch } from "./replay";
+import { pipelineRankFor, rankLikePipeline, replayFetch } from "./replay";
 import type { Snapshot } from "./snapshot";
 
 const NOW = new Date("2026-09-28T12:00:00Z");
@@ -46,7 +48,7 @@ const ali = new AliExpressClient(
 
 const label = (keywords: string, pageNo: number) => `${keywords} (p${pageNo})`;
 
-async function runPipeline(snap: Snapshot) {
+async function runPipeline(snap: Snapshot, shopCap: ShopCapMode) {
   const made: string[] = [];
   vi.mocked(queryProducts).mockImplementation(async (_client, q) => {
     const pageNo = q.pageNo ?? 1;
@@ -80,7 +82,7 @@ async function runPipeline(snap: Snapshot) {
   try {
     const outcome = await runSearch(
       { q: snap.query },
-      { llm, ali, store, now: () => NOW, sleep: async () => {}, aliSpacingMs: 0 },
+      { llm, ali, store, now: () => NOW, sleep: async () => {}, aliSpacingMs: 0, shopCap },
     );
     const cached = store.results.get(outcome.response.filters_key ?? "");
     return { made, outcome, kept: cached?.products.map((p) => p.productId) ?? null };
@@ -92,16 +94,16 @@ async function runPipeline(snap: Snapshot) {
 const snapshots = existsSync(SNAPSHOT_DIR) ? loadSnapshots().filter((s) => !s.sameQueryAs) : [];
 
 describe.skipIf(!snapshots.length)("replay parity with lib/search/pipeline.ts", () => {
-  it.each(snapshots.map((s) => [s.id, s] as const))(
-    "%s: same calls, pool and results",
-    async (_id, snap) => {
+  it.each(snapshots.flatMap((s) => SHOP_CAP_MODES.map((mode) => [s.id, mode, s] as const)))(
+    "%s (shop cap %s): same calls, pool and results",
+    async (_id, mode, snap) => {
       const filters = snap.parse.parsed;
       const replay = replayFetch(snap, filters, CURRENT_POLICY);
       const wanted = [
         ...replay.calls.map((c) => label(c.keywords, c.pageNo)),
         ...(replay.missing ? [label(replay.missing.keywords, replay.missing.pageNo)] : []),
       ];
-      const live = await runPipeline(snap);
+      const live = await runPipeline(snap, mode);
       if (replay.missing) {
         // The pipeline asked for the call the snapshot lacks, right where the replay stopped.
         expect(live.made.slice(0, wanted.length)).toEqual(wanted);
@@ -109,15 +111,15 @@ describe.skipIf(!snapshots.length)("replay parity with lib/search/pipeline.ts", 
       }
       expect(live.error).toBeUndefined();
       expect(live.made).toEqual(wanted);
-      const ranking = rankLikePipeline(replay.pool, filters);
+      const ranking = rankLikePipeline(replay.pool, filters, pipelineRankFor(mode));
       const response = live.outcome!.response;
       expect(response.checked_count).toBe(replay.pool.length);
       expect(response.passed_count).toBe(ranking.passed);
       expect(live.kept).toEqual(ranking.kept.map((p) => p.productId));
       expect(response.results.map((r) => r.product_id)).toEqual(
-        ranking.kept.slice(0, 3).map((p) => p.productId),
+        ranking.kept.slice(0, RESULTS_PER_PAGE).map((p) => p.productId),
       );
-      expect(response.more_available).toBe(ranking.kept.length > 3);
+      expect(response.more_available).toBe(ranking.kept.length > RESULTS_PER_PAGE);
     },
   );
 });

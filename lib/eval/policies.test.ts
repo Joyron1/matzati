@@ -103,10 +103,10 @@ describe("CURRENT_POLICY (nextFetch in lib/search/fetch-policy.ts)", () => {
   });
 
   it("skips page 2 when page 1's fewest sales are under the trust bar", () => {
-    // 3 pass, so the bar is FILTERS' 100 sales; page 1 ends at 50, so page 2 cannot pass.
+    // A page (5) passes, so the bar is FILTERS' 100 sales; page 1 ends at 50, so page 2 cannot pass.
     const page1 = [
-      ...times(3, () => good()),
-      ...times(45, () => offType()),
+      ...times(5, () => good()),
+      ...times(43, () => offType()),
       good({ unitsSold: 50 }),
     ];
     expect(steps(CURRENT_POLICY, [p1(page1), p2(), l1(), l2()]).steps).toEqual([

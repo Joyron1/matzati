@@ -17,6 +17,7 @@ const m = vi.hoisted(() => ({
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/admin/auth", () => ({ getAdminUser: m.getAdminUser }));
+vi.mock("@/lib/settings/queries", () => ({ shopCapMode: async () => "none" }));
 vi.mock("next/server", () => ({ after: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ serviceClient: () => ({}) }));
 vi.mock("@/lib/guard/rate-limit", () => ({

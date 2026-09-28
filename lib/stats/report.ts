@@ -21,7 +21,7 @@ export interface DailyStats {
   zeroResults: number;
   /** examplePreview runs (SEO pages; older rows also the home page example); not searches. */
   previews: number;
-  /** "עוד 3 אפשרויות" pages served. */
+  /** "עוד N אפשרויות" pages served. */
   moreLoads: number;
   clicks: number;
   llmCalls: number;
@@ -95,13 +95,16 @@ export interface OriginStats {
 export interface FailureStats {
   failure: string;
   failures: number;
-  /** Of those, visitor searches (the rest are "עוד 3 אפשרויות" and SEO page runs). */
+  /** Of those, visitor searches (the rest are "עוד N אפשרויות" and SEO page runs). */
   searches: number;
   lastSeen: string;
 }
 
-/** Result-card positions: 1 (featured), 2-3, and 4 and up ("עוד 3 אפשרויות"). */
-export const CLICK_POSITION_GROUPS = ["featured", "top3", "more"] as const;
+/**
+ * Result-card positions (stats_click_positions, 20260928230000_five_results.sql): 1 (featured),
+ * the rest of the first page (2 to RESULTS_PER_PAGE), and the pages of "עוד N אפשרויות" after it.
+ */
+export const CLICK_POSITION_GROUPS = ["featured", "first_page", "more"] as const;
 export type ClickPositionGroup = (typeof CLICK_POSITION_GROUPS)[number];
 
 export interface ClickPositionStats {

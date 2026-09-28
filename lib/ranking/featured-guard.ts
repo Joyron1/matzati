@@ -3,6 +3,7 @@
 // lib/llm/explain.ts asks it to), and code moves that result out of the first page. The model
 // only marks; the code decides. Pure: no I/O.
 import type { AliProduct } from "@/lib/aliexpress/schemas";
+import type { ShopCapMode } from "./config";
 import { diversifyShops } from "./diversity";
 
 /** How EXPLAIN_SYSTEM tells the model to open the line of a partial fit. */
@@ -30,10 +31,11 @@ export function explanationSaysNotProduct(whyHe: string, productHe: string): boo
 }
 
 /**
- * Moves every first-page product whose explanation says it is not the searched product
- * (explanationSaysNotProduct) to the end of the list, so the next ones move up. The rest keeps
- * the ranking's order under the same shop cap (diversifyShops), and nothing is dropped.
- * `demoted` lists the moved ids (empty: the order is unchanged).
+ * Moves every first-page product (the first `pageSize`) whose explanation says it is not the
+ * searched product (explanationSaysNotProduct) to the end of the list, so the next ones move up.
+ * The rest keeps the ranking's order under the same shop cap (diversifyShops with `shopCap`, the
+ * mode the list was ranked under), and nothing is dropped. `demoted` lists the moved ids (empty:
+ * the order is unchanged).
  *
  * For the pipeline: call it on the ranked list (rankWithFill) after explaining the first page,
  * with the same `productHe` the explanations were written for. A product that moves up into the
@@ -45,6 +47,7 @@ export function demoteFlaggedLeads<T extends { productId: string } & Pick<AliPro
   explanations: Readonly<Record<string, { why_he: string } | undefined>>,
   productHe: string,
   pageSize: number,
+  shopCap: ShopCapMode,
 ): { ranked: T[]; demoted: string[] } {
   const flagged = new Set(
     ranked
@@ -61,6 +64,7 @@ export function demoteFlaggedLeads<T extends { productId: string } & Pick<AliPro
       ...diversifyShops(
         ranked.filter((p) => !flagged.has(p.productId)),
         pageSize,
+        shopCap,
       ),
       ...ranked.filter((p) => flagged.has(p.productId)),
     ],

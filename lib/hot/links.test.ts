@@ -11,6 +11,7 @@ import {
   type AliProduct,
   type AliPromotionLink,
 } from "@/lib/aliexpress/schemas";
+import { SHOP_CAP_MODES } from "@/lib/ranking/config";
 import { rankWithFill } from "@/lib/ranking/rank";
 import type { SearchFilters } from "@/lib/search/filters";
 import {
@@ -342,16 +343,18 @@ describe("the hot rate never changes what is shown or in what order", () => {
         hotCommissionRatePct: 15,
       }),
     ];
-    for (const list of [query, tied]) {
-      const base = rankWithFill(list, filters, 3);
-      expect(base.ranked.length).toBeGreaterThan(0);
-      for (const variant of variants(list)) {
-        const ranked = rankWithFill(variant, filters, 3);
-        expect(ids(ranked.ranked)).toEqual(ids(base.ranked));
-        expect(ranked.fillIds).toEqual(base.fillIds);
+    for (const mode of SHOP_CAP_MODES) {
+      for (const list of [query, tied]) {
+        const base = rankWithFill(list, filters, 3, mode);
+        expect(base.ranked.length).toBeGreaterThan(0);
+        for (const variant of variants(list)) {
+          const ranked = rankWithFill(variant, filters, 3, mode);
+          expect(ids(ranked.ranked)).toEqual(ids(base.ranked));
+          expect(ranked.fillIds).toEqual(base.fillIds);
+        }
       }
     }
     // t2 pays the higher hot rate, yet the tie is still broken by id.
-    expect(ids(rankWithFill(tied, filters, 3).ranked)[0]).toBe("t1");
+    expect(ids(rankWithFill(tied, filters, 3, "none").ranked)[0]).toBe("t1");
   });
 });

@@ -348,6 +348,64 @@ describe("SupabaseStore", () => {
     });
   });
 
+  describe("reads that only look (/p's similar products)", () => {
+    it("peekParse and peekResults find what getParse and getResults find, and write nothing", async () => {
+      const db = new FakeDb();
+      const store = new SupabaseStore(db.client());
+      const r = results(new Date().toISOString());
+      await store.putParse("qk", "כבל usb", PARSED);
+      await store.putResults("fk", "q", r);
+      const writes = db.calls.length;
+      expect(await store.peekParse("qk", new Date())).toEqual(PARSED);
+      expect(await store.peekResults("fk", new Date())).toEqual(r);
+      expect(await store.peekParse("other", new Date())).toBeNull();
+      expect(await store.peekResults("other", new Date())).toBeNull();
+      await flush();
+      expect(db.calls.slice(writes).every((c) => c.op === "select")).toBe(true);
+      expect(db.rows("parse_cache")[0].hits).toBe(0);
+      expect(db.rows("search_cache")[0].hits).toBe(0);
+    });
+
+    it("peekResults misses a stale entry like getResults", async () => {
+      const db = new FakeDb();
+      const store = new SupabaseStore(db.client());
+      await store.putResults("old", "q", results("2026-09-01T10:00:00.000Z"));
+      expect(await store.peekResults("old", new Date("2026-09-27T10:00:00Z"))).toBeNull();
+    });
+
+    it("outside production reads its own key, then production's, and writes to neither", async () => {
+      const db = new FakeDb();
+      await new SupabaseStore(db.client(), { env: "production" }).putParse("qk", "q", PARSED);
+      const dev = new SupabaseStore(db.client(), { env: "development" });
+      const writes = db.calls.length;
+      expect(await dev.peekParse("qk", new Date())).toEqual(PARSED);
+      await flush();
+      expect(db.calls.slice(writes).map((c) => c.op)).toEqual(["select", "select"]);
+    });
+
+    it("storedTitles names the products that have a row, with our Hebrew title or null", async () => {
+      const db = new FakeDb();
+      db.rows("products").push(
+        { product_id: "1", title_he: "כבל טעינה" },
+        { product_id: "2", title_he: null },
+        { product_id: "3", title_he: "  " },
+      );
+      const store = new SupabaseStore(db.client());
+      const stored = await store.storedTitles(["1", "2", "3", "4", "1"]);
+      expect(stored).toEqual(
+        new Map<string, string | null>([
+          ["1", "כבל טעינה"],
+          ["2", null],
+          ["3", null],
+        ]),
+      );
+      expect(await store.storedTitles([])).toEqual(new Map());
+      db.failing.add("products:select");
+      expect(await store.storedTitles(["1"])).toBeNull();
+      expect(db.calls.every((c) => c.op === "select")).toBe(true);
+    });
+  });
+
   it("logs a search without any IP or user data", async () => {
     const db = new FakeDb();
     const store = new SupabaseStore(db.client());

@@ -177,7 +177,7 @@ describe("ranking with shared numbers", () => {
   it("marks the passers of a shop that shares numbers, without changing the input", () => {
     const listings = shop();
     const other = product({ shopId: "o", positiveFeedbackPct: 99 });
-    const { ranked } = rankWithFill([...listings, other], filters(), 3);
+    const { ranked } = rankWithFill([...listings, other], filters(), 3, "none");
     for (const p of ranked) expect(hasSharedNumbers(p)).toBe(p.shop.id === "s");
     expect(listings.some(hasSharedNumbers)).toBe(false);
     expect(ranked.filter(hasSharedNumbers).length).toBeGreaterThan(0);
@@ -187,7 +187,7 @@ describe("ranking with shared numbers", () => {
     // Four of the shop's listings fail the price filter; the fifth still carries their number.
     const [kept, ...rest] = shop();
     const pool = [kept, ...rest.map((p) => ({ ...p, price: 500 })), product({ shopId: "o" })];
-    const { ranked } = rankWithFill(pool, filters({ max_price_ils: 100 }), 3);
+    const { ranked } = rankWithFill(pool, filters({ max_price_ils: 100 }), 3, "none");
     expect(ranked.find((p) => p.productId === kept.productId)?.sharedNumbers).toEqual({
       feedback: true,
       sales: false,

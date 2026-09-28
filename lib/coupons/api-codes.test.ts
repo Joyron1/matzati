@@ -83,6 +83,9 @@ describe("toApiCodeProducts", () => {
       titleIsHebrew: true,
       machineTranslated: true,
     });
+    // Its known transliterated loan words are fixed, as on the hot cards and /p.
+    const [loan] = toApiCodeProducts([row({ title_he: null, title: "מחזיק וויירלס לרכב" })], NOW);
+    expect(loan).toMatchObject({ title: "מחזיק בחיבור אלחוטי לרכב", machineTranslated: true });
   });
 
   it("shows a code only while valid by both of its dates (as on /p)", () => {

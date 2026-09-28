@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AliProduct } from "@/lib/aliexpress/schemas";
+import { RESULTS_PER_PAGE } from "@/lib/config/site";
 import {
   keywordLadder,
   keywordSteps,
@@ -7,6 +8,7 @@ import {
   MAX_ALI_CALLS,
   nextFetch,
   REQUIREMENT_STOP_CHECKED,
+  TARGET_PASSED,
   type FetchedPage,
 } from "./fetch-policy";
 import type { ParsedQuery } from "./filters";
@@ -139,16 +141,27 @@ describe("nextFetch", () => {
     expect(after([])).toEqual({ step: { keywords: P, pageNo: 1 } });
   });
 
-  it("stops once 6 pass, and after MAX_ALI_CALLS calls", () => {
+  it("stops once two pages pass (TARGET_PASSED), and after MAX_ALI_CALLS calls", () => {
+    expect(TARGET_PASSED).toBe(2 * RESULTS_PER_PAGE);
     expect(
       after([
         call(
           P,
           1,
-          times(7, () => good()),
+          times(TARGET_PASSED, () => good()),
         ),
       ]),
     ).toEqual({ stop: "enough" });
+    // One short of it: page 2.
+    expect(
+      after([
+        call(
+          P,
+          1,
+          times(TARGET_PASSED - 1, () => good()),
+        ),
+      ]),
+    ).toEqual({ step: { keywords: P, pageNo: 2 } });
     const three = [
       call(P, 1, [offType()]),
       call(P, 2, [offType()]),
@@ -177,16 +190,16 @@ describe("nextFetch", () => {
     expect(after([call(P, 1, fillable)])).toEqual({
       step: { keywords: "water bottle", pageNo: 1 },
     });
-    // With a page passing, the bar is FILTERS' 100 sales.
-    const three = [
-      ...times(3, () => good()),
-      ...times(45, () => offType()),
+    // With a page (RESULTS_PER_PAGE) passing, the bar is FILTERS' 100 sales.
+    const page = [
+      ...times(RESULTS_PER_PAGE, () => good()),
+      ...times(48 - RESULTS_PER_PAGE, () => offType()),
       good({ unitsSold: 99 }),
     ];
-    expect(after([call(P, 1, three)])).toEqual(noMore);
+    expect(after([call(P, 1, page)])).toEqual(noMore);
     const enough = [
-      ...times(3, () => good()),
-      ...times(45, () => offType()),
+      ...times(RESULTS_PER_PAGE, () => good()),
+      ...times(48 - RESULTS_PER_PAGE, () => offType()),
       good({ unitsSold: 100 }),
     ];
     expect(after([call(P, 1, enough)])).toEqual({ step: { keywords: P, pageNo: 2 } });

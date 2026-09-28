@@ -3,6 +3,7 @@
 // fetched in the background, and stays when that fetch fails. Filtering and sorting happen on the
 // cached lists, so no visitor action costs an API call.
 import "server-only";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { unstable_cache } from "next/cache";
 import { AliExpressClient } from "@/lib/aliexpress/client";
 import { STALE_RESULTS_HOURS } from "@/lib/config/site";
@@ -39,8 +40,15 @@ export const CAROUSEL_SIZE = 16;
  */
 export const CAROUSEL_MAX_AGE_MS = STALE_RESULTS_HOURS * 3_600_000;
 
+/**
+ * Set while cachedHotPool reads: the loader then starts no fetch, whether the cache has no entry
+ * or unstable_cache revalidates a stale one in the background (that run starts inside this
+ * context). The cached function's source stays as it was, so its cache key does too.
+ */
+const readOnly = new AsyncLocalStorage<true>();
+
 // One loader per server instance: concurrent cold views share one call (lib/hot/loader.ts).
-const loader = new HotPoolLoader();
+const loader = new HotPoolLoader({ mayFetch: () => readOnly.getStore() !== true });
 
 /**
  * The link fields of the stored rows among `productIds` (at most one list, 50 ids), read only when
@@ -110,6 +118,26 @@ export async function loadHotPool(category: HotCategoryId): Promise<HotPoolResul
     if (last) return shown(last);
     return { ok: false, reason: err instanceof HotPoolError ? err.reason : "failed" };
   }
+}
+
+/**
+ * One category's list as /hot would show it, only when it is already there: never an AliExpress
+ * call (/p's similar products, lib/similar/load.ts). The list this instance last served while it
+ * is younger than HOT_LIST_TTL_MS (or while the loader waits after a failure), otherwise the cached
+ * list read with every fetch refused: a missing entry gives null, and a stale one is returned as
+ * it is while its background refresh is refused (Next logs that refusal). Never throws.
+ */
+export async function cachedHotPool(
+  category: HotCategoryId,
+  now = Date.now(),
+): Promise<HotPool | null> {
+  const last = served.get(category);
+  const lastIsFresh = last !== undefined && now - Date.parse(last.fetchedAt) < HOT_LIST_TTL_MS;
+  const res =
+    last && (lastIsFresh || loader.isWaiting(category))
+      ? shown(last)
+      : await readOnly.run(true, () => loadHotPool(category));
+  return res.ok ? res.pool : null;
 }
 
 export type HotMixResult = { ok: true; pools: HotPool[] } | { ok: false; reason: HotPoolFailure };

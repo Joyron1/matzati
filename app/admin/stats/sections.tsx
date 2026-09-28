@@ -34,6 +34,7 @@ import {
   type ZeroResultQuery,
 } from "@/lib/stats/report";
 import { DataTable, LOAD_FAILED, Notice, Row, RowTh, Section, Td, Th } from "./ui";
+import { RESULTS_PER_PAGE } from "@/lib/config/site";
 
 const ils = (usd: number, fx: UsdIlsRate) => `≈${formatIlsAmount(usdToIls(usd, fx.rate))}`;
 
@@ -95,8 +96,8 @@ function BudgetTile({ counter, cap }: { counter: number | null; cap: number | nu
         <p>התקציב נוצל, ותוצאות מהמטמון עדיין מוצגות. בקשות שנדחו מאז: {formatCount(b.refused)}.</p>
       ) : (
         <p>
-          נוצלו {formatShare(b.share)}. יחידה אחת היא חיפוש חדש, הסבר ל״עוד 3 אפשרויות״ או טיפים
-          לקטגוריה אחת.
+          נוצלו {formatShare(b.share)}. יחידה אחת היא חיפוש חדש, הסבר ל״עוד {RESULTS_PER_PAGE}{" "}
+          אפשרויות״ או טיפים לקטגוריה אחת.
         </p>
       )}
     </Tile>
@@ -176,7 +177,7 @@ export function DailyTable({
       description={
         // "preview" rows come from examplePreview: the SEO landing pages (lib/seo/page-view.ts).
         // Not a visitor's search. Failed and shared requests have their own tables below.
-        `חיפושים של מבקרים, כולל הסרת סינון ושינוי מיון. לא נספרו כחיפושים: תוצאות בעמודי SEO (${formatCount(t.previews)}), טעינות של ״עוד 3 אפשרויות״ (${formatCount(t.moreLoads)}), חיפושים שנכשלו ובקשה כפולה שקיבלה את התוצאות של חיפוש זהה שרץ באותו רגע. קליקים נספרים מכל העמודים, ולכן אחוז ההקלקה יכול לעבור את 100%.`
+        `חיפושים של מבקרים, כולל הסרת סינון ושינוי מיון. לא נספרו כחיפושים: תוצאות בעמודי SEO (${formatCount(t.previews)}), טעינות של ״עוד ${RESULTS_PER_PAGE} אפשרויות״ (${formatCount(t.moreLoads)}), חיפושים שנכשלו ובקשה כפולה שקיבלה את התוצאות של חיפוש זהה שרץ באותו רגע. קליקים נספרים מכל העמודים, ולכן אחוז ההקלקה יכול לעבור את 100%.`
       }
     >
       <DataTable
@@ -376,7 +377,7 @@ export function FailuresTable({ rows }: { rows: FailureStats[] | null }) {
     <Section
       id={id}
       title={title}
-      description="חיפושים וטעינות של ״עוד 3 אפשרויות״ שהמבקרים קיבלו עליהם הודעת שגיאה, לפי הסיבה. בקשות שנחסמו במגבלת החיפושים לא נרשמות."
+      description={`חיפושים וטעינות של ״עוד ${RESULTS_PER_PAGE} אפשרויות״ שהמבקרים קיבלו עליהם הודעת שגיאה, לפי הסיבה. בקשות שנחסמו במגבלת החיפושים לא נרשמות.`}
     >
       {!rows ? (
         <Notice>{LOAD_FAILED}</Notice>
@@ -423,7 +424,7 @@ export function ClickPositionsTable({ rows }: { rows: ClickPositionStats[] | nul
     <Section
       id={id}
       title={title}
-      description="קליקים על כפתורי הקנייה בכרטיסי התוצאות של חיפושים באתר (לא בעמודי SEO), לפי מקום הכרטיס. אם לוחצים על מקומות 2 ו־3 יותר מאשר על הראשי, כנראה שהסדר צריך תיקון."
+      description={`קליקים על כפתורי הקנייה בכרטיסי התוצאות של חיפושים באתר (לא בעמודי SEO), לפי מקום הכרטיס. אם לוחצים על מקומות 2 עד ${RESULTS_PER_PAGE} יותר מאשר על הראשי, כנראה שהסדר צריך תיקון.`}
     >
       {!rows ? (
         <Notice>{LOAD_FAILED}</Notice>

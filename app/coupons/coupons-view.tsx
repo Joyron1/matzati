@@ -13,6 +13,7 @@ import { formatIsraelTime } from "@/lib/coupons/display";
 import type { PublicCoupons } from "@/lib/coupons/queries";
 import { formatShortDate } from "@/lib/format";
 import { HOT_TITLES_NOTE, SOME_TITLES_NOTE } from "@/lib/hot/copy";
+import { RESULTS_PER_PAGE } from "@/lib/config/site";
 
 export const COUPONS_TITLE = "קופונים לאלי אקספרס";
 
@@ -32,8 +33,8 @@ function OwnerCoupons({ coupons, now }: { coupons: PublicCoupons | null; now: Da
     return (
       <StateCard Icon={Inbox} title="אין כרגע קופונים פעילים">
         <p className="max-w-md leading-relaxed text-muted">
-          כשנוסיף קופונים הם יופיעו כאן. בינתיים כתבו בחיפוש מה אתם צריכים, ונציג 3 מוצרים שעברו את
-          הסינון.
+          כשנוסיף קופונים הם יופיעו כאן. בינתיים כתבו בחיפוש מה אתם צריכים, ונציג {RESULTS_PER_PAGE}{" "}
+          מוצרים שעברו את הסינון.
         </p>
         <Link href="/" className={`${btnSecondary} ${btnMd}`}>
           <Search aria-hidden className="size-4" />

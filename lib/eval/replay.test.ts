@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { RESULTS_KEPT, RESULTS_PER_PAGE } from "@/lib/config/site";
 import { buildLabelBook, type LabelBook } from "./labels";
 import { ALL_CAPTURED, CURRENT_POLICY } from "./policies";
 import {
@@ -22,22 +23,30 @@ const ranked = (n: number) =>
 
 describe("evaluateQuery", () => {
   it("reports the calls, the pool, what passed and the first two pages", () => {
-    const top = ranked(7);
+    // Two pages and more pass on page 1 (TARGET_PASSED), so the policy stops there.
+    const top = ranked(12);
     const snap = snapshot([call("primary-p1", BOTTLE.keywords_en, 1, [...top, offType()])]);
     const r = evaluateQuery(snap, noLabels, current);
     expect(r.fetch).toEqual({ steps: ["primary-p1"], calls: 1, missing: null });
-    expect(r).toMatchObject({ checked: 8, passed: 7, fill: 0, shown: 3, moreAvailable: true });
-    expect(r.top3.map((l) => l.id)).toEqual(top.slice(0, 3).map((p) => p.productId));
-    expect(r.next3.map((l) => l.id)).toEqual(top.slice(3, 6).map((p) => p.productId));
+    expect(r).toMatchObject({
+      checked: 13,
+      passed: 12,
+      fill: 0,
+      shown: RESULTS_PER_PAGE,
+      moreAvailable: true,
+    });
+    const page = (n: number) => top.slice(n * RESULTS_PER_PAGE, (n + 1) * RESULTS_PER_PAGE);
+    expect(r.top3.map((l) => l.id)).toEqual(page(0).map((p) => p.productId));
+    expect(r.next3.map((l) => l.id)).toEqual(page(1).map((p) => p.productId));
     expect(r.rejected.type).toBe(1);
     expect(r.labels).toBeNull();
     expect(r.budgetShare).toBeNull();
   });
 
   it("says there is no more when exactly one page passed", () => {
-    const snap = snapshot([call("primary-p1", BOTTLE.keywords_en, 1, ranked(3))]);
+    const snap = snapshot([call("primary-p1", BOTTLE.keywords_en, 1, ranked(RESULTS_PER_PAGE))]);
     expect(evaluateQuery(snap, noLabels, current)).toMatchObject({
-      passed: 3,
+      passed: RESULTS_PER_PAGE,
       moreAvailable: false,
     });
   });
@@ -63,7 +72,8 @@ describe("evaluateQuery", () => {
       },
     ]);
     const r = evaluateQuery(snap, book, current);
-    expect(r.top3.map((l) => l.label)).toEqual(["exact", "wrong", "reasonable"]);
+    // The first page shows all four passers; d has no label.
+    expect(r.top3.map((l) => l.label)).toEqual(["exact", "wrong", "reasonable", null]);
     expect(r.labels).toEqual({
       count: 6,
       leadCorrect: true,
@@ -116,8 +126,9 @@ describe("evaluateQuery", () => {
   });
 
   it("the whole-pool policy checks every captured product", () => {
+    // Page 1 alone passes TARGET_PASSED (10), so the live policy stops there.
     const snap = snapshot([
-      call("primary-p1", BOTTLE.keywords_en, 1, ranked(7)),
+      call("primary-p1", BOTTLE.keywords_en, 1, ranked(10)),
       call(
         "primary-p2",
         BOTTLE.keywords_en,
@@ -126,8 +137,18 @@ describe("evaluateQuery", () => {
       ),
     ]);
     const r = evaluateQuery(snap, noLabels, { name: "all", policy: ALL_CAPTURED });
-    expect(r).toMatchObject({ checked: 12, snapshotPool: 12 });
-    expect(evaluateQuery(snap, noLabels, current).checked).toBe(7);
+    expect(r).toMatchObject({ checked: 15, snapshotPool: 15 });
+    expect(evaluateQuery(snap, noLabels, current).checked).toBe(10);
+  });
+
+  it("ranks under the variant's shop cap mode", () => {
+    const shop = { id: "one-shop", name: null, url: null };
+    // Seven of one shop lead, then three of others.
+    const all = ranked(10);
+    const pool = [...all.slice(0, 7).map((p) => ({ ...p, shop })), ...all.slice(7)];
+    const snap = snapshot([call("primary-p1", BOTTLE.keywords_en, 1, pool)]);
+    expect(evaluateQuery(snap, noLabels, { ...current, shopCap: "none" }).sameShopTop3).toBe(5);
+    expect(evaluateQuery(snap, noLabels, { ...current, shopCap: "max2" }).sameShopTop3).toBe(2);
   });
 });
 
@@ -150,10 +171,11 @@ describe("filtersFor", () => {
 });
 
 describe("rankLikePipeline", () => {
-  it("keeps at most 12 products and counts every passer", () => {
-    const r = rankLikePipeline(ranked(14), BOTTLE);
-    expect(r.kept).toHaveLength(12);
-    expect(r.passed).toBe(14);
+  it("keeps at most RESULTS_KEPT (15) products and counts every passer", () => {
+    const r = rankLikePipeline(ranked(17), BOTTLE);
+    expect(r.kept).toHaveLength(RESULTS_KEPT);
+    expect(RESULTS_KEPT).toBe(15);
+    expect(r.passed).toBe(17);
   });
 });
 

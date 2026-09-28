@@ -39,20 +39,35 @@
   transition-delay: 0s !important;
 }
 
-/* ---- Progress bar: one long ease toward the cap (its width), never full. ---- */
+/*
+ * ---- Progress bar: two layers from the same edge, so it shows the larger. One long ease toward the
+ * cap (its width), never full, and a floor each real stage of the search raises it to. ----
+ */
 
-.bar {
-  height: 100%;
+.bar,
+.floor {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
   border-radius: inherit;
   background: var(--accent);
   transform-origin: right center;
-  /* Duration, curve and start offset come from schedule.ts (PROGRESS_EASE). */
+}
+
+:global([dir="ltr"]) .bar,
+:global([dir="ltr"]) .floor {
+  transform-origin: left center;
+}
+
+.bar {
+  /* Duration, curve and start come from schedule.ts (PROGRESS_EASE). */
   animation-name: bar-ease;
   animation-fill-mode: both;
 }
 
-:global([dir="ltr"]) .bar {
-  transform-origin: left center;
+.floor {
+  width: 100%;
+  transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 @keyframes bar-ease {
@@ -386,14 +401,8 @@
   transform: translate(700px, 244px);
 }
 
-.toA {
-  animation-name: card-to-a;
-}
-.toB {
-  animation-name: card-to-b;
-}
-.toC {
-  animation-name: card-to-c;
+.toSlot {
+  animation-name: card-to-slot;
 }
 .toFail {
   animation-name: card-fail;
@@ -402,10 +411,10 @@
 /*
  * One cycle: 0-30% locked to the belt (x 700 to 420, the belt's own speed), eased into the
  * magnifier and lifted by 30-36%, 36-46% under it (the verdict pops at 39-43%), then a check flies
- * up to its slot by 57% (CARD_LANDS) and fades there, or a cross drops away by 52%, before the next
+ * up to its slot (--to-x, --to-y) by 57% (CARD_LANDS) and fades there, or a cross drops away by 52%, before the next
  * card arrives. The keyframe shares match scene-timing.ts.
  */
-@keyframes card-to-a {
+@keyframes card-to-slot {
   0% {
     opacity: 0;
     transform: translate(700px, 244px) scale(0.92);
@@ -424,68 +433,12 @@
   }
   57% {
     opacity: 1;
-    transform: translate(205px, 101px) scale(0.5);
+    transform: translate(var(--to-x), var(--to-y)) scale(0.5);
   }
   60%,
   100% {
     opacity: 0;
-    transform: translate(205px, 101px) scale(0.5);
-  }
-}
-
-@keyframes card-to-b {
-  0% {
-    opacity: 0;
-    transform: translate(700px, 244px) scale(0.92);
-  }
-  5% {
-    opacity: 1;
-  }
-  30% {
-    transform: translate(420px, 244px) scale(1);
-    animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1);
-  }
-  36%,
-  46% {
-    transform: translate(360px, 236px) scale(1.14);
-    animation-timing-function: cubic-bezier(0.5, 0, 0.2, 1);
-  }
-  57% {
-    opacity: 1;
-    transform: translate(83px, 61px) scale(0.5);
-  }
-  60%,
-  100% {
-    opacity: 0;
-    transform: translate(83px, 61px) scale(0.5);
-  }
-}
-
-@keyframes card-to-c {
-  0% {
-    opacity: 0;
-    transform: translate(700px, 244px) scale(0.92);
-  }
-  5% {
-    opacity: 1;
-  }
-  30% {
-    transform: translate(420px, 244px) scale(1);
-    animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1);
-  }
-  36%,
-  46% {
-    transform: translate(360px, 236px) scale(1.14);
-    animation-timing-function: cubic-bezier(0.5, 0, 0.2, 1);
-  }
-  57% {
-    opacity: 1;
-    transform: translate(83px, 141px) scale(0.5);
-  }
-  60%,
-  100% {
-    opacity: 0;
-    transform: translate(83px, 141px) scale(0.45);
+    transform: translate(var(--to-x), var(--to-y)) scale(var(--to-k, 0.5));
   }
 }
 
@@ -715,8 +668,8 @@
 }
 
 /*
- * ---- Result slots: numbered 1-3 from the start; the featured and the second fill as their card
- * lands (on the stream's clock), the third shows a pending draft from "prepare" on. ----
+ * ---- Result slots: numbered from the start; every slot but the last fills as its card lands (on
+ * the stream's clock), the last shows a pending draft once the lines are being written. ----
  */
 
 .slotEmpty {
@@ -738,7 +691,7 @@
   transition: opacity 0.6s ease;
 }
 
-.s4 .num3 {
+.s4 .numLast {
   opacity: 0;
 }
 
@@ -814,8 +767,8 @@
   opacity: 1;
 }
 
-/* The last pick stays pending: its outline breathes and a wide, soft band passes, then rests. */
-.s4 .slotC {
+/* The last slot stays pending: its outline breathes and a wide, soft band passes, then rests. */
+.s4 .slotLast {
   animation: pending 1.6s ease-in-out infinite;
 }
 

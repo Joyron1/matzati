@@ -1,5 +1,6 @@
 // Plain-text tables for scripts/eval-offline.ts. Ids and numbers only: the Hebrew queries are in the
 // JSON report, since mixed-direction text breaks column alignment in a terminal.
+import { RESULTS_PER_PAGE } from "@/lib/config/site";
 import { labelLetter } from "./labels";
 import type { Comparison, EvalRun } from "./report";
 import { totalsOf } from "./report";
@@ -49,7 +50,7 @@ export function formatRun(run: EvalRun): string {
     ["chk", 4, "r"],
     ["pass", 4, "r"],
     ["fill", 4, "r"],
-    ["top3", 4],
+    ["page1", Math.max(5, RESULTS_PER_PAGE)],
     ["lead", 4],
     ["shop", 4, "r"],
     ["more", 4],
@@ -81,6 +82,8 @@ export function formatRun(run: EvalRun): string {
     v.without.length ? `without ${v.without.join(",")}` : "",
     v.adjustedParse ? "adjusted parse" : "",
     v.rank === "custom" ? "custom ranking" : "",
+    v.shopCap ? `shop cap ${v.shopCap}` : "",
+    v.pageSize ? `${v.pageSize} per page` : "",
   ].filter(Boolean);
   const title = `== ${v.name}: ${v.policyDescription}${extras.length ? ` (${extras.join("; ")})` : ""}`;
   return [title, table(header, rows), "", formatTotals(run)].join("\n");
@@ -95,16 +98,17 @@ export function formatTotals(run: EvalRun): string {
   const lists: [string, string[]][] = [
     ["incomplete", s.incomplete],
     ["no results", s.noResults],
-    ["1-2 results", s.underOnePage],
-    ["exactly 3", s.exactlyOnePage],
+    ["under one page", s.underOnePage],
+    ["exactly one page", s.exactlyOnePage],
     ["2+ same shop", s.sameShopTop3],
+    ["3+ same shop", s.sameShop3Plus ?? []],
     ["errors", s.errors],
   ];
   for (const [name, ids] of lists) if (ids.length) lines.push(`  ${name}: ${ids.join(", ")}`);
   if (s.labels.queries) {
     lines.push(
       `  labels: ${s.labels.queries} queries, ${s.labels.cardsLabelled} of ${s.labels.cardsShown} shown cards labelled, ` +
-        `${s.labels.unlabelledTop6} top-6 products unlabelled` +
+        `${s.labels.unlabelledTop6} products of the first two pages unlabelled` +
         (s.labels.unknownIds ? `, ${s.labels.unknownIds} labelled ids not in their snapshot` : ""),
     );
   } else {

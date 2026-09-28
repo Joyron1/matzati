@@ -7,7 +7,7 @@ import { RESULTS_PER_PAGE } from "@/lib/config/site";
 import { snapshotFiles } from "@/lib/eval/files";
 import { parseLabelFile, type Label } from "@/lib/eval/labels";
 import { distinctProducts, parseSnapshot, type Snapshot } from "@/lib/eval/snapshot";
-import { SHARED_NUMBERS } from "./config";
+import { SHARED_NUMBERS, SHOP_CAP_MODES, type ShopCapMode } from "./config";
 import { findSharedNumbers, hasSharedNumbers, rankProducts, rankWithFill } from "./rank";
 import { markIn } from "./shared-numbers";
 
@@ -31,39 +31,52 @@ function load(id: string): { snap: Snapshot; pool: AliProduct[]; label: (p: AliP
   };
 }
 
-const shown = (pool: AliProduct[], snap: Snapshot) =>
-  rankWithFill(pool, snap.parse.parsed, RESULTS_PER_PAGE).ranked;
+/** The list a search shows, under the admin's shop cap mode (the default "none" unless given). */
+const shown = (pool: AliProduct[], snap: Snapshot, mode: ShopCapMode = "none") =>
+  rankWithFill(pool, snap.parse.parsed, RESULTS_PER_PAGE, mode).ranked;
+
+const maxPerShop = (page: AliProduct[]) =>
+  Math.max(
+    ...[...new Set(page.map((p) => p.shop.id))].map(
+      (s) => page.filter((p) => p.shop.id === s).length,
+    ),
+  );
 
 describe.skipIf(!available)("recorded cases on their snapshot pools", () => {
-  it("drawer organizer: no car tray, one product per shop, nothing wrong on the first page", () => {
+  it("drawer organizer: no car tray, at most 2 per shop under max2, nothing wrong on page 1", () => {
     const { snap, pool, label } = load("live-drawer-organizer");
-    const list = shown(pool, snap);
-    // The car tray the live site showed at #3 (plan, item 2).
-    expect(list.map((p) => p.productId)).not.toContain("1005012698650176");
-    const page = list.slice(0, RESULTS_PER_PAGE);
-    expect(new Set(page.map((p) => p.shop.id)).size).toBe(RESULTS_PER_PAGE);
-    expect(page.map(label)).not.toContain("wrong");
-    // The two listings of one shop at exactly 11,268 sales show as one product.
-    const ids = list.map((p) => p.productId);
-    expect(ids.includes("1005006995257180") && ids.includes("1005007011605676")).toBe(false);
+    for (const mode of SHOP_CAP_MODES) {
+      const list = shown(pool, snap, mode);
+      // The car tray the live site showed at #3 (plan, item 2).
+      expect(list.map((p) => p.productId)).not.toContain("1005012698650176");
+      const page = list.slice(0, RESULTS_PER_PAGE);
+      if (mode === "max2") expect(maxPerShop(page)).toBeLessThanOrEqual(2);
+      expect(page.map(label)).not.toContain("wrong");
+      // The two listings of one shop at exactly 11,268 sales show as one product.
+      const ids = list.map((p) => p.productId);
+      expect(ids.includes("1005006995257180") && ids.includes("1005007011605676")).toBe(false);
+    }
   });
 
-  it("soundbar: the shop that held the whole first page shares it, and the stand is gone", () => {
+  it("soundbar: under max2 the shop that held the whole first page shares it; no stand", () => {
     const { snap, pool } = load("live-soundbar");
     const stone = "1103573332";
-    // Before the shop cap, the score order put this shop's products in all three places.
+    // Without a shop cap, the score order puts this shop's products in every place of page 1.
     expect(
       rankProducts(pool, snap.parse.parsed)
         .slice(0, RESULTS_PER_PAGE)
         .every((p) => p.shop.id === stone),
     ).toBe(true);
-    const list = shown(pool, snap);
+    const list = shown(pool, snap, "max2");
     const page = list.slice(0, RESULTS_PER_PAGE);
     const others = new Set(list.filter((p) => p.shop.id !== stone).map((p) => p.shop.id));
     // Every other shop that passed is on the first page (here there is only one).
     expect(others.size).toBeGreaterThan(0);
     for (const shop of others) expect(page.map((p) => p.shop.id)).toContain(shop);
-    expect(list.map((p) => p.productId)).not.toContain("1005011782758504"); // soundbar stand base
+    for (const mode of SHOP_CAP_MODES) {
+      // soundbar stand base
+      expect(shown(pool, snap, mode).map((p) => p.productId)).not.toContain("1005011782758504");
+    }
   });
 
   it("garden gift: the sharpener no longer leads, and no sharpener passes", () => {
@@ -156,10 +169,12 @@ describe.skipIf(!available)("recorded cases on their snapshot pools", () => {
 
   it("neck pillow: no car headrest pillow, and the first product is a travel pillow", () => {
     const { snap, pool, label } = load("ho-neck-pillow");
-    const list = shown(pool, snap);
-    expect(list.map((p) => p.productId)).not.toContain("1005010706919284"); // "Car Seat Headrest"
-    expect(list.some((p) => /^\W*(?:\d+pcs?\s+)?(?:\w+\s+)?car\b/i.test(p.title))).toBe(false);
-    expect(list.slice(0, RESULTS_PER_PAGE).map(label)).not.toContain("wrong");
-    expect(["exact", "reasonable"]).toContain(label(list[0]));
+    for (const mode of SHOP_CAP_MODES) {
+      const list = shown(pool, snap, mode);
+      expect(list.map((p) => p.productId)).not.toContain("1005010706919284"); // "Car Seat Headrest"
+      expect(list.some((p) => /^\W*(?:\d+pcs?\s+)?(?:\w+\s+)?car\b/i.test(p.title))).toBe(false);
+      expect(list.slice(0, RESULTS_PER_PAGE).map(label)).not.toContain("wrong");
+      expect(["exact", "reasonable"]).toContain(label(list[0]));
+    }
   });
 });

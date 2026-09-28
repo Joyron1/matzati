@@ -285,4 +285,18 @@ describe("comparisonSizes", () => {
     expect(comparisonSizes("הנמכר ביותר מבין שני המוצרים.")).toEqual([2]);
     expect(comparisonSizes("98% משוב חיובי.")).toEqual([]);
   });
+
+  it("reads the scopes of a page of five: four and five", () => {
+    expect(comparisonSizes("והזול מבין החמישה.")).toEqual([5]);
+    expect(comparisonSizes("הנמכר ביותר מבין חמשת המוצרים.")).toEqual([5]);
+    expect(comparisonSizes("והזול מבין הארבעה.")).toEqual([4]);
+    expect(comparisonSizes("המשוב הגבוה ביותר מבין ארבעת המוצרים.")).toEqual([4]);
+    // A word that only starts like a number is not a scope.
+    expect(comparisonSizes("מבין החמישיות.")).toEqual([]);
+  });
+
+  it("keeps a claim with its five scope, so nothing is left unverifiable", () => {
+    expect(superlativeClaims("100% משוב חיובי והזול מבין החמישה.")).toEqual(["cheapest"]);
+    expect(superlativeClaims("המשתלם מבין החמישה.")).toEqual(["unverifiable"]);
+  });
 });

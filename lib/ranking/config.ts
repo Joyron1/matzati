@@ -1,5 +1,7 @@
 // Filter thresholds and ranking weights (CLAUDE.md §6.5-6). Defaults are to be tuned against
 // real data. The UI reads FILTERS too, so the numbers we show always match the numbers we use.
+import { RESULTS_KEPT, RESULTS_PER_PAGE } from "@/lib/config/site";
+
 export interface TrustThresholds {
   minPositiveFeedbackPct: number;
   minUnitsSold: number;
@@ -69,11 +71,46 @@ export const RELEVANCE = {
 export const CATEGORY_CONSISTENCY = { minMembers: 3, minShare: 2 / 3 } as const;
 
 /**
- * One shop's share of a result list (item 4): at most `firstPage` products per shop in the first
- * page and `kept` in the first `keptSize` (RESULTS_KEPT in lib/search/pipeline.ts, which a test
- * checks), unless no other shop has a product left.
+ * How many products of one shop a result list may show (owner decision 2026-09-28: an admin
+ * setting, /admin/settings, read by lib/settings): "none" puts no limit on a shop (near-duplicate
+ * listings are still removed, dedupeBy in ./diversity.ts); "max2" allows at most 2 of one shop on
+ * the first page and the same share of the kept list (SHOP_CAPS). The ranking takes the mode as an
+ * input, and the results cache key holds it (lib/search/cache-key.ts), so a list ranked under one
+ * mode is never served under the other.
  */
-export const SHOP_CAP = { firstPage: 1, kept: 2, keptSize: 12 } as const;
+export const SHOP_CAP_MODES = ["none", "max2"] as const;
+export type ShopCapMode = (typeof SHOP_CAP_MODES)[number];
+
+/** The mode until the admin chooses one, and whenever the setting cannot be read. */
+export const DEFAULT_SHOP_CAP_MODE: ShopCapMode = "none";
+
+export const isShopCapMode = (value: unknown): value is ShopCapMode =>
+  (SHOP_CAP_MODES as readonly unknown[]).includes(value);
+
+/**
+ * One shop's share of a result list: at most `firstPage` products per shop in the first page and
+ * `kept` in the first `keptSize` (RESULTS_KEPT), unless no other shop has a product left.
+ */
+export interface ShopCap {
+  firstPage: number;
+  kept: number;
+  keptSize: number;
+}
+
+const MAX2_FIRST_PAGE = 2;
+
+/** "max2": 2 of the first page (RESULTS_PER_PAGE), and the same share of RESULTS_KEPT (6 of 15). */
+export const MAX2_SHOP_CAP: ShopCap = {
+  firstPage: MAX2_FIRST_PAGE,
+  kept: Math.round((MAX2_FIRST_PAGE * RESULTS_KEPT) / RESULTS_PER_PAGE),
+  keptSize: RESULTS_KEPT,
+};
+
+/** The cap of each mode; null for no limit. */
+export const SHOP_CAPS: Readonly<Record<ShopCapMode, ShopCap | null>> = {
+  none: null,
+  max2: MAX2_SHOP_CAP,
+};
 
 /** "small", "mini": a capacity spec ("10000mah") then allows at most this multiple of it. */
 export const SMALL_CAPACITY_FACTOR = 1.5;
@@ -154,5 +191,6 @@ export const DEDUP = {
 /**
  * Bump when any filter or ranking rule changes, so cached results ranked the old way are not
  * reused. 7: shared numbers (SHARED_NUMBERS), which also marks listings in the cached results.
+ * 8: pages of 5 (RESULTS_PER_PAGE, RESULTS_KEPT 15) and the shop cap setting (SHOP_CAP_MODES).
  */
-export const RANKING_VERSION = 7;
+export const RANKING_VERSION = 8;

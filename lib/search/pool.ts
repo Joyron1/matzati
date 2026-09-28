@@ -10,6 +10,7 @@
 // did before the pool existed. Pure: no I/O.
 import type { AliProduct } from "@/lib/aliexpress/schemas";
 import { RESULTS_PER_PAGE } from "@/lib/config/site";
+import type { ShopCapMode } from "@/lib/ranking/config";
 import { rankWithFill } from "@/lib/ranking/rank";
 import type { FilterBlocker } from "@/lib/types";
 import { applyOverrides, MAX_CHIP, MIN_CHIP, requirementChipId } from "./chips";
@@ -88,15 +89,17 @@ export interface RankedView {
 /**
  * One view ranked over the whole pool, or null when it removes a requirement the fetch kept and
  * leaves fewer than a page (that request fetches again). `blockers` gives what kept the checked
- * products out of a view with fewer than a page.
+ * products out of a view with fewer than a page. `shopCap` is the mode the fetch ranked under:
+ * the pool is kept with a result set whose key holds that mode, so its views share it.
  */
 export function rankView(
   pool: AliProduct[],
   spec: ViewSpec,
   kept: number,
   blockers: (pool: AliProduct[], filters: ParsedQuery, passed: number) => FilterBlocker[],
+  shopCap: ShopCapMode,
 ): RankedView | null {
-  const { ranked } = rankWithFill(pool, spec.filters, RESULTS_PER_PAGE);
+  const { ranked } = rankWithFill(pool, spec.filters, RESULTS_PER_PAGE, shopCap);
   if (spec.removesMore && ranked.length < RESULTS_PER_PAGE) return null;
   const shown = ranked.slice(0, kept);
   return {

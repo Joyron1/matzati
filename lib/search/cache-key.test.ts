@@ -45,53 +45,56 @@ describe("filtersKey", () => {
     max_price_ils: 100,
     sort_preference: "best_value",
   };
+  /** The key under the default shop cap mode. */
+  const fk = (f: Parameters<typeof filtersKey>[0]) => filtersKey(f, "none");
+
+  it("holds the shop cap mode, so a list ranked under one mode is never served under the other", () => {
+    expect(filtersKey(base, "none")).not.toBe(filtersKey(base, "max2"));
+    expect(filtersKey(base, "max2")).toBe(filtersKey({ ...base }, "max2"));
+  });
 
   it("ignores keyword order, case, hyphens and a known misspelling of a label", () => {
     expect(
-      filtersKey({
+      fk({
         ...base,
         keywords_en: "Waterproof  running earphones running",
         product_terms: ["Earphones", "earbuds"],
         requirements: [{ en: "Water-proof", alt: ["water resistant"], he: "עמידות למיים" }],
       }),
-    ).toBe(filtersKey({ ...base, requirements: [{ ...base.requirements[0], en: "water proof" }] }));
-    expect(filtersKey({ ...base, max_price_ils: 100.4 })).toBe(filtersKey(base));
+    ).toBe(fk({ ...base, requirements: [{ ...base.requirements[0], en: "water proof" }] }));
+    expect(fk({ ...base, max_price_ils: 100.4 })).toBe(fk(base));
     expect(
-      filtersKey({
+      fk({
         ...base,
         requirements: [{ ...base.requirements[0], alt: ["water resistant", "waterproof"] }],
       }),
-    ).toBe(filtersKey(base));
+    ).toBe(fk(base));
   });
 
   it("separates anything that changes the results", () => {
-    const key = filtersKey(base);
-    expect(filtersKey({ ...base, max_price_ils: 150 })).not.toBe(key);
-    expect(filtersKey({ ...base, min_price_ils: 20 })).not.toBe(key);
-    expect(filtersKey({ ...base, requirements: [] })).not.toBe(key);
-    expect(filtersKey({ ...base, product_terms: ["headphones"] })).not.toBe(key);
-    expect(filtersKey({ ...base, sort_preference: "cheapest" })).not.toBe(key);
-    expect(filtersKey({ ...base, keywords_en: "swimming earphones waterproof" })).not.toBe(key);
-    expect(
-      filtersKey({ ...base, preferences: [{ words: ["laptop"], he: "למחשב נייד" }] }),
-    ).not.toBe(key);
-    expect(filtersKey({ ...base, category_hint: "sports audio" })).not.toBe(key);
+    const key = fk(base);
+    expect(fk({ ...base, max_price_ils: 150 })).not.toBe(key);
+    expect(fk({ ...base, min_price_ils: 20 })).not.toBe(key);
+    expect(fk({ ...base, requirements: [] })).not.toBe(key);
+    expect(fk({ ...base, product_terms: ["headphones"] })).not.toBe(key);
+    expect(fk({ ...base, sort_preference: "cheapest" })).not.toBe(key);
+    expect(fk({ ...base, keywords_en: "swimming earphones waterproof" })).not.toBe(key);
+    expect(fk({ ...base, preferences: [{ words: ["laptop"], he: "למחשב נייד" }] })).not.toBe(key);
+    expect(fk({ ...base, category_hint: "sports audio" })).not.toBe(key);
   });
 
   it("keeps the order the code reads: the first product term and requirement", () => {
     // relevance and the broader keyword steps read product_terms[0], the steps requirements[0].en
     // (the finding on canonicalFilters: sorted, two parses shared results ranked for the other).
-    const key = filtersKey(base);
-    expect(filtersKey({ ...base, product_terms: ["earbuds", "earphones"] })).not.toBe(key);
+    const key = fk(base);
+    expect(fk({ ...base, product_terms: ["earbuds", "earphones"] })).not.toBe(key);
     const two: SearchFilters = {
       ...base,
       requirements: [...base.requirements, { en: "sweatproof", alt: [], he: "עמיד לזיעה" }],
     };
-    expect(filtersKey({ ...two, requirements: [...two.requirements].reverse() })).not.toBe(
-      filtersKey(two),
-    );
+    expect(fk({ ...two, requirements: [...two.requirements].reverse() })).not.toBe(fk(two));
     expect(
-      filtersKey({
+      fk({
         ...base,
         requirements: [{ en: "water resistant", alt: ["waterproof"], he: "עמידות למים" }],
       }),
@@ -100,13 +103,13 @@ describe("filtersKey", () => {
 
   it("keeps the Hebrew labels the explanations are written with", () => {
     const labelled = { ...base, product_he: "אוזניות לריצה" };
-    expect(filtersKey({ ...labelled, product_he: "אוזניות ספורט" })).not.toBe(filtersKey(labelled));
+    expect(fk({ ...labelled, product_he: "אוזניות ספורט" })).not.toBe(fk(labelled));
     expect(
-      filtersKey({
+      fk({
         ...labelled,
         requirements: [{ ...base.requirements[0], he: "עמיד במים" }],
       }),
-    ).not.toBe(filtersKey(labelled));
+    ).not.toBe(fk(labelled));
   });
 });
 

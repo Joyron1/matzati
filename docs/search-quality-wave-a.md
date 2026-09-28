@@ -14,6 +14,9 @@ owner on 2026-09-28. Nothing is committed, no migration is applied and nothing i
   המוצרים שלה בדיוק 98% משוב חיובי. כדאי לאשר את 2 הפניות לאלי אקספרס שבודקות את המספר הזה לפני
   פרסום ממומן.
 - יש לעבור על הסימונים שמופיעים ברשימה למטה, כי זוגות של חיפושים זהים סומנו אחרת.
+- עדכון (28.9): 5 תוצאות בעמוד והגדרה בניהול למוצרים מאותה חנות (״ללא הגבלה״ כברירת מחדל, או ״עד 2
+  מאותה חנות מתוך 5״). בלי הגבלה יותר כרטיסים טובים (92% לעומת 88%), אבל החנות עם המספרים המשותפים
+  ממלאת את רוב העמודים הראשונים. הפרטים בסעיף ״Five results״ למטה.
 
 ## Paid calls in the whole wave
 
@@ -211,8 +214,68 @@ How to read these numbers:
 - The plain product nouns stay: without them 33 exact and 10 reasonable running earphones stop
   passing and no weak or wrong one does.
 - The shop cap stays at one per page: at two, cards exact or reasonable fall from 86 to 84 of 95
-  and 26 queries show two from one shop.
+  and 26 queries show two from one shop. (Superseded by "Five results" below: the cap is now an
+  admin setting, "none" or "max2".)
 - Explain has no retry; "cheapest" ignores relevance; the capacity cap reads only English words.
+
+## Five results (2026-09-28)
+
+Owner decisions of 2026-09-28, built and measured offline; nothing applied or deployed, no paid call.
+
+- **Pages of 5** (`RESULTS_PER_PAGE` 5, `RESULTS_KEPT` 15 = three pages). The fetch stops once two
+  pages pass (`TARGET_PASSED` 10, was 6), still at most 3 AliExpress calls.
+- **Shop cap setting** (`/admin/settings`, `site_settings.shop_cap`): "none" (default: no limit per
+  shop, duplicate listings still removed) or "max2" (2 of one shop on the first page of 5, 6 of the
+  15 kept). The results cache key holds the mode. `RANKING_VERSION` 8.
+- **Explanations** compare within the batch shown ("מבין החמישה", "הארבעה", "השלושה", "השניים", none
+  for one), checked in code. `EXPLAIN_VERSION` 6. Output cap 256 + 256 per product (1,536 for 5).
+- **Similar products**: a fetch saves all 15 kept products (one batch, no extra call), so `/p` can
+  show up to 8. Known loan words are fixed in AliExpress's Hebrew titles (hot cards, `/p`).
+
+Offline replay of the 32 snapshots (in-sample, agent labels, as above). "Before" is the tree before
+this change (pages of 3, one product per shop per page, fetch until 6): `report-three-per-page.json`
+and `-renorm`. "After" is `report-five-none-vs-max2.json` and `-renorm` (stored / renormalized
+parses). Card shares are over the cards shown (95-96 before, 156-159 after), every card labelled.
+
+| Metric (32 queries)                     | Before, 3 per page    | After, "none"             | After, "max2"             |
+| --------------------------------------- | --------------------- | ------------------------- | ------------------------- |
+| First result exact or reasonable        | 31/32 / 31/32         | 31/32 / 31/32             | 31/32 / 31/32             |
+| Cards on page 1 exact or reasonable     | 86/95 (90.5%) / 87/96 | 144/156 (92.3%) / 145/159 | 137/156 (87.8%) / 139/159 |
+| Wrong products on page 1                | 1 / 1                 | 1 / 1                     | 3 / 3                     |
+| 2+ of one shop on page 1                | 3 / 3                 | 28 / 28                   | 28 / 28                   |
+| 3+ of one shop on page 1                | 0 / 0                 | 24 / 24                   | 3 / 3                     |
+| Page-1 cards of the shared-numbers shop | 27/83 / 28/84         | 98/136 (72%) / 98/139     | 53/136 (39%) / 54/139     |
+| AliExpress calls (replay)               | 38 / 36               | 44 / 42                   | 44 / 42                   |
+| Queries wanting a call snapshots lack   | 4 / 3                 | 8 / 5                     | 8 / 5                     |
+| "More" available                        | 28 / 29 (4+ passed)   | 28 / 29 (6+ passed)       | 28 / 29                   |
+| Two pages or more passed                | 28 / 29 (6+)          | 24 / 27 (10+)             | 24 / 27                   |
+
+- **Wrong cards.** "none": ho-gift-garden #3 (the brass faucet, #2 before). "max2" adds gift-cook
+  and its copy ex-2 at #5: the cap pulls a wrong listing of another shop onto the page.
+- **One shop.** Under "none" the store whose listings share their numbers (shop 1103573332) holds
+  98 of 136 first-page cards and 3 or more of the 5 cards in 24 queries; "max2" leaves 3+ only where
+  no other shop has a passer left (price-watch, ex-7, live-soundbar, 4 of 5 each).
+- **Calls.** Fetching until 10 instead of 6 (both at 5 per page, `--compare current-6,current`):
+  44 replayed calls instead of 38, and 4 more queries want a call the snapshots lack (ho-gift-garden,
+  pair-a / ex-1, live-soundbar), about 10 more calls live over 32 queries (0.3 per search), at most
+  3 per search. It fills page 2 in 4 more queries and takes the wrong card off ex-8's first page. A
+  target of 8 costs about 7 more calls and keeps that wrong card.
+- **Explain cost.** 5 products per call instead of 3: about +0.2k input tokens (1,270 → ~1,490,
+  two more products and the scope list) and +~190 output tokens (~280 → ~465, max seen 107 per
+  product) per first page, about +$0.0012 per explain call on Haiku 4.5 (~$0.0027 → ~$0.0038).
+  Estimated from the final check's usage; the owner's 5-search validation will measure it.
+- **Not measured offline**: the explain lines and their scopes (a fake model in tests), the
+  first-page safety net, `/p` similar products, and the admin page (dev preview only).
+
+Deploy order: apply `supabase/migrations/20260928230000_five_results.sql` (click positions 1 / 2-5
+/ 6+) and `20260928230100_site_settings.sql` (the settings table, seeded "none"), then deploy.
+Before the settings migration the search ranks with "none" and `/admin/settings` cannot save.
+Both version bumps empty the results cache: warm the examples again.
+
+```
+npm run eval:offline -- --shop-cap none,max2           # both modes, compared query by query
+npm run eval:offline -- --compare current-6,current     # the fetch target
+```
 
 ## Re-running
 

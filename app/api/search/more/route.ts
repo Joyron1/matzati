@@ -1,4 +1,4 @@
-// POST /api/search/more: "עוד 3 אפשרויות" for a cached result set (explains the page on demand).
+// POST /api/search/more: "עוד N אפשרויות" for a cached result set (explains the page on demand).
 import { z } from "zod";
 import { moreForRequest } from "@/lib/search/server";
 

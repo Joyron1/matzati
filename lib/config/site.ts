@@ -1,4 +1,12 @@
-export const RESULTS_PER_PAGE = 3;
+/** Products per results page, and per "עוד N אפשרויות" (owner decision 2026-09-28: 5, was 3). */
+export const RESULTS_PER_PAGE = 5;
+
+/**
+ * Ranked products a search keeps (the result set it caches): three pages. "עוד N אפשרויות" shows
+ * pages two and three from it, and a fetch saves every one of them to `products` (/p's similar
+ * products read them).
+ */
+export const RESULTS_KEPT = 3 * RESULTS_PER_PAGE;
 
 /** /deals (menu, footer, the page itself and the countdown's reminder link). Live since M5. */
 export const DEALS_ENABLED = true;

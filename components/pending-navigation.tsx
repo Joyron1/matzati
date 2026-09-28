@@ -10,17 +10,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { SearchWait } from "@/components/search-wait/search-wait";
 
 // A sort change or a removed filter on /search (app/search/page.tsx) is a navigation to the same
-// search with other chips: the results on screen stay while the next ones are prepared (a view of
-// the checked pool, plan item 13, comes in well under a second), marked busy and dimmed; the
-// link that started it shows a small dot. Only when it is still pending after SLOW_NAVIGATION_MS
-// (a view that fetches from AliExpress again) does the wait take the results' place, from its
-// AliExpress step: the query is understood, its chips are on screen.
-
-/** After this long a pending view is a new fetch: the wait replaces the results on screen. */
-export const SLOW_NAVIGATION_MS = 700;
+// search with other chips: the link that started it shows a small dot, and the results on screen
+// stay, dimmed and busy with a small "מעדכנים…" note, until the next view is complete
+// (components/search-view.tsx, which also decides when a slower one shows the wait instead).
 
 interface PendingState {
   /** A link of the results page is navigating. */
@@ -57,44 +51,15 @@ export function PendingNavigation({ children }: { children: ReactNode }) {
   );
 }
 
-/**
- * The results area: busy and dimmed while a link of the page navigates, and replaced by the wait
- * (from the AliExpress step, the chips staying above) once that takes longer than
- * SLOW_NAVIGATION_MS. The results stay mounted meanwhile; the next ones replace them.
- */
-export function PendingResults({ query, children }: { query: string; children: ReactNode }) {
-  const { pending, generation } = useContext(StateContext);
-  // The navigation whose wait is due; a later one starts its own delay.
-  const [slowFor, setSlowFor] = useState(0);
-  useEffect(() => {
-    if (!pending) return;
-    const timer = window.setTimeout(() => setSlowFor(generation), SLOW_NAVIGATION_MS);
-    return () => window.clearTimeout(timer);
-  }, [pending, generation]);
-  const slow = pending && slowFor === generation;
-  return (
-    <>
-      <div
-        aria-busy={pending || undefined}
-        className={
-          slow
-            ? "hidden"
-            : pending
-              ? "space-y-6 opacity-60 transition-opacity delay-100 duration-200 motion-reduce:transition-none"
-              : "space-y-6"
-        }
-      >
-        {children}
-      </div>
-      {slow && <SearchWait query={query} understood waitKey={`pending:${generation}`} />}
-    </>
-  );
+/** True while a link of the results page is navigating (before the next page commits). */
+export function useNavigationPending(): boolean {
+  return useContext(StateContext).pending;
 }
 
 /**
  * Inside a Link of the results page (the Link must be `relative`): a small dot at its corner once
- * the navigation it started runs past 100 ms, and the page's pending state (PendingResults) while
- * it runs. Always rendered, fixed size and placed over the corner, so nothing moves; only its
+ * the navigation it started runs past 100 ms, and the page's pending state (useNavigationPending)
+ * while it runs. Always rendered, fixed size and placed over the corner, so nothing moves; only its
  * opacity changes (the useLinkStatus guidance in node_modules/next/dist/docs).
  */
 export function LinkPending() {

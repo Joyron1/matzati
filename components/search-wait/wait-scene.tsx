@@ -5,32 +5,39 @@ import {
   memo,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
   type CSSProperties,
   type PointerEvent,
 } from "react";
-import { sceneTiming, type SceneCard, type SceneSlot } from "./scene-timing";
+import {
+  sceneTiming,
+  slotBoxes,
+  slotCenter,
+  type SceneCard,
+  type SceneTiming,
+  type SlotBox,
+} from "./scene-timing";
 import styles from "./search-wait.module.css";
 
 // The waiting screen's motion scene, a decorative story of the search in one inline SVG (640x360,
 // user units; CSS px in the transforms are user units too). Right to left, the reading direction:
 // the query is typed and read by the magnifier and split into chips (step 1); product cards then
 // ride a belt, stop under the magnifier and get a verdict above it, a check or a soft cross. The
-// first two checks fly into the featured and the second of the three numbered slots, which fill
-// as they land (steps 2-3, see scene-timing.ts), a card with its lines as the results page first
-// shows it; later checks head for the third slot, which stays pending until the real page
-// arrives. No slot ever shows a winner: the search may still find nothing. Hidden under reduced
-// motion; a tap or the pointer makes the magnifier lean and hop.
+// first checks fly into the result slots one by one, laid out like the results page (the featured
+// slot, then one per other result of a page, see scene-timing.ts), each filling as its card lands
+// with a card as the results page shows it; later checks head for the last slot, which shows a
+// pending draft once the lines are being written and stays pending until the real page arrives.
+// No slot ever shows a winner: the search may still find nothing. Hidden under reduced motion; a
+// tap or the pointer makes the magnifier lean and hop.
 
 type Tint = "accentSoft" | "goldSoft" | "surface2";
 type Shape = "round" | "box" | "tall";
 
-const TIMING = sceneTiming();
-
-/** How each card looks, in the order of TIMING.cards: the two picks, then the looping stream. */
+/** How each card looks, in the order of the timing's cards: the picks, then the looping stream. */
 const LOOKS: readonly { tint: Tint; shape: Shape }[] = [
-  // The featured and the second slot fill with the same product the card showed.
+  // The slots fill with the same product the card showed.
   { tint: "goldSoft", shape: "box" },
   { tint: "accentSoft", shape: "round" },
   { tint: "surface2", shape: "tall" },
@@ -41,16 +48,15 @@ const LOOKS: readonly { tint: Tint; shape: Shape }[] = [
   { tint: "goldSoft", shape: "tall" },
 ];
 
-const TO: Record<SceneSlot, string> = { a: styles.toA, b: styles.toB, c: styles.toC };
-
 const secs = (s: number) => `${Number(s.toFixed(3))}s`;
 
-const SCENE_VARS = {
-  "--cycle": secs(TIMING.cycleS),
-  "--gap": secs(TIMING.gapS),
-  "--belt": secs(TIMING.beltTickS),
-  "--glint-at": secs(TIMING.glintAtS),
-} as CSSProperties;
+const sceneVars = (t: SceneTiming) =>
+  ({
+    "--cycle": secs(t.cycleS),
+    "--gap": secs(t.gapS),
+    "--belt": secs(t.beltTickS),
+    "--glint-at": secs(t.glintAtS),
+  }) as CSSProperties;
 
 const fillAt = (s: number) => ({ "--fill-at": secs(s) }) as CSSProperties;
 
@@ -67,6 +73,9 @@ const BURST: readonly [number, number][] = [
 /** How long a tap keeps the scene leaning before it settles back. */
 const TAP_HOLD_MS = 1_200;
 
+/** A slot narrower than this draws its card as a tile: the photo above, the lines under it. */
+const WIDE_SLOT = 90;
+
 const cx = (...names: (string | false | undefined)[]) => names.filter(Boolean).join(" ");
 
 function ProductShape({ shape }: { shape: Shape }) {
@@ -77,13 +86,30 @@ function ProductShape({ shape }: { shape: Shape }) {
   return <rect x={-6} y={-27} width={12} height={22} rx={6} className={styles.accentInk} />;
 }
 
-/** A product card drawn around (0, 0), 60x76, on the stream's clock. */
-function Card({ card, tint, shape }: { card: SceneCard; tint: Tint; shape: Shape }) {
+/** A product card drawn around (0, 0), 60x76, on the stream's clock; `to`: its slot's center. */
+function Card({
+  card,
+  tint,
+  shape,
+  to,
+  last,
+}: {
+  card: SceneCard;
+  tint: Tint;
+  shape: Shape;
+  to: { x: number; y: number } | null;
+  /** It heads for the last slot, which stays pending: it lands a little smaller. */
+  last: boolean;
+}) {
   const pass = card.slot !== null;
-  const clock = { "--delay": secs(card.delayS), "--iter": card.once ? 1 : "infinite" };
+  const clock = {
+    "--delay": secs(card.delayS),
+    "--iter": card.once ? 1 : "infinite",
+    ...(to ? { "--to-x": `${to.x}px`, "--to-y": `${to.y}px`, "--to-k": last ? 0.45 : 0.5 } : {}),
+  };
   return (
     <g
-      className={cx(styles.card, styles.clocked, card.slot ? TO[card.slot] : styles.toFail)}
+      className={cx(styles.card, styles.clocked, to ? styles.toSlot : styles.toFail)}
       style={clock as CSSProperties}
     >
       <g className={styles.cardBody}>
@@ -174,9 +200,149 @@ function Chip({
   );
 }
 
+/** The featured result as the results page shows it: photo, title, the "why" box and price. */
+function FeaturedFill() {
+  return (
+    <>
+      <rect x="150" y="26" width="110" height="150" rx="14" className={styles.panel} />
+      <rect x="158" y="34" width="94" height="60" rx="10" className={styles.goldSoft} />
+      <rect x="193" y="46" width="24" height="24" rx="5" className={styles.inkSoft} />
+      <ellipse cx="205" cy="80" rx="17" ry="3" className={styles.shade} />
+      <rect x="176" y="102" width="76" height="6" rx="3" className={styles.inkSoft} />
+      <rect x="200" y="112" width="52" height="6" rx="3" className={styles.inkSoft} />
+      <rect x="158" y="124" width="94" height="28" rx="8" className={styles.accentSoft} />
+      <rect x="170" y="131" width="76" height="4.5" rx="2.25" className={styles.accentInk} />
+      <rect x="192" y="140" width="54" height="4.5" rx="2.25" className={styles.accentInk} />
+      <rect x="214" y="160" width="38" height="9" rx="4.5" className={styles.inkPrice} />
+    </>
+  );
+}
+
+/**
+ * Another result in its slot: in a wide slot the photo beside the lines, as a compact card shows
+ * them; in a narrow one the photo above. `draft`: the pending draft of the last slot, shapes only.
+ */
+function CompactFill({ b, draft = false }: { b: SlotBox; draft?: boolean }) {
+  const tone = (fill: string) => (draft ? styles.surface2 : fill);
+  if (b.w >= WIDE_SLOT) {
+    return (
+      <>
+        {!draft && <rect {...box(b)} rx={12} className={styles.panel} />}
+        <rect
+          x={b.x + 58}
+          y={b.y + 7}
+          width={48}
+          height={b.h - 14}
+          rx={8}
+          className={tone(styles.accentSoft)}
+        />
+        {!draft && (
+          <>
+            <circle
+              cx={b.x + 82}
+              cy={b.y + 30}
+              r={11}
+              className={styles.accentFill}
+              opacity={0.55}
+            />
+            <ellipse cx={b.x + 82} cy={b.y + 48} rx={11} ry={2.2} className={styles.shade} />
+          </>
+        )}
+        <rect
+          x={b.x + 14}
+          y={b.y + 10}
+          width={36}
+          height={5}
+          rx={2.5}
+          className={tone(styles.inkSoft)}
+        />
+        <rect
+          x={b.x + 26}
+          y={b.y + 19}
+          width={24}
+          height={5}
+          rx={2.5}
+          className={tone(styles.inkSoft)}
+        />
+        <rect
+          x={b.x + 8}
+          y={b.y + 32}
+          width={42}
+          height={4.5}
+          rx={2.25}
+          className={tone(styles.accentInk)}
+        />
+        <rect
+          x={b.x + 28}
+          y={b.y + 46}
+          width={22}
+          height={7}
+          rx={3.5}
+          className={tone(styles.inkPrice)}
+        />
+      </>
+    );
+  }
+  const photoH = b.h * 0.44;
+  const mid = b.x + b.w / 2;
+  return (
+    <>
+      {!draft && <rect {...box(b)} rx={10} className={styles.panel} />}
+      <rect
+        x={b.x + 6}
+        y={b.y + 6}
+        width={b.w - 12}
+        height={photoH}
+        rx={6}
+        className={tone(styles.accentSoft)}
+      />
+      {!draft && (
+        <>
+          <circle
+            cx={mid}
+            cy={b.y + 6 + photoH / 2}
+            r={7}
+            className={styles.accentFill}
+            opacity={0.55}
+          />
+          <ellipse cx={mid} cy={b.y + 6 + photoH - 5} rx={8} ry={1.6} className={styles.shade} />
+        </>
+      )}
+      <rect
+        x={b.x + b.w - 36}
+        y={b.y + photoH + 12}
+        width={30}
+        height={4.5}
+        rx={2.25}
+        className={tone(styles.inkSoft)}
+      />
+      <rect
+        x={b.x + 6}
+        y={b.y + photoH + 21}
+        width={b.w - 12}
+        height={4}
+        rx={2}
+        className={tone(styles.accentInk)}
+      />
+      <rect
+        x={b.x + b.w - 24}
+        y={b.y + b.h - 13}
+        width={18}
+        height={6}
+        rx={3}
+        className={tone(styles.inkPrice)}
+      />
+    </>
+  );
+}
+
+const box = (b: SlotBox) => ({ x: b.x, y: b.y, width: b.w, height: b.h });
+
 interface WaitSceneProps {
-  /** Current step of the schedule, 0-4. */
+  /** Current step of the wait, 0-4 (-1: none, the page is about to show). */
   stage: number;
+  /** Results on a page (RESULTS_PER_PAGE): one slot each. */
+  slots: number;
   paused: boolean;
   onPausedChange: (paused: boolean) => void;
   className?: string;
@@ -184,6 +350,7 @@ interface WaitSceneProps {
 
 export const WaitScene = memo(function WaitScene({
   stage,
+  slots,
   paused,
   onPausedChange,
   className = "",
@@ -195,6 +362,12 @@ export const WaitScene = memo(function WaitScene({
   const release = useRef<number | undefined>(undefined);
   const [offscreen, setOffscreen] = useState(false);
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const timing = useMemo(() => sceneTiming(slots), [slots]);
+  const boxes = useMemo(() => slotBoxes(slots), [slots]);
+  const lastSlot = boxes.length - 1;
+  const last = boxes[lastSlot];
+  // Stage 4 is writing; a page about to show (-1) keeps the scene where it was.
+  const at = stage === -1 ? 4 : stage;
 
   // Nothing moves while the scene is scrolled away (on phones the steps and tips are below it).
   useEffect(() => {
@@ -282,14 +455,12 @@ export const WaitScene = memo(function WaitScene({
       onPointerDown={onPointerDown}
       // A touch ends with a pointerleave too; only a mouse that leaves resets the lean at once.
       onPointerLeave={(e) => e.pointerType === "mouse" && aim(0, 0)}
-      style={SCENE_VARS}
+      style={sceneVars(timing)}
       className={cx(
         styles.scene,
         "relative aspect-video overflow-hidden",
-        stage >= 1 && styles.s1,
-        stage >= 2 && styles.s2,
-        stage >= 3 && styles.s3,
-        stage >= 4 && styles.s4,
+        at >= 1 && styles.s1,
+        at >= 4 && styles.s4,
         offscreen && styles.offscreen,
         className,
       )}
@@ -322,8 +493,8 @@ export const WaitScene = memo(function WaitScene({
             <clipPath id={`${id}-lens`}>
               <circle r="51" />
             </clipPath>
-            <clipPath id={`${id}-slot-c`}>
-              <rect x="26" y="106" width="114" height="70" rx="12" />
+            <clipPath id={`${id}-slot-last`}>
+              <rect {...box(last)} rx="12" />
             </clipPath>
           </defs>
 
@@ -350,93 +521,56 @@ export const WaitScene = memo(function WaitScene({
             </g>
           </g>
 
-          {/* The "3 results" shelf, laid out like the results: featured at the start, two compact. */}
+          {/* The results shelf, laid out like the results: featured at the start, then the rest. */}
           <g className={styles.layerSlots}>
-            <rect x="150" y="26" width="110" height="150" rx="14" className={styles.slotEmpty} />
-            <rect x="26" y="26" width="114" height="70" rx="12" className={styles.slotEmpty} />
-            <rect
-              x="26"
-              y="106"
-              width="114"
-              height="70"
-              rx="12"
-              className={cx(styles.slotEmpty, styles.slotC)}
-            />
-            <text x="205" y="101" className={styles.slotNum}>
-              1
-            </text>
-            <text x="83" y="61" className={styles.slotNum}>
-              2
-            </text>
-            <text x="83" y="141" className={cx(styles.slotNum, styles.num3)}>
-              3
-            </text>
-
-            <rect
-              x="150"
-              y="26"
-              width="110"
-              height="150"
-              rx="14"
-              className={cx(styles.slotRing, styles.ringA)}
-              style={fillAt(TIMING.fillAtS.a)}
-            />
-            <g className={styles.slotFill} style={fillAt(TIMING.fillAtS.a)}>
-              <rect x="150" y="26" width="110" height="150" rx="14" className={styles.panel} />
-              <rect x="158" y="34" width="94" height="60" rx="10" className={styles.goldSoft} />
-              <rect x="193" y="46" width="24" height="24" rx="5" className={styles.inkSoft} />
-              <ellipse cx="205" cy="80" rx="17" ry="3" className={styles.shade} />
-              <rect x="176" y="102" width="76" height="6" rx="3" className={styles.inkSoft} />
-              <rect x="200" y="112" width="52" height="6" rx="3" className={styles.inkSoft} />
-              <rect x="158" y="124" width="94" height="28" rx="8" className={styles.accentSoft} />
+            {boxes.map((b, i) => (
               <rect
-                x="170"
-                y="131"
-                width="76"
-                height="4.5"
-                rx="2.25"
-                className={styles.accentInk}
+                key={`empty-${i}`}
+                {...box(b)}
+                rx={i === 0 ? 14 : 12}
+                className={cx(styles.slotEmpty, i === lastSlot && styles.slotLast)}
               />
-              <rect
-                x="192"
-                y="140"
-                width="54"
-                height="4.5"
-                rx="2.25"
-                className={styles.accentInk}
-              />
-              <rect x="214" y="160" width="38" height="9" rx="4.5" className={styles.inkPrice} />
-            </g>
+            ))}
+            {boxes.map((b, i) => {
+              const c = slotCenter(b);
+              return (
+                <text
+                  key={`num-${i}`}
+                  x={c.x}
+                  y={c.y}
+                  className={cx(styles.slotNum, i === lastSlot && styles.numLast)}
+                  style={b.w < WIDE_SLOT ? { fontSize: 26 } : undefined}
+                >
+                  {i + 1}
+                </text>
+              );
+            })}
 
-            <rect
-              x="26"
-              y="26"
-              width="114"
-              height="70"
-              rx="12"
-              className={styles.slotRing}
-              style={fillAt(TIMING.fillAtS.b)}
-            />
-            <g className={styles.slotFill} style={fillAt(TIMING.fillAtS.b)}>
-              <rect x="26" y="26" width="114" height="70" rx="12" className={styles.panel} />
-              <rect x="84" y="33" width="48" height="56" rx="8" className={styles.accentSoft} />
-              <circle cx="108" cy="56" r="11" className={styles.accentFill} opacity={0.55} />
-              <ellipse cx="108" cy="74" rx="11" ry="2.2" className={styles.shade} />
-              <rect x="40" y="36" width="36" height="5" rx="2.5" className={styles.inkSoft} />
-              <rect x="52" y="45" width="24" height="5" rx="2.5" className={styles.inkSoft} />
-              <rect x="34" y="58" width="42" height="4.5" rx="2.25" className={styles.accentInk} />
-              <rect x="54" y="72" width="22" height="7" rx="3.5" className={styles.inkPrice} />
-            </g>
+            {boxes.slice(0, lastSlot).map((b, i) => (
+              <g key={`fill-${i}`}>
+                <rect
+                  {...box(b)}
+                  rx={i === 0 ? 14 : 12}
+                  className={cx(styles.slotRing, i === 0 && styles.ringA)}
+                  style={fillAt(timing.fillAtS[i])}
+                />
+                <g className={styles.slotFill} style={fillAt(timing.fillAtS[i])}>
+                  {i === 0 ? <FeaturedFill /> : <CompactFill b={b} />}
+                </g>
+              </g>
+            ))}
 
             <g className={styles.prep}>
-              <rect x="84" y="113" width="48" height="56" rx="8" className={styles.surface2} />
-              <rect x="40" y="118" width="36" height="5" rx="2.5" className={styles.surface2} />
-              <rect x="52" y="127" width="24" height="5" rx="2.5" className={styles.surface2} />
-              <rect x="34" y="140" width="42" height="4.5" rx="2.25" className={styles.surface2} />
-              <rect x="54" y="152" width="22" height="7" rx="3.5" className={styles.surface2} />
-              <g clipPath={`url(#${id}-slot-c)`}>
+              <CompactFill b={last} draft />
+              <g clipPath={`url(#${id}-slot-last)`}>
                 <g className={styles.sweep}>
-                  <rect x="20" y="106" width="130" height="70" fill={`url(#${id}-sweep)`} />
+                  <rect
+                    x={last.x - 6}
+                    y={last.y}
+                    width={last.w + 16}
+                    height={last.h}
+                    fill={`url(#${id}-sweep)`}
+                  />
                 </g>
               </g>
             </g>
@@ -444,8 +578,14 @@ export const WaitScene = memo(function WaitScene({
 
           {/* The cards, above the shelf, so a check lands on its slot and hands over to the fill. */}
           <g className={cx(styles.layerFloor, styles.cards)}>
-            {TIMING.cards.map((card, i) => (
-              <Card key={i} card={card} {...LOOKS[i % LOOKS.length]} />
+            {timing.cards.map((card, i) => (
+              <Card
+                key={i}
+                card={card}
+                {...LOOKS[i % LOOKS.length]}
+                to={card.slot === null ? null : slotCenter(boxes[card.slot])}
+                last={card.slot === lastSlot}
+              />
             ))}
           </g>
 

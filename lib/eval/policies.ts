@@ -5,9 +5,8 @@
 //   npm run eval:offline -- --compare current,<name>
 import { MAX_PAGE_SIZE } from "@/lib/aliexpress/affiliate";
 import type { AliProduct } from "@/lib/aliexpress/schemas";
-import { RESULTS_PER_PAGE } from "@/lib/config/site";
 import type { RejectReason } from "@/lib/ranking/rank";
-import { MAX_ALI_CALLS, nextFetch } from "@/lib/search/fetch-policy";
+import { MAX_ALI_CALLS, nextFetch, TARGET_PASSED } from "@/lib/search/fetch-policy";
 import type { ParsedQuery } from "@/lib/search/filters";
 
 /** One product.query call: page `pageNo` of `keywords` (price bounds come from the filters). */
@@ -71,33 +70,50 @@ function nextLadderStep(s: FetchState, ladder: readonly string[] = s.ladder): Fe
 }
 
 /**
- * fetchAndRank in lib/search/pipeline.ts: nextFetch in lib/search/fetch-policy.ts over the calls
- * made so far (until 6 pass or 3 calls; page 2 while it can pass the trust bar, broader keywords
- * by what blocked; an early stop on a requirement no otherwise passing product mentions). The
- * pipeline runs the same function, and lib/eval/parity.test.ts checks both on every snapshot.
- * Steps built from a product phrase or without audience words are often not captured, so a query
- * that needs one ends incomplete ("missing") until the snapshots are refreshed.
+ * nextFetch in lib/search/fetch-policy.ts over the calls made so far, stopping once `target`
+ * products pass (TARGET_PASSED for the live pipeline).
  */
-export const CURRENT_POLICY: FetchPolicy = {
-  name: "current",
-  description:
-    "the live pipeline (lib/search/fetch-policy.ts): until 6 pass or 3 calls; p2 while it can " +
-    "pass the trust bar; broader keywords by what blocked; stops on a requirement none mentions",
-  next(s) {
-    const decision = nextFetch({
-      filters: s.filters,
-      calls: s.calls.map((c) => ({
-        keywords: c.keywords,
-        pageNo: c.pageNo,
-        count: c.parsedCount,
-        totalRecords: c.totalRecords,
-        lowestUnitsSold: c.lowestUnitsSold ?? null,
-      })),
-      pool: s.pool,
-    });
-    return "step" in decision ? decision.step : null;
-  },
-};
+function liveFetchPolicy(name: string, target: number): FetchPolicy {
+  return {
+    name,
+    description:
+      `the live pipeline (lib/search/fetch-policy.ts): until ${target} pass or ` +
+      `${MAX_ALI_CALLS} calls; p2 while it can pass the trust bar; broader keywords by what ` +
+      "blocked; stops on a requirement none mentions",
+    next(s) {
+      const decision = nextFetch(
+        {
+          filters: s.filters,
+          calls: s.calls.map((c) => ({
+            keywords: c.keywords,
+            pageNo: c.pageNo,
+            count: c.parsedCount,
+            totalRecords: c.totalRecords,
+            lowestUnitsSold: c.lowestUnitsSold ?? null,
+          })),
+          pool: s.pool,
+        },
+        { target },
+      );
+      return "step" in decision ? decision.step : null;
+    },
+  };
+}
+
+/**
+ * fetchAndRank in lib/search/pipeline.ts: nextFetch in lib/search/fetch-policy.ts over the calls
+ * made so far (until TARGET_PASSED pass or 3 calls; page 2 while it can pass the trust bar,
+ * broader keywords by what blocked; an early stop on a requirement no otherwise passing product
+ * mentions). The pipeline runs the same function, and lib/eval/parity.test.ts checks both on
+ * every snapshot. Steps built from a product phrase or without audience words are often not
+ * captured, so a query that needs one ends incomplete ("missing") until the snapshots are
+ * refreshed.
+ */
+export const CURRENT_POLICY: FetchPolicy = liveFetchPolicy("current", TARGET_PASSED);
+
+/** The live policy with another "enough passed" target: "current-6" stops at 6. */
+export const currentWithTarget = (target: number): FetchPolicy =>
+  liveFetchPolicy(`current-${target}`, target);
 
 /**
  * The keyword ladder of RANKING_VERSION 5 (before item 5): the primary keywords, then without
@@ -122,12 +138,15 @@ function r5Ladder(parsed: ParsedQuery): string[] {
   return ladder;
 }
 
+/** RESULTS_PER_PAGE when R5_POLICY was the live rule (pages of 3), frozen with it. */
+const R5_PAGE = 3;
+
 /**
  * fetchAndRank as of 2026-09-28 before item 5 (RANKING_VERSION 5), frozen to compare against:
  * page 1 of the primary keywords; page 2 only when page 1 had 50 parsed items, more records exist,
- * fewer than 2 × RESULTS_PER_PAGE passed FILTERS and relevance (type + requirement) rejected at
- * least as many as trust (feedback + volume); then its ladder (r5Ladder) while fewer than
- * RESULTS_PER_PAGE passed; at most 3 calls.
+ * fewer than 2 × R5_PAGE passed FILTERS and relevance (type + requirement) rejected at least as
+ * many as trust (feedback + volume); then its ladder (r5Ladder) while fewer than R5_PAGE passed;
+ * at most 3 calls.
  */
 export const R5_POLICY: FetchPolicy = {
   name: "r5",
@@ -143,7 +162,7 @@ export const R5_POLICY: FetchPolicy = {
       const first = s.calls[0];
       const r = s.rejected;
       if (
-        s.ranked < 2 * RESULTS_PER_PAGE &&
+        s.ranked < 2 * R5_PAGE &&
         first.parsedCount >= MAX_PAGE_SIZE &&
         (first.totalRecords ?? 0) > MAX_PAGE_SIZE &&
         r.type + r.requirement >= r.feedback + r.volume
@@ -151,7 +170,7 @@ export const R5_POLICY: FetchPolicy = {
         return { keywords: primary, pageNo: 2 };
       }
     }
-    if (s.ranked >= RESULTS_PER_PAGE) return null;
+    if (s.ranked >= R5_PAGE) return null;
     return nextLadderStep(s, ladder);
   },
 };
@@ -215,7 +234,10 @@ export const ALL_CAPTURED: FetchPolicy = {
   },
 };
 
-/** Named policies for the CLI. "until-<target>-<maxCalls>" also works for any numbers. */
+/**
+ * Named policies for the CLI. "until-<target>-<maxCalls>" and "current-<target>" (the live policy
+ * with another target) also work for any numbers.
+ */
 export const POLICIES: Readonly<Record<string, FetchPolicy>> = {
   [CURRENT_POLICY.name]: CURRENT_POLICY,
   [R5_POLICY.name]: R5_POLICY,
@@ -232,7 +254,10 @@ export function policyByName(name: string): FetchPolicy {
     const maxCalls = m[2] === undefined ? PIPELINE_MAX_CALLS : Number(m[2]);
     if (target > 0 && maxCalls > 0) return untilPassing({ target, maxCalls });
   }
+  const live = /^current-(\d{1,2})$/.exec(name);
+  if (live && Number(live[1]) > 0) return currentWithTarget(Number(live[1]));
   throw new Error(
-    `unknown fetch policy "${name}"; known: ${Object.keys(POLICIES).join(", ")}, until-<target>-<maxCalls>`,
+    `unknown fetch policy "${name}"; known: ${Object.keys(POLICIES).join(", ")}, ` +
+      "until-<target>-<maxCalls>, current-<target>",
   );
 }

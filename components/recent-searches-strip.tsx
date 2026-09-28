@@ -11,7 +11,14 @@ import { card } from "./styles";
 
 /** Whole rows at every width: 2 per row on phones, 3 from sm, 6 from lg. */
 const STRIP_SIZE = 6;
-const GRID = "grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-6";
+/**
+ * Rows of tiles of a fixed width (a grid's column: 2, 3 or 6 to a row), centered as a group, so
+ * fewer searches than a full row (production had 2) sit in the middle under the centered title
+ * instead of leaving a gap beside them. Tiles in a row stretch to the tallest.
+ */
+const ROW = "flex flex-wrap justify-center gap-3 sm:gap-4";
+const CELL =
+  "min-w-0 w-[calc((100%-0.75rem)/2)] sm:w-[calc((100%-2rem)/3)] lg:w-[calc((100%-5rem)/6)]";
 // Shared with the placeholder, so both are the same height: the tile frame, the square photo, two
 // lines of label (a one-line label keeps the room, so every "לתוצאות" sits on the same line) and
 // the "לתוצאות" line.
@@ -119,13 +126,18 @@ export async function RecentSearchesStrip() {
   await connection(); // recent = as of this visit, not of the build
   // A full page, so products searched twice ("בובת סוניק", "בובת סוניק לילד") still fill the grid.
   const searches = uniqueByProduct(await latestRecentSearches(RECENT_PAGE_SIZE), STRIP_SIZE);
+  return <RecentSearchesTiles searches={searches} />;
+}
+
+/** The strip for these searches (up to STRIP_SIZE); nothing without any. The dev preview too. */
+export function RecentSearchesTiles({ searches }: { searches: RecentSearch[] }) {
   if (searches.length === 0) return null;
   return (
     <section aria-labelledby="recent-searches-title" className="space-y-3">
       <Title />
-      <ul className={GRID}>
-        {searches.map((search) => (
-          <li key={search.queryNorm} className="min-w-0">
+      <ul className={ROW}>
+        {searches.slice(0, STRIP_SIZE).map((search) => (
+          <li key={search.queryNorm} className={CELL}>
             <Tile search={search} />
           </li>
         ))}
@@ -145,9 +157,9 @@ export function RecentSearchesStripPlaceholder() {
       <div className="invisible">
         <Title ghost />
       </div>
-      <div className={GRID}>
+      <div className={ROW}>
         {Array.from({ length: STRIP_SIZE }, (_, i) => (
-          <div key={i} className={TILE}>
+          <div key={i} className={`${CELL} ${TILE}`}>
             <div className={`${PHOTO} animate-pulse bg-surface-2`} />
             <div className={LABEL}>
               <div className="mt-1 h-4 w-3/4 animate-pulse rounded-full bg-surface-2" />

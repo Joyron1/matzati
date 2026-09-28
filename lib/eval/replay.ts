@@ -4,7 +4,7 @@
 import type { AliProduct } from "@/lib/aliexpress/schemas";
 import { RESULTS_PER_PAGE } from "@/lib/config/site";
 import { normalizeParsed, type ParsedQueryRaw } from "@/lib/llm/parse";
-import { FILL_TIER, FILTERS } from "@/lib/ranking/config";
+import { DEFAULT_SHOP_CAP_MODE, FILL_TIER, FILTERS, type ShopCapMode } from "@/lib/ranking/config";
 import {
   hasSharedNumbers,
   isRequestedProduct,
@@ -31,17 +31,27 @@ export type RankFn = (
   filters: ParsedQuery,
 ) => { ranked: AliProduct[]; fillIds: string[] };
 
-/** What fetchAndRank does after fetching: standard passers, topped up to one page from FILL_TIER. */
-export const pipelineRank: RankFn = (pool, filters) =>
-  rankWithFill(pool, filters, RESULTS_PER_PAGE);
+/**
+ * What fetchAndRank does after fetching: standard passers, topped up to one page from FILL_TIER,
+ * under the shop cap mode (the admin's setting; DEFAULT_SHOP_CAP_MODE until one is chosen).
+ */
+export const pipelineRankFor =
+  (shopCap: ShopCapMode): RankFn =>
+  (pool, filters) =>
+    rankWithFill(pool, filters, RESULTS_PER_PAGE, shopCap);
+
+/** pipelineRankFor the default mode. */
+export const pipelineRank: RankFn = pipelineRankFor(DEFAULT_SHOP_CAP_MODE);
 
 /** One way of running the searches: a fetch policy plus optional changes to the search itself. */
 export interface Variant {
   /** Names the run in reports ("current", "until-6-3", ...). */
   name: string;
   policy: FetchPolicy;
-  /** Replaces the ranking step (default pipelineRank). */
+  /** Replaces the ranking step (default pipelineRankFor(shopCap)). */
   rank?: RankFn;
+  /** The shop cap mode the pipeline ranks under (default DEFAULT_SHOP_CAP_MODE). */
+  shopCap?: ShopCapMode;
   /** A refine-button sort, as SearchInput.sort: overrides the parsed sort_preference. */
   sort?: SortPreference;
   /**
@@ -107,7 +117,8 @@ function fetchState(
     calls: [...calls],
     pool: [...pool],
     ranked: rankProducts(pool, filters).length,
-    passed: rankWithFill(pool, filters, RESULTS_PER_PAGE).ranked.length,
+    // The shop cap only reorders: the count is the same under every mode.
+    passed: rankWithFill(pool, filters, RESULTS_PER_PAGE, "none").ranked.length,
     rejected: rejectionCounts(pool, filters),
     captured,
   };
@@ -203,13 +214,13 @@ export interface LabelMetrics {
   count: number;
   /** The first result is exact or reasonable. Null with no results or an unlabelled first result. */
   leadCorrect: boolean | null;
-  /** Shown cards (top 3) labelled exact or reasonable. */
+  /** Shown cards (the first page, RESULTS_PER_PAGE) labelled exact or reasonable. */
   cardsGood: number;
   /** Shown cards with any label. */
   cardsLabelled: number;
-  /** Shown cards labelled wrong. */
+  /** Shown cards labelled wrong (the name is from pages of 3; saved reports keep it). */
   wrongTop3: number;
-  /** Ids in the top 6 (the first two pages) without a label: label these next. */
+  /** Ids on the first two pages without a label: label these next. */
   unlabelledTop6: string[];
   /** Whole snapshot pool: labelled exact or reasonable, but the type gate rejects the title. */
   typeFalseNegatives: string[];
@@ -247,11 +258,15 @@ export interface QueryResult {
   fill: number;
   shown: number;
   moreAvailable: boolean;
+  /**
+   * The first page (RESULTS_PER_PAGE cards) and the second. The names are from pages of 3: saved
+   * reports keep them, so --against still reads older runs.
+   */
   top3: ProductLine[];
   next3: ProductLine[];
-  /** The most products one shop has in the top 3 (0 without results, 1 when all differ). */
+  /** The most products one shop has on the first page (0 without results, 1 when all differ). */
   sameShopTop3: number;
-  /** Mean top-3 price as a share of the stated maximum price; null without one. */
+  /** Mean first-page price as a share of the stated maximum price; null without one. */
   budgetShare: number | null;
   rejected: Record<RejectReason, number>;
   labels: LabelMetrics | null;
@@ -298,7 +313,7 @@ export type CardMetrics = Pick<
   "leadCorrect" | "cardsGood" | "cardsLabelled" | "wrongTop3" | "unlabelledTop6"
 >;
 
-/** The label metrics of the shown cards (top 3) and the first two pages (top 6). */
+/** The label metrics of the shown cards (the first page) and the first two pages. */
 export function cardMetrics(top3: ProductLine[], top6: ProductLine[]): CardMetrics {
   return {
     leadCorrect: top3.length && top3[0].label ? isGoodLabel(top3[0].label) : null,
@@ -378,7 +393,11 @@ export function evaluateQuery(snap: Snapshot, book: LabelBook, variant: Variant)
     };
   }
   const fetched = replayFetch(snap, filters, variant.policy);
-  const ranking = rankLikePipeline(fetched.pool, filters, variant.rank);
+  const ranking = rankLikePipeline(
+    fetched.pool,
+    filters,
+    variant.rank ?? pipelineRankFor(variant.shopCap ?? DEFAULT_SHOP_CAP_MODE),
+  );
   const fillIds = new Set(ranking.fillIds);
   const lines = ranking.kept.map((p) => productLine(p, fillIds, labels));
   const top3 = lines.slice(0, RESULTS_PER_PAGE);

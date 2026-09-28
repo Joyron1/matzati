@@ -70,7 +70,11 @@ const MINUTE = 60_000;
  * A loader against a fake gateway: hotproduct.query calls take `bodies` in order, link.generate
  * calls are answered per `links`.
  */
-function setup(bodies: string[], links: LinkMode = "ok") {
+function setup(
+  bodies: string[],
+  links: LinkMode = "ok",
+  { mayFetch }: { mayFetch?: () => boolean } = {},
+) {
   let now = Date.parse("2026-09-28T12:00:00Z");
   const queue = [...bodies];
   const fetchMock = vi.fn<typeof fetch>(async (_url, init) => {
@@ -102,6 +106,7 @@ function setup(bodies: string[], links: LinkMode = "ok") {
       now += ms;
     },
     log,
+    mayFetch,
   });
   const deps = (): HotFetchDeps => ({ ali: client, saveProducts });
   const sent = (call: number) => new URLSearchParams(String(fetchMock.mock.calls[call][1]?.body));
@@ -182,6 +187,28 @@ describe("HotPoolLoader", () => {
     const second = await t.loader.load("44", t.deps);
     expect(t.listCalls()).toBe(2);
     expect(second.products[0].productId).not.toBe(first.products[0].productId);
+  });
+
+  it("starts no fetch while mayFetch says no, records no failure, and still shares what it has", async () => {
+    let allowed = false;
+    const t = setup([fixtureText("cat44-HE")], "ok", { mayFetch: () => allowed });
+    const refused = await t.loader.load("44", t.deps).catch((err: unknown) => err);
+    expect(refused).toBeInstanceOf(HotPoolError);
+    expect(refused).toMatchObject({ reason: "failed", waiting: true });
+    expect(t.fetchMock).not.toHaveBeenCalled();
+    // Nothing is held against the list: the next caller that may fetch does so at once.
+    expect(t.loader.isWaiting("44")).toBe(false);
+    allowed = true;
+    const running = t.loader.load("44", t.deps);
+    allowed = false;
+    // A fetch already running, and then a list fetched in the last RECENT_MS, cost no call.
+    const [joined, pool] = await Promise.all([t.loader.load("44", t.deps), running]);
+    expect(joined).toBe(pool);
+    expect(await t.loader.load("44", t.deps)).toBe(pool);
+    expect(t.listCalls()).toBe(1);
+    t.advance(RECENT_MS);
+    await expect(t.loader.load("44", t.deps)).rejects.toMatchObject({ waiting: true });
+    expect(t.listCalls()).toBe(1);
   });
 
   it("spaces this instance's calls ALI_SPACING_MS apart, hot link calls included", async () => {

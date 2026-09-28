@@ -1,9 +1,12 @@
 // Development-only visual previews of the coupon, sale and product-page sections and of the search
 // waiting screen, rendered with the real page views and made-up data, so every state can be looked
 // at (and screenshotted) in both themes without a database row or an API call:
-// /dev/preview/coupons, /dev/preview/sales, /dev/preview/product-extras, /dev/preview/product-hot
-// (a product opened from /hot, with AliExpress's Hebrew title), /dev/preview/search-loading,
-// /dev/preview/search-results (the result cards while their lines stream in).
+// /dev/preview/coupons, /dev/preview/sales, /dev/preview/product-extras (a product opened from a
+// search: video first in the gallery, coupons, variants, similar products),
+// /dev/preview/product-hot (opened from /hot, with AliExpress's Hebrew title and the hot list's
+// similar products), and the /search view (./search-previews.tsx): /dev/preview/search-loading
+// (the wait, then the results), /dev/preview/search-results and /dev/preview/search-update, and
+// /dev/preview/admin-settings (the /admin/settings form, whose action here saves nothing).
 // A 404 in production, noindex, disallowed in robots.txt and never
 // listed in the sitemap. Nothing here reads the database, AliExpress or an LLM.
 import type { Metadata } from "next";
@@ -13,16 +16,25 @@ import { CouponsView } from "@/app/coupons/coupons-view";
 import { ProductView } from "@/app/p/[productId]/product-view";
 import { SalesIntro, SalesView } from "@/app/sales/sales-view";
 import { DealsBoard } from "@/components/deals-board";
-import { ResultCards } from "@/components/result-cards";
 import { SaleCountdown } from "@/components/sale-countdown";
-import { SearchWaitScreen } from "@/components/search-wait/search-wait";
+import { SimilarProducts } from "@/components/similar-products";
 import type { AliPromoCode } from "@/lib/aliexpress/promo-code";
 import type { AliSkuDetails } from "@/lib/aliexpress/schemas";
 import type { ApiCodeProduct } from "@/lib/coupons/api-codes";
 import type { Coupon, PublicCoupons } from "@/lib/coupons/types";
-import type { LoggedResult } from "@/lib/search-url";
+import { hotProductHref } from "@/lib/hot/params";
 import type { ProductPageData } from "@/lib/search/server";
+import {
+  searchProductHref,
+  type SimilarItem,
+  type SimilarProducts as SimilarProductsData,
+} from "@/lib/similar/select";
 import type { Deal } from "@/lib/types";
+import { SettingsIntro } from "@/app/admin/settings/settings-intro";
+import { DEFAULT_SHOP_CAP_MODE, isShopCapMode } from "@/lib/ranking/config";
+import { RecentStripPreview } from "./home-previews";
+import { PreviewSettingsForm } from "./preview-controls";
+import { isSearchScreen, SearchPreview } from "./search-previews";
 
 export const metadata: Metadata = {
   title: "תצוגה מקדימה לפיתוח",
@@ -36,6 +48,9 @@ const SCREENS = [
   "product-hot",
   "search-loading",
   "search-results",
+  "search-update",
+  "recent-strip",
+  "admin-settings",
 ] as const;
 type Screen = (typeof SCREENS)[number];
 
@@ -68,76 +83,8 @@ function israelMidnight(now: Date, days: number): string {
 
 const FAKE_PRODUCT_ID = "1000000000000001";
 
-/** The waiting screen's sample query (the composer's own placeholder example). */
-const PREVIEW_QUERY = "אוזניות לריצה, עמידות למים, עד 100 ש״ח";
-
-/** How long the search-results preview takes to write its lines. */
-const PREVIEW_LINES_MS = 4_000;
-
-/** Three made-up results: as first shown (AliExpress's titles) and with their lines written. */
-function searchResultsData(): { initial: LoggedResult[]; done: LoggedResult[] } {
-  const base = {
-    original_price_ils: null,
-    price_is_approx: false,
-    discount_pct: null,
-    passed_tier: "standard" as const,
-    image_urls: [],
-    category_id: null,
-    search_uid: "00000000-0000-4000-8000-000000000002",
-  };
-  const initial: LoggedResult[] = [
-    {
-      ...base,
-      product_id: "1000000000000011",
-      title_he:
-        "6/8/10/12-Pack Adjustable Drawer Organizers, Clear Expandable Dresser Organizers for Storing Socks",
-      title_en:
-        "6/8/10/12-Pack Adjustable Drawer Organizers, Clear Expandable Dresser Organizers for Storing Socks",
-      why_he: "עבר את הסינון שלנו.",
-      price_ils: 11.23,
-      positive_feedback_pct: 98,
-      units_sold: 11268,
-      shared_numbers: { feedback: true, sales: true },
-    },
-    {
-      ...base,
-      product_id: "1000000000000012",
-      title_he: "Kitchen Drawer Organizer Rack, Multi-Purpose Storage Tray with Dividers",
-      title_en: "Kitchen Drawer Organizer Rack, Multi-Purpose Storage Tray with Dividers",
-      why_he: "3,050 נמכרו ב־30 הימים האחרונים.",
-      price_ils: 16.65,
-      positive_feedback_pct: 98,
-      units_sold: 3050,
-      shared_numbers: { feedback: true, sales: false },
-    },
-    {
-      ...base,
-      product_id: "1000000000000013",
-      title_he: "Adjustable Plastic Cutlery Drawer Organizer Divided Storage Tray",
-      title_en: "Adjustable Plastic Cutlery Drawer Organizer Divided Storage Tray",
-      why_he: "96.4% משוב חיובי ו־1,204 נמכרו ב־30 הימים האחרונים.",
-      price_ils: 16.93,
-      positive_feedback_pct: 96.4,
-      units_sold: 1204,
-    },
-  ];
-  const written = [
-    [
-      "מארגן מגירות מתכוונן, סט של 6 עד 12",
-      "מארגן מגירות שקוף ומתרחב לגרביים ולבגדים, בסט של 6 עד 12 יחידות לבחירה (נתונים מומצאים).",
-    ],
-    [
-      "מתקן מארגן למגירת מטבח עם מחיצות",
-      "מתקן רב־שימושי למגירת המטבח עם מחיצות לסכו״ם ולכלים קטנים (נתונים מומצאים).",
-    ],
-    [
-      "מארגן סכו״ם מתכוונן למגירה",
-      "מארגן סכו״ם מפלסטיק עם תאים ו־96.4% משוב חיובי (נתונים מומצאים).",
-    ],
-  ];
-  const done = initial.map((r, i) => ({ ...r, title_he: written[i][0], why_he: written[i][1] }));
-  return { initial, done };
-}
+/** The search the product preview's similar products link with (made-up product ids: a 404). */
+const PREVIEW_PRODUCT_QUERY = "תיק לכבלים לנסיעות";
 
 function coupon(now: Date, over: Partial<Coupon>): Coupon {
   return {
@@ -323,6 +270,110 @@ function salesData(now: Date) {
   return { sales, coupons: new Map([[running.id, linked]]) };
 }
 
+/** Photos from the product.query fixture (AliExpress's image CDN), so the gallery has real images. */
+const IMG = (name: string) => `https://ae-pic-a1.aliexpress-media.com/kf/${name}`;
+const GALLERY_IMAGES = [
+  "S1054b9147d9e485388688a21f0437e4dL.jpg",
+  "Sc36c59e5fe24402c874d8cd16bbb123dD.jpg",
+  "Scb7416e62d2d42ad8e070094cf5a9f60b.jpg",
+  "S7dbdac86722a4bc4aa9d3c79c67a7190P.jpg",
+  "S599b8deeab1e40588d8202ecb8a88e9bi.jpg",
+  "S320805b5a05146c6a6ebd8b624f1eb9aG.jpg",
+].map(IMG);
+
+/** Eight made-up similar products: Hebrew titles, an English one, and shared numbers. */
+function similarItems(href: (id: string) => string, hebrewOnly = false): SimilarItem[] {
+  const rows: [string, string, number, number | null, number, number][] = [
+    [
+      "S77915714249b42d583972e4076b2b04dZ.jpg",
+      "מארגן כבלים מסיליקון לשולחן (לדוגמה)",
+      9.9,
+      19.9,
+      97.8,
+      4210,
+    ],
+    [
+      "S208e59066ea64143963230db82f0e2148.jpg",
+      "קליפסים דביקים לסידור כבלים (לדוגמה)",
+      6.5,
+      null,
+      98.4,
+      12034,
+    ],
+    [
+      "S2e87e57a7fc944399088a820931f12bbc.jpg",
+      hebrewOnly
+        ? "תיק נסיעות לכבלים ומטענים, עמיד במים, עם תאים (לדוגמה)"
+        : "USB Cable Storage Bag Multifunctional Travel Portable Organizer (sample)",
+      24.3,
+      41.0,
+      96.1,
+      860,
+    ],
+    [
+      "S7b9e52a1027f4e21bf9eb89a4338ee35y.jpg",
+      "מלפף כבלים לאוזניות ולעכבר (לדוגמה)",
+      5.2,
+      8.9,
+      97.0,
+      3120,
+    ],
+    [
+      "S5d6b30ff6d9b4ec2869eeab07895e0d3e.jpg",
+      "סט 20 קליפסים לכבלים (לדוגמה)",
+      11.4,
+      null,
+      98.0,
+      1500,
+    ],
+    [
+      "Sfecc881ce40e473aa689cf8947a36634V.jpg",
+      "מחזיק כבלים מסיליקון, 5 חריצים (לדוגמה)",
+      7.8,
+      12.5,
+      95.5,
+      640,
+    ],
+    [
+      "Sd7e3f2fe05b6472d928954de4f0dd910n.jpg",
+      "30 קליפסים לשולחן העבודה (לדוגמה)",
+      13.9,
+      25.0,
+      96.7,
+      2290,
+    ],
+    [
+      "S7b338a2be52747c0905f3efe50a7d343m.jpg",
+      "סרט סקוץ׳ לכבלים באורך 5 מטר (לדוגמה)",
+      8.6,
+      null,
+      97.3,
+      980,
+    ],
+  ];
+  return rows.map(([image, title, price, original, pct, sold], i) => {
+    const productId = `10000000000001${String(i).padStart(2, "0")}`;
+    return {
+      productId,
+      href: href(productId),
+      title,
+      imageUrl: IMG(image),
+      price: {
+        price_ils: price,
+        original_price_ils: original,
+        price_is_approx: false,
+        discount_pct: original ? Math.round((1 - price / original) * 100) : null,
+      },
+      trust: {
+        positive_feedback_pct: pct,
+        units_sold: sold,
+        // One listing of a shop that shares numbers, as the result cards show it.
+        ...(i === 4 && !hebrewOnly ? { shared_numbers: { feedback: true, sales: false } } : {}),
+      },
+    };
+  });
+}
+
 function productData(now: Date): ProductPageData {
   const skuDetails: AliSkuDetails = {
     reviewCount: null,
@@ -347,8 +398,8 @@ function productData(now: Date): ProductPageData {
   return {
     product: {
       product_id: FAKE_PRODUCT_ID,
-      title_he: "מוצר לדוגמה: אוזניות אלחוטיות (נתונים מומצאים)",
-      title_en: "Sample Wireless Earbuds (made-up preview data)",
+      title_he: "מוצר לדוגמה: תיק אחסון עמיד במים לכבלים ולמטענים (נתונים מומצאים)",
+      title_en: "Sample Cable Storage Bag, Waterproof Organizer (made-up preview data)",
       why_he: "",
       price_ils: 45.9,
       original_price_ils: 89.9,
@@ -357,17 +408,19 @@ function productData(now: Date): ProductPageData {
       positive_feedback_pct: 96,
       units_sold: 349,
       passed_tier: "standard",
-      image_urls: [],
+      image_urls: GALLERY_IMAGES,
       category_id: null,
     },
     detailUrl: `https://www.aliexpress.com/item/${FAKE_PRODUCT_ID}.html`,
     shopName: "חנות לדוגמה",
     updatedAt: at(now, -3 * HOUR),
     tips: [
-      "טיפ כללי לדוגמה: בדקו את סוג החיבור לטעינה.",
-      "טיפ כללי לדוגמה: חפשו תקן עמידות מוגדר.",
+      "טיפ כללי לדוגמה: בדקו את המידות הפנימיות מול המטענים והכבלים שתרצו לשים בתיק.",
+      "טיפ כללי לדוגמה: חפשו ״עמיד במים״ עם תקן מוגדר, לא רק ״דוחה מים״.",
+      "טיפ כללי לדוגמה: רוכסן כפול ותאים עם גומי מחזיקים את הכבלים במקום.",
+      "טיפ כללי לדוגמה: בתמונות של המוכר חפשו תמונה של התיק מלא, לא רק ריק.",
     ],
-    tipsCategoryHe: "אוזניות",
+    tipsCategoryHe: "אביזרי נסיעה",
     coupon: null,
     ownerCoupons: [
       coupon(now, {
@@ -402,7 +455,10 @@ function FakeDataNote({ children }: { children: string }) {
   );
 }
 
-export default async function PreviewPage({ params }: PageProps<"/dev/preview/[screen]">) {
+export default async function PreviewPage({
+  params,
+  searchParams,
+}: PageProps<"/dev/preview/[screen]">) {
   if (process.env.NODE_ENV === "production") notFound();
   const { screen } = await params;
   if (!isScreen(screen)) notFound();
@@ -420,41 +476,43 @@ export default async function PreviewPage({ params }: PageProps<"/dev/preview/[s
     );
   }
 
-  if (screen === "search-loading") {
-    // The search page's waiting screen (the Suspense fallback in app/search/page.tsx) with a
-    // sample query. The bar is inert here, so nothing on this page can start a search.
+  if (screen === "admin-settings") {
+    // The /admin/settings form (sign-in only there), with an action that saves nothing.
+    // ?mode=max2 selects the other choice, ?error=1 shows the "could not save" message.
+    const params = await searchParams;
+    const mode = isShopCapMode(params.mode) ? params.mode : DEFAULT_SHOP_CAP_MODE;
     return (
       <>
-        <FakeDataNote>
-          מסך ההמתנה לתוצאות חיפוש, עם חיפוש לדוגמה. אין כאן חיפוש אמיתי: השלבים מתקדמים לפי זמן.
-          רעננו את הדף כדי להתחיל מחדש.
-        </FakeDataNote>
-        <div className="mx-auto max-w-6xl space-y-6 px-4 pt-6 sm:px-6 sm:pt-10">
-          <SearchWaitScreen query={PREVIEW_QUERY} demo />
+        <FakeDataNote>כמו דף ההגדרות בניהול. השמירה כאן לא שומרת כלום.</FakeDataNote>
+        <div className="mx-auto max-w-3xl space-y-6 px-4 pt-8 sm:px-6 sm:pt-12">
+          <SettingsIntro />
+          <p className="text-sm text-muted">נשמרה לאחרונה ב־28.9.2026, 23:00 (לדוגמה).</p>
+          <PreviewSettingsForm mode={mode} failed={params.error === "1"} />
         </div>
       </>
     );
   }
 
-  if (screen === "search-results") {
-    // The first page of results while its lines are written (plan item 15): AliExpress's English
-    // titles, "being written" in the room kept for the lines, then the lines about 4 s later.
-    // Listings of a shop that shares numbers show which ones (lib/ranking/shared-numbers.ts).
-    // Inert: nothing on this page links anywhere.
-    const { initial, done } = searchResultsData();
-    const final = new Promise<LoggedResult[]>((resolve) =>
-      setTimeout(() => resolve(done), PREVIEW_LINES_MS),
-    );
+  if (screen === "recent-strip") {
+    // The home "חיפושים אחרונים" strip with ?n= made-up searches (./home-previews.tsx).
+    const n = Math.min(6, Math.max(1, Number((await searchParams).n) || 2));
     return (
       <>
-        <FakeDataNote>
-          כרטיסי התוצאות בזמן שהמשפטים נכתבים: הם מגיעים אחרי כ־4 שניות. רעננו את הדף כדי להתחיל
-          מחדש.
-        </FakeDataNote>
-        <div inert className="mx-auto max-w-6xl space-y-6 px-4 pt-6 sm:px-6 sm:pt-10">
-          <ResultCards initial={initial} final={final} q={PREVIEW_QUERY} />
-        </div>
+        <FakeDataNote>{`רצועת החיפושים האחרונים של דף הבית, עם ${n} חיפושים לדוגמה.`}</FakeDataNote>
+        <RecentStripPreview n={n} now={now} />
       </>
+    );
+  }
+
+  if (isSearchScreen(screen)) {
+    // The /search view: the wait, then the results (./search-previews.tsx).
+    return (
+      <SearchPreview
+        screen={screen}
+        params={await searchParams}
+        now={now}
+        note={(text) => <FakeDataNote>{text}</FakeDataNote>}
+      />
     );
   }
 
@@ -495,20 +553,44 @@ export default async function PreviewPage({ params }: PageProps<"/dev/preview/[s
       ownerCoupons: [],
       skuDetails: null,
     };
+    const similar: SimilarProductsData = {
+      source: { kind: "hot", categoryHe: "מחשבים ומשרד" },
+      checkedAt: at(now, -5 * HOUR),
+      items: similarItems((id) => hotProductHref(id, "7"), true),
+    };
     return (
       <>
         <FakeDataNote>כמו דף מוצר שנפתח מהמוצרים החמים, עם השם של אלי אקספרס בעברית.</FakeDataNote>
-        <ProductView data={data} q="" hotBack="/hot?cat=44" now={now} />
+        <ProductView
+          data={data}
+          q=""
+          hotBack="/hot?cat=7"
+          now={now}
+          similar={<SimilarProducts data={similar} className="mt-12" />}
+        />
       </>
     );
   }
 
+  // A product opened from a search: the similar products are the rest of that search's results.
+  const similar: SimilarProductsData = {
+    source: { kind: "search" },
+    checkedAt: at(now, -26 * HOUR),
+    items: similarItems((id) => searchProductHref(id, PREVIEW_PRODUCT_QUERY)),
+  };
   return (
     <>
       <FakeDataNote>
-        כמו דף מוצר, עם קופון שלנו, קוד של אלי אקספרס, סרטון, צבעים ומידות.
+        כמו דף מוצר שנפתח מחיפוש, עם סרטון, קופון שלנו, קוד של אלי אקספרס, צבעים ומידות ומוצרים
+        דומים.
       </FakeDataNote>
-      <ProductView data={productData(now)} q="" now={now} />
+      {/* No q: its back link would open /search, which runs a real search. */}
+      <ProductView
+        data={productData(now)}
+        q=""
+        now={now}
+        similar={<SimilarProducts data={similar} className="mt-12" />}
+      />
     </>
   );
 }

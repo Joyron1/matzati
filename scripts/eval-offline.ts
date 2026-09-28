@@ -23,6 +23,8 @@
 //                          overwrite the report it compares with
 //   --only <id,id>         only these snapshots; --group eval|example|live; --skip-copies
 //   --sort <preference>    as the refine buttons: best_value, cheapest, most_popular
+//   --shop-cap <mode>      the admin's shop cap setting the ranking runs under: none (the default
+//                          setting) or max2; "none,max2" runs both and compares them
 //   --without <id,id>      removed chips: req:<en>, req:* (every requirement), min, max
 //   --renormalize          run each stored parse through the current normalizeParsed first
 //   --detail               list the first 6 results of every query (to read or to label)
@@ -42,6 +44,12 @@ import {
   type EvalRun,
 } from "@/lib/eval/report";
 import type { Snapshot } from "@/lib/eval/snapshot";
+import {
+  DEFAULT_SHOP_CAP_MODE,
+  isShopCapMode,
+  SHOP_CAP_MODES,
+  type ShopCapMode,
+} from "@/lib/ranking/config";
 import type { SortPreference } from "@/lib/search/filters";
 
 const SORTS: readonly SortPreference[] = ["best_value", "cheapest", "most_popular"];
@@ -71,6 +79,7 @@ const KNOWN = new Set([
   "--group",
   "--skip-copies",
   "--sort",
+  "--shop-cap",
   "--without",
   "--renormalize",
   "--detail",
@@ -108,18 +117,33 @@ function main() {
   const without = list("--without");
   const renormalize = has("--renormalize");
 
+  const shopCaps = list("--shop-cap");
+  const badCap = shopCaps.find((m) => !isShopCapMode(m));
+  if (badCap !== undefined || (value("--shop-cap") !== undefined && !shopCaps.length)) {
+    throw new Error(`--shop-cap must be one of ${SHOP_CAP_MODES.join(", ")}, or two of them`);
+  }
+  if (shopCaps.length > 2) throw new Error("--shop-cap takes one mode, or two to compare");
+
   const compare = list("--compare");
   if (value("--compare") !== undefined && compare.length !== 2) {
     throw new Error("--compare takes two policies: <baseline>,<candidate>");
   }
+  if (compare.length && shopCaps.length === 2) {
+    throw new Error("compare two policies or two shop cap modes, not both");
+  }
   const policyNames = compare.length ? compare : [value("--policy") ?? "current"];
-  const variants: Variant[] = policyNames.map((name) => ({
-    name,
-    policy: policyByName(name),
-    ...(sort ? { sort } : {}),
-    ...(without.length ? { without } : {}),
-    ...(renormalize ? { adjustParse: renormalizeParse } : {}),
-  }));
+  const modes = (shopCaps.length ? shopCaps : [DEFAULT_SHOP_CAP_MODE]) as ShopCapMode[];
+  const variants: Variant[] = policyNames.flatMap((name) =>
+    modes.map((shopCap) => ({
+      name: modes.length === 2 ? `${name}-${shopCap}` : name,
+      policy: policyByName(name),
+      shopCap,
+      ...(sort ? { sort } : {}),
+      ...(without.length ? { without } : {}),
+      ...(renormalize ? { adjustParse: renormalizeParse } : {}),
+    })),
+  );
+  const comparing = variants.length === 2;
 
   const { snapshots, partial } = selectSnapshots(loadSnapshots());
   if (!snapshots.length) throw new Error("no snapshot selected");
@@ -130,12 +154,14 @@ function main() {
     sort ? `sort-${sort}` : "",
     without.length ? `without-${without.join("+").replace(/[^a-z0-9._+-]/gi, "")}` : "",
     renormalize ? "renormalized" : "",
+    shopCaps.length === 1 ? `shopcap-${shopCaps[0]}` : "",
     partial ? "partial" : "",
     // Never overwrite the saved report this run is compared with.
     value("--against") !== undefined ? `vs-${value("--against")}` : "",
   ].filter(Boolean);
   const name =
-    value("--name") ?? [compare.length ? compare.join("-vs-") : policyNames[0], ...tags].join("_");
+    value("--name") ??
+    [comparing ? variants.map((v) => v.name).join("-vs-") : policyNames[0], ...tags].join("_");
   const report: EvalReport = newReport(
     name,
     snapshots,
@@ -152,7 +178,8 @@ function main() {
     if (has("--detail")) console.log(`${formatDetail(run)}\n`);
   }
   if (runs.length === 2) {
-    report.comparisons.push({ ...compareRuns(runs[0], runs[1]), source: "--compare" });
+    const source = compare.length ? "--compare" : "--shop-cap";
+    report.comparisons.push({ ...compareRuns(runs[0], runs[1]), source });
   }
   const against = value("--against");
   if (against !== undefined) {
@@ -178,8 +205,8 @@ function main() {
 
   console.log(
     `${snapshots.length} snapshots, ${labels.entries} labels in ${labels.files.length} files. ` +
-      `Legend: calls p1/p2 = pages of the primary keywords, L1.. = ladder steps; top3 labels ` +
-      `E exact, R reasonable, w weak, X wrong, ? unlabelled; shop = most results from one shop in the top 3.`,
+      `Legend: calls p1/p2 = pages of the primary keywords, L1.. = ladder steps; page1 labels ` +
+      `E exact, R reasonable, w weak, X wrong, ? unlabelled; shop = most results of one shop on page 1.`,
   );
   if (!has("--no-write")) {
     const path = reportPath(name);

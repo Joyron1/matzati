@@ -1,5 +1,6 @@
 // Display text for /admin/stats. Costs of a few calls are fractions of a cent, so small USD
 // amounts keep four decimals instead of rounding to "$0.00".
+import { RESULTS_PER_PAGE } from "@/lib/config/site";
 import type { SearchOriginKind } from "@/lib/search/store";
 import type { ClickPositionGroup } from "./report";
 import type { LlmCallKind } from "./usage";
@@ -61,13 +62,16 @@ export function formatSeconds(ms: number | null): string {
   return `${(ms / 1000).toFixed(1)} שניות`;
 }
 
+/** The "show more" button as the results page labels it. */
+const MORE_BUTTON = `״עוד ${RESULTS_PER_PAGE} אפשרויות״`;
+
 const ORIGIN_LABELS: Record<SearchOriginKind, string> = {
   typed: "הוקלד בתיבת החיפוש",
   example: "דוגמה מהאתר",
   recent: "חיפוש אחרון",
   chip: "הסרת סינון",
   sort: "שינוי מיון",
-  more: "״עוד 3 אפשרויות״",
+  more: MORE_BUTTON,
   preview: "עמוד SEO",
   ad: "מודעה או קמפיין",
 };
@@ -92,10 +96,11 @@ export function failureLabel(code: string): string | null {
   return Object.hasOwn(FAILURE_LABELS, code) ? FAILURE_LABELS[code] : null;
 }
 
+// The bounds of stats_click_positions (20260928230000_five_results.sql), which a test checks.
 const POSITION_LABELS: Record<ClickPositionGroup, string> = {
   featured: "התוצאה הראשית (מקום 1)",
-  top3: "מקומות 2 ו־3",
-  more: "״עוד 3 אפשרויות״ (מקום 4 ומעלה)",
+  first_page: `שאר העמוד הראשון (מקומות 2 עד ${RESULTS_PER_PAGE})`,
+  more: `${MORE_BUTTON} (מקום ${RESULTS_PER_PAGE + 1} ומעלה)`,
 };
 
 export function clickPositionLabel(group: ClickPositionGroup): string {
@@ -105,7 +110,7 @@ export function clickPositionLabel(group: ClickPositionGroup): string {
 const KIND_LABELS: Record<LlmCallKind, string> = {
   parse: "הבנת החיפוש",
   explain: "הסבר לתוצאות",
-  explain_more: "הסבר ל״עוד 3 אפשרויות״",
+  explain_more: `הסבר ל${MORE_BUTTON}`,
   tips: "טיפים לקטגוריה",
 };
 

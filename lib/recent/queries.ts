@@ -1,9 +1,11 @@
 // Server-only reads for the recent-searches page (/searches) and the home strip, and the admin
 // hide/restore writes. Everything goes through the service role: search_log is not public, and
 // the SQL functions plus the checks in lib/recent/db.ts decide what may be shown (production
-// searches only, whichever environment reads them). Public reads are
-// cached for a minute (tag RECENT_TAG); /admin/searches reads fresh and calls updateTag after a
-// change. The query builders live in lib/recent/db.ts and are tested with a fake client.
+// searches only, whichever environment reads them). /searches reads fresh on every view, so a
+// search shows there at once (a cached list served stale copies for a minute or more, and the
+// page and the home strip disagreed); the home strip is cached for 30 s (tag RECENT_TAG).
+// /admin/searches reads fresh and calls updateTag after a change. The query builders live in
+// lib/recent/db.ts and are tested with a fake client.
 import "server-only";
 import { unstable_cache } from "next/cache";
 import { serviceClient } from "@/lib/supabase/server";
@@ -31,7 +33,8 @@ import {
 
 export { RecentSearchesError, queryNormSchema, type HiddenSearch } from "./db";
 
-const REVALIDATE_SECONDS = 60;
+/** How long the home strip may be behind the newest search. */
+const STRIP_REVALIDATE_SECONDS = 30;
 
 function logError(where: string, err: unknown) {
   // Name and message only: never the filter text or any row.
@@ -39,35 +42,21 @@ function logError(where: string, err: unknown) {
   console.error(`[recent] ${where}: ${text.slice(0, 200)}`);
 }
 
-// The category options ignore the filter, so they are cached once for every listing: a new text
-// filter (free text, a new cache key per spelling) then costs one card read, not two.
-const cachedCounts = unstable_cache(
-  async (): Promise<CategoryCounts> => selectCategoryCounts(serviceClient()),
-  ["recent-searches-categories"],
-  { revalidate: REVALIDATE_SECONDS, tags: [RECENT_TAG] },
-);
-
-// Errors are thrown inside, so a failure is never cached. The arguments are the cache key, so
-// they come from toRecentQuery(): a small, normalized key space.
-const cachedList = unstable_cache(
-  async (category: string | null, text: string | null, page: number): Promise<RecentSearchList> =>
-    selectRecentSearchList(serviceClient(), { category, text, page }, cachedCounts()),
-  ["recent-searches-list"],
-  { revalidate: REVALIDATE_SECONDS, tags: [RECENT_TAG] },
-);
-
+// Errors are thrown inside, so a failure is never cached.
 const cachedLatest = unstable_cache(
   async (limit: number): Promise<RecentSearch[]> =>
     selectLatestRecentSearches(serviceClient(), limit),
   ["recent-searches-latest"],
-  { revalidate: REVALIDATE_SECONDS, tags: [RECENT_TAG] },
+  { revalidate: STRIP_REVALIDATE_SECONDS, tags: [RECENT_TAG] },
 );
 
-/** One page of /searches for a filter. Cached briefly (tag RECENT_TAG). Throws RecentSearchesError. */
+/** One page of /searches for a filter, read fresh. Throws RecentSearchesError. */
 export async function listRecentSearches(filter: RecentSearchFilter): Promise<RecentSearchList> {
   const { category, text, page } = toRecentQuery(filter);
   try {
-    return await cachedList(category, text, page);
+    const db = serviceClient();
+    const counts: Promise<CategoryCounts> = selectCategoryCounts(db);
+    return await selectRecentSearchList(db, { category, text, page }, counts);
   } catch (err) {
     logError("list", err);
     throw err instanceof RecentSearchesError

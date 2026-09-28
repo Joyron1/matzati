@@ -120,8 +120,9 @@ export function HotProductsCarouselPlaceholder() {
             <Heading ghost />
           </div>
           <div className={HOT_NAV_BUTTONS}>
-            <span className="size-11" />
-            <span className="size-11" />
+            <span className="size-11 motion-reduce:hidden" />
+            <span className="size-11 max-sm:hidden" />
+            <span className="size-11 max-sm:hidden" />
           </div>
         </div>
         {/* tabIndex -1: an overflowing row with nothing focusable in it would take a Tab stop. */}

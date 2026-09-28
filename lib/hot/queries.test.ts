@@ -5,7 +5,19 @@ import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
-vi.mock("next/cache", () => ({ unstable_cache: (fn: unknown) => fn }));
+// No cache by default. With `stale` set it acts like unstable_cache on a stale entry: it answers
+// with that entry and starts the function in the background (not awaited), as Next does.
+const cache = vi.hoisted(() => ({ stale: null as unknown, background: [] as Promise<unknown>[] }));
+vi.mock("next/cache", () => ({
+  unstable_cache:
+    (fn: (...args: unknown[]) => Promise<unknown>) =>
+    async (...args: unknown[]) => {
+      if (cache.stale === null) return fn(...args);
+      await Promise.resolve();
+      cache.background.push(fn(...args).catch((err: unknown) => err));
+      return cache.stale;
+    },
+}));
 // Just enough of the Supabase client for the stored links read: from().select().in(), awaited.
 const db = vi.hoisted(() => {
   type Answer = { data: unknown; error: { message: string } | null };
@@ -47,8 +59,8 @@ vi.mock("./loader", async (importOriginal) => {
   return {
     ...original,
     HotPoolLoader: class extends original.HotPoolLoader {
-      constructor() {
-        super({ spacingMs: 0, clock: () => clock.now });
+      constructor(options: ConstructorParameters<typeof original.HotPoolLoader>[0] = {}) {
+        super({ ...options, spacingMs: 0, clock: () => clock.now });
       }
     },
   };
@@ -108,6 +120,8 @@ beforeEach(() => {
   vi.stubGlobal("fetch", fetchMock);
   errors = vi.spyOn(console, "error").mockImplementation(() => {});
   save.mockClear();
+  cache.stale = null;
+  cache.background.length = 0;
   db.state.reads.length = 0;
   db.state.answer = () => ({ data: [], error: null });
 });
@@ -269,5 +283,56 @@ describe("loadHotPool", () => {
     for (let i = 0; i < 3; i++) expect(await loadHotPool("44")).toEqual(first);
     expect(fetchMock).toHaveBeenCalledTimes(before);
     expect(errors).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("cachedHotPool (/p's similar products: never an AliExpress call)", () => {
+  it("gives null for a list nobody loaded, without a call or a log line, and holds nothing back", async () => {
+    gateway({ "44": fixture("cat44-HE") });
+    const { cachedHotPool, loadHotPool } = await import("./queries");
+    expect(await cachedHotPool("44", clock.now)).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(errors).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
+    // /hot, which may fetch, still does at once.
+    expect((await loadHotPool("44")).ok).toBe(true);
+    expect(calls()).toBe(1);
+  });
+
+  it("gives the list /hot loaded, fresh or stale, and never refreshes it", async () => {
+    const { HOT_LIST_TTL_MS } = await import("./loader");
+    gateway({ "44": fixture("cat44-HE") });
+    const { cachedHotPool, loadHotPool } = await import("./queries");
+    const loaded = await loadHotPool("44");
+    expect(loaded.ok).toBe(true);
+    const before = fetchMock.mock.calls.length;
+    const fresh = await cachedHotPool("44", clock.now);
+    expect(fresh).toEqual(loaded.ok && loaded.pool);
+    // Past its 12 hours the list is read through the cache, whose refresh is refused.
+    clock.now += HOT_LIST_TTL_MS + 1;
+    const stale = await cachedHotPool("44", clock.now);
+    expect(stale?.fetchedAt).toBe(fresh?.fetchedAt);
+    expect(fetchMock).toHaveBeenCalledTimes(before);
+    expect(errors).not.toHaveBeenCalled();
+  });
+
+  it("refuses the background refresh a stale cache entry starts, which /hot would make", async () => {
+    gateway({ "44": fixture("cat44-HE") });
+    const first = await import("./queries");
+    const loaded = await first.loadHotPool("44");
+    expect(loaded.ok).toBe(true);
+    // Another instance: nothing in memory, and the cache holds the list, stale.
+    vi.resetModules();
+    fetchMock.mockClear();
+    cache.stale = loaded.ok && loaded.pool;
+    const { cachedHotPool, loadHotPool } = await import("./queries");
+    expect(await cachedHotPool("44", clock.now)).toEqual(cache.stale);
+    await Promise.all(cache.background);
+    expect(fetchMock).not.toHaveBeenCalled();
+    // The same stale entry read by /hot is refreshed in the background, as before: nothing was
+    // held against the list.
+    expect(await loadHotPool("44")).toEqual({ ok: true, pool: cache.stale });
+    await Promise.all(cache.background);
+    expect(calls()).toBe(1);
   });
 });

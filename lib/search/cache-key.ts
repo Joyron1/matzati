@@ -10,7 +10,7 @@ import { createHash } from "node:crypto";
 import { EXPLAIN_VERSION } from "@/lib/llm/explain";
 import { PARSE_VERSION } from "@/lib/llm/parse";
 import { fixSpelling } from "@/lib/llm/text-checks";
-import { RANKING_VERSION } from "@/lib/ranking/config";
+import { RANKING_VERSION, type ShopCapMode } from "@/lib/ranking/config";
 import { normalizePhrase, tokenize } from "@/lib/ranking/match";
 import type { ParsedQuery, SearchFilters } from "./filters";
 
@@ -62,14 +62,18 @@ const label = (he: string) => fixSpelling(he.replace(/\s+/g, " ").trim());
  * category hint (the last keyword step), the preference words (relevance) and the Hebrew labels
  * the explanations are written with (plan item 9: a label typed differently never shares another
  * query's lines) are part of the key too. Keyword words are a set: AliExpress ignores their order.
+ * So is the shop cap mode the list is ranked under (the admin's setting, lib/settings): after a
+ * switch, a list ranked under the other mode is never served, and the first searches fetch again.
  */
 export function canonicalFilters(
   f: SearchFilters & Partial<Pick<ParsedQuery, "category_hint" | "product_he">>,
+  shopCap: ShopCapMode,
 ) {
   const round = (n: number | undefined) => (n === undefined ? null : Math.round(n));
   return {
     rv: RANKING_VERSION,
     ev: EXPLAIN_VERSION,
+    sc: shopCap,
     k: sortedUnique(words(f.keywords_en)),
     t: unique(f.product_terms.map((t) => tokenize(t).join(" "))),
     r: f.requirements.map((r) => [
@@ -87,8 +91,9 @@ export function canonicalFilters(
 
 export function filtersKey(
   f: SearchFilters & Partial<Pick<ParsedQuery, "category_hint" | "product_he">>,
+  shopCap: ShopCapMode,
 ): string {
-  return sha256(`f2:${JSON.stringify(canonicalFilters(f))}`);
+  return sha256(`f2:${JSON.stringify(canonicalFilters(f, shopCap))}`);
 }
 
 /**

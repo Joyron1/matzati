@@ -1,7 +1,8 @@
-// Three products that really differ (docs/search-quality-plan.md, item 4): near-duplicate
-// listings removed, and one shop may not fill the list. Pure: no I/O.
+// Products that really differ (docs/search-quality-plan.md, item 4): near-duplicate listings
+// removed, and, under the admin's shop cap setting (SHOP_CAP_MODES), one shop may not fill the
+// list. Pure: no I/O.
 import type { AliProduct } from "@/lib/aliexpress/schemas";
-import { DEDUP, SHOP_CAP } from "./config";
+import { DEDUP, SHOP_CAPS, type ShopCapMode } from "./config";
 import { stem, tokenize } from "./match";
 
 interface Listing {
@@ -99,21 +100,25 @@ export function dedupeListings(
 }
 
 /**
- * Reorders a ranked list so one shop has at most SHOP_CAP.firstPage products in the first
- * `pageSize` places and SHOP_CAP.kept in the first SHOP_CAP.keptSize. A product over its shop's
- * cap waits for the first place where it fits, and it takes a place early only when no product of
- * another shop is left, so a pool from one shop still fills the page. Nothing is dropped, and the
- * order is otherwise the ranking's (the same rule as lib/hot/select.ts, which caps a shop at 2).
+ * Reorders a ranked list under the shop cap of `mode` (SHOP_CAPS): one shop has at most
+ * `firstPage` products in the first `pageSize` places and `kept` in the first `keptSize`. A
+ * product over its shop's cap waits for the first place where it fits, and it takes a place early
+ * only when no product of another shop is left, so a pool from one shop still fills the page.
+ * Nothing is dropped, and the order is otherwise the ranking's (the same rule as lib/hot/select.ts,
+ * which caps a shop at 2). Mode "none" keeps the ranking's order as it is.
  */
 export function diversifyShops<T extends Pick<AliProduct, "shop">>(
   ranked: readonly T[],
   pageSize: number,
+  mode: ShopCapMode,
 ): T[] {
+  const shopCap = SHOP_CAPS[mode];
+  if (!shopCap) return [...ranked];
   const cap = (place: number) =>
     place < pageSize
-      ? SHOP_CAP.firstPage
-      : place < SHOP_CAP.keptSize
-        ? SHOP_CAP.kept
+      ? shopCap.firstPage
+      : place < shopCap.keptSize
+        ? shopCap.kept
         : Number.POSITIVE_INFINITY;
   const counts = new Map<string, number>();
   const queue = [...ranked];

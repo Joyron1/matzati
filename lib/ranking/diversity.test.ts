@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { AliProduct } from "@/lib/aliexpress/schemas";
 import { RESULTS_PER_PAGE } from "@/lib/config/site";
 import { RESULTS_KEPT } from "@/lib/search/pipeline";
-import { SHOP_CAP } from "./config";
+import { DEFAULT_SHOP_CAP_MODE, SHOP_CAPS } from "./config";
 import { dedupeListings, diversifyShops } from "./diversity";
 
 function product(overrides: Partial<AliProduct>): AliProduct {
@@ -32,25 +32,70 @@ const inShops = (list: [string, string | null][]) =>
   list.map(([id, s]) => product({ productId: id, title: `Item ${id}`, shop: shop(s) }));
 
 describe("diversifyShops", () => {
-  it("keeps the kept-list size of the pipeline", () => {
-    expect(SHOP_CAP.keptSize).toBe(RESULTS_KEPT);
+  it("caps 'max2' at 2 of the first page and the same share of the kept list", () => {
+    expect(RESULTS_PER_PAGE).toBe(5);
+    expect(SHOP_CAPS.max2).toEqual({ firstPage: 2, kept: 6, keptSize: RESULTS_KEPT });
+    expect(RESULTS_KEPT).toBe(15);
+    expect(SHOP_CAPS.none).toBeNull();
+    expect(DEFAULT_SHOP_CAP_MODE).toBe("none");
   });
 
-  it("shows one product per shop on the first page and two per shop in the kept list", () => {
-    const list = inShops([
-      ["a1", "A"],
-      ["a2", "A"],
-      ["a3", "A"],
-      ["b1", "B"],
-      ["a4", "A"],
-      ["c1", "C"],
-      ["b2", "B"],
-      ["b3", "B"],
+  // Shop A leads the ranking with nine products, then B and C.
+  const ranking = inShops([
+    ["a1", "A"],
+    ["a2", "A"],
+    ["a3", "A"],
+    ["b1", "B"],
+    ["a4", "A"],
+    ["a5", "A"],
+    ["c1", "C"],
+    ["a6", "A"],
+    ["a7", "A"],
+    ["b2", "B"],
+    ["a8", "A"],
+    ["a9", "A"],
+    ["b3", "B"],
+    ["c2", "C"],
+    ["c3", "C"],
+    ["b4", "B"],
+    ["c4", "C"],
+    ["b5", "B"],
+  ]);
+
+  it("'none' keeps the ranking's order: one shop may fill the page", () => {
+    expect(ids(diversifyShops(ranking, RESULTS_PER_PAGE, "none"))).toEqual(ids(ranking));
+  });
+
+  it("'max2' shows at most 2 of one shop on the first page and 6 in the kept list", () => {
+    const out = diversifyShops(ranking, RESULTS_PER_PAGE, "max2");
+    expect(ids(out)).toEqual([
+      // First page: two of A, then B and C move up.
+      "a1",
+      "a2",
+      "b1",
+      "c1",
+      "b2",
+      // The kept list: A's next four fit (6 in 15), the others keep their order.
+      "a3",
+      "a4",
+      "a5",
+      "a6",
+      "b3",
+      "c2",
+      "c3",
+      "b4",
+      "c4",
+      "b5",
+      // Past the kept list nothing is capped.
+      "a7",
+      "a8",
+      "a9",
     ]);
-    const out = diversifyShops(list, RESULTS_PER_PAGE);
-    expect(ids(out)).toEqual(["a1", "b1", "c1", "a2", "b2", "a3", "a4", "b3"]);
+    const shopA = (list: AliProduct[]) => list.filter((p) => p.shop.id === "A").length;
+    expect(shopA(out.slice(0, RESULTS_PER_PAGE))).toBe(2);
+    expect(shopA(out.slice(0, RESULTS_KEPT))).toBe(6);
     // Nothing is dropped.
-    expect(ids(out).sort()).toEqual(ids(list).sort());
+    expect(ids(out).sort()).toEqual(ids(ranking).sort());
   });
 
   it("fills the page from one shop when no other shop has a product left", () => {
@@ -58,25 +103,35 @@ describe("diversifyShops", () => {
       ["a1", "A"],
       ["a2", "A"],
       ["a3", "A"],
+      ["a4", "A"],
+      ["a5", "A"],
     ]);
-    expect(ids(diversifyShops(single, RESULTS_PER_PAGE))).toEqual(["a1", "a2", "a3"]);
-    // Two shops: the second shop's one product comes second, then the first shop again.
+    expect(ids(diversifyShops(single, RESULTS_PER_PAGE, "max2"))).toEqual(ids(single));
+    // Two shops: the second shop's one product comes third, then the first shop again.
     const two = inShops([
       ["a1", "A"],
       ["a2", "A"],
       ["a3", "A"],
+      ["a4", "A"],
       ["b1", "B"],
     ]);
-    expect(ids(diversifyShops(two, RESULTS_PER_PAGE))).toEqual(["a1", "b1", "a2", "a3"]);
+    expect(ids(diversifyShops(two, RESULTS_PER_PAGE, "max2"))).toEqual([
+      "a1",
+      "a2",
+      "b1",
+      "a3",
+      "a4",
+    ]);
   });
 
   it("never caps a product without a shop id", () => {
     const list = inShops([
       ["x1", null],
       ["x2", null],
+      ["x3", null],
       ["a1", "A"],
     ]);
-    expect(ids(diversifyShops(list, RESULTS_PER_PAGE))).toEqual(["x1", "x2", "a1"]);
+    expect(ids(diversifyShops(list, RESULTS_PER_PAGE, "max2"))).toEqual(["x1", "x2", "x3", "a1"]);
   });
 });
 

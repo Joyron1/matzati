@@ -16,6 +16,7 @@ import { SearchComposer } from "@/components/search-composer";
 import { SearchIdeas } from "@/components/search-guide";
 import { card } from "@/components/styles";
 import { BRAND } from "@/lib/config/brand";
+import { RESULTS_PER_PAGE } from "@/lib/config/site";
 import { nextSale } from "@/lib/deals/queries";
 import { FILL_TIER, FILTERS } from "@/lib/ranking/config";
 import { popularSearches } from "@/lib/seo/queries";
@@ -35,7 +36,7 @@ const STEPS = [
   },
   {
     Icon: ListChecks,
-    title: "בוחרים מתוך 3",
+    title: `בוחרים מתוך ${RESULTS_PER_PAGE}`,
     body: "ליד כל מוצר כתוב למה הוא נבחר. אפשר להסיר סינון ולחפש שוב בלחיצה.",
   },
 ];
@@ -99,13 +100,13 @@ async function PopularSearches() {
 export default function HomePage() {
   return (
     <>
-      {/* One centered column: the composer is the focal point, recent searches right under it. */}
+      {/* One centered column: the composer is the focal point, the hot products right under it. */}
       <section aria-labelledby="hero-title" className="relative isolate">
         {/* A soft cobalt glow behind the hero; clipped here so it never widens the page. */}
         <div aria-hidden className="absolute inset-x-0 top-0 -z-10 h-[34rem] overflow-hidden">
           <div className="mx-auto h-full max-w-5xl bg-[radial-gradient(closest-side,var(--color-accent-soft),transparent)]" />
         </div>
-        {/* Tighter on phones, so the whole composer and the first recent searches fit the screen. */}
+        {/* Tighter on phones, so the whole composer and the start of the hot products fit the screen. */}
         <div className="mx-auto max-w-3xl px-4 pt-6 text-center sm:px-6 sm:pt-12 lg:pt-14">
           {/* The one line that says what the site is, on phones too. */}
           <p className="inline-flex items-center gap-2 rounded-full bg-accent-soft px-3.5 py-1.5 text-sm font-semibold text-accent-ink">
@@ -118,7 +119,9 @@ export default function HomePage() {
             className="mt-4 font-display text-[1.75rem] leading-[1.15] text-ink sm:mt-5 sm:text-5xl lg:text-[3.25rem]"
           >
             <span className="block text-balance">כתבו מה אתם צריכים.</span>
-            <span className="block text-balance text-accent">קבלו 3 מוצרים שעברו סינון.</span>
+            <span className="block text-balance text-accent">
+              קבלו {RESULTS_PER_PAGE} מוצרים שעברו סינון.
+            </span>
           </h1>
           {/* Not on phones: the H1 and "איך זה עובד" say it too. */}
           <p className="mx-auto mt-4 hidden max-w-xl text-lg leading-relaxed text-pretty text-muted sm:block">
@@ -130,24 +133,25 @@ export default function HomePage() {
             <SearchComposer />
           </div>
         </div>
-
-        {/* As wide as the sections below, so 6 photo tiles fit in one row on desktop. */}
-        <div className="mx-auto mt-6 max-w-6xl px-4 sm:mt-8 sm:px-6">
-          <Suspense fallback={<RecentSearchesStripPlaceholder />}>
-            <RecentSearchesStrip />
-          </Suspense>
-        </div>
       </section>
 
-      {/* One section gap (mt-16 sm:mt-20) between the page's sections. The carousel brings its own
-          width and gutters; when it renders nothing, this margin collapses into the next one. */}
-      <div className="mt-16 sm:mt-20">
+      {/* Right under the composer (owner request 2026-09-28): the hot products, moving on by
+          themselves (components/hot-products-scroller.tsx). The carousel brings its own width and
+          gutters; when it renders nothing, this margin collapses into the next one. */}
+      <div className="mt-10 sm:mt-14">
         <Suspense fallback={<HotProductsCarouselPlaceholder />}>
           <HotProductsCarousel />
         </Suspense>
       </div>
 
-      {/* Compact, right under the hot products: another way in for a visitor with no query yet. */}
+      {/* As wide as the sections around it, so 6 photo tiles fit in one row on desktop. */}
+      <div className="mx-auto mt-12 max-w-6xl px-4 sm:mt-16 sm:px-6">
+        <Suspense fallback={<RecentSearchesStripPlaceholder />}>
+          <RecentSearchesStrip />
+        </Suspense>
+      </div>
+
+      {/* Compact, right under the recent searches: another way in for a visitor with no query. */}
       <div className="mt-12 sm:mt-16">
         <SearchIdeas />
       </div>

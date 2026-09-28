@@ -3,27 +3,29 @@ import { describe, expect, it } from "vitest";
 import { RESULTS_PER_PAGE } from "@/lib/config/site";
 import { FILL_TIER, FILTERS } from "@/lib/ranking/config";
 import {
+  FILTER_AFTER_MS,
   LAST_STEP,
+  NO_SIGNALS,
   PROGRESS_CAP,
   PROGRESS_EASE,
   PROGRESS_EASE_MS,
   REASSURANCE_TEXT,
-  SCHEDULE_MARKS_MS,
   SLOWER_AFTER_MS,
   SLOW_AFTER_MS,
   WAIT_STEPS,
+  currentStep,
+  doneSteps,
   echoQuery,
+  nextMarkMs,
   nextTip,
   progressAt,
+  progressFloor,
   reassuranceAt,
-  startOffsetMs,
-  stepAt,
   stepProgress,
-  stepState,
+  stepStates,
   tipDurationMs,
-  understoodOffsetMs,
-  UNDERSTOOD_STEPS,
   WAIT_ENTER_DELAY_MS,
+  type WaitSignals,
 } from "./schedule";
 import { WAIT_TIPS } from "./tips";
 
@@ -40,22 +42,9 @@ describe("WAIT_ENTER_DELAY_MS", () => {
 });
 
 describe("WAIT_STEPS", () => {
-  it("starts at zero and moves forward", () => {
-    expect(WAIT_STEPS[0].startsAtMs).toBe(0);
-    for (let i = 1; i < WAIT_STEPS.length; i++) {
-      expect(WAIT_STEPS[i].startsAtMs).toBeGreaterThan(WAIT_STEPS[i - 1].startsAtMs);
-    }
-  });
-
-  it("reaches the last step while a slower fresh search still fetches (7-15 s)", () => {
-    const last = WAIT_STEPS[LAST_STEP].startsAtMs;
-    expect(last).toBeGreaterThanOrEqual(7 * SECOND);
-    expect(last).toBeLessThanOrEqual(15 * SECOND);
-  });
-
-  it("never says it writes the lines: they are written on the cards, after the wait", () => {
-    expect(WAIT_STEPS.map((s) => s.id)).toEqual(["read", "scan", "filter", "rank", "prepare"]);
-    for (const s of WAIT_STEPS) expect(s.label).not.toContain("כותבים");
+  it("names the steps of the search, writing the lines last", () => {
+    expect(WAIT_STEPS.map((s) => s.id)).toEqual(["read", "scan", "filter", "rank", "write"]);
+    expect(WAIT_STEPS[LAST_STEP].label).toBe("כותבים לכם למה בחרנו");
   });
 
   it("never states a count, only 'dozens'", () => {
@@ -63,65 +52,93 @@ describe("WAIT_STEPS", () => {
   });
 });
 
-describe("stepAt", () => {
-  it("follows the schedule", () => {
-    expect(stepAt(0)).toBe(0);
-    expect(stepAt(1_999)).toBe(0);
-    expect(stepAt(2_000)).toBe(1);
-    expect(stepAt(5_000)).toBe(2);
-    expect(stepAt(6_500)).toBe(3);
-    expect(stepAt(8_499)).toBe(3);
-    expect(stepAt(8_500)).toBe(4);
-  });
-
-  it("stays on the last step however long the wait", () => {
-    expect(stepAt(60 * SECOND)).toBe(LAST_STEP);
-    expect(stepAt(Number.POSITIVE_INFINITY)).toBe(LAST_STEP);
-  });
-
-  it("treats bad input as the start", () => {
-    expect(stepAt(-5)).toBe(0);
-    expect(stepAt(Number.NaN)).toBe(0);
-  });
+const understood = (at: number): WaitSignals => ({ ...NO_SIGNALS, understoodAtMs: at });
+const ranked = (writing: boolean): WaitSignals => ({
+  understoodAtMs: 1_500,
+  ranked: true,
+  writing,
 });
 
-describe("stepState", () => {
-  it("marks earlier steps past (never done), the current one current and later ones upcoming", () => {
-    expect([0, 1, 2, 3, 4].map((i) => stepState(i, 2))).toEqual([
-      "past",
-      "past",
-      "current",
-      "upcoming",
-      "upcoming",
-    ]);
-  });
-
-  it("never moves past the last step, however long the wait", () => {
-    for (const elapsed of [0, 5 * SECOND, 11 * SECOND, 30 * SECOND, 10 * 60 * SECOND]) {
-      expect(stepState(LAST_STEP, stepAt(elapsed))).not.toBe("past");
+describe("stepStates", () => {
+  it("reads the query until it is understood, however long that takes", () => {
+    for (const t of [0, 2_000, 9_000, 60_000]) {
+      expect(stepStates(t, NO_SIGNALS)).toEqual([
+        "current",
+        "upcoming",
+        "upcoming",
+        "upcoming",
+        "upcoming",
+      ]);
     }
-    expect(stepState(LAST_STEP, LAST_STEP + 3)).toBe("current");
   });
 
-  it("marks done only what the page knows is done: understanding, once the chips show", () => {
-    expect([0, 1, 2, 3, 4].map((i) => stepState(i, 2, UNDERSTOOD_STEPS))).toEqual([
+  it("marks understanding done with the chips, then scans, then filters on the schedule", () => {
+    const s = understood(1_200);
+    expect(stepStates(1_200, s)).toEqual(["done", "current", "upcoming", "upcoming", "upcoming"]);
+    expect(stepStates(1_200 + FILTER_AFTER_MS - 1, s)[1]).toBe("current");
+    // A step the schedule moved past is past, never done: nothing proved it over.
+    expect(stepStates(1_200 + FILTER_AFTER_MS, s)).toEqual([
       "done",
       "past",
       "current",
       "upcoming",
       "upcoming",
     ]);
-    // Known to be done, the first step is never the current one, even early in the schedule.
-    expect([0, 1].map((i) => stepState(i, 0, UNDERSTOOD_STEPS))).toEqual(["done", "current"]);
-    expect(stepState(LAST_STEP, LAST_STEP, 99)).toBe("current");
+  });
+
+  it("never claims ranking or writing before the products are ranked", () => {
+    const s = understood(800);
+    for (let t = 0; t <= 120_000; t += 250) {
+      const states = stepStates(t, s);
+      expect(states[3]).toBe("upcoming");
+      expect(states[4]).toBe("upcoming");
+    }
+  });
+
+  it("marks everything before writing done once ranked, and writes only when lines are due", () => {
+    expect(stepStates(4_000, ranked(true))).toEqual(["done", "done", "done", "done", "current"]);
+    // Every line was known already: nothing is written, and the page shows at once.
+    expect(stepStates(4_000, ranked(false))).toEqual(["done", "done", "done", "done", "upcoming"]);
+    expect(currentStep(4_000, ranked(false))).toBe(-1);
+    expect(doneSteps(ranked(true))).toBe(LAST_STEP);
   });
 });
 
-describe("understoodOffsetMs", () => {
-  it("continues where the wait before the chips had got to, never before the AliExpress step", () => {
-    expect(understoodOffsetMs(null)).toBe(WAIT_STEPS[1].startsAtMs);
-    expect(understoodOffsetMs(800)).toBe(WAIT_STEPS[1].startsAtMs);
-    expect(understoodOffsetMs(3_400)).toBe(3_400);
+describe("nextMarkMs", () => {
+  it("wakes the screen when filtering becomes current and when a reassurance is due", () => {
+    expect(nextMarkMs(0, NO_SIGNALS)).toBe(SLOW_AFTER_MS);
+    expect(nextMarkMs(1_000, understood(1_000))).toBe(1_000 + FILTER_AFTER_MS);
+    expect(nextMarkMs(1_000 + FILTER_AFTER_MS, understood(1_000))).toBe(SLOW_AFTER_MS);
+    expect(nextMarkMs(SLOW_AFTER_MS, ranked(true))).toBe(SLOWER_AFTER_MS);
+    expect(nextMarkMs(SLOWER_AFTER_MS, ranked(true))).toBeNull();
+  });
+
+  it("holds every moment the steps or the reassurance change, so nothing is missed between them", () => {
+    for (const s of [NO_SIGNALS, understood(700), understood(4_000), ranked(true)]) {
+      let last = { states: stepStates(0, s).join(), reassurance: reassuranceAt(0) };
+      let t = 0;
+      while (true) {
+        const next = nextMarkMs(t, s);
+        // Nothing changes strictly between two marks.
+        const until = next ?? 40_000;
+        for (let u = t + 50; u < until; u += 50) {
+          expect(stepStates(u, s).join()).toBe(last.states);
+          expect(reassuranceAt(u)).toBe(last.reassurance);
+        }
+        if (next === null) break;
+        t = next;
+        last = { states: stepStates(t, s).join(), reassurance: reassuranceAt(t) };
+      }
+    }
+  });
+});
+
+describe("progressFloor", () => {
+  it("raises the bar with each real moment, and stays under the cap", () => {
+    expect(progressFloor(NO_SIGNALS)).toBe(0);
+    expect(progressFloor(understood(500))).toBeGreaterThan(0);
+    expect(progressFloor(ranked(true))).toBeGreaterThan(progressFloor(understood(500)));
+    expect(progressFloor(ranked(true))).toBeLessThan(PROGRESS_CAP);
   });
 });
 
@@ -175,31 +192,6 @@ describe("PROGRESS_EASE", () => {
       expect(cssBar(t)).toBeLessThanOrEqual(PROGRESS_CAP);
     }
   });
-
-  it("continues from the start offset of a search that reuses the parse", () => {
-    const offset = startOffsetMs(true);
-    for (let t = 0; t <= 20 * SECOND; t += 250) {
-      // The bar is the same animation with a negative delay of the offset.
-      const x = Math.min((t + offset) / PROGRESS_EASE_MS, 1);
-      expect(
-        Math.abs(PROGRESS_CAP * cubicBezier(PROGRESS_EASE, x) - progressAt(t + offset)),
-      ).toBeLessThan(0.005);
-    }
-  });
-});
-
-describe("SCHEDULE_MARKS_MS", () => {
-  it("holds every moment the step or the reassurance changes, so nothing is missed between them", () => {
-    let last = { step: stepAt(0), reassurance: reassuranceAt(0) };
-    for (let t = 50; t <= 40 * SECOND; t += 50) {
-      const now = { step: stepAt(t), reassurance: reassuranceAt(t) };
-      if (now.step !== last.step || now.reassurance !== last.reassurance) {
-        expect(SCHEDULE_MARKS_MS).toContain(t);
-      }
-      last = now;
-    }
-    expect([...SCHEDULE_MARKS_MS].sort((a, b) => a - b)).toEqual(SCHEDULE_MARKS_MS);
-  });
 });
 
 describe("tipDurationMs", () => {
@@ -235,13 +227,6 @@ describe("reassuranceAt", () => {
 
   it("mentions the cache only as recent searches returning at once", () => {
     expect(REASSURANCE_TEXT.slow).toContain("חיפוש שכבר נעשה לאחרונה חוזר מיד");
-  });
-});
-
-describe("startOffsetMs", () => {
-  it("starts a search that reuses the cached parse at the AliExpress step", () => {
-    expect(startOffsetMs(false)).toBe(0);
-    expect(stepAt(startOffsetMs(true))).toBe(1);
   });
 });
 

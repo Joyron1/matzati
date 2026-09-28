@@ -31,6 +31,8 @@ import {
   type AliSkuDetails,
 } from "@/lib/aliexpress/schemas";
 import { LINK_MAX_AGE_DAYS, RESULTS_PER_PAGE, SKU_DETAILS_ENABLED } from "@/lib/config/site";
+import type { ShopCapMode } from "@/lib/ranking/config";
+import { shopCapMode } from "@/lib/settings/queries";
 import { couponsForProduct } from "@/lib/coupons/queries";
 import type { Coupon } from "@/lib/coupons/types";
 import { couponForProduct } from "@/lib/deals/queries";
@@ -152,7 +154,12 @@ function llmProvider(): LlmProvider {
 
 const aliClient = () => new AliExpressClient(aliexpressConfig());
 
-function searchDeps(dailyCap: number) {
+/**
+ * The pipeline deps for one request. `shopCap` is the admin's shop cap setting, read once per
+ * request (shopCapMode in lib/settings/queries.ts) by the entry points that rank: a search and an
+ * SEO page run. "עוד N אפשרויות" only reads a result set ranked already, and passes none.
+ */
+function searchDeps(dailyCap: number, shopCap?: ShopCapMode) {
   const db = serviceClient();
   const deps: SearchDeps = {
     llm: llmProvider(),
@@ -165,6 +172,7 @@ function searchDeps(dailyCap: number) {
     },
     // search_log.failure holds the code the visitor was answered with.
     failureOf: failureCode,
+    ...(shopCap ? { shopCap } : {}),
   };
   return { db, deps };
 }
@@ -308,7 +316,13 @@ function sharedRun(
   deps: SearchDeps,
 ): { stages: SearchStages; searchUid: string } {
   const { q, without, sort } = input;
-  const key = JSON.stringify([normalizeQuery(q), [...without].sort(), sort ?? null]);
+  // The shop cap mode too: a run ranked under the mode before a switch is never shared after it.
+  const key = JSON.stringify([
+    normalizeQuery(q),
+    [...without].sort(),
+    sort ?? null,
+    deps.shopCap ?? null,
+  ]);
   const running = inFlight.get(key);
   if (running) {
     const started = performance.now();
@@ -400,7 +414,7 @@ export async function startSearchForRequest(
   try {
     const env = guardEnv();
     if (!env.ipHashSalt) throw new ConfigError(["IP_HASH_SALT"]);
-    const { db, deps } = searchDeps(env.dailyCap);
+    const db = serviceClient();
     // Every request counts, cached ones included: a cached search costs no LLM or AliExpress
     // call, but the limit is against scripted abuse, which can hammer cached queries just as
     // well (each still costs DB reads). Chip removals and sort changes count too; 20/hour
@@ -408,6 +422,8 @@ export async function startSearchForRequest(
     // A refused request is not logged: it did no work, and a flood of them would only add rows.
     const rate = await checkSearchRate(db, hashIp(clientIp(headers), env.ipHashSalt), new Date());
     if (!rate.ok) return { ok: false, error: "rate_limited", retryAfterSec: rate.retryAfterSec };
+    // The admin's shop cap setting, once for this request (cached, the default on any failure).
+    const { deps } = searchDeps(env.dailyCap, await shopCapMode());
     const { stages, searchUid } = sharedRun(
       {
         q,
@@ -469,10 +485,10 @@ class RateLimitedError extends Error {
 }
 
 /**
- * "עוד 3 אפשרויות" for a cached result set. `page` is 1 for results 4-6. A page that still needs an
- * explain call counts against the visitor's per-IP limit (when `headers` are given) before the
- * daily LLM budget, so one client cannot drain the budget with parallel requests. Pages that are
- * already explained are free.
+ * "עוד N אפשרויות" for a cached result set. `page` is 1 for the second page (results 6-10). A
+ * page that still needs an explain call counts against the visitor's per-IP limit (when `headers`
+ * are given) before the daily LLM budget, so one client cannot drain the budget with parallel
+ * requests. Pages that are already explained are free.
  */
 export async function moreForRequest(
   filtersKey: string,
@@ -847,7 +863,8 @@ const previews = new Map<string, { run: Promise<SearchOutcome | null>; failedAt?
 
 async function runPreview(q: string): Promise<SearchOutcome | null> {
   try {
-    return await runSearch({ q, source: "preview" }, searchDeps(guardEnv().dailyCap).deps);
+    const { deps } = searchDeps(guardEnv().dailyCap, await shopCapMode());
+    return await runSearch({ q, source: "preview" }, deps);
   } catch (err) {
     toFailure(err, "preview");
     return null;

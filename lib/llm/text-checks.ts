@@ -356,12 +356,12 @@ export type Superlative =
   | "most_sold"
   | "top_feedback"
   | "top_discount"
-  /** "הכי טוב", "נוח ביותר", "המשתלם מבין השלושה": nothing in our data can prove it. */
+  /** "הכי טוב", "נוח ביותר", "המשתלם מבין החמישה": nothing in our data can prove it. */
   | "unverifiable";
 
 const SUFFIX = "(?:ה|ת|ים|ות)?";
-// A claim takes its scope with it ("הזול מבין השלושה"), so a scope left over belongs to a
-// comparison we cannot check ("המשתלם מבין השלושה").
+// A claim takes its scope with it ("הזול מבין החמישה"), so a scope left over belongs to a
+// comparison we cannot check ("המשתלם מבין החמישה").
 const claim = (forms: string) => new RegExp(`(?:${forms})(?:\\s+מבין\\s+[א-ת]+)?`, "g");
 const VERIFIABLE: [Exclude<Superlative, "unverifiable">, RegExp][] = [
   [
@@ -398,7 +398,7 @@ const VERIFIABLE: [Exclude<Superlative, "unverifiable">, RegExp][] = [
   ],
 ];
 const ANY_SUPERLATIVE = /(^|[^א-ת])([וש]?הכי|ביותר)(?=$|[^א-ת])/;
-// "מבין השלושה" or "מהאחרים" with no verifiable claim in front of it.
+// "מבין החמישה" or "מהאחרים" with no verifiable claim in front of it.
 const ANY_COMPARISON = /(^|[^א-ת])ו?מבין(?=$|[^א-ת])|האחר(?:ים|ות)(?![א-ת])/;
 
 /**
@@ -418,10 +418,16 @@ export function superlativeClaims(text: string): Superlative[] {
   return claims;
 }
 
-/** How many products a comparison says it covers: "מבין השלושה" → 3, "מבין שני המוצרים" → 2. */
+/**
+ * How many products a comparison's scope says it covers, for batches of up to 5: "מבין החמישה" →
+ * 5, "מבין ארבעת המוצרים" → 4, "מבין השלושה" → 3, "מבין שני המוצרים" → 2. The caller rejects a
+ * scope that is not the size of the batch the line is shown with.
+ */
 export function comparisonSizes(text: string): number[] {
   const sizes: number[] = [];
-  if (/מבין\s+(?:השלושה|השלוש|שלושת|שלוש)(?![א-ת])/.test(text)) sizes.push(3);
-  if (/מבין\s+(?:השניים|השתיים|שני|שתי|שניהם|שתיהן)(?![א-ת])/.test(text)) sizes.push(2);
+  if (/מבין\s+(?:החמישה|החמש|חמשת|חמש|חמישה)(?![א-ת])/.test(text)) sizes.push(5);
+  if (/מבין\s+(?:הארבעה|הארבע|ארבעת|ארבע|ארבעה)(?![א-ת])/.test(text)) sizes.push(4);
+  if (/מבין\s+(?:השלושה|השלוש|שלושת|שלוש|שלושה)(?![א-ת])/.test(text)) sizes.push(3);
+  if (/מבין\s+(?:השניים|השתיים|שני|שתי|שניהם|שתיהן|שניים|שתיים)(?![א-ת])/.test(text)) sizes.push(2);
   return sizes;
 }

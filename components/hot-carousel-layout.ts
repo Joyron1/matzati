@@ -4,9 +4,9 @@
 
 /** The carousel: its width, gutters and the gap to the notes under the row. */
 export const HOT_SECTION = "mx-auto max-w-6xl space-y-2 px-4 sm:px-6";
-/** The heading beside, from sm, the previous and next buttons. */
+/** The heading beside the pause button and, from sm, the previous and next buttons. */
 export const HOT_HEADER_ROW = "flex items-end justify-between gap-4";
-export const HOT_NAV_BUTTONS = "hidden shrink-0 gap-2 sm:flex";
+export const HOT_NAV_BUTTONS = "flex shrink-0 gap-2";
 /**
  * The row of cards. It bleeds to the screen edges on phones; the padding keeps the cards' focus
  * rings inside the scroll area, and scroll-px lines a snapped card up with the page's side padding.

@@ -1,33 +1,42 @@
 import { getImageProps } from "next/image";
 import { isAllowedImage } from "@/lib/images";
 
+export const VIDEO_LABEL = "סרטון המוצר";
+
 /**
- * The product's video from AliExpress (product_video_url), played from AliExpress's CDN.
- * Nothing loads until the visitor presses play (preload="none"); the product photo is the poster,
- * served through the image optimizer like the gallery.
+ * The poster for the product video: the product photo through the image optimizer, sized for the
+ * gallery's main slot (about 540 px wide, twice that for sharp screens), or undefined.
  */
-export function ProductVideo({ src, poster }: { src: string; poster: string | undefined }) {
-  const posterSrc =
-    poster && isAllowedImage(poster)
-      ? getImageProps({ src: poster, alt: "", width: 384, height: 384 }).props.src
-      : undefined;
+export function videoPosterSrc(photo: string | undefined): string | undefined {
+  if (!photo || !isAllowedImage(photo)) return undefined;
+  return getImageProps({ src: photo, alt: "", width: 540, height: 540 }).props.src;
+}
+
+/**
+ * The product's video from AliExpress (product_video_url), played from AliExpress's CDN in the
+ * gallery's main slot. Nothing loads until the visitor presses play (preload="none") and nothing
+ * plays by itself; the native controls work with the keyboard.
+ */
+export function ProductVideo({
+  src,
+  poster,
+  className = "",
+}: {
+  src: string;
+  poster: string | undefined;
+  className?: string;
+}) {
   return (
-    <section aria-labelledby="video-title" className="space-y-3">
-      <h2 id="video-title" className="font-display text-xl">
-        סרטון המוצר
-      </h2>
-      <video
-        src={src}
-        poster={posterSrc}
-        controls
-        playsInline
-        preload="none"
-        aria-labelledby="video-title"
-        className="aspect-video w-full rounded-card bg-white object-contain"
-      >
-        <p className="p-4 text-sm text-muted">הדפדפן לא יכול להציג את הסרטון.</p>
-      </video>
-      <p className="text-sm text-muted">הסרטון מעמוד המוצר באלי אקספרס.</p>
-    </section>
+    <video
+      src={src}
+      poster={poster}
+      controls
+      playsInline
+      preload="none"
+      aria-label={VIDEO_LABEL}
+      className={`bg-white object-contain ${className}`}
+    >
+      <p className="p-4 text-sm text-muted">הדפדפן לא יכול להציג את הסרטון.</p>
+    </video>
   );
 }

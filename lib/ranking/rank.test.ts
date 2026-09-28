@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { parseEnvelope, parseJsonKeepingIds } from "@/lib/aliexpress/client";
 import { parseCategories, parseProductPage, type AliProduct } from "@/lib/aliexpress/schemas";
 import type { ParsedQuery, Requirement, SearchFilters } from "@/lib/search/filters";
-import { CATEGORY_LABELS, FILL_TIER, FILTERS, WEIGHTS } from "./config";
+import { CATEGORY_LABELS, FILL_TIER, FILTERS, SHOP_CAP_MODES, WEIGHTS } from "./config";
 import { tokenize } from "./match";
 import {
   categoryOutliers,
@@ -985,6 +985,7 @@ describe("sort and score fixes (item 6)", () => {
       ],
       f,
       3,
+      "none",
     );
     expect(fillIds).toEqual(["fill"]);
     expect(ids(ranked)).toEqual(["fill", "std"]);
@@ -1102,19 +1103,21 @@ describe("commission", () => {
   it("never changes the order of products that differ in anything but commission", () => {
     const products = fixtureProducts();
     const f = filters({ keywords_en: "usb cable", product_terms: ["cable", "cord"] });
-    const base = rankWithFill(products, f, 3).ranked;
-    const passed = products.filter((p) => passesFilters(p, f));
-    const ctx = scoreContext(f, passed);
-    const scores = base.map((p) => score(p, ctx));
-    // The property is only meaningful when no two scores tie.
-    expect(new Set(scores).size).toBe(scores.length);
-    for (const shift of [1, 7, 13]) {
-      const rates = products.map((p) => p.commissionRatePct);
-      const permuted = products.map((p, i) => ({
-        ...p,
-        commissionRatePct: rates[(i + shift) % rates.length],
-      }));
-      expect(ids(rankWithFill(permuted, f, 3).ranked)).toEqual(ids(base));
+    for (const mode of SHOP_CAP_MODES) {
+      const base = rankWithFill(products, f, 3, mode).ranked;
+      const passed = products.filter((p) => passesFilters(p, f));
+      const ctx = scoreContext(f, passed);
+      const scores = base.map((p) => score(p, ctx));
+      // The property is only meaningful when no two scores tie.
+      expect(new Set(scores).size).toBe(scores.length);
+      for (const shift of [1, 7, 13]) {
+        const rates = products.map((p) => p.commissionRatePct);
+        const permuted = products.map((p, i) => ({
+          ...p,
+          commissionRatePct: rates[(i + shift) % rates.length],
+        }));
+        expect(ids(rankWithFill(permuted, f, 3, mode).ranked)).toEqual(ids(base));
+      }
     }
   });
 });
@@ -1221,6 +1224,7 @@ describe("trust tiers", () => {
       ],
       sonic,
       3,
+      "none",
     );
     expect(ranked.map((p) => p.productId).sort()).toEqual(["a", "b", "c"]);
     expect(fillIds.sort()).toEqual(["a", "b", "c"]);
@@ -1232,13 +1236,14 @@ describe("trust tiers", () => {
       plush("s2", "Sonic Plush Doll Big", 97, 900),
       plush("f1", "Sonic Plush Doll Mini", 100, 80),
     ];
-    const two = rankWithFill(items, sonic, 3);
+    const two = rankWithFill(items, sonic, 3, "none");
     expect(two.ranked.map((p) => p.productId)).toEqual(["s1", "s2", "f1"]);
     expect(two.fillIds).toEqual(["f1"]);
     const enough = rankWithFill(
       [...items, plush("s3", "Sonic Plush Doll Plus", 96, 500)],
       sonic,
       3,
+      "none",
     );
     expect(enough.fillIds).toEqual([]);
     expect(enough.ranked.every((p) => trustTierOf(p) === "standard")).toBe(true);
@@ -1249,6 +1254,7 @@ describe("trust tiers", () => {
       [plush("k", "Sonic Plush Keychain Pendant", 100, 80)], // accessory: fails the type gate
       { ...sonic, max_price_ils: 30 },
       3,
+      "none",
     );
     expect(ranked).toEqual([]);
   });

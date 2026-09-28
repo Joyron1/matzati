@@ -6,7 +6,8 @@ import type { ProductLine, QueryResult } from "./replay";
 import { compareRuns, relabelRun, runVariant, shopShares, summarize } from "./report";
 import { BOTTLE, call, good, offType, snapshot, times } from "./testing";
 
-// Two queries: "few" has 2 passers on page 1 (49 items) and 4 more on page 2; "many" has 7.
+// Two queries: "few" has 2 passers on page 1 (49 items) and 4 more on page 2; "many" has 12 (two
+// pages of 5 and more).
 const few = snapshot(
   [
     call("primary-p1", BOTTLE.keywords_en, 1, [
@@ -28,7 +29,7 @@ const many = snapshot(
       "primary-p1",
       BOTTLE.keywords_en,
       1,
-      times(7, () => good()),
+      times(12, () => good()),
     ),
   ],
   {

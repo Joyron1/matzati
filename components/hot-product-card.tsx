@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Clapperboard, TicketPercent } from "lucide-react";
 import { hasCurrentCode, type HotProduct } from "@/lib/hot/select";
+import { hotTitle } from "@/lib/product-title";
 import { Price } from "./price";
 import { ProductImage } from "./product-image";
 import { card } from "./styles";
@@ -14,7 +15,8 @@ const TAGS = "mt-auto flex flex-wrap gap-1.5 text-xs font-semibold text-ink";
 const TAG = "inline-flex items-center gap-1 rounded-full px-2.5 py-1";
 
 /**
- * A hot product (home carousel, /hot): photo, AliExpress's Hebrew title, price and the trust
+ * A hot product (home carousel, /hot): photo, AliExpress's Hebrew title (known transliterated loan
+ * words fixed, hotTitle; the list notes the titles are machine-translated), price and the trust
  * numbers, every one from AliExpress. One link per card, to the product page (`href`, /p/<id> by
  * default): the title's link covers the whole card. No prefetch: a product page older than a day
  * refreshes from AliExpress, and a row of cards would do that for every card on screen.
@@ -57,7 +59,7 @@ export function HotProductCard({
             prefetch={false}
             className="after:absolute after:inset-0 hover:text-accent-ink focus-visible:outline-none"
           >
-            {product.title}
+            {hotTitle(product.title)}
           </Link>
         </h3>
         <Price

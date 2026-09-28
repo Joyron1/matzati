@@ -4,10 +4,10 @@
 import { existsSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { AliProduct } from "@/lib/aliexpress/schemas";
-import { RESULTS_PER_PAGE } from "@/lib/config/site";
+import { RESULTS_KEPT, RESULTS_PER_PAGE } from "@/lib/config/site";
 import { loadSnapshots, SNAPSHOT_DIR } from "@/lib/eval/files";
 import { distinctProducts } from "@/lib/eval/snapshot";
-import { FILL_TIER, FILTERS } from "@/lib/ranking/config";
+import { FILL_TIER, FILTERS, SHOP_CAP_MODES } from "@/lib/ranking/config";
 import { passesFilters, rankWithFill, rejectReason } from "@/lib/ranking/rank";
 import { filtersKey } from "./cache-key";
 import { applyOverrides, MAX_CHIP, MIN_CHIP, requirementChipId } from "./chips";
@@ -26,7 +26,7 @@ import {
 } from "./pool";
 import type { CachedResults } from "./store";
 
-const KEPT = 12;
+const KEPT = RESULTS_KEPT;
 /** Ranking real pools is CPU work that the full suite runs beside other files. */
 const SNAPSHOT_TEST_TIMEOUT_MS = 30_000;
 const noBlockers = () => [];
@@ -82,7 +82,7 @@ describe("viewKeyOf and the chips a request removes", () => {
       const [sort, removed] = JSON.parse(spec.key) as [ParsedQuery["sort_preference"], string[]];
       // Chips as a visitor removes them: price first, one at a time, in any order.
       const asked = requestFilters(parsed, [...removed].reverse().concat(MAX_CHIP, "junk"), sort);
-      expect(filtersKey(spec.filters)).toBe(filtersKey(asked));
+      expect(filtersKey(spec.filters, "none")).toBe(filtersKey(asked, "none"));
       expect(spec.filters.max_price_ils).toBeUndefined();
       expect(spec.removesMore).toBe(removed.length > 0);
     }
@@ -103,19 +103,19 @@ describe.skipIf(!present)("views of the real snapshot pools", () => {
     expect(snapshots.some((s) => s.parse.parsed.requirements.length > 0)).toBe(true);
   });
 
-  it.each(snapshots.map((s) => [s.id, s] as const))(
-    "%s: every view is the ranking of the whole pool, and shows only products that pass",
-    (_id, snap) => {
+  it.each(snapshots.flatMap((s) => SHOP_CAP_MODES.map((mode) => [s.id, mode, s] as const)))(
+    "%s (shop cap %s): every view is the ranking of the whole pool, and shows only products that pass",
+    (_id, mode, snap) => {
       const parsed = snap.parse.parsed;
       const pool = distinctProducts(snap.calls);
       const views: [string, RankedView][] = [];
       for (const spec of viewSpecs(parsed, [])) {
-        const ranked = rankView(pool, spec, KEPT, noBlockers);
+        const ranked = rankView(pool, spec, KEPT, noBlockers, mode);
         if (!ranked) {
           // Only a view that removes a requirement and leaves fewer than a page is not kept: that
           // request fetches again.
           expect(spec.removesMore).toBe(true);
-          const passed = rankWithFill(pool, spec.filters, RESULTS_PER_PAGE).ranked.length;
+          const passed = rankWithFill(pool, spec.filters, RESULTS_PER_PAGE, mode).ranked.length;
           expect(passed).toBeLessThan(RESULTS_PER_PAGE);
           continue;
         }
@@ -135,7 +135,7 @@ describe.skipIf(!present)("views of the real snapshot pools", () => {
       // The pool keeps each product of the views once, and none the result set holds itself.
       const own = views.find(([key]) => key === viewKeyOf(parsed.sort_preference, []))!;
       expect(own[1].view.ids).toEqual(
-        rankWithFill(pool, parsed, RESULTS_PER_PAGE)
+        rankWithFill(pool, parsed, RESULTS_PER_PAGE, mode)
           .ranked.slice(0, KEPT)
           .map((p) => p.productId),
       );

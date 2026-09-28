@@ -4,58 +4,62 @@ import {
   Check,
   ChevronLeft,
   Clock,
-  LayoutGrid,
   Lightbulb,
   ListFilter,
   ListOrdered,
   MessageSquareText,
   PackageSearch,
+  PenLine,
   type LucideIcon,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import {
-  useCallback,
   useEffect,
   useId,
+  useRef,
   useState,
   type CSSProperties,
   type FocusEvent,
+  type ReactNode,
 } from "react";
 import { SearchComposer } from "@/components/search-composer";
 import { card } from "@/components/styles";
+import { RESULTS_PER_PAGE } from "@/lib/config/site";
+import { formatCount } from "@/lib/format";
+import type { FilterChip } from "@/lib/types";
 import {
   LAST_STEP,
   PROGRESS_CAP,
   PROGRESS_EASE,
   PROGRESS_EASE_MS,
+  RANK_STEP,
   REASSURANCE_TEXT,
-  SCHEDULE_MARKS_MS,
-  UNDERSTOOD_STEPS,
+  SCAN_STEP,
   WAIT_STEPS,
+  currentStep,
   echoQuery,
+  nextMarkMs,
   nextTip,
+  progressFloor,
   reassuranceAt,
-  startOffsetMs,
-  stepAt,
   stepProgress,
-  stepState,
+  stepStates,
   tipDurationMs,
-  understoodOffsetMs,
   type Reassurance,
   type StepState,
+  type WaitSignals,
   type WaitStep,
   type WaitStepId,
 } from "./schedule";
+import { onSettled, type RankedSignal, type SearchSignals } from "./signals";
 import styles from "./search-wait.module.css";
 import { WAIT_TIPS } from "./tips";
 import { WaitScene } from "./wait-scene";
 
-// The /search waiting screen: the query, a motion scene with a "now" line under it on phones, the
-// steps of the search on a schedule (see ./schedule.ts for why a schedule and what it may claim),
-// a progress bar that never completes on its own, and tips. The results page streams (item 15), so
-// there are two waits per search, both Suspense fallbacks of app/search/page.tsx: one until the
-// query is understood, with room kept for the chips, and one under the chips until the products
-// show, which marks understanding as done and goes on where the first one was (handover).
+// The /search waiting screen, one per search, shown until its results are complete
+// (components/search-view.tsx): the chips we understood once the query is understood, the query, a
+// motion scene with a "now" line under it on phones, the steps of the search (see ./schedule.ts
+// for what each may claim and when), a progress bar that never completes on its own, and tips.
 
 const cx = (...names: (string | false | undefined)[]) => names.filter(Boolean).join(" ");
 
@@ -64,44 +68,16 @@ const STEP_ICONS: Record<WaitStepId, LucideIcon> = {
   scan: PackageSearch,
   filter: ListFilter,
   rank: ListOrdered,
-  prepare: LayoutGrid,
+  write: PenLine,
 };
 
-/**
- * The wait of one search on screen: when it started and which tip it shows, so the wait under the
- * chips goes on from there instead of starting over. One search at a time; a wait under the chips
- * takes it over only right after the one before it left (HANDOVER_MS), never from an older search.
- */
-interface Handover {
-  key: string;
-  startedAt: number;
-  tip: number;
-  endedAt: number | null;
-}
-let handover: Handover | null = null;
-const HANDOVER_MS = 1_500;
-
-/** Where the wait before the chips had got to, and its tip; null when there was none just now. */
-function takeHandover(key: string): { elapsed: number; tip: number } | null {
-  const before = handover;
-  handover = null;
-  if (!before || before.key !== key || before.endedAt === null) return null;
-  const now = Date.now();
-  if (now - before.endedAt > HANDOVER_MS) return null;
-  return { elapsed: now - before.startedAt, tip: before.tip };
-}
-
 /** Each step's detail, then why it takes long, then that we are still on it. */
-const CAPTIONS = [
-  ...WAIT_STEPS.map((s) => s.detail),
-  REASSURANCE_TEXT.slow,
-  REASSURANCE_TEXT.slower,
-];
+const CAPTION_COUNT = WAIT_STEPS.length + 2;
 
-/** The caption for a moment of the wait; it only moves forward, like the schedule. */
+/** The caption for a moment of the wait: the current step's, or a reassurance once it is slow. */
 function captionAt(step: number, reassurance: Reassurance): number {
-  if (reassurance === "slower") return CAPTIONS.length - 1;
-  if (reassurance === "slow") return CAPTIONS.length - 2;
+  if (reassurance === "slower") return CAPTION_COUNT - 1;
+  if (reassurance === "slow") return CAPTION_COUNT - 2;
   return step;
 }
 
@@ -111,111 +87,99 @@ function tickerClass(index: number, current: number, previous = current - 1): st
   return index === previous ? cx(styles.ticker, styles.tickerPast) : styles.ticker;
 }
 
-/**
- * Milliseconds into the wait (from `offsetMs`), updated only at the moments the schedule changes
- * something on screen (SCHEDULE_MARKS_MS); the bar and the scene move in CSS between them. The
- * offset only grows (a handover), so the time is the later of it and the last mark reached.
- */
-function useScheduleTime(offsetMs: number): number {
-  const [mark, setMark] = useState(0);
-  useEffect(() => {
-    const timers = SCHEDULE_MARKS_MS.filter((t) => t > offsetMs).map((t) =>
-      window.setTimeout(() => setMark(t), t - offsetMs),
-    );
-    return () => timers.forEach((timer) => window.clearTimeout(timer));
-  }, [offsetMs]);
-  return Math.max(offsetMs, mark);
-}
-
 /** The search bar with the query from the URL, for app/search/loading.tsx. */
 export function SearchBarFromUrl() {
   const params = useSearchParams();
   return <SearchComposer variant="bar" defaultValue={echoQuery(params.get("q"))} />;
 }
 
-interface SearchWaitScreenProps {
-  query: string;
-  /** Development preview: the bar looks the same but cannot start a search. */
-  demo?: boolean;
-}
+/**
+ * The real moments of the search as the wait knows them (./signals.ts), and the time into the
+ * wait, re-read only when the schedule changes something (nextMarkMs) or a moment arrives.
+ */
+function useWaitProgress(signals: SearchSignals) {
+  const start = useRef(0);
+  const [elapsed, setElapsed] = useState(0);
+  const [understoodAtMs, setUnderstoodAt] = useState<number | null>(null);
+  const [chips, setChips] = useState<FilterChip[] | null>(null);
+  const [ranked, setRanked] = useState<RankedSignal | null>(null);
 
-/** The search bar exactly as the results page renders it, then the wait (the dev preview). */
-export function SearchWaitScreen({ query, demo = false }: SearchWaitScreenProps) {
-  const bar = <SearchComposer variant="bar" defaultValue={query} />;
-  return (
-    <>
-      {demo ? <div inert>{bar}</div> : bar}
-      <SearchWait query={query} />
-    </>
-  );
+  useEffect(() => {
+    start.current = performance.now();
+    const since = () => Math.round(performance.now() - start.current);
+    let live = true;
+    onSettled(signals.understood, (understood) => {
+      if (!live || !understood) return;
+      setChips(understood.chips);
+      setUnderstoodAt(since());
+    });
+    onSettled(signals.ranked, (value) => {
+      if (!live || !value) return;
+      setRanked(value);
+      setElapsed(since());
+    });
+    return () => {
+      live = false;
+    };
+  }, [signals]);
+
+  const state: WaitSignals = {
+    understoodAtMs,
+    ranked: ranked !== null,
+    writing: ranked?.writing === true,
+  };
+  const now = Math.max(elapsed, understoodAtMs ?? 0);
+  const next = nextMarkMs(now, state);
+  useEffect(() => {
+    if (next === null) return;
+    const timer = window.setTimeout(
+      () => setElapsed(Math.round(performance.now() - start.current)),
+      Math.max(0, next - (performance.now() - start.current)),
+    );
+    return () => window.clearTimeout(timer);
+  }, [next]);
+
+  return { now, state, chips, ranked };
 }
 
 export function SearchWait({
   query,
-  reusesParse = false,
-  understood = false,
-  continues = false,
-  waitKey = "",
+  signals,
+  slots = RESULTS_PER_PAGE,
 }: {
   query: string;
-  /** A removed chip or a sort change: the cached parse is reused (see startOffsetMs). */
-  reusesParse?: boolean;
-  /**
-   * The query is understood and its chips show above: the wait under them, which marks that step
-   * done (UNDERSTOOD_STEPS) and takes over from the wait before it.
-   */
-  understood?: boolean;
-  /** The wait before the chips was on screen: this one goes on without its entrance. */
-  continues?: boolean;
-  /** Ties the two waits of one search (the page's search URL). */
-  waitKey?: string;
+  /** The search's real moments (app/search/page.tsx). */
+  signals: SearchSignals;
+  /** Results on a page: the scene draws one slot for each. */
+  slots?: number;
 }) {
-  const base = understood ? understoodOffsetMs(null) : startOffsetMs(reusesParse);
-  const [offsetMs, setOffsetMs] = useState(base);
-  const [firstTip, setFirstTip] = useState(0);
-  const elapsed = useScheduleTime(offsetMs);
-  const step = stepAt(elapsed);
-  const reassurance = reassuranceAt(elapsed);
-  const caption = captionAt(step, reassurance);
+  const { now, state, chips, ranked } = useWaitProgress(signals);
+  const states = stepStates(now, state);
+  const current = currentStep(now, state);
+  // With nothing current (the page is about to show), the lines say where the search got to.
+  const shownStep = current === -1 ? RANK_STEP : current;
+  const reassurance = reassuranceAt(now);
+  const caption = captionAt(shownStep, reassurance);
   const [paused, setPaused] = useState(false);
   const headingId = useId();
-  const Heading = understood ? "h2" : "h1";
-  // The tip shown, for the wait under the chips to go on from (the wait before them only).
-  const recordTip = useCallback(
-    (tip: number) => {
-      if (!understood && handover?.key === waitKey) handover.tip = tip;
-    },
-    [understood, waitKey],
-  );
 
-  // The wait before the chips hands over its start and tip; the wait under them takes them, one
-  // turn after it shows (the server rendered it from `base`, so the first render must match).
-  useEffect(() => {
-    if (!understood) {
-      const entry: Handover = { key: waitKey, startedAt: Date.now() - base, tip: 0, endedAt: null };
-      handover = entry;
-      return () => {
-        entry.endedAt = Date.now();
-      };
-    }
-    const before = takeHandover(waitKey);
-    if (!before) return;
-    const timer = window.setTimeout(() => {
-      setOffsetMs(understoodOffsetMs(before.elapsed));
-      setFirstTip(before.tip);
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [understood, waitKey, base]);
+  const captions = [
+    ...WAIT_STEPS.map((s) =>
+      s.id === "write" && ranked ? <WriteCaption key={s.id} ranked={ranked} /> : s.detail,
+    ),
+    REASSURANCE_TEXT.slow,
+    REASSURANCE_TEXT.slower,
+  ];
 
   return (
     <section
       aria-labelledby={headingId}
       // Tall enough that the footer starts below the fold, so it does not jump with the results.
-      className={cx(!continues && styles.enter, paused && styles.paused, "min-h-dvh")}
+      className={cx(styles.enter, paused && styles.paused, "min-h-dvh")}
     >
-      {!understood && <ChipsPlaceholder />}
+      <UnderstoodChips chips={chips} />
       <div className="space-y-5">
-        <Heading id={headingId}>
+        <h1 id={headingId}>
           <span className="flex items-center gap-2.5 text-[15px] font-semibold text-accent-ink">
             <span aria-hidden className="size-2.5 shrink-0 rounded-full bg-accent" />
             מחפשים בשבילכם
@@ -227,28 +191,26 @@ export function SearchWait({
               <bdi>{query}</bdi>
             </span>
           )}
-        </Heading>
+        </h1>
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:items-start">
           <div className="overflow-hidden rounded-card border border-line bg-surface motion-reduce:hidden lg:col-start-1 lg:row-start-1">
-            <WaitScene stage={step} paused={paused} onPausedChange={setPaused} />
-            <NowLine step={step} caption={caption} />
+            <WaitScene stage={current} slots={slots} paused={paused} onPausedChange={setPaused} />
+            <NowLine step={shownStep} caption={caption} captions={captions} />
           </div>
           <Steps
-            step={step}
-            done={understood ? UNDERSTOOD_STEPS : 0}
+            states={states}
+            step={shownStep}
+            current={current}
             caption={caption}
+            captions={captions}
             reassurance={reassurance}
-            offsetMs={offsetMs}
-            headingLevel={understood ? "h3" : "h2"}
+            floor={progressFloor(state)}
+            announceChips={current === SCAN_STEP ? chips : null}
             className="lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-stretch motion-reduce:lg:row-span-1"
           />
           <Tips
-            key={firstTip}
-            firstTip={firstTip}
-            onTip={recordTip}
             paused={paused}
-            headingLevel={understood ? "h3" : "h2"}
             className="lg:col-start-1 lg:row-start-2 motion-reduce:lg:row-start-1"
           />
         </div>
@@ -257,36 +219,110 @@ export function SearchWait({
   );
 }
 
-/**
- * Where the chips show once the query is understood ("הבנתי ככה"), laid out as they usually wrap,
- * so the wait does not move down when they arrive above it: on phones the chips rarely fit beside
- * the label and start a row of their own (components/filter-chips.tsx), from sm they share its
- * row. Nothing to read: hidden from assistive tech, which the steps tell what is happening.
- */
-function ChipsPlaceholder() {
+/** The write step's caption once the products are ranked: the counts the results page shows. */
+function WriteCaption({ ranked }: { ranked: Pick<RankedSignal, "checked" | "passed"> }) {
   return (
-    <div aria-hidden className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-2">
-      <span className="w-full text-sm font-semibold text-muted sm:w-auto">הבנתי ככה:</span>
-      <span className="flex gap-2">
-        {["w-24", "w-20", "w-16"].map((width) => (
-          <span
-            key={width}
-            className={`h-11 ${width} rounded-full bg-surface-2 motion-safe:animate-pulse`}
-          />
-        ))}
+    <>
+      בדקנו <bdi dir="ltr">{formatCount(ranked.checked)}</bdi> מוצרים ו־
+      <bdi dir="ltr">{formatCount(ranked.passed)}</bdi> עברו את הסינון. עכשיו כותבים לכל מוצר שנציג
+      משפט קצר על הסיבה שבחרנו בו.
+    </>
+  );
+}
+
+/** Keeps the room of the longest write caption (four-digit counts), so nothing moves when it comes. */
+const WRITE_SIZER = <WriteCaption ranked={{ checked: 9_999, passed: 999 }} />;
+
+// Same colors as the "הבנתי ככה" chips of the results page, smaller: nothing here is clickable.
+const CHIP = "inline-flex h-9 shrink-0 items-center rounded-full px-3.5 text-sm font-semibold";
+const chipColors = (chip: FilterChip) =>
+  chip.removable ? "bg-accent-soft text-accent-ink" : "border border-line bg-surface text-ink";
+
+/**
+ * "הבנתי ככה": the chips the query was understood as, once it is (the results page shows the same
+ * chips above its results). Until then, shapes where they will be. One row, laid out as the chips
+ * usually wrap (on phones the label takes a row of its own, from sm the chips share its row), so
+ * the wait does not move when they arrive; a chip past the row's end fades out there (the results
+ * page shows them all).
+ */
+function UnderstoodChips({ chips }: { chips: FilterChip[] | null }) {
+  return (
+    <div className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-2">
+      <span aria-hidden={!chips} className="w-full text-sm font-semibold text-muted sm:w-auto">
+        הבנתי ככה:
       </span>
+      {chips ? (
+        <ul
+          aria-label="מה הבנו מהחיפוש"
+          className="flex h-11 min-w-0 flex-1 items-center gap-2 overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_2.5rem)]"
+        >
+          {chips.map((chip, i) => (
+            <li
+              key={chip.id}
+              style={{ transitionDelay: `${i * 70}ms` }}
+              className={cx(
+                CHIP,
+                chipColors(chip),
+                "transition duration-300 ease-out starting:scale-90 starting:opacity-0",
+              )}
+            >
+              {chip.label_he}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <span aria-hidden className="flex h-11 items-center gap-2">
+          {["w-24", "w-20", "w-16"].map((width) => (
+            <span
+              key={width}
+              className={`h-9 ${width} rounded-full bg-surface-2 motion-safe:animate-pulse`}
+            />
+          ))}
+        </span>
+      )}
     </div>
   );
 }
 
-function CaptionText({ index }: { index: number }) {
+function CaptionText({ index, captions }: { index: number; captions: ReactNode[] }) {
   return (
     <>
       {index >= WAIT_STEPS.length && (
         <Clock aria-hidden className="me-1.5 inline size-4 align-[-3px]" />
       )}
-      {CAPTIONS[index]}
+      {captions[index]}
     </>
+  );
+}
+
+/** Every caption stacked in one grid cell (and the write step's longest), so the box never moves. */
+function CaptionStack({
+  caption,
+  captions,
+  className,
+  hideOthers = false,
+}: {
+  caption: number;
+  captions: ReactNode[];
+  className: string;
+  /** Hide the captions not shown from assistive tech (the phone line is hidden as a whole). */
+  hideOthers?: boolean;
+}) {
+  return (
+    <div className={cx("grid", className)}>
+      <p aria-hidden className="invisible col-start-1 row-start-1">
+        {WRITE_SIZER}
+      </p>
+      {captions.map((_, i) => (
+        <p
+          key={i}
+          aria-hidden={hideOthers ? i !== caption : undefined}
+          className={cx(tickerClass(i, caption), "col-start-1 row-start-1")}
+        >
+          <CaptionText index={i} captions={captions} />
+        </p>
+      ))}
+    </div>
   );
 }
 
@@ -294,7 +330,15 @@ function CaptionText({ index }: { index: number }) {
  * Phones and tablets: what is happening now, right under the scene like a video caption (the step
  * list is below the fold there). Hidden from assistive tech: the step list's status says it.
  */
-function NowLine({ step, caption }: { step: number; caption: number }) {
+function NowLine({
+  step,
+  caption,
+  captions,
+}: {
+  step: number;
+  caption: number;
+  captions: ReactNode[];
+}) {
   return (
     <div aria-hidden className="border-t border-line px-4 py-3 lg:hidden">
       <div className="grid">
@@ -314,82 +358,78 @@ function NowLine({ step, caption }: { step: number; caption: number }) {
           );
         })}
       </div>
-      <div className="mt-1 grid ps-[26px]">
-        {CAPTIONS.map((_, i) => (
-          <p
-            key={i}
-            className={cx(
-              tickerClass(i, caption),
-              "col-start-1 row-start-1 text-sm leading-relaxed text-muted",
-            )}
-          >
-            <CaptionText index={i} />
-          </p>
-        ))}
-      </div>
+      <CaptionStack
+        caption={caption}
+        captions={captions}
+        className="mt-1 ps-[26px] text-sm leading-relaxed text-muted"
+      />
     </div>
   );
 }
 
 function Steps({
+  states,
   step,
-  done,
+  current,
   caption,
+  captions,
   reassurance,
-  offsetMs,
+  floor,
+  announceChips,
   className,
-  headingLevel,
 }: {
+  states: StepState[];
+  /** The step the lines describe. */
   step: number;
-  /** Steps known to be done (stepState). */
-  done: number;
+  /** The current step, -1 for none. */
+  current: number;
   caption: number;
+  captions: ReactNode[];
   reassurance: Reassurance;
-  offsetMs: number;
+  /** The least the bar shows (progressFloor). */
+  floor: number;
+  /** Said once with the first step after the query is understood. */
+  announceChips: FilterChip[] | null;
   className: string;
-  headingLevel: "h2" | "h3";
 }) {
-  const Heading = headingLevel;
-  // The one live region: the current step, and why it takes long once it does.
+  // The one live region: the current step, with what we understood when it first comes, and why
+  // it takes long once it does. Nothing new is said while the page is about to show.
+  const understood = announceChips?.length
+    ? `הבנו: ${announceChips.map((c) => c.label_he).join(", ")}. `
+    : "";
+  const label = current === -1 ? "" : `${understood}${WAIT_STEPS[step].label}`;
   const status =
-    reassurance === "none"
-      ? WAIT_STEPS[step].label
-      : `${WAIT_STEPS[step].label}. ${REASSURANCE_TEXT[reassurance]}`;
-  // One CSS animation to the cap (the bar's width), started where the wait starts; under reduced
-  // motion a fixed width per step (--p-step, a share of the capped bar).
+    reassurance === "none" || !label ? label : `${label}. ${REASSURANCE_TEXT[reassurance]}`;
+  // One CSS animation to the cap (the bar's width), from when the wait shows; under reduced motion
+  // a fixed width per step (--p-step, a share of the capped bar). The floor layer rises with the
+  // search's real moments.
   const bar = {
     width: `${PROGRESS_CAP * 100}%`,
     animationDuration: `${PROGRESS_EASE_MS}ms`,
     animationTimingFunction: `cubic-bezier(${PROGRESS_EASE.join(", ")})`,
-    animationDelay: `${-offsetMs}ms`,
     "--p-step": stepProgress(step) / PROGRESS_CAP,
   } as CSSProperties;
 
   return (
     <div className={cx(card, "flex flex-col p-5 sm:p-6", className)}>
-      <Heading className="font-bold">מה קורה עכשיו</Heading>
-      <div aria-hidden className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface-2">
+      <h2 className="font-bold">מה קורה עכשיו</h2>
+      <div aria-hidden className="relative mt-3 h-1.5 overflow-hidden rounded-full bg-surface-2">
         <div className={styles.bar} style={bar} />
+        <div className={styles.floor} style={{ transform: `scaleX(${floor})` }} />
       </div>
       <ol className="mt-5">
         {WAIT_STEPS.map((s, i) => (
-          <StepRow key={s.id} step={s} state={stepState(i, step, done)} last={i === LAST_STEP} />
+          <StepRow key={s.id} step={s} state={states[i]} last={i === LAST_STEP} />
         ))}
       </ol>
       {/* Beside the scene on desktop (under it, the now line says this) and under reduced motion. */}
       <div className="mt-auto hidden pt-4 lg:block motion-reduce:block">
-        {/* Every caption stacked in one cell: the box keeps the height of the longest. */}
-        <div className="grid rounded-2xl bg-accent-soft px-4 py-3 text-sm leading-relaxed text-accent-ink">
-          {CAPTIONS.map((_, i) => (
-            <p
-              key={i}
-              aria-hidden={i !== caption}
-              className={cx(tickerClass(i, caption), "col-start-1 row-start-1")}
-            >
-              <CaptionText index={i} />
-            </p>
-          ))}
-        </div>
+        <CaptionStack
+          caption={caption}
+          captions={captions}
+          hideOthers
+          className="rounded-2xl bg-accent-soft px-4 py-3 text-sm leading-relaxed text-accent-ink"
+        />
       </div>
       <p role="status" className="sr-only">
         {status}
@@ -399,7 +439,7 @@ function Steps({
 }
 
 function StepRow({ step, state, last }: { step: WaitStep; state: StepState; last: boolean }) {
-  // A check only for a step the page knows is done (the chips show); a step the schedule moved
+  // A check only for a step a real moment of the search proved done; a step the schedule moved
   // past fills in without one: we cannot know it is done.
   const Icon = state === "done" ? Check : STEP_ICONS[step.id];
   const filled = state === "done" || state === "past";
@@ -460,31 +500,14 @@ const STEP_STATE_TEXT: Record<StepState, string> = {
 const prefersReducedMotion = () =>
   typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-function Tips({
-  firstTip,
-  onTip,
-  paused,
-  className,
-  headingLevel,
-}: {
-  /** The tip to start from (the wait before the chips handed it over). */
-  firstTip: number;
-  /** Told about every tip shown, so a handover can go on from it. */
-  onTip: (tip: number) => void;
-  paused: boolean;
-  className: string;
-  headingLevel: "h2" | "h3";
-}) {
-  const [tip, setTip] = useState(firstTip);
+function Tips({ paused, className }: { paused: boolean; className: string }) {
+  const [tip, setTip] = useState(0);
   // A tip the "הטיפ הבא" button brought is read out; tips that turn on their own are not, so the
   // wait never talks over the step announcements.
   const [announced, setAnnounced] = useState("");
   // Hovering or focusing the card holds the tip, so it can be read to the end.
   const [hold, setHold] = useState(false);
   const titleId = useId();
-  const Heading = headingLevel;
-
-  useEffect(() => onTip(tip), [tip, onTip]);
 
   // Each tip stays long enough to read. Under reduced motion nothing turns on its own (there is
   // no scene, so no pause button); "הטיפ הבא" still does.
@@ -516,9 +539,9 @@ function Tips({
         <span className="grid size-9 shrink-0 place-items-center rounded-full bg-gold-soft text-ink">
           <Lightbulb aria-hidden className="size-[18px]" />
         </span>
-        <Heading id={titleId} className="font-bold">
+        <h2 id={titleId} className="font-bold">
           ידעתם?
-        </Heading>
+        </h2>
         <span aria-hidden className="ms-auto flex gap-1.5">
           {WAIT_TIPS.map((_, i) => (
             <span

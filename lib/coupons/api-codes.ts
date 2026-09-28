@@ -14,8 +14,9 @@ import {
   readStoredPromoCode,
   type AliPromoCode,
 } from "@/lib/aliexpress/promo-code";
-import { hasHebrew } from "@/lib/product-title";
+import { hasHebrew, hotTitle } from "@/lib/product-title";
 import { serviceClient } from "@/lib/supabase/server";
+import { fixTransliterations } from "@/lib/transliterations";
 
 export type ProductsClient = Pick<SupabaseClient, "from">;
 
@@ -82,14 +83,18 @@ export function toApiCodeProduct(row: unknown, now: Date): ApiCodeProduct | null
   // The stored shape is re-checked (storedPromoCodeSchema), as on /p.
   const promo = readStoredPromoCode(r.promo);
   if (!promo || !isPromoCodeCurrent(promo, now)) return null;
-  const titleHe = r.title_he?.trim() || null;
-  const title = titleHe ?? r.title?.trim();
+  // Our Hebrew title, with the known transliterations fixed (lib/transliterations); else
+  // AliExpress's, its Hebrew machine translation read the same way (hotTitle).
+  const titleHe = r.title_he?.trim() ? fixTransliterations(r.title_he.trim(), r.title) : null;
+  const original = r.title?.trim();
+  const machineTranslated = titleHe === null && !!original && hasHebrew(original);
+  const title = titleHe ?? (original && machineTranslated ? hotTitle(original) : original);
   if (!title) return null;
   return {
     productId: r.product_id,
     title,
     titleIsHebrew: hasHebrew(title),
-    machineTranslated: titleHe === null && hasHebrew(title),
+    machineTranslated,
     imageUrl: r.image?.trim() || null,
     checkedAt: r.updated_at,
     promoCode: promo,

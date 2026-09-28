@@ -22,7 +22,14 @@ import type { ParsedQuery } from "./filters";
 
 /** product.query calls per search at most: the app key's quota is shared by every visitor. */
 export const MAX_ALI_CALLS = 3;
-/** Fetch until this many products pass: two pages, so "עוד 3 אפשרויות" almost always shows. */
+/**
+ * Fetch until this many products pass: two pages, so "עוד N אפשרויות" is a full page (10 for pages
+ * of 5; it was 6 for pages of 3). Measured on the 32 snapshots (npm run eval:offline -- --compare
+ * current-6,current, 2026-09-28, docs/search-quality-wave-a.md "Five results"): 10 instead of 6
+ * makes 44 replayed calls instead of 38 and 4 more queries want a call the snapshots lack (about 10
+ * more calls live, 0.3 per search), still at most MAX_ALI_CALLS; it fills page 2 in 4 more queries
+ * and takes one wrong card off ex-8's first page.
+ */
 export const TARGET_PASSED = 2 * RESULTS_PER_PAGE;
 /** Checked products after which a requirement that blocks everything stops the search. */
 export const REQUIREMENT_STOP_CHECKED = 100;
@@ -198,15 +205,19 @@ const RELEVANCE_ORDER: readonly KeywordKind[] = ["term", "general", "reduced", "
 
 /**
  * The next call of a search, or why it stops (see the file header). The first call is page 1 of
- * the parse's keywords.
+ * the parse's keywords. `target` is TARGET_PASSED; the offline replay passes another one to
+ * measure it (lib/eval/policies.ts, "current-<n>").
  */
-export function nextFetch(s: FetchProgress): FetchDecision {
+export function nextFetch(
+  s: FetchProgress,
+  { target = TARGET_PASSED }: { target?: number } = {},
+): FetchDecision {
   const steps = keywordSteps(s.filters);
   const primary = steps[0].keywords;
   if (!s.calls.length) return { step: { keywords: primary, pageNo: 1 } };
   if (s.calls.length >= MAX_ALI_CALLS) return { stop: "calls" };
   const passed = passedCount(s.pool, s.filters);
-  if (passed >= TARGET_PASSED) return { stop: "enough" };
+  if (passed >= target) return { stop: "enough" };
   if (
     s.pool.length >= REQUIREMENT_STOP_CHECKED &&
     requirementBlocksAll(s.pool, s.filters, passed)

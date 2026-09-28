@@ -1,0 +1,1398 @@
+{
+  "summary": {
+    "model": "claude-haiku-4-5-20251001",
+    "searches": 5,
+    "errors": 0,
+    "llmCalls": 10,
+    "aliexpressCalls": 7,
+    "cacheHits": 0,
+    "tokens": {
+      "parse": {
+        "calls": 5,
+        "avgInputTokens": 1524,
+        "avgOutputTokens": 98.2,
+        "maxInputTokens": 1531,
+        "usd": 0.01008
+      },
+      "explain": {
+        "calls": 5,
+        "avgInputTokens": 1490.4,
+        "avgOutputTokens": 472.4,
+        "maxInputTokens": 1533,
+        "usd": 0.01926
+      }
+    },
+    "totalUsd": 0.02934,
+    "avgUsdPerSearch": 0.00587,
+    "avgUsdPerFreshSearch": 0.00587,
+    "totalIls": 0.0899,
+    "usdIls": 3.066,
+    "queriesWith3": 5,
+    "queriesWith0": 0,
+    "linesShown": 25,
+    "linesKept": 21,
+    "caveats": 0
+  },
+  "records": [
+    {
+      "id": "gift-cook",
+      "topic": "gifts",
+      "query": "מתנה לאבא שאוהב לבשל עד 200 ש״ח",
+      "ms": 14324,
+      "parsed": {
+        "keywords_en": "kitchen tools set",
+        "product_terms": [
+          "kitchen tools set",
+          "cooking utensils"
+        ],
+        "requirements": [],
+        "max_price_ils": 200,
+        "sort_preference": "best_value",
+        "product_he": "סט כלים למטבח",
+        "category_hint": "kitchen accessories"
+      },
+      "meta": {
+        "cache": "none",
+        "llmUsage": [
+          {
+            "kind": "parse",
+            "usage": {
+              "inputTokens": 1529,
+              "outputTokens": 76,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          },
+          {
+            "kind": "explain",
+            "usage": {
+              "inputTokens": 1450,
+              "outputTokens": 491,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          }
+        ],
+        "aliCalls": 2,
+        "linkCalls": 0,
+        "rejected": {
+          "feedback": 12,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 76,
+          "requirement": 0
+        },
+        "keywordsTried": [
+          "kitchen tools set",
+          "kitchen tools set (p2)"
+        ],
+        "explainRejected": [],
+        "timings": {
+          "parse_ms": 1921,
+          "fetch_ms": 5305,
+          "explain_ms": 7022,
+          "products_ms": 7230
+        },
+        "fetchStop": "enough",
+        "explainFailed": false,
+        "demoted": []
+      },
+      "response": {
+        "query": "מתנה לאבא שאוהב לבשל עד 200 ש״ח",
+        "chips": [
+          {
+            "id": "product",
+            "kind": "keywords",
+            "label_he": "סט כלים למטבח",
+            "removable": false
+          },
+          {
+            "id": "max",
+            "kind": "max_price",
+            "label_he": "עד ₪200",
+            "removable": true
+          }
+        ],
+        "sort": "best_value",
+        "checked_count": 100,
+        "passed_count": 10,
+        "results": [
+          {
+            "product_id": "1005012743006539",
+            "title_he": "סט כלים למטבח 5 חלקים עם סכין ומחדד",
+            "title_en": "5-piece kitchen tool set, including a small chopping knife, scissors, fruit knife, peeler, and knife block, suitable for househo",
+            "why_he": "סט כלים למטבח המכיל סכין קיצוץ, מספריים, סכין פירות, קולפה ובלוק סכינים, מתחת לתקציב שלכם.",
+            "price_ils": 36.26,
+            "original_price_ils": 72.51,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 603,
+            "passed_tier": "standard",
+            "shared_numbers": {
+              "feedback": true,
+              "sales": true
+            },
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S63337381ebf1451793014f96d643da4bJ.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S62400cb11149476e96929d1c27da558el.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S08ab3f2c99ce45f097bcf52bd512a23aM.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S4cc9a319f6dd4796aeb162be23b47f81k.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S820526cbe32d44388848cab9fd08a01cm.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S2840f0e8abcc447fa981c205977c712cq.jpg"
+            ],
+            "category_id": "15"
+          },
+          {
+            "product_id": "1005007169766992",
+            "title_he": "סט כלים מטבח ניילון, כף, מזלג וכלים",
+            "title_en": "1/3PCS Nylon Kitchen Utensils Set Kitchen Cooking Tools  Slotted Turner Solid Spoon Fork Children Spade Fork Spoon Dinnerware",
+            "why_he": "סט כלים מטבח כולל כף, מזלג, כף טעינה ועוד, 1076 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 5.85,
+            "original_price_ils": 12.2,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 1076,
+            "passed_tier": "standard",
+            "shared_numbers": {
+              "feedback": true,
+              "sales": false
+            },
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sdfcb86a71c9b4f9983af9980dee343d2b.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S0f5752fb0e904b17a3d2a6420e0a902bf.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Saa5dbe0c583b44bda006cb39d1703be3k.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sf98733891c5b4a3896717bfb6c5aeb46Q.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sb32ed2e2e37c49848c83f5a37ab88f5da.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Scb5e5e612cfa447f9ffafab4fb2f93b7G.jpg"
+            ],
+            "category_id": "15"
+          },
+          {
+            "product_id": "1005006997354157",
+            "title_he": "סט כלים 12 חלקים סיליקון עם ידית עץ ומחזיק",
+            "title_en": "12Pcs Kitchen Utensil Set Silicone Spatula Set Wooden Handle Cooking Tools Kit with Holder Heat-Resistant Cookware for Kitchen",
+            "why_he": "סט כלים מטבח עם 12 חלקים סיליקון עמיד לחום, 766 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 53.24,
+            "original_price_ils": 110.93,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 766,
+            "passed_tier": "standard",
+            "shared_numbers": {
+              "feedback": true,
+              "sales": false
+            },
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Ac7d11ac1874c4c67ba98ccc535e87a04Z.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/A41861f43273d4bbb89ffba5ddafb06ccE.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/A1b2b32213d8b4e63b2679683c3af796dn.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/A185d7c04ca8a44aaa0ad07f6f602f6e49.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Ab7599ba64ded42aeab403e4903123924g.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Aab469c17afd649ee96da2d1a0daa9f43f.png"
+            ],
+            "category_id": "15"
+          },
+          {
+            "product_id": "1005008248012879",
+            "title_he": "טיימר מטבח HILIFE 60 דקות, מכני",
+            "title_en": "HILIFE Practical 60 Minutes Kitchen Timer Cooking Tools White Square Mechanical Timer Countdown Alarm Reminder",
+            "why_he": "כלי מטבח לעזרה בבישול, טיימר ספירה לאחור עם אזעקה, 3693 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 12.1,
+            "original_price_ils": 24.2,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 3693,
+            "passed_tier": "standard",
+            "shared_numbers": {
+              "feedback": true,
+              "sales": false
+            },
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S0d86c9e68a8e4f779908aecd6b7147b1N.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S50de240949bf4bcea89c8706b20d921cl.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S5103c609eabb4bdaa9adf2e5ae58c1c9U.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S63d354b8d66b434fabeeadb6d35040844.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S8dca71be70d440f3ab1f5c4168f024e7S.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S40b4bf5ab3ad487eba536717d8bb6d18Y.jpg"
+            ],
+            "category_id": "15"
+          },
+          {
+            "product_id": "1005008248140308",
+            "title_he": "סט כלים עץ במבוק 6 חלקים, כף וספטולה",
+            "title_en": "6 Pieces Bamboo Spoon Spatula Kitchen Utensil Wooden Cooking Tool Mixing Set",
+            "why_he": "סט כלים מטבח עם 6 כלים מעץ במבוק, 712 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 24.8,
+            "original_price_ils": 51.67,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 712,
+            "passed_tier": "standard",
+            "shared_numbers": {
+              "feedback": true,
+              "sales": false
+            },
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S3930efa13caa4a87947d48aff7035e3aG.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S3cde63a930b84ecca41636dcfe6a5071M.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S1782626fff82480dab066318c2b28f49h.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S42141e4ef049415ebd275507bb475306G.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sc46b9eb1c92343d1a586e4817485b8e75.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sc50c67bc353b4a76b50d0b06775e44abF.jpg"
+            ],
+            "category_id": "15"
+          }
+        ],
+        "more_available": true,
+        "filters_key": "7ab1c035009adc36053d4e00be60540ca1493fed59440fe33dfedb8bfb7fbdde",
+        "cached": false,
+        "fetched_at": "2026-09-28T19:16:43.612Z"
+      },
+      "calls": [
+        {
+          "kind": "parse",
+          "model": "claude-haiku-4-5-20251001",
+          "inputTokens": 1529,
+          "outputTokens": 76,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 0,
+          "usd": 0.001909
+        },
+        {
+          "kind": "explain",
+          "model": "claude-haiku-4-5-20251001",
+          "inputTokens": 1450,
+          "outputTokens": 491,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 0,
+          "usd": 0.003905
+        }
+      ],
+      "categories": [
+        {
+          "product_id": "1005012743006539",
+          "first": "Home & Garden",
+          "second": "Kitchen,Dining & Bar"
+        },
+        {
+          "product_id": "1005007169766992",
+          "first": "Home & Garden",
+          "second": "Kitchen,Dining & Bar"
+        },
+        {
+          "product_id": "1005006997354157",
+          "first": "Home & Garden",
+          "second": "Kitchen,Dining & Bar"
+        },
+        {
+          "product_id": "1005008248012879",
+          "first": "Home & Garden",
+          "second": "Kitchen,Dining & Bar"
+        },
+        {
+          "product_id": "1005008248140308",
+          "first": "Home & Garden",
+          "second": "Kitchen,Dining & Bar"
+        }
+      ]
+    },
+    {
+      "id": "home-drawer",
+      "topic": "home",
+      "query": "מארגן מגירות למטבח",
+      "ms": 13943,
+      "parsed": {
+        "keywords_en": "kitchen drawer organizer",
+        "product_terms": [
+          "drawer organizer",
+          "kitchen organizer",
+          "drawer divider"
+        ],
+        "requirements": [],
+        "sort_preference": "best_value",
+        "product_he": "מארגן מגירות למטבח",
+        "category_hint": "kitchen storage"
+      },
+      "meta": {
+        "cache": "none",
+        "llmUsage": [
+          {
+            "kind": "parse",
+            "usage": {
+              "inputTokens": 1514,
+              "outputTokens": 83,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          },
+          {
+            "kind": "explain",
+            "usage": {
+              "inputTokens": 1495,
+              "outputTokens": 482,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          }
+        ],
+        "aliCalls": 1,
+        "linkCalls": 0,
+        "rejected": {
+          "feedback": 7,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 19,
+          "requirement": 0
+        },
+        "keywordsTried": [
+          "kitchen drawer organizer"
+        ],
+        "explainRejected": [
+          {
+            "product_id": "1005007170336837",
+            "rejected": {
+              "title_he": "מארגן מגירות קابינט מטבח הרחב לסירים, מחבתות ומכסים",
+              "title_problem": "foreign_script"
+            }
+          }
+        ],
+        "timings": {
+          "parse_ms": 1985,
+          "fetch_ms": 3133,
+          "explain_ms": 6708,
+          "products_ms": 5119
+        },
+        "fetchStop": "enough",
+        "explainFailed": false,
+        "demoted": []
+      },
+      "response": {
+        "query": "מארגן מגירות למטבח",
+        "chips": [
+          {
+            "id": "product",
+            "kind": "keywords",
+            "label_he": "מארגן מגירות למטבח",
+            "removable": false
+          }
+        ],
+        "sort": "best_value",
+        "checked_count": 49,
+        "passed_count": 21,
+        "results": [
+          {
+            "product_id": "1005007170336837",
+            "title_he": "Expandable Kitchen Cabinet Drawer Organizer Rack, Multi‑Purpose Storage Shelf for Pots, Pans, Pot Lids, Cutting Boards Cookware",
+            "title_en": "Expandable Kitchen Cabinet Drawer Organizer Rack, Multi‑Purpose Storage Shelf for Pots, Pans, Pot Lids, Cutting Boards Cookware",
+            "why_he": "מארגן אחסון רב־תכליתי למטבח שנמכרו 3036 יחידות ב־30 הימים האחרונים.",
+            "price_ils": 44.07,
+            "original_price_ils": 91.82,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 3036,
+            "passed_tier": "standard",
+            "shared_numbers": {
+              "feedback": true,
+              "sales": false
+            },
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S34b1bdca4b254777a4f45d0dedb73f17M.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S154fe6acb3a04bf7858412c3700452b7q.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S6ec5a64207bd41548b0f0746ccda0a72E.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sa42e8153585240aab375de6b43edfb19H.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Scc584abe62bd44458ef5147eeccbbe85n.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S9f801647beec410daaf965fefd13f5c4N.jpg"
+            ],
+            "category_id": "15"
+          },
+          {
+            "product_id": "1005008429982440",
+            "title_he": "מארגן תבלינים לדרור 4 שכבות עם מדפים הרחבים",
+            "title_en": "4 Layers Kitchen Spice Drawer Organizer Adjustable Spice Rack for Spice Jars Seasoning Bottles Cabinet Pantry Kitchen Organizer",
+            "why_he": "מארגן תבלינים וצנצנות תיבול מתאים למגירות מטבח וארון אחסון.",
+            "price_ils": 39.14,
+            "original_price_ils": 78.28,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 1224,
+            "passed_tier": "standard",
+            "shared_numbers": {
+              "feedback": true,
+              "sales": false
+            },
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sff616483d03442d3829e9b2d0e518cc2Z.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Se07d657aa5554769b417177efcc91a9d0.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sda78b43a574341e2bbbe04053ce583f9H.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S90c0b7dcfbcd412191834e310ccd25acX.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sd4467b82fd454035bca5afb253497103V.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S9a86c40c7beb49db85e24009e818b2e2w.jpg"
+            ],
+            "category_id": "15"
+          },
+          {
+            "product_id": "1005007938130472",
+            "title_he": "מארגן תבלינים 4/2 שכבות אקריליק הרחב לצנצנות",
+            "title_en": "4/2 Layer Spice Drawer Organizer Adjustable Acrylic Spice Jars Rack Tray Expandable Seasoning Organizer Cabinet Kitchen Shelves",
+            "why_he": "מארגן צנצנות תבלינים מתרחב לארון ומדפי מטבח, 52% הנחה.",
+            "price_ils": 13.03,
+            "original_price_ils": 27.16,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 682,
+            "passed_tier": "standard",
+            "shared_numbers": {
+              "feedback": true,
+              "sales": false
+            },
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S6de943fc83a141908c13c6a4886d7af5M.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S0410d1a09443451c9c5309cb1532673eg.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S68f39fc2ddba40198e6c955512231957I.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S0c7dfa0e72e8460a8ea6b3945f155c75v.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S19490a97de4e44d6b8309b8183abebd9o.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sf152228410724dc399de7c3a4c80ee8ao.jpg"
+            ],
+            "category_id": "15"
+          },
+          {
+            "product_id": "1005013004164872",
+            "title_he": "מארגן מגירה לסכו״ם וסכינים מטבח מחולק שטח חוסך",
+            "title_en": "UpgradedAdjustable Plastic Cutlery Drawer Organizer Divided Storage Tray Space Saving Holder for Kitchen Knives Spoons Tableware",
+            "why_he": "מארגן כלים וטבלוואר למטבח עם משוב חיובי של 100% בקרב 370 קונים.",
+            "price_ils": 16.93,
+            "original_price_ils": 35.26,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 100,
+            "units_sold": 370,
+            "passed_tier": "standard",
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sa264310b14ae4d2bb9c59e3df32d8ff9Z.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sf995230266af4aa7a8124823f55a5fd62.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S4e0f45e999504d4b8e8ca03ef19247805.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S37de0ddee9cb43139d4da9ea970c0715P.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S8770d7f4fe6142db961782b9e5177709t.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S92f8354e46344afba5e449a4318789e59.jpg"
+            ],
+            "category_id": "15"
+          },
+          {
+            "product_id": "1005010323499090",
+            "title_he": "מארגנים הרחבים למגירה 6/8/10/12 חבילות לבגדים וכלי מטבח",
+            "title_en": "6/8/10/12-Pack Adjustable Drawer Organizers, Clear Expandable Dresser Organizers for Storing Clothes Kitchen Utensils",
+            "why_he": "מארגן אחסון שטח חוסך שנמכרו 1687 יחידות ב־30 הימים האחרונים, 96.6% משוב חיובי.",
+            "price_ils": 82.81,
+            "original_price_ils": 165.62,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 96.6,
+            "units_sold": 1687,
+            "passed_tier": "standard",
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S8a83d141df1f4625b17e7270000c6738e.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S1c523e68330b40bdbbc81cc442eccbaaQ.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S3c42a0765db5433d92bb400549025c8cN.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S79f1c268c3b747d3a4a8133ab1c10c97y.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S5202b0e45ab9474a86c800a4a981ba45n.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S9571192c222b4402933f06875c63ee1dy.jpg"
+            ],
+            "category_id": "15"
+          }
+        ],
+        "more_available": true,
+        "filters_key": "3a8e2d4abd6ef7ce8670c3b8662c176ff9103d0e57ffedc10c57ef7f4f021b70",
+        "cached": false,
+        "fetched_at": "2026-09-28T19:16:59.369Z"
+      },
+      "calls": [
+        {
+          "kind": "parse",
+          "model": "claude-haiku-4-5-20251001",
+          "inputTokens": 1514,
+          "outputTokens": 83,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 0,
+          "usd": 0.001929
+        },
+        {
+          "kind": "explain",
+          "model": "claude-haiku-4-5-20251001",
+          "inputTokens": 1495,
+          "outputTokens": 482,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 0,
+          "usd": 0.003905
+        }
+      ],
+      "categories": [
+        {
+          "product_id": "1005007170336837",
+          "first": "Home & Garden",
+          "second": "Home Storage & Organization"
+        },
+        {
+          "product_id": "1005008429982440",
+          "first": "Home & Garden",
+          "second": "Home Storage & Organization"
+        },
+        {
+          "product_id": "1005007938130472",
+          "first": "Home & Garden",
+          "second": "Home Storage & Organization"
+        },
+        {
+          "product_id": "1005013004164872",
+          "first": "Home & Garden",
+          "second": "Home Storage & Organization"
+        },
+        {
+          "product_id": "1005010323499090",
+          "first": "Home & Garden",
+          "second": "Home Storage & Organization"
+        }
+      ]
+    },
+    {
+      "id": "price-watch",
+      "topic": "price",
+      "query": "שעון חכם עם דופק בפחות מ־150 שקל",
+      "ms": 11528,
+      "parsed": {
+        "keywords_en": "smartwatch heart rate monitor",
+        "product_terms": [
+          "smartwatch",
+          "smart watch"
+        ],
+        "requirements": [
+          {
+            "en": "heart rate",
+            "alt": [
+              "pulse monitor"
+            ],
+            "he": "מד דופק"
+          }
+        ],
+        "max_price_ils": 150,
+        "sort_preference": "best_value",
+        "product_he": "שעון חכם עם דופק",
+        "category_hint": "wearable fitness"
+      },
+      "meta": {
+        "cache": "none",
+        "llmUsage": [
+          {
+            "kind": "parse",
+            "usage": {
+              "inputTokens": 1525,
+              "outputTokens": 105,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          },
+          {
+            "kind": "explain",
+            "usage": {
+              "inputTokens": 1461,
+              "outputTokens": 413,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          }
+        ],
+        "aliCalls": 2,
+        "linkCalls": 0,
+        "rejected": {
+          "feedback": 33,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 3,
+          "requirement": 50
+        },
+        "keywordsTried": [
+          "smartwatch heart rate monitor",
+          "smartwatch heart rate monitor (p2)"
+        ],
+        "explainRejected": [],
+        "timings": {
+          "parse_ms": 2219,
+          "fetch_ms": 4388,
+          "explain_ms": 4918,
+          "products_ms": 6609
+        },
+        "fetchStop": "enough",
+        "explainFailed": false,
+        "demoted": []
+      },
+      "response": {
+        "query": "שעון חכם עם דופק בפחות מ־150 שקל",
+        "chips": [
+          {
+            "id": "product",
+            "kind": "keywords",
+            "label_he": "שעון חכם עם דופק",
+            "removable": false
+          },
+          {
+            "id": "req:heart rate",
+            "kind": "must_have",
+            "label_he": "מד דופק",
+            "removable": true
+          },
+          {
+            "id": "max",
+            "kind": "max_price",
+            "label_he": "עד ₪150",
+            "removable": true
+          }
+        ],
+        "sort": "best_value",
+        "checked_count": 99,
+        "passed_count": 12,
+        "results": [
+          {
+            "product_id": "1005008830601930",
+            "title_he": "שעון חכם LAXASFIT עם מד דופק",
+            "title_en": "LAXASFIT Smartwatch Bluetooth Talk Smartwatch Message Alert Heart Rate Monitor Sports Watch for Android IOS Men Women",
+            "why_he": "שעון חכם עם מד דופק למעקב אחר קצב הלב, 6084 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 14.49,
+            "original_price_ils": 28.99,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 6084,
+            "passed_tier": "standard",
+            "shared_numbers": {
+              "feedback": true,
+              "sales": false
+            },
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sa82a2c18c6d04220b9455c443e3436e47.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S666287aa00d74c35af6922a796ce7984d.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sdadc4d43055b4dcdaaded86f171105e9I.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sb65dc9a9d55e470bb694d311d33b4cfb1.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S26c6539411584bf8b0bffc4a973cd850V.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sd8954b1ce23c4065b5447464f06cf5325.jpg"
+            ],
+            "category_id": "44"
+          },
+          {
+            "product_id": "1005006995151533",
+            "title_he": "שעון חכם LAXASFIT H9 עם מד דופק",
+            "title_en": "LAXASFIT H9 Smartwatch Dial to Answer Calls Calorie Tracking Heart Rate Blood Oxygen Monitoring Bluetooth Smart Watch",
+            "why_he": "שעון חכם עם מד דופק וזיהוי חמצן בדם, 1805 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 24.76,
+            "original_price_ils": 49.52,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 1805,
+            "passed_tier": "standard",
+            "shared_numbers": {
+              "feedback": true,
+              "sales": false
+            },
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sed803b4dc622468da42e4fca96d0e847i.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S49963f141d8d4785afc937f9855d45f1q.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sdf6bcccd0a914a40a56c3f5fe2601922s.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sd7afc454000c4edfab21e7c0cb3c89afQ.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sea06430cdd2740409e2fee49f2487007L.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S4c851ce836ab4276af44c544217078f5G.png"
+            ],
+            "category_id": "44"
+          },
+          {
+            "product_id": "1005006860956768",
+            "title_he": "שעון חכם 2026 עם ECG ו־GPS IP68",
+            "title_en": "2026 New Classic Smart Watch Men Women ECG+PPG HD Screen Bluetooth Call GPS Tracker Heart Rate IP68 Waterproof Sports Smartwatch",
+            "why_he": "שעון חכם עם מד דופק, GPS וקריאות ECG, מתחת לתקציב שלכם.",
+            "price_ils": 59.8,
+            "original_price_ils": 124.58,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 2787,
+            "passed_tier": "standard",
+            "shared_numbers": {
+              "feedback": true,
+              "sales": false
+            },
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sfbbef3209fbc442db73deb6c759f705en.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S4759efeff162482fb2f127afc5efb8acB.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sed8b87b85d6c4c5695ae242d141ab3439.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S39e1846dd0374912b3de0b46a01d9e93N.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S1b891ae29be347d3b2c80c3a0c1ec63ap.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S8141c2a893f846a78ca32b5f13d07b13W.jpg"
+            ],
+            "category_id": "44"
+          },
+          {
+            "product_id": "1005006997324750",
+            "title_he": "שעון חכם LAXASFIT 2.01 עם מד דופק",
+            "title_en": "LAXASFIT New Men's Smart Watch Bluetooth Talk 2.01 inch HD Screen LED Outdoor Flashlight Heart Rate Monitor Sports Smartwatch",
+            "why_he": "שעון חכם עם מד דופק וחסינות בחוץ, 2901 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 39.25,
+            "original_price_ils": 81.77,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 2901,
+            "passed_tier": "standard",
+            "shared_numbers": {
+              "feedback": true,
+              "sales": false
+            },
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sc707b4fedcde4187b6154251bfa4ae8fC.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S79f8a3d8903246f09aa8a343db16a20ay.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Seb6feab4f01c4ef59f7d4fcc802004efi.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sf674b5ca227240ce8faea9cfcb8ab251d.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S5d1472ae441e4d7eb477200a0068ab7el.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S794437e6e4324244b5cecc500c0f72121.jpg"
+            ],
+            "category_id": "44"
+          },
+          {
+            "product_id": "1005009460482765",
+            "title_he": "שעון חכם 2026 עם מד דופק ועוזר AI",
+            "title_en": "2026 New Ultra-Slim Smart Watch Men 100+ Sports Modes Heart Rate Monitoring AI Voice Assistant Bluetooth Call Smartwatches",
+            "why_he": "שעון חכם עם מד דופק ו־100+ מצבי ספורט, מתחת לתקציב שלכם.",
+            "price_ils": 40.21,
+            "original_price_ils": 83.77,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 1800,
+            "passed_tier": "standard",
+            "shared_numbers": {
+              "feedback": true,
+              "sales": false
+            },
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sf0f474fb27cf41eca42961f4f0ae9b2fV.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S5def51e9f86c4edcacf658afb04be7acP.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Se37ce04aad644763966d7f1530c77918J.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S08bbbc0dc91c4f18beca29bc4c22d9edN.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S8e9433d8043046c5aad55b37344aaa31o.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S0ee4a13de85b4fb5a04345b304bb00f4B.jpg"
+            ],
+            "category_id": "44"
+          }
+        ],
+        "more_available": true,
+        "filters_key": "a0c8c333378b75df8ef4e98ff6c7906271a39b47ec892d6aa9d255d2b6c8ffcb",
+        "cached": false,
+        "fetched_at": "2026-09-28T19:17:14.261Z"
+      },
+      "calls": [
+        {
+          "kind": "parse",
+          "model": "claude-haiku-4-5-20251001",
+          "inputTokens": 1525,
+          "outputTokens": 105,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 0,
+          "usd": 0.00205
+        },
+        {
+          "kind": "explain",
+          "model": "claude-haiku-4-5-20251001",
+          "inputTokens": 1461,
+          "outputTokens": 413,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 0,
+          "usd": 0.003526
+        }
+      ],
+      "categories": [
+        {
+          "product_id": "1005008830601930",
+          "first": "Consumer Electronics",
+          "second": "Smart Electronics"
+        },
+        {
+          "product_id": "1005006995151533",
+          "first": "Consumer Electronics",
+          "second": "Smart Electronics"
+        },
+        {
+          "product_id": "1005006860956768",
+          "first": "Consumer Electronics",
+          "second": "Smart Electronics"
+        },
+        {
+          "product_id": "1005006997324750",
+          "first": "Consumer Electronics",
+          "second": "Smart Electronics"
+        },
+        {
+          "product_id": "1005009460482765",
+          "first": "Consumer Electronics",
+          "second": "Smart Electronics"
+        }
+      ]
+    },
+    {
+      "id": "cheapest-cable",
+      "topic": "price",
+      "query": "הכי זול: כבל USB-C לאייפון 15",
+      "ms": 11434,
+      "parsed": {
+        "keywords_en": "usb-c lightning cable iphone 15",
+        "product_terms": [
+          "usb-c cable",
+          "usb-c to lightning cable"
+        ],
+        "requirements": [
+          {
+            "en": "iphone 15",
+            "alt": [
+              "lightning connector"
+            ],
+            "he": "לאייפון 15"
+          }
+        ],
+        "sort_preference": "cheapest",
+        "product_he": "כבל USB-C לאייפון 15",
+        "category_hint": "phone cables"
+      },
+      "meta": {
+        "cache": "none",
+        "llmUsage": [
+          {
+            "kind": "parse",
+            "usage": {
+              "inputTokens": 1521,
+              "outputTokens": 112,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          },
+          {
+            "kind": "explain",
+            "usage": {
+              "inputTokens": 1513,
+              "outputTokens": 453,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          }
+        ],
+        "aliCalls": 1,
+        "linkCalls": 0,
+        "rejected": {
+          "feedback": 8,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 26,
+          "requirement": 1
+        },
+        "keywordsTried": [
+          "usb-c lightning cable iphone 15"
+        ],
+        "explainRejected": [],
+        "timings": {
+          "parse_ms": 2285,
+          "fetch_ms": 2125,
+          "explain_ms": 4955,
+          "products_ms": 4411
+        },
+        "fetchStop": "enough",
+        "explainFailed": false,
+        "demoted": [
+          "1005007038354893"
+        ]
+      },
+      "response": {
+        "query": "הכי זול: כבל USB-C לאייפון 15",
+        "chips": [
+          {
+            "id": "product",
+            "kind": "keywords",
+            "label_he": "כבל USB-C לאייפון 15",
+            "removable": false
+          },
+          {
+            "id": "req:iphone 15",
+            "kind": "must_have",
+            "label_he": "לאייפון 15",
+            "removable": true
+          }
+        ],
+        "sort": "cheapest",
+        "checked_count": 48,
+        "passed_count": 10,
+        "results": [
+          {
+            "product_id": "1005005196104315",
+            "title_he": "כבל לטעינה מהירה לאייפון 15",
+            "title_en": "Toocki USB Type C Cable Fast Charging USB C Charger Cord For iPhone 15 14 13 12 11 Huawei P40 P30 Realme Oppo Oneplus Samsung",
+            "why_he": "כבל USB-C לאייפון 15 עם 96% משוב חיובי, והזול מבין החמישה.",
+            "price_ils": 5.63,
+            "original_price_ils": 11.27,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 96,
+            "units_sold": 4438,
+            "passed_tier": "standard",
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S7bc04701917d47768b5c2ee70848972fp.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sdcc5f4ec344f47a7be3f5b618da78b176.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S476748d081514ed2aea1e3ee9680e471O.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sa34a2cd56a914f5b958b40d74f7a89deb.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sd55c346679864948a76e2eca7266be6fc.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S6ec1111091fd43f7a1a92662d5db38a1d.jpg"
+            ],
+            "category_id": "202192403"
+          },
+          {
+            "product_id": "1005013255643267",
+            "title_he": "כבל PD 20W USB-C ללייטנינג לאייפון 15",
+            "title_en": "Toocki PD 20W USB C To Lightnin Cable For iPhone 15 14 13 12 11 Pro XS 8 Type C To Lightning Cable Data Wire Fast Charging Cable",
+            "why_he": "כבל USB-C ללייטנינג לאייפון 15 לטעינה מהירה, 8030 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 7.56,
+            "original_price_ils": 15.13,
+            "price_is_approx": false,
+            "discount_pct": 50,
+            "positive_feedback_pct": 98,
+            "units_sold": 8030,
+            "passed_tier": "standard",
+            "shared_numbers": {
+              "feedback": true,
+              "sales": false
+            },
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S9aa246bce9dc438f8b1bf6a7fe6a02aaf.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S84bf2293203e495b8bc8e1e79ca63fe2X.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S8e316d3bd4ac4a22be817e6c2e9923eaZ.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S73f5bf40c57f48a2bc843b40be7f7ff6D.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sd9d6b7eccaf7443091e3e548265f10acg.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sc15b01c7f6624ab7a35c73f71b57fdcfY.jpg"
+            ],
+            "category_id": "202192403"
+          },
+          {
+            "product_id": "1005009695929286",
+            "title_he": "כבל 2 ב־1 USB-A ו־Type-C ללייטנינג לאייפון 15",
+            "title_en": "PD 2 in 1 USB A Cable Type C To Lightning Fast Charging Cable For iPhone 16 15 14 13 11Pro Max iPad Xiaomi Huawe Samsung",
+            "why_he": "כבל תואם לאייפון 15 עם שני חיבורים, 2364 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 7.62,
+            "original_price_ils": 15.87,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98,
+            "units_sold": 2364,
+            "passed_tier": "standard",
+            "shared_numbers": {
+              "feedback": true,
+              "sales": false
+            },
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S19c6cbdc70c74387b56567da70c3a1ba4.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S5342aeeae8704da0ae7f8dfb4e1c0ffc1.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sa74a80463f3f42f1adb0e22c27efe57cM.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sc39b4e5647764e0596130d5f5e74e115x.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S3e0a43325fad4fd6923c0a1720480413s.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S42ad72f0a6a443ed9f6eb0102d0b6250Q.jpg"
+            ],
+            "category_id": "202192403"
+          },
+          {
+            "product_id": "1005011833644553",
+            "title_he": "כבל USB Type-C 4 ב־1 66W PD ללייטנינג לאייפון 15",
+            "title_en": "4 in 1 USB Type C Cable 66W PD Fast Charging Wire Type C To Lightning Cable For iPhone 17 16 15 14 Pro Max MacBook iPad Xiaomi",
+            "why_he": "כבל USB-C ללייטנינג לאייפון 15 עם 91.7% משוב חיובי ותאימות למקבוקים.",
+            "price_ils": 9.07,
+            "original_price_ils": 18.9,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 91.7,
+            "units_sold": 208,
+            "passed_tier": "standard",
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S9f133138e55b4a69ab9a744e871f93b33.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/See5ea9bcc5044166844250db346c3069M.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S9e7e09eed18f411cba0174da18f5e671g.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sade3768fac9a465d9627dfc077b07c66v.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S8703bee6ae214aa28f0ae8e22566229fb.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sbe33ca72be2542bbaad6c14c90ec8cf5Q.jpg"
+            ],
+            "category_id": "202192403"
+          },
+          {
+            "product_id": "1005007077065364",
+            "title_he": "Essager 2 in 1 USB Type C Cable 65W PD Fast Charging Wire Type C To Lightning Cable For iPhone 15 14 Pro Max MacBook iPad Xiaomi",
+            "title_en": "Essager 2 in 1 USB Type C Cable 65W PD Fast Charging Wire Type C To Lightning Cable For iPhone 15 14 Pro Max MacBook iPad Xiaomi",
+            "why_he": "97.5% משוב חיובי ו־1,323 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 9.75,
+            "original_price_ils": 28.4,
+            "price_is_approx": false,
+            "discount_pct": 65,
+            "positive_feedback_pct": 97.5,
+            "units_sold": 1323,
+            "passed_tier": "standard",
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S5fe86ef631774e2f9f227a85a60dcb19B.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sb5e52b404f594f39b27f35086e3a0e067.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sd61f82ef9cd74f82a1b716ac5b462a76k.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Se335150049ff4f8cb903d104db819686G.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sa2b17e895477400c998f7a1bc192be16P.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S74e87ecaa35d41f6a11045c7aeb4c2f97.jpg"
+            ],
+            "category_id": "202192403"
+          }
+        ],
+        "more_available": true,
+        "filters_key": "3ac51ddc83a456786c7368dea841c89e0421d8a0ad32c974fdc9db3fac030aba",
+        "cached": false,
+        "fetched_at": "2026-09-28T19:17:25.092Z"
+      },
+      "calls": [
+        {
+          "kind": "parse",
+          "model": "claude-haiku-4-5-20251001",
+          "inputTokens": 1521,
+          "outputTokens": 112,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 0,
+          "usd": 0.002081
+        },
+        {
+          "kind": "explain",
+          "model": "claude-haiku-4-5-20251001",
+          "inputTokens": 1513,
+          "outputTokens": 453,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 0,
+          "usd": 0.003778
+        }
+      ],
+      "categories": [
+        {
+          "product_id": "1005005196104315",
+          "first": "Phones & Telecommunications Accessories",
+          "second": "Mobile Phone Accessories"
+        },
+        {
+          "product_id": "1005013255643267",
+          "first": "Phones & Telecommunications Accessories",
+          "second": "Mobile Phone Accessories"
+        },
+        {
+          "product_id": "1005009695929286",
+          "first": "Phones & Telecommunications Accessories",
+          "second": "Mobile Phone Accessories"
+        },
+        {
+          "product_id": "1005011833644553",
+          "first": "Phones & Telecommunications Accessories",
+          "second": "Mobile Phone Accessories"
+        },
+        {
+          "product_id": "1005007077065364",
+          "first": "Phones & Telecommunications Accessories",
+          "second": "Mobile Phone Accessories"
+        }
+      ]
+    },
+    {
+      "id": "ho-powerbank",
+      "topic": "held-out",
+      "query": "סוללת גיבוי קטנה לטלפון 10000 מיליאמפר",
+      "ms": 7739,
+      "parsed": {
+        "keywords_en": "power bank 10000mah",
+        "product_terms": [
+          "power bank",
+          "portable charger",
+          "battery pack"
+        ],
+        "requirements": [
+          {
+            "en": "10000mah",
+            "alt": [],
+            "he": "10000 מיליאמפר"
+          }
+        ],
+        "sort_preference": "best_value",
+        "product_he": "סוללת גיבוי 10000mAh",
+        "category_hint": "mobile accessories"
+      },
+      "meta": {
+        "cache": "none",
+        "llmUsage": [
+          {
+            "kind": "parse",
+            "usage": {
+              "inputTokens": 1531,
+              "outputTokens": 115,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          },
+          {
+            "kind": "explain",
+            "usage": {
+              "inputTokens": 1533,
+              "outputTokens": 523,
+              "cacheReadTokens": 0,
+              "cacheWriteTokens": 0
+            },
+            "model": "claude-haiku-4-5-20251001"
+          }
+        ],
+        "aliCalls": 1,
+        "linkCalls": 0,
+        "rejected": {
+          "feedback": 2,
+          "volume": 0,
+          "currency": 0,
+          "price": 0,
+          "type": 7,
+          "requirement": 5
+        },
+        "keywordsTried": [
+          "power bank 10000mah"
+        ],
+        "explainRejected": [
+          {
+            "product_id": "1005010606760672",
+            "rejected": {
+              "why_he": "סוללת גיבוי 10000mAh עם כבל USB-C משולב, 97.5% משוב חיובי ו־7434 נמכרו ב־30 הימים האחרונים.",
+              "why_problem": "repeated_line"
+            }
+          },
+          {
+            "product_id": "1005007956125217",
+            "rejected": {
+              "why_he": "סוללת גיבוי 10000mAh עם כבל USB-C משולב, 98.3% משוב חיובי ו־2582 נמכרו ב־30 הימים האחרונים.",
+              "why_problem": "repeated_line"
+            }
+          },
+          {
+            "product_id": "1005005704794297",
+            "rejected": {
+              "why_he": "סוללת גיבוי 10000mAh עם כבל USB-C משולב, 97.7% משוב חיובי ו־3162 נמכרו ב־30 הימים האחרונים.",
+              "why_problem": "repeated_line"
+            }
+          }
+        ],
+        "timings": {
+          "parse_ms": 2346,
+          "fetch_ms": 1774,
+          "explain_ms": 3618,
+          "products_ms": 4121
+        },
+        "fetchStop": "enough",
+        "explainFailed": false,
+        "demoted": []
+      },
+      "response": {
+        "query": "סוללת גיבוי קטנה לטלפון 10000 מיליאמפר",
+        "chips": [
+          {
+            "id": "product",
+            "kind": "keywords",
+            "label_he": "סוללת גיבוי 10000mAh",
+            "removable": false
+          },
+          {
+            "id": "req:10000mah",
+            "kind": "must_have",
+            "label_he": "10000 מיליאמפר",
+            "removable": true
+          }
+        ],
+        "sort": "best_value",
+        "checked_count": 48,
+        "passed_count": 31,
+        "results": [
+          {
+            "product_id": "1005010425880598",
+            "title_he": "סוללת גיבוי Baseus 10000mAh 22.5W",
+            "title_en": "Baseus 10000mAh Power Bank 22.5W Built-In Dual USB-C Cable Thinner Fast Charging for iPhone 17 Pro Max Samsung S25 Xiaomi Poco",
+            "why_he": "סוללת גיבוי 10000mAh עם כבל USB-C משולב, 98.9% משוב חיובי ו־3275 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 85.93,
+            "original_price_ils": 182.4,
+            "price_is_approx": false,
+            "discount_pct": 52,
+            "positive_feedback_pct": 98.9,
+            "units_sold": 3275,
+            "passed_tier": "standard",
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S93dd085b5adc406fa3a69ea59e208297y.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S61ad4ecb8f4946158fa6e891a5675b1co.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S058b86dbb9b741f7a40ec97106de3747K.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sbb16fbc7f7f34614bf1fe372cf4258e3S.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S076172ad5f2a4bd6a054327b51c9b7e7w.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S1f45d03b71574b669718432a228520eba.jpg"
+            ],
+            "category_id": "202192403"
+          },
+          {
+            "product_id": "1005010606760672",
+            "title_he": "סוללת גיבוי Vention 10000mAh 22.5W",
+            "title_en": "Vention 10000mAh Mini Power Bank 22.5w Portable Charger Built-in USB C Cable PD 3.0 Fast Charging for iPhone 17 18 Samsung S26",
+            "why_he": "97.5% משוב חיובי ו־7,434 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 92.38,
+            "original_price_ils": 189.45,
+            "price_is_approx": false,
+            "discount_pct": 51,
+            "positive_feedback_pct": 97.5,
+            "units_sold": 7434,
+            "passed_tier": "standard",
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sa259657e87d4403fb8a0a9de8d3ec0de4.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sfaab9de29aff4184aa26b2faff07f11f2.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S6858d22bcc204a949fecfaca78982d61d.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S42292763ab524c6680aa69e14b45bff1K.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S113ec2d47d834afc9a335b29d61cb454k.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sea1b89a3a38849ff97b49bb69f8d02dbH.jpg"
+            ],
+            "category_id": "202192403"
+          },
+          {
+            "product_id": "1005007956125217",
+            "title_he": "סוללת גיבוי UGREEN 10000mAh 55W",
+            "title_en": "UGREEN 55W Power Bank 10000mAh Type C Cable Portable Fast Charging PowerBank for Redmi Note Xiaomi Mi 14 13 12 Portable Battery",
+            "why_he": "98.3% משוב חיובי ו־2,582 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 155.84,
+            "original_price_ils": 410.11,
+            "price_is_approx": false,
+            "discount_pct": 62,
+            "positive_feedback_pct": 98.3,
+            "units_sold": 2582,
+            "passed_tier": "standard",
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sce3e97e7ddbf454b8479f2df430c9944o.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S9dfef66075364aaa85379ea17255ef5aq.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sd3d7ec76390b4987b59c51d261b5bedfl.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S23935d26b07e4965aa81e9d6b4a015f81.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S7029c1e557f24710be01066df1c55357f.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S99eb5950fff24eabb3b4d78514f01e82I.jpg"
+            ],
+            "category_id": "202192403"
+          },
+          {
+            "product_id": "1005005704794297",
+            "title_he": "סוללת גיבוי UGREEN 10000mAh 33W",
+            "title_en": "UGREEN Mini 33W 10000mAh Power Bank Built-in Type-C Cable PD 30W Charger Compatible for Xiaomi 33W External Battery",
+            "why_he": "97.7% משוב חיובי ו־3,162 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 138.72,
+            "original_price_ils": 330.29,
+            "price_is_approx": false,
+            "discount_pct": 58,
+            "positive_feedback_pct": 97.7,
+            "units_sold": 3162,
+            "passed_tier": "standard",
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sb608be83180a4f798812f13be76f44a3P.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S0a6c4ea6890542a1a40d7dea22618f9fk.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sfbba3d0004514e03bd8b853c56b02b126.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S1fe219160b784b378d39ab2b50158daez.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Se29eafe6da8e4c82bd9846f28dad48acX.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sb17cfb613fe943b7ae4d4b6382cc7298I.jpg"
+            ],
+            "category_id": "202192403"
+          },
+          {
+            "product_id": "1005006134380779",
+            "title_he": "סוללת גיבוי מגנטית",
+            "title_en": "UGREEN PD20W Power Bank Magnetic 10000mAh Portable Wireless Fast Charging PowerBank for Magsafe for iPhone 17 15 Pro Max 16 Pro",
+            "why_he": "סוללת גיבוי 10000mAh עם טעינה אלחוטית מגנטית, 96.2% משוב חיובי ו־4490 נמכרו ב־30 הימים האחרונים.",
+            "price_ils": 112.19,
+            "original_price_ils": 280.5,
+            "price_is_approx": false,
+            "discount_pct": 60,
+            "positive_feedback_pct": 96.2,
+            "units_sold": 4490,
+            "passed_tier": "standard",
+            "image_urls": [
+              "https://ae-pic-a1.aliexpress-media.com/kf/S1acf61e62718468fbdd3b4abed489c7d6.png",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S9281682fe466487db4af82edb9597fc7g.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S6b9b01fabc8f4794a8cc5c62887680f5C.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/Sf5e0b6eca4c743a1a724432a666efee80.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S7fd400035b2346a495b116001f2c7477i.jpg",
+              "https://ae-pic-a1.aliexpress-media.com/kf/S71c18b170f2147388f4a214e3d7bf5b5L.jpg"
+            ],
+            "category_id": "202192403"
+          }
+        ],
+        "more_available": true,
+        "filters_key": "249a23bf0a404fe0fb9b8713a3c974661119f1b97a691349c0a056ac6108d62a",
+        "cached": false,
+        "fetched_at": "2026-09-28T19:17:37.737Z"
+      },
+      "calls": [
+        {
+          "kind": "parse",
+          "model": "claude-haiku-4-5-20251001",
+          "inputTokens": 1531,
+          "outputTokens": 115,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 0,
+          "usd": 0.002106
+        },
+        {
+          "kind": "explain",
+          "model": "claude-haiku-4-5-20251001",
+          "inputTokens": 1533,
+          "outputTokens": 523,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 0,
+          "usd": 0.004148
+        }
+      ],
+      "categories": [
+        {
+          "product_id": "1005010425880598",
+          "first": "Phones & Telecommunications Accessories",
+          "second": "Mobile Phone Accessories"
+        },
+        {
+          "product_id": "1005010606760672",
+          "first": "Phones & Telecommunications Accessories",
+          "second": "Mobile Phone Accessories"
+        },
+        {
+          "product_id": "1005007956125217",
+          "first": "Phones & Telecommunications Accessories",
+          "second": "Mobile Phone Accessories"
+        },
+        {
+          "product_id": "1005005704794297",
+          "first": "Phones & Telecommunications Accessories",
+          "second": "Mobile Phone Accessories"
+        },
+        {
+          "product_id": "1005006134380779",
+          "first": "Phones & Telecommunications Accessories",
+          "second": "Mobile Phone Accessories"
+        }
+      ]
+    }
+  ]
+}

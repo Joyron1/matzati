@@ -1,7 +1,7 @@
 # מצאתי (Matzati)
 
 Hebrew, RTL, mobile-first shopping assistant for AliExpress. Users describe what they need in
-free Hebrew and get 3 vetted products with affiliate links. The full spec and working rules are in
+free Hebrew and get 5 vetted products with affiliate links. The full spec and working rules are in
 [CLAUDE.md](CLAUDE.md).
 
 Production: https://matzati-il.vercel.app (Vercel project `matzati-il`).
@@ -17,6 +17,7 @@ Production: https://matzati-il.vercel.app (Vercel project `matzati-il`).
 - **Phase 2 (part 1): done.** SEO landing pages `/s/[slug]` (managed in `/admin/seo`, ISR daily, real results from the 14-day cache), `sitemap.xml` and `robots.txt`; `/admin/stats` (searches per day, cache hit rate, LLM cost from `llm_usage`, top and zero-result queries, top clicked products); stricter accessory gate and shorter LLM prompts. Price cron and analytics are still open.
 - **Recent searches: done.** `/searches` lists visitor searches that found products (one card per normalized query, with photos, chips, category and text filters; privacy filter in `lib/recent/privacy.ts`, admin hide in `/admin/searches`, `noindex`), plus a strip on the home page. Results older than 24h show when prices were checked.
 - **Phase 2 (part 2): done** (plan approved 2026-09-28). `/p` shows the AliExpress video, AliExpress promo codes and our coupons, and a reviews card (no review text: a link to the reviews on AliExpress through `/go?src=reviews`); `/go` regenerates affiliate links older than `LINK_MAX_AGE_DAYS`; SKU variants are built behind `SKU_DETAILS_ENABLED`, off until AliExpress grants `product.sku.detail.get`. Coupons: `coupons` table, `/admin/coupons`, public `/coupons`. Sales calendar `/sales`: countdowns, upcoming sales, a 12-month calendar and add-to-calendar `.ics` files. Coupons and sale dates are the owner's and labelled as ours. Apply `supabase/migrations/20260928090000_coupons.sql` before deploying.
+- **Five results and the shop cap setting: built, not deployed** (owner decisions 2026-09-28). Pages of 5 (`RESULTS_PER_PAGE`, 15 kept), explanations that compare within the batch shown ("מבין החמישה" ... "מבין השניים"), a shop cap chosen in `/admin/settings` ("none", the default, or "max2"), every kept product saved for `/p`'s similar products, and known loan words fixed in AliExpress's Hebrew titles. `RANKING_VERSION` 8 and `EXPLAIN_VERSION` 6 empty the results cache on deploy. Apply `supabase/migrations/20260928230000_five_results.sql` and `20260928230100_site_settings.sql` before deploying; numbers in [docs/search-quality-wave-a.md](docs/search-quality-wave-a.md#five-results-2026-09-28).
 - **Tracking id hygiene: done.** Committed fixtures hold `<ALIEXPRESS_TRACKING_ID>` instead of the real id, `check:ali -- --save` masks every `.env.local` value, and `lib/fixtures-secrets.test.ts` guards `fixtures/` locally. The id stays in git history (commit 5b698fc); see [docs/aliexpress-api.md](docs/aliexpress-api.md#open-items).
 
 Local dev needs Node 22+, or Node 20.10+ with `--experimental-websocket` (set in the `dev` and `start` scripts) because supabase-js needs a WebSocket global.

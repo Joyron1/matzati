@@ -29,8 +29,10 @@ import {
   trustTierOf,
   type RejectReason,
 } from "@/lib/ranking/rank";
-import { RESULTS_PER_PAGE } from "@/lib/config/site";
+import { RESULTS_KEPT, RESULTS_PER_PAGE } from "@/lib/config/site";
+import { DEFAULT_SHOP_CAP_MODE, type ShopCapMode } from "@/lib/ranking/config";
 import { isListableQuery } from "@/lib/recent/privacy";
+import { fixTransliterations } from "@/lib/transliterations";
 import type { SearchArrival } from "@/lib/search-url";
 import type { LlmCallKind, LlmUsageRecord } from "@/lib/stats/usage";
 import type { FilterBlocker, FilterChip, ResultProduct, SearchResponse } from "@/lib/types";
@@ -71,8 +73,8 @@ import type {
 export { keywordLadder } from "./fetch-policy";
 
 export const MAX_QUERY_LENGTH = 200;
-/** How many ranked products we keep per search: the first 3 plus "show 3 more", with spares. */
-export const RESULTS_KEPT = 12;
+/** How many ranked products we keep per search: three pages (lib/config/site.ts). */
+export { RESULTS_KEPT };
 
 /**
  * Limits per LLM step (docs/search-quality-plan.md item 7), so a slow or failing model cannot hold
@@ -145,6 +147,12 @@ export interface SearchDeps {
    * searchFailureCode.
    */
   failureOf?: (err: unknown) => string | null;
+  /**
+   * The admin's shop cap setting (lib/settings), read once per request by lib/search/server.ts;
+   * default DEFAULT_SHOP_CAP_MODE. The ranking runs under it and the results cache key holds it
+   * (filtersKey), so a list ranked under one mode is never served under the other.
+   */
+  shopCap?: ShopCapMode;
 }
 
 export interface SearchInput {
@@ -307,7 +315,8 @@ export function toResultProduct(p: AliProduct, e: Explanation | undefined): Resu
   const shared = sharedMarkOf(p);
   return {
     product_id: p.productId,
-    title_he: e?.title_he ?? p.title,
+    // A cached title of ours is read with the known transliterations fixed (lib/transliterations).
+    title_he: e?.title_he != null ? fixTransliterations(e.title_he, p.title) : p.title,
     title_en: p.title,
     why_he: e?.why_he ?? "",
     price_ils: p.price,
@@ -339,7 +348,7 @@ interface Fetched {
  */
 async function fetchAndRank(
   parsed: ParsedQuery,
-  deps: Required<Pick<SearchDeps, "ali" | "sleep" | "aliSpacingMs" | "now">>,
+  deps: Required<Pick<SearchDeps, "ali" | "sleep" | "aliSpacingMs" | "now" | "shopCap">>,
   meta: SearchMeta,
 ): Promise<Fetched> {
   const seen = new Map<string, AliProduct>();
@@ -387,7 +396,7 @@ async function fetchAndRank(
   const pool = [...seen.values()];
   meta.rejected = rejectionCounts(pool, parsed);
   // Too few met FILTERS: top up to one page from the second trust tier (FILL_TIER).
-  const final = rankWithFill(pool, parsed, RESULTS_PER_PAGE);
+  const final = rankWithFill(pool, parsed, RESULTS_PER_PAGE, deps.shopCap);
   // passed counts every distinct product that met the filters, not just the ones we keep.
   return {
     ranked: final.ranked.slice(0, RESULTS_KEPT),
@@ -698,6 +707,8 @@ interface SearchRun {
   sleep: (ms: number) => Promise<void>;
   /** deps.beforeLlmWork, at most once per search: before its first paid step. */
   chargeOnce: () => Promise<void>;
+  /** deps.shopCap or the default: the mode this search ranks under and keys its results by. */
+  shopCap: ShopCapMode;
 }
 
 function searchLogEntry(
@@ -850,6 +861,7 @@ async function runStages(
       charged = true;
       await deps.beforeLlmWork?.();
     },
+    shopCap: deps.shopCap ?? DEFAULT_SHOP_CAP_MODE,
   };
   try {
     return await search(q, input, state, stages);
@@ -933,9 +945,9 @@ async function search(
   state.filters = filters;
   stages.understood.resolve(understoodOf(q, filters));
 
-  // 2. The results: cached for exactly these filters, ranked again from a pool a fetch already
-  // checked (a sort change, a removed requirement; item 13), or fetched.
-  const fk = filtersKey(filters);
+  // 2. The results: cached for exactly these filters (under this shop cap mode), ranked again from
+  // a pool a fetch already checked (a sort change, a removed requirement; item 13), or fetched.
+  const fk = filtersKey(filters, state.shopCap);
   const hit = await deps.store.getResults(fk, now());
   let plan: ViewPlan | null = null;
   if (hit) {
@@ -985,8 +997,8 @@ async function derivedPlan(
   const { deps, meta, now } = state;
   const viewKey = viewKeyOf(filters.sort_preference, removedRequirements(parsed, without));
   const bases = [
-    filtersKey(applyOverrides(parsed, without)),
-    filtersKey(applyOverrides(parsed, removedPrices(parsed, without))),
+    filtersKey(applyOverrides(parsed, without), state.shopCap),
+    filtersKey(applyOverrides(parsed, removedPrices(parsed, without)), state.shopCap),
   ].filter((k, i, all) => k !== key && all.indexOf(k) === i);
   for (const baseKey of bases) {
     const base = await deps.store.getResults(baseKey, now());
@@ -1039,7 +1051,11 @@ async function fetchedPlan(
   try {
     fetched = await timed(run, meta, "fetch_ms", async () => {
       const aliSpacingMs = deps.aliSpacingMs ?? 1_100;
-      const found = await fetchAndRank(filters, { ali: deps.ali, sleep, aliSpacingMs, now }, meta);
+      const found = await fetchAndRank(
+        filters,
+        { ali: deps.ali, sleep, aliSpacingMs, now, shopCap: state.shopCap },
+        meta,
+      );
       const linked = await ensureLinks(deps.ali, found.ranked, meta, sleep, aliSpacingMs);
       // Products passed but none can be linked (link.generate answered without links): not "none
       // passed", which the page would then say; the search fails like any AliExpress failure.
@@ -1105,12 +1121,17 @@ interface Guarded {
  * is not the searched product moves down; the model only marks, the code decides. A product that
  * moves up gets the sentence from the data (no extra call).
  */
-function guardFirstPage(plan: ViewPlan, explained: Record<string, Explanation>): Guarded {
+function guardFirstPage(
+  plan: ViewPlan,
+  explained: Record<string, Explanation>,
+  shopCap: ShopCapMode,
+): Guarded {
   const guarded = demoteFlaggedLeads(
     plan.products,
     explained,
     plan.filters.product_he,
     RESULTS_PER_PAGE,
+    shopCap,
   );
   const promoted = guarded.ranked.slice(0, RESULTS_PER_PAGE).filter((p) => !explained[p.productId]);
   return {
@@ -1141,15 +1162,21 @@ async function finish(
   const missing = page.filter((p) => !lines[p.productId]);
   const fresh = plan.source === "fetched";
   // Every line is known: the final order is known too (a hit's went through the net when cached).
-  const settled = !plan.hit && !missing.length ? guardFirstPage(plan, lines) : null;
+  const settled = !plan.hit && !missing.length ? guardFirstPage(plan, lines, state.shopCap) : null;
 
-  // The rows the cards' /go links read, saved before the cards show: the page of a fetch or of a
-  // ranked view (with a product the safety net moved onto it), and a hit's products that were
-  // never shown. Data from a pool keeps the time it was fetched (saveProducts' checkedAt); titles
-  // written later are saved under the same time.
+  // The rows the cards' /go links read, saved before the cards show, in one batch: every product a
+  // fetch kept (RESULTS_KEPT, all linked: its later pages and /p's similar products need the rows
+  // too, and the data is the fetch's own, so no call is added), the page of a ranked view (with a
+  // product the safety net moved onto it), and a hit's products that were never shown. Titles only
+  // where a line was written. Data from a pool keeps the time it was fetched (saveProducts'
+  // checkedAt); titles written later are saved under the same time.
   const checkedAt = fresh ? undefined : new Date(plan.createdAt);
   const titledAt = checkedAt ?? state.now();
-  const unsaved = plan.hit ? missing : [...page, ...(settled?.promoted ?? [])];
+  const unsaved = plan.hit
+    ? missing
+    : fresh
+      ? plan.products
+      : [...page, ...(settled?.promoted ?? [])];
   if (unsaved.length) await deps.store.saveProducts(unsaved, titlesOf(lines), checkedAt);
 
   meta.timings.products_ms = Math.round(run.clock() - run.started);
@@ -1186,7 +1213,7 @@ async function finish(
     // Lines of different calls side by side: the same line twice says nothing about either. The
     // lines already on screen (reused) stay; a new one that repeats one of them falls back.
     if (!fresh) explained = withoutRepeats(page, explained, new Set(Object.keys(lines)));
-    guarded = guardFirstPage(plan, explained);
+    guarded = guardFirstPage(plan, explained, state.shopCap);
   }
   meta.demoted = guarded.demoted;
   const { ranked, promoted, explanations } = guarded;
@@ -1202,8 +1229,8 @@ async function finish(
   await Promise.all([
     cacheResults(q, plan, results, written, pooled, state, ctx),
     // A product the safety net moved onto the first page shows a card too (saved already when the
-    // order was settled before the products showed).
-    promoted.length && !settled ? deps.store.saveProducts(promoted, {}, checkedAt) : null,
+    // order was settled before the products showed, or with every product a fetch kept).
+    promoted.length && !settled && !fresh ? deps.store.saveProducts(promoted, {}, checkedAt) : null,
   ]);
   stages.final.resolve(response);
 
@@ -1238,7 +1265,7 @@ async function finish(
  * serve (./pool.ts), on the result set fetched for the parse's own sort (a fetch for another sort
  * writes that one too, its first page to be explained when it is first shown). A ranked view: its
  * own, and its new lines into the pool it came from. A hit: its added lines (not after a failed
- * explain call: the next request explains them, as "עוד 3" does).
+ * explain call: the next request explains them, as "עוד N" does).
  */
 async function cacheResults(
   q: string,
@@ -1246,7 +1273,7 @@ async function cacheResults(
   results: CachedResults,
   written: Record<string, Explanation>,
   pooled: PooledFetch | null,
-  { deps, meta }: SearchRun,
+  { deps, meta, shopCap }: SearchRun,
   ctx: SearchContext,
 ): Promise<void> {
   const store = deps.store;
@@ -1277,7 +1304,7 @@ async function cacheResults(
     await store.putResults(plan.key, q, results);
     return;
   }
-  const baseKey = filtersKey(applyOverrides(ctx.parsed, ctx.without));
+  const baseKey = filtersKey(applyOverrides(ctx.parsed, ctx.without), shopCap);
   if (baseKey === plan.key) {
     await store.putResults(plan.key, q, {
       ...results,
@@ -1328,7 +1355,7 @@ async function poolOfFetch(
       continue;
     }
     await nextTurn();
-    const ranked = rankView(fetch.pool, spec, RESULTS_KEPT, blockersOf);
+    const ranked = rankView(fetch.pool, spec, RESULTS_KEPT, blockersOf, state.shopCap);
     if (ranked) views.set(spec.key, ranked);
   }
   const baseView = views.get(viewKeyOf(fetch.parsed.sort_preference, removed));
@@ -1372,7 +1399,7 @@ const isExplanation = (v: unknown): v is Explanation =>
 
 /**
  * A line written with other products, checked again for the ones it would be shown with: its
- * comparisons ("הזול מבין השלושה" holds only if it is the cheapest of these), a caveat about a
+ * comparisons ("הזול מבין החמישה" holds only if it is the cheapest of these five), a caveat about a
  * requirement that was removed, and every other check of explain (checkExplanation). Null when it
  * fails, or when it is the line built from the data: that product is explained instead.
  */
@@ -1533,7 +1560,7 @@ export interface MoreOutcome {
 }
 
 /**
- * "עוד 3 אפשרויות": explains the next page of an existing cached result set. A page with results
+ * "עוד N אפשרויות": explains the next page of an existing cached result set. A page with results
  * writes a search_log row (source "more"; the request carries only the filters key, so the query
  * column holds the result set's Hebrew product label). Its explain call goes to llm_usage as
  * "explain_more". A page that fails after the result set was found writes a row too (failure set).

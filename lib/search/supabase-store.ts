@@ -137,7 +137,8 @@ export class SupabaseStore implements SearchStore {
    * The first usable row (`usable`: well formed and fresh) under this env's key or, outside
    * production, under production's bare key. Dev may read what production cached (reading changes
    * nothing, and it saves paid calls), but it writes, and counts hits, under its own keys only.
-   * `borrowed` is true for a row read from production's key.
+   * `borrowed` is true for a row read from production's key. `countHit` false (peekParse,
+   * peekResults) leaves the hits counter alone: the read writes nothing.
    */
   private async readCached<R extends { hits: number }>(
     op: string,
@@ -145,6 +146,7 @@ export class SupabaseStore implements SearchStore {
     columns: string,
     key: string,
     usable: (row: R) => boolean,
+    countHit = true,
   ): Promise<{ row: R; borrowed: boolean } | null> {
     const keys = this.prefix ? [this.own(key), key] : [key];
     for (const k of keys) {
@@ -153,21 +155,35 @@ export class SupabaseStore implements SearchStore {
       );
       if (!row || !usable(row)) continue;
       const borrowed = k !== this.own(key);
-      if (!borrowed) this.bumpHits(table, k, row.hits ?? 0);
+      if (!borrowed && countHit) this.bumpHits(table, k, row.hits ?? 0);
       return { row, borrowed };
     }
     return null;
   }
 
-  async getParse(queryKey: string, now: Date): Promise<ParsedQuery | null> {
+  private findParse(queryKey: string, now: Date, countHit: boolean) {
     type Row = { parsed: unknown; created_at: string; hits: number };
-    const found = await this.readCached<Row>(
+    return this.readCached<Row>(
       "getParse",
       "parse_cache",
       "parsed, created_at, hits",
       queryKey,
       (row) => looksLikeParse(row.parsed) && isFresh(new Date(row.created_at), now),
+      countHit,
     );
+  }
+
+  async getParse(queryKey: string, now: Date): Promise<ParsedQuery | null> {
+    const found = await this.findParse(queryKey, now, true);
+    return found ? (found.row.parsed as ParsedQuery) : null;
+  }
+
+  /**
+   * The cached parse, exactly as getParse finds it, for a reader that only looks (/p's similar
+   * products, lib/similar/load.ts): no hit is counted, so it writes nothing.
+   */
+  async peekParse(queryKey: string, now: Date): Promise<ParsedQuery | null> {
+    const found = await this.findParse(queryKey, now, false);
     return found ? (found.row.parsed as ParsedQuery) : null;
   }
 
@@ -191,9 +207,9 @@ export class SupabaseStore implements SearchStore {
     );
   }
 
-  async getResults(filtersKey: string, now: Date): Promise<CachedResults | null> {
+  private findResults(filtersKey: string, now: Date, countHit: boolean) {
     type Row = { response: unknown; created_at: string; hits: number; query: string };
-    const found = await this.readCached<Row>(
+    return this.readCached<Row>(
       "getResults",
       "search_cache",
       "response, created_at, hits, query",
@@ -206,10 +222,24 @@ export class SupabaseStore implements SearchStore {
           now,
           row.response.degraded === true,
         ),
+      countHit,
     );
+  }
+
+  async getResults(filtersKey: string, now: Date): Promise<CachedResults | null> {
+    const found = await this.findResults(filtersKey, now, true);
     if (!found) return null;
     if (found.borrowed) this.borrowed.set(filtersKey, found.row.query ?? "");
     return found.row.response as CachedResults;
+  }
+
+  /**
+   * The cached result set, exactly as getResults finds it, for a reader that only looks: no hit is
+   * counted, and nothing is kept for updateResults. Writes nothing.
+   */
+  async peekResults(filtersKey: string, now: Date): Promise<CachedResults | null> {
+    const found = await this.findResults(filtersKey, now, false);
+    return found ? (found.row.response as CachedResults) : null;
   }
 
   async putResults(filtersKey: string, query: string, results: CachedResults): Promise<void> {
@@ -311,7 +341,7 @@ export class SupabaseStore implements SearchStore {
 
   /**
    * `checkedAt` is when the data was fetched from AliExpress, for products from a cached result set
-   * ("עוד 3 אפשרויות" serves results cached up to 14 days) or a hot list. The rows and their
+   * ("עוד N אפשרויות" serves results cached up to 14 days) or a hot list. The rows and their
    * price_history get that time, never the time of the save, since /p, /coupons and /go read
    * updated_at as when the price, the promo code and the link were checked. A row already stored
    * with data as new or newer (a /p refresh, a newer search) keeps it; only its Hebrew title is
@@ -466,6 +496,21 @@ export class SupabaseStore implements SearchStore {
       titleHe: row.title_he ?? null,
       updatedAt: row.updated_at,
     };
+  }
+
+  /**
+   * Of `ids`, the products that have a row (so /p/<id> works), each with its Hebrew title of ours
+   * or null. Null when the read failed. One read, nothing written.
+   */
+  async storedTitles(ids: string[]): Promise<Map<string, string | null> | null> {
+    const unique = [...new Set(ids)];
+    if (!unique.length) return new Map();
+    type Row = { product_id: string; title_he: string | null };
+    const rows = await this.read<Row[]>("storedTitles", () =>
+      this.db.from("products").select("product_id, title_he").in("product_id", unique),
+    );
+    if (rows === null) return null;
+    return new Map(rows.map((r) => [r.product_id, r.title_he?.trim() || null]));
   }
 
   /**
