@@ -142,7 +142,9 @@ describe("hotCarouselProducts", () => {
       [fourth]: fixture("cat44-EN"),
     });
     const { CAROUSEL_SIZE, hotCarouselProducts } = await import("./queries");
-    const products = await hotCarouselProducts();
+    // The test clock, never the real time: the lists are stamped with clock.now, and a real "now"
+    // more than CAROUSEL_MAX_AGE_MS later would leave them all out.
+    const products = await hotCarouselProducts(new Date(clock.now));
     // A cold list costs its list call and one hot links call.
     expect(calls()).toBe(MIX_CATEGORY_IDS.length);
     expect(calls(LINK_METHOD)).toBe(MIX_CATEGORY_IDS.length);
@@ -180,7 +182,7 @@ describe("hotCarouselProducts", () => {
     const { MIX_CATEGORY_IDS } = await import("./categories");
     gateway({ [MIX_CATEGORY_IDS[1]]: fixture("cat44-HE") });
     const { hotCarouselProducts, loadHotMix } = await import("./queries");
-    expect((await hotCarouselProducts()).length).toBeGreaterThan(0);
+    expect((await hotCarouselProducts(new Date(clock.now))).length).toBeGreaterThan(0);
     const mix = await loadHotMix();
     expect(mix.ok && mix.pools.map((p) => p.key)).toEqual([MIX_CATEGORY_IDS[1]]);
   });

@@ -1,8 +1,9 @@
 import Image from "next/image";
 import { ImageOff } from "lucide-react";
 // next/image throws on a host outside images.remotePatterns, so an unexpected URL falls back to
-// the placeholder instead of breaking the page.
-import { isAllowedImage } from "@/lib/images";
+// the placeholder instead of breaking the page. The photo comes from AliExpress's own resized
+// copies (aliImageLoader), never from Vercel's image optimizer (its Hobby quota: lib/images.ts).
+import { aliImageLoader, isAllowedImage } from "@/lib/images";
 
 interface ProductImageProps {
   src: string | undefined;
@@ -28,6 +29,7 @@ export function ProductImage({
       <div className={`relative overflow-hidden bg-white ${className}`}>
         <Image
           src={src}
+          loader={aliImageLoader}
           alt={alt}
           fill
           sizes={sizes}

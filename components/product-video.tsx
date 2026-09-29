@@ -1,15 +1,14 @@
-import { getImageProps } from "next/image";
-import { isAllowedImage } from "@/lib/images";
+import { aliImageUrl, isAllowedImage } from "@/lib/images";
 
 export const VIDEO_LABEL = "סרטון המוצר";
 
 /**
- * The poster for the product video: the product photo through the image optimizer, sized for the
- * gallery's main slot (about 540 px wide, twice that for sharp screens), or undefined.
+ * The poster for the product video: AliExpress's 640 px copy of the product photo (the gallery's
+ * main slot is about 540 px wide; lib/images.ts), or undefined.
  */
 export function videoPosterSrc(photo: string | undefined): string | undefined {
   if (!photo || !isAllowedImage(photo)) return undefined;
-  return getImageProps({ src: photo, alt: "", width: 540, height: 540 }).props.src;
+  return aliImageUrl(photo, 640);
 }
 
 /**

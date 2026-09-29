@@ -36,7 +36,9 @@ export const metadata: Metadata = {
 // lib/admin/login-rate.ts), parse_cache / search_cache (lib/search/cache-key.ts), /searches
 // (lib/recent/privacy.ts, isListableSearch in lib/search/pipeline.ts), admin sign-in
 // (lib/admin/*, proxy.ts), vercel.json (fra1), Supabase project region eu-central-1, the LLM
-// inputs (lib/llm/parse.ts, explain.ts, tips.ts), next.config.ts (images through /_next/image),
+// inputs (lib/llm/parse.ts, explain.ts, tips.ts), lib/images.ts (photos loaded by the browser from
+// AliExpress's image CDN, never through /_next/image; Referrer-Policy strict-origin-when-cross-origin
+// in next.config.ts sends it the page's origin only),
 // components/product-video.tsx (played from AliExpress), the AliExpress gateway in Singapore
 // (ALIEXPRESS_GATEWAY in lib/env.ts), Supabase Auth's own records (auth.sessions ip and
 // user_agent, auth.audit_log_entries ip_address). Retention: RETENTION in lib/config/legal.ts,
@@ -235,9 +237,10 @@ export default async function PrivacyPage() {
           </li>
           <li>
             אלי אקספרס: דרך ממשק תוכנית השותפים (בשרתים שלה בסינגפור) נשלחות אליה מילות חיפוש
-            באנגלית שהפקנו מהחיפוש, טווח המחיר ומזהי מוצרים, בלי פרט מזהה עליכם. כשאתם עוברים לאלי
-            אקספרס או מפעילים סרטון מוצר, הדפדפן שלכם פונה אליה ישירות, והיא פועלת לפי מדיניות
-            הפרטיות שלה.
+            באנגלית שהפקנו מהחיפוש, טווח המחיר ומזהי מוצרים, בלי פרט מזהה עליכם. כשעמוד מציג תמונות
+            מוצרים, הדפדפן שלכם טוען אותן ישירות משרתי התמונות של אלי אקספרס, שמקבלים בכך את כתובת
+            ה־IP שלכם, את סוג הדפדפן ואת כתובת העמוד שממנו נטענה התמונה; כך גם כשאתם עוברים לאלי
+            אקספרס או מפעילים סרטון מוצר. היא פועלת לפי מדיניות הפרטיות שלה.
           </li>
           <AnalyticsSharingItem inUse={analytics} />
         </ul>
