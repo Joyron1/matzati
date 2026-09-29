@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildSitemap, STATIC_PATHS } from "./sitemap";
 
-const ORIGIN = "https://matzati-il.vercel.app";
+const ORIGIN = "https://www.matzati-il.com";
 
 describe("buildSitemap", () => {
   it("lists home and the static pages, without /deals when there are no deals", () => {

@@ -9,10 +9,14 @@ import { WhatsappCta } from "@/components/whatsapp-cta";
 import { DEALS_ENABLED } from "@/lib/config/site";
 import { hasUpcomingSales, listPublishedDeals } from "@/lib/deals/queries";
 import type { Deal } from "@/lib/types";
+import { pageMetadata } from "@/lib/seo/page-meta";
 
 export const metadata: Metadata = {
-  title: "דילים ומבצעים",
-  description: "דילים שנבחרו ידנית, תזכורות למבצעים גדולים ומוצרים שעדיף לא לקנות באלי אקספרס.",
+  ...pageMetadata({
+    title: "דילים ומבצעים",
+    description: "דילים שנבחרו ידנית, תזכורות למבצעים גדולים ומוצרים שעדיף לא לקנות באלי אקספרס.",
+    path: "/deals",
+  }),
 };
 
 async function loadDeals(): Promise<Deal[] | null> {

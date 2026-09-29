@@ -13,10 +13,14 @@ import { AFFILIATE_NOTE } from "@/lib/copy";
 import { SEARCHES_PER_DAY, SEARCHES_PER_HOUR } from "@/lib/guard/rate-limit";
 import { HOT_PATH } from "@/lib/hot/params";
 import { FILL_TIER, FILTERS } from "@/lib/ranking/config";
+import { pageMetadata } from "@/lib/seo/page-meta";
 
 export const metadata: Metadata = {
-  title: "תקנון ותנאי שימוש",
-  description: `התנאים לשימוש ב${BRAND.name}, כולל גילוי נאות על קישורי השותפים של אלי אקספרס.`,
+  ...pageMetadata({
+    title: "תקנון ותנאי שימוש",
+    description: `התנאים לשימוש ב${BRAND.name}, כולל גילוי נאות על קישורי השותפים של אלי אקספרס.`,
+    path: "/terms",
+  }),
 };
 
 // Every statement here must stay true of the code; the sources are named next to each section.

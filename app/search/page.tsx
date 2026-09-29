@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { PendingNavigation } from "@/components/pending-navigation";
 import { SearchComposer } from "@/components/search-composer";
 import { SearchView } from "@/components/search-view";
+import { BRAND } from "@/lib/config/brand";
+import { RESULTS_PER_PAGE } from "@/lib/config/site";
 import {
   firstParam,
   parseArrival,
@@ -14,14 +16,29 @@ import {
 } from "@/lib/search-url";
 import { MAX_QUERY_LENGTH } from "@/lib/search/pipeline";
 import { startSearchForRequest } from "@/lib/search/server";
+import { pageMetadata } from "@/lib/seo/page-meta";
 import { completeResults, rankedSignal, understoodSignal } from "./results";
 
 // A fresh search (parse, up to 3 AliExpress calls, explain) takes 7-15 s; give it room.
 export const maxDuration = 60;
 
 export async function generateMetadata({ searchParams }: PageProps<"/search">): Promise<Metadata> {
-  const q = firstParam((await searchParams).q).trim();
-  return { title: q ? `חיפוש: ${q}` : "חיפוש", robots: { index: false } };
+  const q = firstParam((await searchParams).q)
+    .trim()
+    .slice(0, MAX_QUERY_LENGTH);
+  // A shared search link previews as the search it opens (its card is the brand card). Not
+  // indexed, so no canonical.
+  return {
+    ...pageMetadata({
+      title: q ? `חיפוש: ${q}` : "חיפוש",
+      description: q
+        ? `${RESULTS_PER_PAGE} מוצרים מאלי אקספרס שעברו סינון לפי משוב של קונים ומספר מכירות, לחיפוש ״${q}״.`
+        : BRAND.description,
+      path: q ? searchHref({ q }) : "/",
+      canonical: false,
+    }),
+    robots: { index: false },
+  };
 }
 
 export default async function SearchPage({ searchParams }: PageProps<"/search">) {

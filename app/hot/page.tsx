@@ -6,8 +6,6 @@ import { FocusHashTarget } from "@/components/focus-hash-target";
 import { HotProductCard } from "@/components/hot-product-card";
 import { StateCard } from "@/components/state-card";
 import { btnMd, btnPrimary, btnSecondary, card } from "@/components/styles";
-import { BRAND } from "@/lib/config/brand";
-import { absoluteUrl } from "@/lib/config/site";
 import { formatCount, formatDateTime } from "@/lib/format";
 import { hotCategoryLabel, type HotCategoryId } from "@/lib/hot/categories";
 import { HOT_FILTER_NOTE, HOT_TITLES_NOTE } from "@/lib/hot/copy";
@@ -25,6 +23,7 @@ import { loadHotMix, loadHotPool } from "@/lib/hot/queries";
 import { mixHotProducts, viewHotProducts, type HotProduct } from "@/lib/hot/select";
 import { FILTERS } from "@/lib/ranking/config";
 import { HotFilters } from "./hot-filters";
+import { pageMetadata } from "@/lib/seo/page-meta";
 
 const TITLE = "מוצרים חמים";
 
@@ -39,20 +38,7 @@ export async function generateMetadata({ searchParams }: PageProps<"/hot">): Pro
   const { category } = parseHotParams(await searchParams);
   const label = category ? hotCategoryLabel(category) : null;
   const title = label ? `${TITLE}: ${label}` : TITLE;
-  const url = absoluteUrl(hotCanonicalPath(category));
-  return {
-    title,
-    description: describe(label),
-    alternates: { canonical: url },
-    openGraph: {
-      type: "website",
-      locale: "he_IL",
-      siteName: BRAND.name,
-      url,
-      title: `${title} | ${BRAND.name}`,
-      description: describe(label),
-    },
-  };
+  return pageMetadata({ title, description: describe(label), path: hotCanonicalPath(category) });
 }
 
 /** Id prefix of the grid items; "הצגת עוד מוצרים" links to the first new one. */

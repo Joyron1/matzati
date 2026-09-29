@@ -8,6 +8,8 @@ import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { ThemeProvider } from "@/components/theme-provider";
 import { BRAND } from "@/lib/config/brand";
+import { siteUrl } from "@/lib/config/site";
+import { OG_BASE } from "@/lib/seo/page-meta";
 import { publicSettings } from "@/lib/settings/queries";
 import "./globals.css";
 
@@ -29,9 +31,17 @@ const secular = Secular_One({
 // expires it), so pages stay static; a failed read is an empty setting, never an error.
 export async function generateMetadata(): Promise<Metadata> {
   const { siteVerification } = await publicSettings();
+  const title = `${BRAND.name} | ${BRAND.tagline}`;
   return {
-    title: { default: `${BRAND.name} | ${BRAND.tagline}`, template: `%s | ${BRAND.name}` },
+    // Absolute URLs for canonical links and the Open Graph images: always the official domain.
+    metadataBase: new URL(siteUrl()),
+    title: { default: title, template: `%s | ${BRAND.name}` },
     description: BRAND.description,
+    applicationName: BRAND.name,
+    // The home page's preview. Every other public page sets its own (pageMetadata), since Next
+    // does not merge openGraph; the image is app/opengraph-image.tsx unless the page has one.
+    // No twitter here: Next fills a page's X tags from its own openGraph when none are set.
+    openGraph: { ...OG_BASE, url: siteUrl(), title, description: BRAND.description },
     // Search Console's HTML-tag verification (/admin/settings): the validated token only.
     ...(siteVerification ? { verification: { google: siteVerification } } : {}),
   };

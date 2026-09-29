@@ -2,10 +2,13 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { SimilarProducts } from "@/components/similar-products";
+import { BRAND } from "@/lib/config/brand";
 import { hotBackHref, parseHotParams } from "@/lib/hot/params";
+import { clip } from "@/lib/og/bidi";
 import { productTitleView } from "@/lib/product-title";
 import { firstParam, parseSort, parseWithout } from "@/lib/search-url";
 import { productForPage } from "@/lib/search/server";
+import { pageMetadata } from "@/lib/seo/page-meta";
 import { similarForPage, type SimilarRequest } from "@/lib/similar/load";
 import { ProductView } from "./product-view";
 
@@ -17,7 +20,13 @@ export async function generateMetadata({ params }: PageProps<"/p/[productId]">):
   const data = await productForPage((await params).productId);
   // The heading's text: a hot product's machine-translated title with known loan words fixed.
   const title = data && productTitleView(data.product.title_he, data.product.title_en).text;
-  return { title: title ?? "מוצר לא נמצא" };
+  if (!title) return { title: "מוצר לא נמצא" };
+  return pageMetadata({
+    title,
+    description: `מחיר, משוב של קונים ומספר מכירות באלי אקספרס, ב${BRAND.name}: ${clip(title, 110)}`,
+    path: `/p/${data.product.product_id}`,
+    ownImage: true,
+  });
 }
 
 /**

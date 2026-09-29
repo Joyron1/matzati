@@ -16,10 +16,14 @@ import {
   type RecentSearchList,
 } from "@/lib/recent/types";
 import { RESULTS_PER_PAGE } from "@/lib/config/site";
+import { pageMetadata } from "@/lib/seo/page-meta";
 
 export const metadata: Metadata = {
-  title: "חיפושים אחרונים",
-  description: `מה חיפשו לאחרונה ב־${BRAND.name}: חיפושים שמצאו מוצרים באלי אקספרס, בלי פרטים על מי שחיפש.`,
+  ...pageMetadata({
+    title: "חיפושים אחרונים",
+    description: `מה חיפשו לאחרונה ב־${BRAND.name}: חיפושים שמצאו מוצרים באלי אקספרס, בלי פרטים על מי שחיפש.`,
+    path: "/searches",
+  }),
   // Visitors' queries are not content for search engines; the site links are still followed.
   robots: { index: false, follow: true },
 };

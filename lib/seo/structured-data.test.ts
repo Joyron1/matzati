@@ -61,8 +61,8 @@ describe("itemListJsonLd", () => {
 
   it("lists the shown products in order, pointing to our product pages", () => {
     const data = itemListJsonLd({
-      origin: "https://matzati-il.vercel.app",
-      pageUrl: "https://matzati-il.vercel.app/s/abc",
+      origin: "https://www.matzati-il.com",
+      pageUrl: "https://www.matzati-il.com/s/abc",
       name: "אוזניות לריצה",
       products,
     });
@@ -70,21 +70,21 @@ describe("itemListJsonLd", () => {
       "@context": "https://schema.org",
       "@type": "ItemList",
       name: "אוזניות לריצה",
-      url: "https://matzati-il.vercel.app/s/abc",
+      url: "https://www.matzati-il.com/s/abc",
       numberOfItems: 2,
       itemListOrder: "https://schema.org/ItemListOrderAscending",
       itemListElement: [
         {
           "@type": "ListItem",
           position: 1,
-          url: "https://matzati-il.vercel.app/p/1005001",
+          url: "https://www.matzati-il.com/p/1005001",
           name: "אוזניות ספורט",
           image: "https://ae01.alicdn.com/a.jpg",
         },
         {
           "@type": "ListItem",
           position: 2,
-          url: "https://matzati-il.vercel.app/p/1005002",
+          url: "https://www.matzati-il.com/p/1005002",
           name: "אוזניות <b>",
         },
       ],

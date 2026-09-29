@@ -15,10 +15,14 @@ import {
   accessibilityEmail,
   formatLegalDate,
 } from "@/lib/config/legal";
+import { pageMetadata } from "@/lib/seo/page-meta";
 
 export const metadata: Metadata = {
-  title: "הצהרת נגישות",
-  description: `מה עשינו כדי שהאתר ״${BRAND.name}״ יהיה נגיש, איך משתמשים בו במקלדת, מגבלות ידועות ופרטי רכז הנגישות.`,
+  ...pageMetadata({
+    title: "הצהרת נגישות",
+    description: `מה עשינו כדי שהאתר ״${BRAND.name}״ יהיה נגיש, איך משתמשים בו במקלדת, מגבלות ידועות ופרטי רכז הנגישות.`,
+    path: "/accessibility",
+  }),
 };
 
 // Written per regulation 35 of the Equal Rights for Persons with Disabilities (Service

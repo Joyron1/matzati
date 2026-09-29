@@ -21,10 +21,14 @@ import {
   AnalyticsTracking,
 } from "./analytics";
 import { NEWSLETTER_PRIVACY_SECTION, NewsletterPrivacy } from "./newsletter";
+import { pageMetadata } from "@/lib/seo/page-meta";
 
 export const metadata: Metadata = {
-  title: "מדיניות פרטיות",
-  description: `איזה מידע האתר ״${BRAND.name}״ שומר, למה, כמה זמן ועם מי הוא משותף.`,
+  ...pageMetadata({
+    title: "מדיניות פרטיות",
+    description: `איזה מידע האתר ״${BRAND.name}״ שומר, למה, כמה זמן ועם מי הוא משותף.`,
+    path: "/privacy",
+  }),
 };
 
 // Every statement here must stay true of the code. Sources: search_log and clicks

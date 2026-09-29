@@ -5,19 +5,22 @@ import { CalendarClock, CloudOff, Search, TicketPercent } from "lucide-react";
 import { StateCard } from "@/components/state-card";
 import { btnMd, btnPrimary, btnSecondary } from "@/components/styles";
 import { WhatsappCta } from "@/components/whatsapp-cta";
-import { absoluteUrl, RESULTS_PER_PAGE } from "@/lib/config/site";
+import { RESULTS_PER_PAGE } from "@/lib/config/site";
 import { couponsForSale, hasPublishedCoupons } from "@/lib/coupons/queries";
 import { hasUpcomingSales, salesCalendar } from "@/lib/deals/queries";
+import { pageMetadata } from "@/lib/seo/page-meta";
 import { SalesIntro, SalesView, type SalesData } from "./sales-view";
 
 export async function generateMetadata(): Promise<Metadata> {
   // An empty calendar is not worth indexing; the sitemap leaves it out by the same rule.
   const hasSales = await hasUpcomingSales();
   return {
-    title: "מבצעים גדולים",
-    description:
-      "מתי מתחילים המבצעים הגדולים באלי אקספרס: ספירה לאחור למבצע הבא, יומן ל־12 החודשים הקרובים והוספה ליומן שלכם.",
-    alternates: { canonical: absoluteUrl("/sales") },
+    ...pageMetadata({
+      title: "מבצעים גדולים",
+      description:
+        "מתי מתחילים המבצעים הגדולים באלי אקספרס: ספירה לאחור למבצע הבא, יומן ל־12 החודשים הקרובים והוספה ליומן שלכם.",
+      path: "/sales",
+    }),
     ...(hasSales ? {} : { robots: { index: false, follow: true } }),
   };
 }

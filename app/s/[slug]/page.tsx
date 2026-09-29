@@ -63,7 +63,7 @@ export async function generateMetadata({ params }: LandingPageProps): Promise<Me
       url,
       title,
       description,
-      ...(top?.image_urls[0] ? { images: [{ url: top.image_urls[0], alt: top.title_he }] } : {}),
+      // The image is ./opengraph-image.tsx: the page's title over its first results' photos.
     },
     // Without results the page is only a search box: keep it out of the index until it has some.
     ...(top ? {} : { robots: { index: false, follow: true } }),

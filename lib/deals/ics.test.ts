@@ -5,8 +5,8 @@ import { escapeText, foldLine, icsUtc, saleCalendarFile } from "./ics";
 const NOW = new Date("2026-09-28T08:00:00.000Z");
 const OPTIONS = {
   now: NOW,
-  host: "matzati-il.vercel.app",
-  url: "https://matzati-il.vercel.app/sales",
+  host: "www.matzati-il.com",
+  url: "https://www.matzati-il.com/sales",
 };
 const ID = "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d";
 
@@ -79,12 +79,12 @@ describe("saleCalendarFile", () => {
       "METHOD:PUBLISH",
       "BEGIN:VEVENT",
     ]);
-    expect(lines).toContain(`UID:${ID}@matzati-il.vercel.app`);
+    expect(lines).toContain(`UID:${ID}@www.matzati-il.com`);
     expect(lines).toContain("DTSTAMP:20260928T080000Z");
     expect(lines).toContain("DTSTART:20261110T220000Z");
     expect(lines).toContain("DTEND:20261113T215900Z");
     expect(lines).toContain("SUMMARY:11.11 באלי אקספרס");
-    expect(lines).toContain("URL:https://matzati-il.vercel.app/sales");
+    expect(lines).toContain("URL:https://www.matzati-il.com/sales");
     expect(lines.slice(-3)).toEqual(["END:VEVENT", "END:VCALENDAR", ""]);
     for (const physical of file.split("\r\n")) {
       expect(utf8Length(physical)).toBeLessThanOrEqual(75);
@@ -100,7 +100,7 @@ describe("saleCalendarFile", () => {
     expect(lines).toContain("SUMMARY:מבצע\\; גדול\\, מאוד");
     const description = lines.find((l) => l.startsWith("DESCRIPTION:"));
     expect(description).toBe(
-      `DESCRIPTION:שורה\\nשנייה\\n\\n${escapeText(SALE_DATES_NOTE)}\\n\\nhttps://matzati-il.vercel.app/sales`,
+      `DESCRIPTION:שורה\\nשנייה\\n\\n${escapeText(SALE_DATES_NOTE)}\\n\\nhttps://www.matzati-il.com/sales`,
     );
   });
 

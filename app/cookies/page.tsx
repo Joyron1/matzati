@@ -13,10 +13,14 @@ import {
 } from "@/lib/consent/categories";
 import { CONSENT_COOKIE } from "@/lib/consent/consent";
 import { googleAnalyticsId } from "@/lib/settings/queries";
+import { pageMetadata } from "@/lib/seo/page-meta";
 
 export const metadata: Metadata = {
-  title: "מדיניות עוגיות",
-  description: `אילו עוגיות ומידע האתר ״${BRAND.name}״ שומר בדפדפן, למה, לכמה זמן, ואיך משנים את הבחירה.`,
+  ...pageMetadata({
+    title: "מדיניות עוגיות",
+    description: `אילו עוגיות ומידע האתר ״${BRAND.name}״ שומר בדפדפן, למה, לכמה זמן, ואיך משנים את הבחירה.`,
+    path: "/cookies",
+  }),
 };
 
 const KIND_LABEL: Record<StorageItem["kind"], string> = {

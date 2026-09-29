@@ -1,34 +1,34 @@
 import { describe, expect, it } from "vitest";
-import { absoluteUrl, DEFAULT_SITE_HOST, siteUrl } from "@/lib/config/site";
+import { absoluteUrl, LEGACY_SITE_HOST, SITE_HOST, siteUrl } from "@/lib/config/site";
+import nextConfig from "@/next.config";
 
 describe("siteUrl (SITE_URL)", () => {
-  it("uses the Vercel production host", () => {
-    expect(siteUrl({ VERCEL_PROJECT_PRODUCTION_URL: "matzati-il.vercel.app" })).toBe(
-      "https://matzati-il.vercel.app",
-    );
-    expect(siteUrl({ VERCEL_PROJECT_PRODUCTION_URL: "www.matzati.co.il" })).toBe(
-      "https://www.matzati.co.il",
-    );
-  });
-
-  it("tolerates a scheme, a trailing slash, spaces and capitals", () => {
-    expect(siteUrl({ VERCEL_PROJECT_PRODUCTION_URL: " https://Matzati.co.il/ " })).toBe(
-      "https://matzati.co.il",
-    );
-  });
-
-  it("falls back to the production host when unset or malformed", () => {
-    const fallback = `https://${DEFAULT_SITE_HOST}`;
-    expect(siteUrl({})).toBe(fallback);
-    expect(siteUrl({ VERCEL_PROJECT_PRODUCTION_URL: "" })).toBe(fallback);
-    expect(siteUrl({ VERCEL_PROJECT_PRODUCTION_URL: "evil.com/path?x" })).toBe(fallback);
-    expect(siteUrl({ VERCEL_PROJECT_PRODUCTION_URL: "localhost" })).toBe(fallback);
-    expect(fallback).toBe("https://matzati-il.vercel.app");
+  it("is the official domain, whatever Vercel reports", () => {
+    expect(siteUrl()).toBe("https://www.matzati-il.com");
+    expect(SITE_HOST).toBe("www.matzati-il.com");
   });
 
   it("builds absolute URLs", () => {
-    const env = { VERCEL_PROJECT_PRODUCTION_URL: "matzati-il.vercel.app" };
-    expect(absoluteUrl("/sitemap.xml", env)).toBe("https://matzati-il.vercel.app/sitemap.xml");
-    expect(absoluteUrl("s/abc", env)).toBe("https://matzati-il.vercel.app/s/abc");
+    expect(absoluteUrl("/sitemap.xml")).toBe("https://www.matzati-il.com/sitemap.xml");
+    expect(absoluteUrl("s/abc")).toBe("https://www.matzati-il.com/s/abc");
+  });
+});
+
+describe("the old vercel.app address", () => {
+  it("redirects every page to the same path on the official domain, keeping /api", async () => {
+    const redirects = (await nextConfig.redirects?.()) ?? [];
+    const legacy = redirects.find((r) =>
+      r.has?.some((h) => h.type === "host" && h.value === LEGACY_SITE_HOST),
+    );
+    expect(legacy).toMatchObject({
+      destination: `https://${SITE_HOST}/:path`,
+      permanent: true,
+    });
+    const source = new RegExp(`^${legacy!.source.replace("/:path(", "/(")}$`);
+    expect(source.test("/")).toBe(true);
+    expect(source.test("/p/1005001")).toBe(true);
+    expect(source.test("/admin/auth/callback")).toBe(true);
+    expect(source.test("/api/cron/seo-refresh")).toBe(false);
+    expect(source.test("/api/search")).toBe(false);
   });
 });

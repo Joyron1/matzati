@@ -1,27 +1,18 @@
 import type { Metadata } from "next";
 import { connection } from "next/server";
-import { BRAND } from "@/lib/config/brand";
-import { absoluteUrl } from "@/lib/config/site";
 import { listApiCodes, type ApiCodeProduct } from "@/lib/coupons/api-codes";
 import { listPublicCoupons, type PublicCoupons } from "@/lib/coupons/queries";
+import { pageMetadata } from "@/lib/seo/page-meta";
 import { COUPONS_TITLE as TITLE, CouponsView } from "./coupons-view";
 
 const DESCRIPTION =
   "קופונים לאלי אקספרס שהוספנו, עם התנאים והתוקף של כל אחד, קודים שאלי אקספרס מצמידה למוצרים שבדקנו, והסבר קצר איך מזינים קוד בקופה.";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: TITLE,
   description: DESCRIPTION,
-  alternates: { canonical: absoluteUrl("/coupons") },
-  openGraph: {
-    type: "website",
-    locale: "he_IL",
-    siteName: BRAND.name,
-    url: absoluteUrl("/coupons"),
-    title: `${TITLE} | ${BRAND.name}`,
-    description: DESCRIPTION,
-  },
-};
+  path: "/coupons",
+});
 
 /** Codes AliExpress attached to products are sparse; a long list would bury the owner coupons. */
 const API_CODES_SHOWN = 24;

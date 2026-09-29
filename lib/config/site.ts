@@ -28,27 +28,27 @@ export const LINK_MAX_AGE_DAYS = 90;
  */
 export const SKU_DETAILS_ENABLED = false;
 
-/** Production host, used when Vercel does not tell us (local dev, tests, other hosts). */
-export const DEFAULT_SITE_HOST = "matzati-il.vercel.app";
+/**
+ * The site's official host (owner's domain, 2026-09-29). matzati-il.com redirects here (Vercel
+ * domain settings) and so does the old matzati-il.vercel.app (LEGACY_SITE_HOST, next.config.ts).
+ */
+export const SITE_HOST = "www.matzati-il.com";
 
-const HOSTNAME = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(:\d{1,5})?$/;
+/** The address the site had before its domain: every page on it redirects to SITE_HOST. */
+export const LEGACY_SITE_HOST = "matzati-il.vercel.app";
 
 /**
  * SITE_URL: the absolute origin of the production site, without a trailing slash, for canonical
- * URLs, the sitemap, robots.txt and JSON-LD. Vercel sets VERCEL_PROJECT_PRODUCTION_URL (a host
- * such as "matzati-il.vercel.app", or the custom domain once there is one) at build and run time.
- * Server-side only: the variable is not exposed to the browser bundle.
+ * URLs, Open Graph, the sitemap, robots.txt, JSON-LD and calendar files. Always SITE_HOST, also in
+ * previews and dev, so a shared or indexed address is never one that redirects. Not read from
+ * VERCEL_PROJECT_PRODUCTION_URL: Vercel sets it to the shortest production domain, the bare
+ * matzati-il.com, which redirects.
  */
-export function siteUrl(env: Record<string, string | undefined> = process.env): string {
-  const host = (env.VERCEL_PROJECT_PRODUCTION_URL ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/^https?:\/\//, "")
-    .replace(/\/+$/, "");
-  return `https://${HOSTNAME.test(host) ? host : DEFAULT_SITE_HOST}`;
+export function siteUrl(): string {
+  return `https://${SITE_HOST}`;
 }
 
 /** SITE_URL + path, e.g. absoluteUrl("/sitemap.xml"). `path` must start with "/". */
-export function absoluteUrl(path: string, env?: Record<string, string | undefined>): string {
-  return `${siteUrl(env)}${path.startsWith("/") ? path : `/${path}`}`;
+export function absoluteUrl(path: string): string {
+  return `${siteUrl()}${path.startsWith("/") ? path : `/${path}`}`;
 }

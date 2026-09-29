@@ -6,26 +6,26 @@ describe("stripEvent", () => {
     expect(
       stripEvent({
         type: "pageview",
-        url: "https://matzati-il.vercel.app/search?q=שעון%20חכם&sort=cheapest",
+        url: "https://www.matzati-il.com/search?q=שעון%20חכם&sort=cheapest",
       }),
-    ).toEqual({ type: "pageview", url: "https://matzati-il.vercel.app/search" });
+    ).toEqual({ type: "pageview", url: "https://www.matzati-il.com/search" });
   });
 
   it("drops the hash and keeps the path", () => {
     expect(
-      stripEvent({ type: "pageview", url: "https://matzati-il.vercel.app/terms#affiliate" })?.url,
-    ).toBe("https://matzati-il.vercel.app/terms");
+      stripEvent({ type: "pageview", url: "https://www.matzati-il.com/terms#affiliate" })?.url,
+    ).toBe("https://www.matzati-il.com/terms");
   });
 
   it("does not count admin or dev pages", () => {
     expect(
-      stripEvent({ type: "pageview", url: "https://matzati-il.vercel.app/admin/seo" }),
+      stripEvent({ type: "pageview", url: "https://www.matzati-il.com/admin/seo" }),
     ).toBeNull();
     expect(
-      stripEvent({ type: "pageview", url: "https://matzati-il.vercel.app/dev/preview/x" }),
+      stripEvent({ type: "pageview", url: "https://www.matzati-il.com/dev/preview/x" }),
     ).toBeNull();
     expect(
-      stripEvent({ type: "pageview", url: "https://matzati-il.vercel.app/administration" }),
+      stripEvent({ type: "pageview", url: "https://www.matzati-il.com/administration" }),
     ).not.toBeNull();
   });
 
