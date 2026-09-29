@@ -33,9 +33,13 @@ have to see things the search rules forbid it to invent), Flows and catalogs.
 
 ## Rules that are easy to break
 
-- **Photos are the original JPEG or PNG.** WhatsApp shows only JPEG and PNG (5 MB); the site's
-  resized copies (`aliImageUrl`) are WebP and would fail. `cardImage` (`lib/whatsapp/messages.ts`)
-  takes the original URL on AliExpress's image host, or sends the card without a photo.
+- **Photos go through our own converter.** WhatsApp shows only JPEG and PNG (5 MB), and
+  AliExpress's image host serves WebP for every photo, whatever the URL ends in or the request asks
+  for (checked 2026-09-30). A card that points at AliExpress fails with Graph error 131053 ("Media
+  upload error"). `photoUrl` (`lib/whatsapp/messages.ts`) points the card at
+  `/api/whatsapp/photo/<productId>`, which reads the stored photo and converts it to JPEG with
+  `sharp` (`lib/whatsapp/photo.ts`, host-checked, 5 MB, cached by the CDN). For a local test
+  through a tunnel, set `WHATSAPP_PHOTO_BASE_URL` to the tunnel address; remove it in production.
 - **Buy links go through `/go`** (`goUrl`: `src=whatsapp` or `whatsapp_hot`, plus `s=` and `pos=`), so
   clicks are logged and stale links regenerated. Never send a raw affiliate link.
 - **The affiliate note sits in the footer of every buy card** ("קישור שותפים" and the address of

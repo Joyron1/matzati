@@ -2,7 +2,7 @@
 // limits Meta documents for its message type (checked 2026-09-29, tests in messages.test.ts), and
 // keeps the site's promises: numbers are AliExpress's, the buy link goes through /go, and the
 // affiliate note sits with every buy button (CLAUDE.md §1).
-import { absoluteUrl } from "@/lib/config/site";
+import { absoluteUrl, siteUrl } from "@/lib/config/site";
 import { AFFILIATE_NOTE, APPROX_PRICE_NOTE, BUY_LABEL, SALE_DATES_NOTE } from "@/lib/copy";
 import { OWNER_COUPON_NOTE, couponTiming, minSpendText } from "@/lib/coupons/display";
 import type { Coupon } from "@/lib/coupons/types";
@@ -96,12 +96,17 @@ export const affiliateFooter = (): string =>
   );
 
 /**
- * WhatsApp shows a photo header only for JPEG or PNG (WebP is for stickers). The site's own
- * resized copies (lib/images.ts) are WebP, so a card uses the original photo, only when it is a
- * JPEG or PNG on AliExpress's image host; otherwise the card has no photo.
+ * The address of a product's photo as WhatsApp can use it. WhatsApp shows a photo header only for
+ * JPEG or PNG, and AliExpress's image host serves WebP for every photo, so the card points at our
+ * own route, which converts the stored photo (app/api/whatsapp/photo, lib/whatsapp/photo.ts).
+ * Null (a card without a photo) when the product has no photo on AliExpress's image host.
+ * WHATSAPP_PHOTO_BASE_URL overrides the site's address for local tests through a tunnel.
  */
-export function cardImage(urls: readonly string[]): string | null {
-  return urls.find((u) => isAllowedImage(u) && /\.(jpe?g|png)$/i.test(u)) ?? null;
+export function photoUrl(productId: string, urls: readonly string[]): string | null {
+  if (!urls.some((u) => isAllowedImage(u))) return null;
+  const override = process.env.WHATSAPP_PHOTO_BASE_URL?.trim().replace(/\/+$/, "");
+  const base = override && /^https:\/\//.test(override) ? override : siteUrl();
+  return `${base}/api/whatsapp/photo/${productId}`;
 }
 
 function ctaCard(input: { image: string | null; body: string; url: string }): WaMessage {
@@ -155,7 +160,7 @@ export function resultCard(
   if (sharedNote) lines.push("", `_${sharedNote}_`);
   if (p.price_is_approx) lines.push("", APPROX_PRICE_NOTE);
   return ctaCard({
-    image: cardImage(p.image_urls),
+    image: photoUrl(p.product_id, p.image_urls),
     body: lines.join("\n"),
     url: goUrl(p.product_id, "whatsapp", { searchUid: p.search_uid, position }),
   });
@@ -173,7 +178,7 @@ export function hotCard(p: HotProduct, position: number): WaMessage {
     `${formatPct(p.positiveFeedbackPct)} משוב חיובי · ${formatCount(p.unitsSold)} נמכרו ב־30 הימים האחרונים`,
   );
   return ctaCard({
-    image: cardImage([p.imageUrl]),
+    image: photoUrl(p.productId, [p.imageUrl]),
     body: lines.join("\n"),
     url: goUrl(p.productId, "whatsapp_hot", { position }),
   });
