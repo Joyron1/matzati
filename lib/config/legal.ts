@@ -114,6 +114,12 @@ export const RETENTION = {
   cacheRowDays: 30,
   /** llm_usage and price_history rows: no personal data, kept for the stats and price history. */
   usageAndPricesMonths: 24,
+  /**
+   * whatsapp_sessions and whatsapp_seen rows (the WhatsApp bot's last search per hashed user and
+   * the ids of handled messages), counted from their last write. Deleted by
+   * public.run_whatsapp_retention() (20260929120000_whatsapp.sql), hourly.
+   */
+  whatsappHours: 48,
 } as const;
 
 const longDate = new Intl.DateTimeFormat("he-IL", {
