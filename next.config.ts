@@ -16,6 +16,11 @@ const nextConfig: NextConfig = {
     },
   ],
   images: {
+    // Every next/image goes through lib/image-loader.ts (AliExpress's resized copies): Vercel's
+    // optimizer is never used, since Hobby's monthly quota ran out on 2026-09-29 and it then
+    // answers 402 (lib/images.ts).
+    loader: "custom",
+    loaderFile: "./lib/image-loader.ts",
     // Product images seen in real AliExpress affiliate responses (fixtures/aliexpress).
     remotePatterns: [{ protocol: "https", hostname: "**.aliexpress-media.com" }],
   },

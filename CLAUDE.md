@@ -288,7 +288,7 @@ Map these into Tailwind (`theme.extend.colors` using `var(--…)`), never hard-c
 - Never commit `.env.local`, fixtures containing secrets, or raw IPs. Save fixtures through `maskEnvValues` (`lib/mask.ts`); `lib/fixtures-secrets.test.ts` fails when a file under `fixtures/` holds an `.env.local` value of 8+ characters (it runs only where `.env.local` exists, and names the key and file, never the value).
 - Run `npm run lint`, `npm run typecheck` and `npm test` before every commit.
 - When an AliExpress field or behavior is uncertain, test it with the check script or read the official docs. Do not guess.
-- Product photos never go through Vercel's image optimizer (`/_next/image`): Hobby allows 5,000 optimized source images a month and answers 402 past it, which broke every card on 2026-09-29. `ProductImage` and the video poster use `aliImageLoader` / `aliImageUrl` (`lib/images.ts`): AliExpress's own resized copies (`<url>_<220|350|480|640>x<s>.jpg`, WebP). A new `next/image` must pass `loader={aliImageLoader}`.
+- Product photos never go through Vercel's image optimizer (`/_next/image`): Hobby allows 5,000 optimized source images a month and answers 402 past it, which broke every card on 2026-09-29. Every `next/image` goes through the site's loader (`images.loaderFile` in `next.config.ts` → `lib/image-loader.ts` → `aliImageUrl` in `lib/images.ts`): AliExpress's own resized copies (`<url>_<220|350|480|640>x<s>.jpg`, WebP); the video poster calls `aliImageUrl` itself. Never pass a `loader` prop from a server component: a function cannot cross into the client component, and the page 500s (2026-09-29).
 - Keep functions small and pure where possible (`lib/ranking`, `lib/aliexpress/sign` are pure and fully unit-tested).
 
 ## 13. Commands
