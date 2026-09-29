@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans_Hebrew, Secular_One } from "next/font/google";
 import { GoogleAnalytics } from "@/components/analytics/google-analytics";
+import { VercelAnalytics } from "@/components/analytics/vercel-analytics";
 import { ConsentManager } from "@/components/cookie-consent/consent-manager";
 import { InPageLink } from "@/components/in-page-link";
 import { SiteFooter } from "@/components/site-footer";
@@ -79,6 +80,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           {/* Google Analytics only while the owner has set an id, and inside it nothing loads
               before the visitor accepts statistics (ConsentGate). Renders no HTML. */}
           {measurementId && <GoogleAnalytics measurementId={measurementId} />}
+          {/* Vercel Web Analytics: cookieless, no query strings, no admin pages (/privacy). */}
+          <VercelAnalytics />
         </ThemeProvider>
       </body>
     </html>
