@@ -126,38 +126,47 @@
 /* The home search composer (components/search-composer.tsx, hero): a 2px cobalt border drawn as a
    conic gradient that turns slowly three times after the page loads, then rests (never under
    reduced motion), and a soft cobalt glow. The field inside takes the site focus ring around the
-   whole frame. Tokens only. */
-@property --composer-angle {
-  syntax: "<angle>";
-  inherits: false;
-  initial-value: 0deg;
-}
-
+   whole frame. Tokens only.
+   The gradient sits on a ::before square behind the field and the square turns with a transform:
+   the compositor animates that on its own thread. Animating the gradient's angle instead
+   (a custom property) repainted the whole frame 60 times a second for 27 s right as the page
+   loaded, and Lighthouse mobile (2026-09-30) showed the largest paint waiting on that work. */
 .composer-frame {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   border-radius: var(--radius-composer);
   padding: 2px;
+  box-shadow:
+    0 24px 56px -26px color-mix(in oklab, var(--accent) 75%, transparent),
+    0 0 0 7px color-mix(in oklab, var(--accent) 9%, transparent);
+}
+
+.composer-frame::before {
+  content: "";
+  position: absolute;
+  /* A square around the center wide enough to cover the frame's corners while it turns. */
+  inset: -150%;
+  z-index: -1;
   background: conic-gradient(
-    from var(--composer-angle),
+    from 0deg,
     var(--accent),
     color-mix(in oklab, var(--accent) 30%, var(--surface)) 22%,
     var(--accent-ink) 50%,
     color-mix(in oklab, var(--accent) 30%, var(--surface)) 78%,
     var(--accent)
   );
-  box-shadow:
-    0 24px 56px -26px color-mix(in oklab, var(--accent) 75%, transparent),
-    0 0 0 7px color-mix(in oklab, var(--accent) 9%, transparent);
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .composer-frame {
+  .composer-frame::before {
     animation: composer-turn 9s linear 0.6s 3;
   }
 }
 
 @keyframes composer-turn {
   to {
-    --composer-angle: 360deg;
+    transform: rotate(360deg);
   }
 }
 

@@ -63,6 +63,12 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${plex.variable} ${secular.variable} antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        {/* Product photos come from AliExpress's image host on every page with cards; the first
+            ones are the largest paint on phones, and the connection (DNS, TCP, TLS) would otherwise
+            start only when the first photo is discovered (Lighthouse 2026-09-30). */}
+        <link rel="preconnect" href="https://ae-pic-a1.aliexpress-media.com" />
+      </head>
       {/* The minimum height grows with the space the cookie banner reserves (--consent-banner-h,
           the body's bottom padding in app/globals.css): otherwise that padding would shrink
           <main> on a short page and move the footer up when the banner appears. */}

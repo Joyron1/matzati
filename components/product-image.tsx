@@ -12,7 +12,7 @@ interface ProductImageProps {
   className?: string;
   iconClassName?: string;
   sizes?: string;
-  /** For the one image that is likely the largest paint on the page. */
+  /** For the images likely to be the largest paint on the page: eager, high fetch priority. */
   preload?: boolean;
 }
 
@@ -33,7 +33,9 @@ export function ProductImage({
           alt={alt}
           fill
           sizes={sizes}
-          preload={preload}
+          // Fetched first and at high priority (Next 16 prefers this to `preload`): otherwise
+          // the browser and Lighthouse's simulation queue the photo behind fonts and scripts.
+          {...(preload ? { loading: "eager", fetchPriority: "high" } : {})}
           className="object-contain"
         />
       </div>
