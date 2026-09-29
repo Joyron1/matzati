@@ -21,6 +21,8 @@ import {
   AnalyticsTracking,
 } from "./analytics";
 import { NEWSLETTER_PRIVACY_SECTION, NewsletterPrivacy } from "./newsletter";
+import { WHATSAPP_PRIVACY_SECTION, WhatsAppPrivacy } from "./whatsapp";
+import { whatsappEnabled } from "@/lib/whatsapp/config";
 import { pageMetadata } from "@/lib/seo/page-meta";
 
 export const metadata: Metadata = {
@@ -52,6 +54,7 @@ const SEC = {
   sharing: { id: "sharing", title: "עם מי המידע משותף" },
   tracking: { id: "tracking", title: "עוגיות וכלי מעקב" },
   newsletter: NEWSLETTER_PRIVACY_SECTION,
+  whatsapp: WHATSAPP_PRIVACY_SECTION,
   security: { id: "security", title: "אבטחת מידע" },
   rights: { id: "rights", title: "הזכויות שלכם" },
   children: { id: "children", title: "ילדים" },
@@ -63,10 +66,12 @@ export default async function PrivacyPage() {
   // Google Analytics (./analytics.tsx) is described only while the owner has set its id: the same
   // cached setting the root layout reads, so the page stays static and changes with it.
   const analytics = (await googleAnalyticsId()) !== null;
+  // The WhatsApp bot (./whatsapp.tsx) is described only while it is switched on (its secrets set).
+  const whatsapp = whatsappEnabled();
   return (
     <StaticPage
       page="privacy"
-      sections={Object.values(SEC)}
+      sections={Object.values(SEC).filter((s) => whatsapp || s.id !== WHATSAPP_PRIVACY_SECTION.id)}
       intro={
         <>
           <p>
@@ -78,6 +83,13 @@ export default async function PrivacyPage() {
             להירשם לעדכונים על מבצעים וקופונים. <AnalyticsSummary inUse={analytics} /> את מה שאתם
             כותבים בחיפוש אנחנו שומרים בלי פרטים על מי שחיפש, ואת כתובת ה־IP שלכם שומרים במסד
             הנתונים שלנו רק כערך מגובב (hash) חד־כיווני, לזמן קצר.
+            {whatsapp && (
+              <>
+                {" "}
+                אם תכתבו לנו בוואטסאפ, וואטסאפ תעביר אלינו את מספר הטלפון שלכם, אבל אנחנו לא שומרים
+                אותו (הפרטים בסעיף על הבוט).
+              </>
+            )}
           </p>
         </>
       }
@@ -243,6 +255,12 @@ export default async function PrivacyPage() {
             אקספרס או מפעילים סרטון מוצר. היא פועלת לפי מדיניות הפרטיות שלה.
           </li>
           <AnalyticsSharingItem inUse={analytics} />
+          {whatsapp && (
+            <li>
+              Meta (וואטסאפ): רק למי שכותב לנו בוואטסאפ. ההודעות ומספר הטלפון עוברים דרך פלטפורמת
+              WhatsApp Business שלה, והיא מעבדת אותם לפי התנאים והמדיניות שלה.
+            </li>
+          )}
         </ul>
         <p>
           הספקים נמצאים מחוץ לישראל, באיחוד האירופי, בארצות הברית ובסינגפור, ולכן המידע מועבר אליהם
@@ -259,6 +277,13 @@ export default async function PrivacyPage() {
       <LegalSection {...SEC.newsletter}>
         <NewsletterPrivacy />
       </LegalSection>
+
+      {/* The WhatsApp bot, while it is switched on: ./whatsapp.tsx. */}
+      {whatsapp && (
+        <LegalSection {...SEC.whatsapp}>
+          <WhatsAppPrivacy />
+        </LegalSection>
+      )}
 
       <LegalSection {...SEC.security}>
         <ul>
