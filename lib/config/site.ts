@@ -8,6 +8,13 @@ export const RESULTS_PER_PAGE = 5;
  */
 export const RESULTS_KEPT = 3 * RESULTS_PER_PAGE;
 
+/**
+ * Products an SEO landing page (/s/[slug]) shows at most (owner decision 2026-09-29): every product
+ * of its query that passed the filters, in ranked order, up to this many, in groups of
+ * RESULTS_PER_PAGE, each group explained by one explain call (lib/search/seo-run.ts).
+ */
+export const SEO_MAX_PRODUCTS = 50;
+
 /** /deals (menu, footer, the page itself and the countdown's reminder link). Live since M5. */
 export const DEALS_ENABLED = true;
 

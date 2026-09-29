@@ -80,12 +80,14 @@ async function save(originalSlug: string | null, values: { query: string; publis
   return (err as { url?: string }).url;
 }
 
-const stored = (count: number): RefreshOutcome => ({
+const stored = (shown: number, total = shown): RefreshOutcome => ({
   status: "stored",
-  count,
+  shown,
+  total,
+  pending: Math.ceil((total - shown) / 5),
   resultsAt: "2026-09-29T01:00:00.000Z",
   note: null,
-  response: {} as never,
+  results: {} as never,
 });
 
 beforeEach(() => {
@@ -150,12 +152,26 @@ describe("saveSeoPageAction", () => {
 describe("refreshSeoPageAction", () => {
   it("runs the refresh and says how it went, in Hebrew", async () => {
     expect(await refreshSeoPageAction(SLUG)).toEqual({
-      message: "נשמרו 5 מוצרים.",
+      message: "נשמר. מוצגים 5 מוצרים.",
       stored: true,
     });
     expect(m.revalidatePath).toHaveBeenCalledWith(`/s/${SLUG}`);
     m.refresh.mockResolvedValueOnce(stored(1));
-    expect((await refreshSeoPageAction(SLUG)).message).toBe("נשמר מוצר אחד.");
+    expect((await refreshSeoPageAction(SLUG)).message).toBe("נשמר. מוצג מוצר אחד.");
+  });
+
+  it("says how many products still wait for their lines, and how to finish them", async () => {
+    m.refresh.mockResolvedValueOnce(stored(35, 50));
+    const out = await refreshSeoPageAction(SLUG);
+    expect(out.message).toContain("מוצגים 35 מוצרים, ועוד 15 מחכים להסברים");
+    expect(out.message).toContain("השלמת הרענון");
+    m.revalidatePath.mockClear();
+    m.refresh.mockResolvedValueOnce({ status: "preparing", shown: 10, total: 50, pending: 8 });
+    const waiting = await refreshSeoPageAction(SLUG);
+    expect(waiting).toMatchObject({ stored: false });
+    expect(waiting.message).toContain("התוצאות הקודמות");
+    // The page itself did not change.
+    expect(m.revalidatePath).not.toHaveBeenCalledWith(`/s/${SLUG}`);
   });
 
   it("says why nothing was stored, and whether the old results stayed", async () => {
@@ -163,14 +179,14 @@ describe("refreshSeoPageAction", () => {
       status: "kept",
       note: "smaller",
       hadSnapshot: true,
-      response: {} as never,
+      results: {} as never,
     });
     expect((await refreshSeoPageAction(SLUG)).message).toContain("נשארו התוצאות הקודמות");
     m.refresh.mockResolvedValueOnce({
       status: "kept",
       note: "empty",
       hadSnapshot: false,
-      response: {} as never,
+      results: {} as never,
     });
     expect((await refreshSeoPageAction(SLUG)).message).not.toContain("נשארו");
     m.refresh.mockResolvedValueOnce({ status: "failed", error: "upstream" });

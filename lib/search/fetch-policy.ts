@@ -14,7 +14,7 @@
 // to remove it (lib/ranking/blockers.ts).
 import { MAX_PAGE_SIZE } from "@/lib/aliexpress/affiliate";
 import type { AliProduct } from "@/lib/aliexpress/schemas";
-import { RESULTS_PER_PAGE } from "@/lib/config/site";
+import { RESULTS_PER_PAGE, SEO_MAX_PRODUCTS } from "@/lib/config/site";
 import { passedCount, requirementBlocksAll } from "@/lib/ranking/blockers";
 import { FILL_TIER, FILTERS } from "@/lib/ranking/config";
 import { rejectionCounts } from "@/lib/ranking/rank";
@@ -35,6 +35,35 @@ export const TARGET_PASSED = 2 * RESULTS_PER_PAGE;
 export const REQUIREMENT_STOP_CHECKED = 100;
 /** Pages of the primary keywords at most; later calls go to broader keywords. */
 export const PRIMARY_PAGES = 2;
+/** How far one fetch may go: nextFetch's limits (a visitor's search: SEARCH_FETCH). */
+export interface FetchLimits {
+  /** Stop once this many products pass. */
+  target: number;
+  /** product.query calls at most. */
+  maxCalls: number;
+  /** Pages of the primary keywords at most. */
+  primaryPages: number;
+}
+
+/** A visitor's search: two pages pass, 3 calls, 2 pages of the primary keywords. */
+export const SEARCH_FETCH: FetchLimits = {
+  target: TARGET_PASSED,
+  maxCalls: MAX_ALI_CALLS,
+  primaryPages: PRIMARY_PAGES,
+};
+
+/**
+ * An SEO landing page's refresh (lib/search/seo-run.ts, owner decision 2026-09-29): it shows up to
+ * SEO_MAX_PRODUCTS passers, so it may make up to 5 calls (the same steps in the same order, spaced
+ * the same way), and take more pages of the primary keywords while they can pass the trust bar.
+ * Only the refresh uses it: a visitor's search keeps SEARCH_FETCH.
+ */
+export const SEO_FETCH: FetchLimits = {
+  target: SEO_MAX_PRODUCTS,
+  maxCalls: 5,
+  primaryPages: 5,
+};
+
 /** Words in a keyword step built from a product phrase and a requirement, at most. */
 const MAX_STEP_WORDS = 4;
 /**
@@ -183,11 +212,16 @@ export type FetchDecision = { step: FetchStep } | { stop: FetchStop };
  * than the fewest on this one: once those are under the bar, the next page cannot pass. The bar is
  * FILL_TIER's while fewer than a page pass (FILL_TIER tops the first page up), FILTERS' after.
  */
-function nextPrimaryPage(s: FetchProgress, primary: string, passed: number): FetchStep | null {
+function nextPrimaryPage(
+  s: FetchProgress,
+  primary: string,
+  passed: number,
+  primaryPages: number,
+): FetchStep | null {
   const last = s.calls
     .filter((c) => c.keywords === primary)
     .reduce<FetchedPage | null>((a, c) => (a && a.pageNo >= c.pageNo ? a : c), null);
-  if (!last || last.pageNo >= PRIMARY_PAGES || last.count === 0) return null;
+  if (!last || last.pageNo >= primaryPages || last.count === 0) return null;
   const more =
     last.totalRecords !== null
       ? last.totalRecords > last.pageNo * MAX_PAGE_SIZE
@@ -205,17 +239,22 @@ const RELEVANCE_ORDER: readonly KeywordKind[] = ["term", "general", "reduced", "
 
 /**
  * The next call of a search, or why it stops (see the file header). The first call is page 1 of
- * the parse's keywords. `target` is TARGET_PASSED; the offline replay passes another one to
- * measure it (lib/eval/policies.ts, "current-<n>").
+ * the parse's keywords. The limits default to a visitor's search (SEARCH_FETCH); the offline
+ * replay passes another `target` to measure it (lib/eval/policies.ts, "current-<n>"), and an SEO
+ * page's refresh passes SEO_FETCH.
  */
 export function nextFetch(
   s: FetchProgress,
-  { target = TARGET_PASSED }: { target?: number } = {},
+  {
+    target = SEARCH_FETCH.target,
+    maxCalls = SEARCH_FETCH.maxCalls,
+    primaryPages = SEARCH_FETCH.primaryPages,
+  }: Partial<FetchLimits> = {},
 ): FetchDecision {
   const steps = keywordSteps(s.filters);
   const primary = steps[0].keywords;
   if (!s.calls.length) return { step: { keywords: primary, pageNo: 1 } };
-  if (s.calls.length >= MAX_ALI_CALLS) return { stop: "calls" };
+  if (s.calls.length >= maxCalls) return { stop: "calls" };
   const passed = passedCount(s.pool, s.filters);
   if (passed >= target) return { stop: "enough" };
   if (
@@ -226,7 +265,7 @@ export function nextFetch(
   }
   const r = rejectionCounts([...s.pool], s.filters);
   const trustLimited = r.feedback + r.volume > r.type + r.requirement;
-  const page = nextPrimaryPage(s, primary, passed);
+  const page = nextPrimaryPage(s, primary, passed, primaryPages);
   if (page && !trustLimited) return { step: page };
   const tried = new Set(s.calls.map((c) => wordSet(c.keywords)));
   for (const kind of trustLimited ? TRUST_ORDER : RELEVANCE_ORDER) {

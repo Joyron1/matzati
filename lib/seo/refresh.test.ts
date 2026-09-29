@@ -1,56 +1,61 @@
-// The SEO page refresher (lib/seo/refresh.ts) with an in-memory seo_pages and fake searches:
-// nothing here reaches Supabase, AliExpress or an LLM.
+// The SEO page refresher (lib/seo/refresh.ts) with an in-memory seo_pages and fake runs: nothing
+// here reaches Supabase, AliExpress or an LLM.
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
-import type { ResultProduct, SearchResponse } from "@/lib/types";
+import type { SearchResponse } from "@/lib/types";
 import {
   ADMIN_CLAIM_WINDOW_MS,
   createSeoRefresher,
   CRON_LIMITS,
+  CRON_RUNS_PER_NIGHT,
+  type PreviewRun,
   type RefresherDeps,
   type RefreshState,
   type SnapshotStore,
   type SnapshotWrite,
 } from "./refresh";
+import { fixtureProduct, fixtureResults, FIXTURE_QUERY } from "./results-fixture";
+import { shownCount, type GroupState, type SeoResults } from "./results";
 import type { RefreshRow, SnapshotRun } from "./snapshot";
 
 const NOW = new Date("2026-09-29T01:00:00.000Z");
-const Q = "אוזניות אלחוטיות";
+const Q = FIXTURE_QUERY;
 
-function product(i: number): ResultProduct {
-  return {
-    product_id: `100500${i}`,
-    title_he: `אוזניות ${i}`,
-    title_en: `Earbuds ${i}`,
-    why_he: "",
-    price_ils: 50,
-    original_price_ils: null,
-    price_is_approx: false,
-    discount_pct: null,
-    positive_feedback_pct: 96,
-    units_sold: 1200,
-    passed_tier: "standard",
-    image_urls: [],
-    category_id: "44",
-  };
-}
+const results = (count: number, states: GroupState[] = [], over = {}) =>
+  fixtureResults(count, { states, fetchedAt: NOW.toISOString(), ...over });
 
-function response(count: number, query = Q): SearchResponse {
+const ok = (count: number, states: GroupState[] = []): SnapshotRun => ({
+  ok: true,
+  results: results(count, states),
+});
+
+function previewResponse(count: number): SearchResponse {
   return {
-    query,
+    query: Q,
     chips: [],
     sort: "best_value",
     checked_count: 100,
     passed_count: count,
-    results: Array.from({ length: count }, (_, i) => product(i + 1)),
+    results: Array.from({ length: count }, (_, i) => fixtureProduct(i + 1)),
     more_available: false,
     fetched_at: NOW.toISOString(),
   };
 }
 
-const ok = (count: number, degraded = false): SnapshotRun => ({
+const preview = (count: number, degraded = false): PreviewRun => ({
   ok: true,
-  response: response(count),
+  response: previewResponse(count),
   degraded,
+});
+
+/** Stored results as a refresh left them a week ago. */
+const OLD_AT = "2026-09-20T01:00:00.000Z";
+const stored = (count: number, states: GroupState[] = [], next?: SeoResults) => ({
+  results: {
+    ...fixtureResults(count, { states, fetchedAt: OLD_AT }),
+    ...(next ? { next } : {}),
+  },
+  resultsAt: OLD_AT,
 });
 
 interface Page extends RefreshState {
@@ -96,7 +101,7 @@ class MemoryPages implements SnapshotStore {
     const p = this.pages.get(write.slug);
     if (!p || p.query !== write.query || p.resultsAt !== write.expectedResultsAt) return false;
     this.writes.push(write);
-    Object.assign(p, { results: write.response, resultsAt: write.resultsAt, note: write.note });
+    Object.assign(p, { results: write.results, resultsAt: write.resultsAt, note: write.note });
     return true;
   }
   async recordNote(slug: string, query: string, note: string) {
@@ -118,31 +123,39 @@ class MemoryPages implements SnapshotStore {
 
 function setup(over: Partial<RefresherDeps> = {}) {
   const pages = new MemoryPages();
-  const search = vi.fn<RefresherDeps["search"]>(async () => ok(5));
-  const preview = vi.fn<RefresherDeps["preview"]>(async () => ok(4));
+  const search = vi.fn<RefresherDeps["search"]>(async () => ok(50));
+  const continueRun = vi.fn<RefresherDeps["continueRun"]>(async (r) => ({
+    ok: true,
+    results: { ...r, groups: r.groups.map((g) => ({ ...g, state: "model" as const })) },
+  }));
+  const previewRun = vi.fn<RefresherDeps["preview"]>(async () => preview(4));
   const sleep = vi.fn(async () => {});
   const refresher = createSeoRefresher({
     store: () => pages,
     search,
-    preview,
+    continueRun,
+    preview: previewRun,
     writesAllowed: () => true,
     now: () => NOW,
     sleep,
     logError: () => {},
     ...over,
   });
-  return { pages, search, preview, sleep, refresher };
+  return { pages, search, continueRun, preview: previewRun, sleep, refresher };
 }
 
 const ADMIN = { claimWindowMs: ADMIN_CLAIM_WINDOW_MS, deadline: NOW.getTime() + 55_000 };
 
+const storedResults = (pages: MemoryPages, slug = "a") =>
+  pages.pages.get(slug)?.results as (SeoResults & { next?: SeoResults }) | null;
+
 describe("refresh", () => {
-  it("stores a fresh run for a page without a snapshot", async () => {
+  it("stores a new collection for a page without a snapshot", async () => {
     const { pages, search, refresher } = setup();
     pages.add("a");
     const out = await refresher.refresh("a", ADMIN);
-    expect(out).toMatchObject({ status: "stored", count: 5, resultsAt: NOW.toISOString() });
-    expect(search).toHaveBeenCalledWith(Q, { deadline: ADMIN.deadline });
+    expect(out).toMatchObject({ status: "stored", shown: 50, total: 50, pending: 0 });
+    expect(search).toHaveBeenCalledWith(Q, { deadline: ADMIN.deadline, previous: [] });
     expect(pages.pages.get("a")).toMatchObject({
       resultsAt: NOW.toISOString(),
       attemptedAt: NOW.toISOString(),
@@ -150,14 +163,21 @@ describe("refresh", () => {
     });
   });
 
+  it("gives the run the stored results, so unchanged groups keep their lines", async () => {
+    const { pages, search, refresher } = setup();
+    pages.add("a", stored(50));
+    await refresher.refresh("a", ADMIN);
+    const [, opts] = search.mock.calls[0];
+    expect(opts.previous.map((r) => r.results.length)).toEqual([50]);
+  });
+
   it("never overwrites a good snapshot with a failed, empty or smaller run", async () => {
     const { pages, search, refresher } = setup();
-    const kept = { results: response(4), resultsAt: "2026-09-20T01:00:00.000Z" };
+    const kept = stored(40);
     for (const [run, status, note] of [
       [{ ok: false, error: "upstream" }, "failed", "upstream"],
       [ok(0), "kept", "empty"],
-      [ok(3), "kept", "smaller"],
-      [ok(5, true), "kept", "degraded"],
+      [ok(35), "kept", "smaller"],
     ] as const) {
       pages.add("a", kept);
       search.mockResolvedValueOnce(run);
@@ -168,23 +188,83 @@ describe("refresh", () => {
     expect(pages.writes).toHaveLength(0);
   });
 
-  it("replaces it with at least as many results, and clears the last note", async () => {
+  it("replaces it with at least as many products, and clears the last note", async () => {
     const { pages, search, refresher } = setup();
-    pages.add("a", {
-      results: response(4),
-      resultsAt: "2026-09-20T01:00:00.000Z",
-      note: "upstream",
-    });
-    search.mockResolvedValueOnce(ok(4));
+    pages.add("a", { ...stored(40), note: "upstream" });
+    search.mockResolvedValueOnce(ok(40));
     expect((await refresher.refresh("a", ADMIN)).status).toBe("stored");
     expect(pages.pages.get("a")).toMatchObject({ resultsAt: NOW.toISOString(), note: null });
   });
 
+  it("stores a run that ran out of time at once when it shows at least as many", async () => {
+    const { pages, search, refresher } = setup();
+    pages.add("a", stored(5, [], undefined));
+    search.mockResolvedValueOnce(ok(50, ["model", "model", ...Array(8).fill("pending")]));
+    const out = await refresher.refresh("a", ADMIN);
+    expect(out).toMatchObject({ status: "stored", shown: 10, total: 50, pending: 8 });
+    expect(pages.pages.get("a")?.note).toBe("incomplete");
+  });
+
+  it("keeps the shown results while a newer run that shows fewer waits beside them", async () => {
+    const { pages, search, continueRun, refresher } = setup();
+    pages.add("a", stored(50));
+    search.mockResolvedValueOnce(ok(50, ["model", "pending"]));
+    expect(await refresher.refresh("a", ADMIN)).toMatchObject({
+      status: "preparing",
+      shown: 5,
+      total: 50,
+    });
+    const page = pages.pages.get("a")!;
+    expect(page.resultsAt).toBe(OLD_AT);
+    expect(page.note).toBe("incomplete");
+    expect(shownCount(storedResults(pages)!)).toBe(50);
+    expect(storedResults(pages)?.next?.groups[1].state).toBe("pending");
+
+    // The next run writes its lines without searching, then shows it.
+    page.attemptedAt = null;
+    const out = await refresher.refresh("a", ADMIN);
+    expect(continueRun).toHaveBeenCalledTimes(1);
+    expect(out).toMatchObject({ status: "stored", shown: 50, pending: 0, note: null });
+    expect(page.resultsAt).toBe(NOW.toISOString());
+    expect(storedResults(pages)?.next).toBeUndefined();
+    expect(search).toHaveBeenCalledTimes(1);
+  });
+
+  it("continues the shown results' pending groups without searching, keeping their date", async () => {
+    const { pages, search, continueRun, refresher } = setup();
+    pages.add("a", { ...stored(50, ["model", "model", "pending"]), note: "incomplete" });
+    const out = await refresher.refresh("a", ADMIN);
+    expect(search).not.toHaveBeenCalled();
+    expect(continueRun).toHaveBeenCalledWith(expect.objectContaining({ fetched_at: OLD_AT }), {
+      deadline: ADMIN.deadline,
+    });
+    expect(out).toMatchObject({ status: "stored", shown: 50, resultsAt: OLD_AT });
+    expect(pages.pages.get("a")).toMatchObject({ resultsAt: OLD_AT, note: null });
+  });
+
+  it("drops a waiting run that turns out smaller and keeps the page as it was", async () => {
+    const { pages, continueRun, refresher } = setup();
+    const next = fixtureResults(30, { states: ["model", "pending"], fetchedAt: NOW.toISOString() });
+    pages.add("a", stored(40, [], next));
+    continueRun.mockResolvedValueOnce({
+      ok: true,
+      results: { ...next, groups: next.groups.map((g) => ({ ...g, state: "model" })) },
+    });
+    const out = await refresher.refresh("a", ADMIN);
+    expect(out).toMatchObject({ status: "kept", note: "smaller" });
+    expect(storedResults(pages)?.next).toBeUndefined();
+    expect(storedResults(pages)?.results).toHaveLength(40);
+    expect(pages.pages.get("a")?.resultsAt).toBe(OLD_AT);
+  });
+
   it("treats a snapshot of the page's old query as none", async () => {
     const { pages, search, refresher } = setup();
-    pages.add("a", { results: response(5, "אוזניות"), resultsAt: "2026-09-20T01:00:00.000Z" });
-    search.mockResolvedValueOnce(ok(2));
-    expect(await refresher.refresh("a", ADMIN)).toMatchObject({ status: "stored", count: 2 });
+    pages.add("a", {
+      results: fixtureResults(50, { query: "אוזניות", fetchedAt: OLD_AT }),
+      resultsAt: OLD_AT,
+    });
+    search.mockResolvedValueOnce(ok(12));
+    expect(await refresher.refresh("a", ADMIN)).toMatchObject({ status: "stored", total: 12 });
   });
 
   it("joins a refresh of the same page already running here", async () => {
@@ -195,7 +275,7 @@ describe("refresh", () => {
     const first = refresher.refresh("a", ADMIN);
     const second = refresher.refresh("a", ADMIN);
     await vi.waitFor(() => expect(search).toHaveBeenCalledTimes(1));
-    release(ok(5));
+    release(ok(50));
     expect(await first).toBe(await second);
     expect(search).toHaveBeenCalledTimes(1);
     // Done: the next one runs again (and is refused by the claim window, not the map).
@@ -227,9 +307,9 @@ describe("refresh", () => {
     search.mockResolvedValueOnce(ok(3));
     pages.beforeStore = () => {
       const p = pages.pages.get("a")!;
-      Object.assign(p, { results: response(4), resultsAt: "2026-09-29T00:59:00.000Z" });
+      Object.assign(p, { results: results(4), resultsAt: "2026-09-29T00:59:00.000Z" });
     };
-    // The page now shows 4: a run of 3 must not replace it.
+    // The page now has 4: a run of 3 must not replace it.
     expect(await refresher.refresh("a", ADMIN)).toMatchObject({ status: "kept", note: "smaller" });
     expect(pages.pages.get("a")?.resultsAt).toBe("2026-09-29T00:59:00.000Z");
   });
@@ -259,24 +339,34 @@ describe("refresh", () => {
 });
 
 describe("firstRun (a page without a snapshot, at render time)", () => {
-  it("runs the query once through examplePreview and stores it", async () => {
-    const { pages, preview, search, refresher } = setup();
+  it("runs the query once through examplePreview and stores its page, noted first_run", async () => {
+    const { pages, preview: run, search, refresher } = setup();
     pages.add("a");
-    const run = await refresher.firstRun("a", Q, null);
-    expect(run).toMatchObject({ ok: true });
-    expect(preview).toHaveBeenCalledWith(Q);
+    const out = await refresher.firstRun("a", Q, null);
+    expect(out).toMatchObject({ ok: true });
+    expect(run).toHaveBeenCalledWith(Q);
     expect(search).not.toHaveBeenCalled();
-    expect(pages.pages.get("a")).toMatchObject({ resultsAt: NOW.toISOString(), note: null });
+    expect(pages.pages.get("a")).toMatchObject({ resultsAt: NOW.toISOString(), note: "first_run" });
+    expect(storedResults(pages)?.groups).toHaveLength(1);
   });
 
   it("stores nothing for a failed or empty run, and returns it for the page to show", async () => {
-    const { pages, preview, refresher } = setup();
+    const { pages, preview: run, refresher } = setup();
     pages.add("a");
-    preview.mockResolvedValueOnce({ ok: false, error: "upstream" });
+    run.mockResolvedValueOnce({ ok: false, error: "upstream" });
     expect(await refresher.firstRun("a", Q, null)).toEqual({ ok: false, error: "upstream" });
-    preview.mockResolvedValueOnce(ok(0));
+    run.mockResolvedValueOnce(preview(0));
     expect(await refresher.firstRun("a", Q, null)).toMatchObject({ ok: true });
     expect(pages.writes).toHaveLength(0);
+  });
+
+  it("stores a degraded run as the data group, noted degraded", async () => {
+    const { pages, preview: run, refresher } = setup();
+    pages.add("a");
+    run.mockResolvedValueOnce(preview(5, true));
+    await refresher.firstRun("a", Q, null);
+    expect(pages.pages.get("a")?.note).toBe("degraded");
+    expect(storedResults(pages)?.groups[0].state).toBe("data");
   });
 
   it("shows but never stores outside production", async () => {
@@ -287,17 +377,17 @@ describe("firstRun (a page without a snapshot, at render time)", () => {
   });
 
   it("joins a refresh of the page running here instead of a second search", async () => {
-    const { pages, search, preview, refresher } = setup();
+    const { pages, search, preview: run, refresher } = setup();
     pages.add("a");
-    let release!: (run: SnapshotRun) => void;
+    let release!: (r: SnapshotRun) => void;
     search.mockImplementationOnce(() => new Promise((resolve) => (release = resolve)));
     const refreshing = refresher.refresh("a", ADMIN);
     await vi.waitFor(() => expect(search).toHaveBeenCalledTimes(1));
     const rendering = refresher.firstRun("a", Q, null);
-    release(ok(5));
+    release(ok(50));
     await refreshing;
-    expect(await rendering).toMatchObject({ ok: true, response: { results: expect.any(Array) } });
-    expect(preview).not.toHaveBeenCalled();
+    expect(await rendering).toMatchObject({ ok: true, results: { results: expect.any(Array) } });
+    expect(run).not.toHaveBeenCalled();
   });
 
   it("never throws: a store failure still shows the run", async () => {
@@ -310,7 +400,7 @@ describe("firstRun (a page without a snapshot, at render time)", () => {
   });
 });
 
-describe("refreshStale (the daily cron)", () => {
+describe("refreshStale (the cron)", () => {
   const DAY = 86_400_000;
   const ago = (ms: number) => new Date(NOW.getTime() - ms).toISOString();
 
@@ -324,14 +414,34 @@ describe("refreshStale (the daily cron)", () => {
       ["e", 10],
       ["fresh", 1],
     ] as const) {
-      pages.add(slug, { results: response(5), resultsAt: ago(age * DAY) });
+      pages.add(slug, {
+        results: fixtureResults(50, { fetchedAt: ago(age * DAY) }),
+        resultsAt: ago(age * DAY),
+      });
     }
     const summary = await refresher.refreshStale(() => 0);
-    expect(summary).toMatchObject({ due: 5, kept: 0, failed: 0, busy: 0, notReached: 1 });
-    expect(summary.stored).toEqual(["c", "e", "a", "b"]);
+    expect(summary).toMatchObject({ due: 5, kept: 0, failed: 0, busy: 0, notReached: 2 });
+    expect(summary.stored).toEqual(["c", "e", "a"]);
     expect(search).toHaveBeenCalledTimes(CRON_LIMITS.maxPages);
     expect(sleep).toHaveBeenCalledTimes(CRON_LIMITS.maxPages - 1);
     expect(sleep).toHaveBeenCalledWith(CRON_LIMITS.spacingMs);
+  });
+
+  it("continues an incomplete page before refreshing stale ones", async () => {
+    const { pages, search, continueRun, refresher } = setup();
+    pages.add("stale", {
+      results: fixtureResults(50, { fetchedAt: ago(20 * DAY) }),
+      resultsAt: ago(20 * DAY),
+    });
+    pages.add("half", {
+      ...stored(50, ["model", "pending"]),
+      note: "incomplete",
+      attemptedAt: ago(3_600_000),
+    });
+    const summary = await refresher.refreshStale(() => 0);
+    expect(summary.stored).toEqual(["half", "stale"]);
+    expect(continueRun).toHaveBeenCalledTimes(1);
+    expect(search).toHaveBeenCalledTimes(1);
   });
 
   it("starts no page after the cutoff, so the function ends in time", async () => {
@@ -341,22 +451,45 @@ describe("refreshStale (the daily cron)", () => {
     let t = 0;
     search.mockImplementation(async () => {
       t += CRON_LIMITS.startCutoffMs + 1;
-      return ok(5);
+      return ok(50);
     });
     const summary = await refresher.refreshStale(() => t);
     expect(summary).toMatchObject({ due: 2, notReached: 1 });
     expect(summary.stored).toEqual(["a"]);
   });
 
+  it("gives every page the run's own deadline", async () => {
+    const { pages, search, refresher } = setup();
+    pages.add("a");
+    await refresher.refreshStale(() => 1_000);
+    expect(search.mock.calls[0][1].deadline).toBe(1_000 + CRON_LIMITS.budgetMs);
+  });
+
   it("is safe to call twice: the second call finds nothing due", async () => {
     const { pages, search, refresher } = setup();
     pages.add("a");
-    pages.add("b", { results: response(5), resultsAt: ago(30 * DAY) });
+    pages.add("b", {
+      results: fixtureResults(50, { fetchedAt: ago(30 * DAY) }),
+      resultsAt: ago(30 * DAY),
+    });
     search.mockResolvedValueOnce({ ok: false, error: "upstream" });
     const first = await refresher.refreshStale(() => 0);
     expect(first).toMatchObject({ due: 2, failed: 1, stored: ["b"] });
     const second = await refresher.refreshStale(() => 0);
     expect(second).toMatchObject({ due: 0, stored: [], failed: 0 });
     expect(search).toHaveBeenCalledTimes(2);
+  });
+
+  it("covers the published pages weekly: vercel.json calls the route CRON_RUNS_PER_NIGHT times a night", () => {
+    const config = JSON.parse(readFileSync("vercel.json", "utf8")) as {
+      crons: { path: string; schedule: string }[];
+    };
+    const runs = config.crons.filter((c) => c.path === "/api/cron/seo-refresh");
+    expect(runs).toHaveLength(CRON_RUNS_PER_NIGHT);
+    // Once a day each (Vercel Hobby), at different hours.
+    expect(new Set(runs.map((c) => c.schedule)).size).toBe(runs.length);
+    for (const c of runs) expect(c.schedule).toMatch(/^0 \d{1,2} \* \* \*$/);
+    // About one new collection per run (25-45 s of the 55 s budget; seo-run.test.ts measures it).
+    expect(CRON_RUNS_PER_NIGHT * 7).toBeGreaterThanOrEqual(10);
   });
 });

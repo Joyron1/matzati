@@ -32,6 +32,7 @@ beforeEach(() => {
   m.refreshStale.mockResolvedValue({
     due: 3,
     stored: ["אוזניות-אלחוטיות"],
+    preparing: 0,
     kept: 1,
     failed: 1,
     busy: 0,
@@ -69,6 +70,7 @@ describe("GET /api/cron/seo-refresh", () => {
       ok: true,
       due: 3,
       stored: 1,
+      preparing: 0,
       kept: 1,
       failed: 1,
       busy: 0,
@@ -76,7 +78,7 @@ describe("GET /api/cron/seo-refresh", () => {
     });
     expect(m.revalidatePath).toHaveBeenCalledWith(`/s/${encodeURIComponent("אוזניות-אלחוטיות")}`);
     expect(console.log).toHaveBeenCalledWith(
-      "[seo-cron] due=3 stored=1 kept=1 failed=1 busy=0 not_reached=0",
+      "[seo-cron] due=3 stored=1 preparing=0 kept=1 failed=1 busy=0 not_reached=0",
     );
   });
 

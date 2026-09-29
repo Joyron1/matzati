@@ -83,27 +83,36 @@ export function FeaturedProductCard({ product, rank, q }: CardProps) {
   );
 }
 
+/**
+ * A result card with its photo beside the title. `tile` (the SEO landing pages' grid): from xl it
+ * stands as a tile of a five-column grid, the photo above the text, with the title's two lines,
+ * the numbers' two lines and the line's four kept even when shorter, so every tile of a row lines
+ * up; below xl it is the same row card as on /search.
+ */
 export function CompactProductCard({
   product,
   rank,
   q,
   src = "search_compact",
-}: CardProps & { src?: string }) {
+  tile = false,
+}: CardProps & { src?: string; tile?: boolean }) {
   const href = productHref(product.product_id, q);
   return (
     // A container: in a narrow column (two compact cards side by side) its buttons stack.
-    <article className={`${card} @container flex flex-col gap-4 p-4`}>
-      <div className="flex gap-4">
+    <article
+      className={`${card} @container flex flex-col gap-4 p-4 ${tile ? "xl:gap-3 xl:p-3" : ""}`}
+    >
+      <div className={`flex gap-4 ${tile ? "xl:flex-col xl:gap-3" : ""}`}>
         <ProductImage
           src={product.image_urls[0]}
           alt={product.title_he}
-          className="size-24 shrink-0 rounded-tile sm:size-28"
+          className={`size-24 shrink-0 rounded-tile sm:size-28 ${tile ? "xl:aspect-[4/3] xl:h-auto xl:w-full" : ""}`}
           iconClassName="size-10"
-          sizes="112px"
+          sizes={tile ? "(min-width: 1280px) 240px, 112px" : "112px"}
         />
         <div className="min-w-0 space-y-2">
           <p className="text-xs font-semibold text-muted">מקום {rank} בדירוג</p>
-          <h3 className="leading-snug font-semibold">
+          <h3 className={`leading-snug font-semibold ${tile ? "xl:min-h-[2lh]" : ""}`}>
             <Link href={href} className="block hover:text-accent-ink">
               <TitleText title={product.title_he} clamp />
             </Link>
@@ -111,8 +120,14 @@ export function CompactProductCard({
           <Price product={product} size="sm" />
         </div>
       </div>
-      <TrustMetrics product={product} short />
-      {product.why_he && <p className="text-sm leading-relaxed text-muted">{product.why_he}</p>}
+      <div className={tile ? "xl:min-h-[3.25rem]" : "contents"}>
+        <TrustMetrics product={product} short />
+      </div>
+      {product.why_he && (
+        <p className={`text-sm leading-relaxed text-muted ${tile ? "xl:min-h-[4lh]" : ""}`}>
+          {product.why_he}
+        </p>
+      )}
       <div className="mt-auto grid gap-2 @[19rem]:grid-cols-[1fr_auto] @[19rem]:items-start">
         <BuyButton
           productId={product.product_id}

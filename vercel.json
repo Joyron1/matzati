@@ -2,5 +2,8 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "regions": ["fra1"],
-  "crons": [{ "path": "/api/cron/seo-refresh", "schedule": "0 1 * * *" }]
+  "crons": [
+    { "path": "/api/cron/seo-refresh", "schedule": "0 1 * * *" },
+    { "path": "/api/cron/seo-refresh", "schedule": "0 3 * * *" }
+  ]
 }

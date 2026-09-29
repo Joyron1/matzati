@@ -6,6 +6,7 @@ import { BRAND } from "@/lib/config/brand";
 import { productTitleView } from "@/lib/product-title";
 import { SupabaseStore } from "@/lib/search/supabase-store";
 import { getPublishedSeoPage, getPublishedSnapshot } from "@/lib/seo/queries";
+import { shownGroups } from "@/lib/seo/results";
 import { parseSlugParam } from "@/lib/seo/slug";
 import { readSnapshot } from "@/lib/seo/snapshot";
 import { serviceClient } from "@/lib/supabase/server";
@@ -28,8 +29,10 @@ export async function seoImage(slugParam: string) {
   const page = slug ? await getPublishedSeoPage(slug).catch(() => null) : null;
   if (!page) return brandCard("jpeg");
   const stored = await getPublishedSnapshot(page.slug).catch(() => null);
-  const results = (stored && readSnapshot(stored, page.query)?.response.results) ?? [];
-  const photos = await Promise.all(results.slice(0, 4).map((p) => imageDataUri(p.image_urls[0])));
+  // The first shown group: the page's places 1-5, never a pending group or a waiting `next` run.
+  const snapshot = stored ? readSnapshot(stored, page.query) : null;
+  const lead = snapshot ? (shownGroups(snapshot.results)[0] ?? []) : [];
+  const photos = await Promise.all(lead.slice(0, 4).map((p) => imageDataUri(p.image_urls[0])));
   return listCard({
     eyebrow: `מוצרים מאלי אקספרס ב${BRAND.name}`,
     title: page.title_he,

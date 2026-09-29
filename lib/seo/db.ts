@@ -4,7 +4,7 @@
 // (./snapshot.ts, ./refresh.ts). Published is checked again in code on public reads.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import type { SearchResponse } from "@/lib/types";
+import type { StoredSeoResults } from "./results";
 import type { RefreshState, SnapshotStore, SnapshotWrite } from "./refresh";
 import type { RefreshRow } from "./snapshot";
 import { isValidSlug } from "./slug";
@@ -334,7 +334,7 @@ export function supabaseSnapshotStore(db: SeoClient): SnapshotStore {
     },
 
     async store(write: SnapshotWrite): Promise<boolean> {
-      const results: SearchResponse = write.response;
+      const results: StoredSeoResults = write.results;
       const update = db
         .from(SEO_TABLE)
         .update({ results, results_at: write.resultsAt, refresh_error: write.note })

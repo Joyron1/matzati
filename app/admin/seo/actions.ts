@@ -56,6 +56,7 @@ async function refreshPage(slug: string): Promise<RefreshOutcome> {
     claimWindowMs: ADMIN_CLAIM_WINDOW_MS,
     deadline: Date.now() + REFRESH_BUDGET_MS,
   });
+  // A run waiting beside the shown results (preparing) leaves the page as it is.
   if (outcome.status === "stored") revalidatePath(`/s/${slug}`);
   revalidatePath("/admin/seo");
   return outcome;
@@ -141,8 +142,15 @@ export interface SeoRefreshState {
 /** The admin's Hebrew line for a refresh's outcome. */
 function refreshMessage(outcome: RefreshOutcome): string {
   switch (outcome.status) {
-    case "stored":
-      return outcome.count === 1 ? "נשמר מוצר אחד." : `נשמרו ${outcome.count} מוצרים.`;
+    case "stored": {
+      const shown = outcome.shown === 1 ? "מוצג מוצר אחד" : `מוצגים ${outcome.shown} מוצרים`;
+      const waiting = outcome.total - outcome.shown;
+      return waiting > 0
+        ? `נשמר. ${shown}, ועוד ${waiting} מחכים להסברים: לחצו ״השלמת הרענון״ או חכו להרצה הלילית.`
+        : `נשמר. ${shown}.`;
+    }
+    case "preparing":
+      return `נמצאו ${outcome.total} מוצרים, ${outcome.shown} מהם כבר עם הסברים. הדף ימשיך להציג את התוצאות הקודמות עד שכל ההסברים ייכתבו: לחצו ״השלמת הרענון״ או חכו להרצה הלילית.`;
     case "kept":
       return outcome.note === "changed"
         ? "הדף השתנה בזמן הרענון, ולכן לא נשמר דבר. נסו שוב."

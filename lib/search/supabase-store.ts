@@ -479,6 +479,24 @@ export class SupabaseStore implements SearchStore {
     );
   }
 
+  /**
+   * Writes our Hebrew titles onto rows that exist, touching nothing else (not updated_at, no
+   * price_history): an SEO page's continuation (lib/search/seo-run.ts) explains products saved by
+   * an earlier run. Production only: outside it the rows belong to production (saveProducts).
+   */
+  async saveTitles(titles: Record<string, string>): Promise<void> {
+    if (this.env !== "production") return;
+    await Promise.all(
+      Object.entries(titles)
+        .filter(([, title]) => title.trim())
+        .map(([id, title]) =>
+          this.write("saveTitles", () =>
+            this.db.from("products").update({ title_he: title }).eq("product_id", id),
+          ),
+        ),
+    );
+  }
+
   /** Product saved by a search (for /p and /go). Null when unknown. */
   async getProduct(productId: string): Promise<StoredProduct | null> {
     const row = await this.read<{ data: unknown; title_he: string | null; updated_at: string }>(

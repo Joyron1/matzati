@@ -70,8 +70,15 @@ import {
   type UnderstoodSearch,
 } from "./pipeline";
 import { hasHebrew } from "@/lib/product-title";
-import { withoutResultsCache } from "@/lib/seo/fresh-store";
+import type { SeoResults } from "@/lib/seo/results";
 import { retryOnce } from "@/lib/seo/retry";
+import {
+  collectSeoResults,
+  continueSeoResults,
+  SEO_ALI_RETRIES,
+  SeoOutOfTimeError,
+  type SeoRunDeps,
+} from "./seo-run";
 import { normalizeQuery } from "./cache-key";
 import { RefreshGate } from "./refresh-gate";
 import type { SearchLogEntry, SearchStore } from "./store";
@@ -940,29 +947,65 @@ export async function examplePreview(q: string): Promise<SearchResponse | null> 
 
 /** Wait before the second try of an SEO page refresh (AliExpress's frequency ban is ~1 s). */
 const SEO_REFRESH_BACKOFF_MS = 3_000;
-/** Time a second try may need (parse from the cache, fetch, explain): none with less left. */
-const SEO_REFRESH_RETRY_ROOM_MS = 25_000;
+/**
+ * Time a second try needs to start: its first AliExpress call and one explain call
+ * (SEO_RUN_LIMITS in lib/search/seo-run.ts); none with less left.
+ */
+const SEO_REFRESH_RETRY_ROOM_MS = 30_000;
+
+/** An SEO page's run: its results, or the code it failed with ("time": no room to start). */
+export type SeoResultsRun =
+  { ok: true; results: SeoResults } | { ok: false; error: SearchFailure | "time" };
 
 /**
- * A fresh run for an SEO landing page's stored results (lib/seo/refresh.ts): the page's query
- * through the same pipeline as a visitor's search (filters, ranking and explanations exactly the
- * site's), but never served from the results cache, so the products and prices are new; the parse
- * may come from the parse cache, and the new result set is cached for visitors as usual. Logged
- * as source "preview" (never a search in the stats), under the daily LLM budget. An upstream
- * failure (AliExpress, its rate limit included) is tried once more after a short back-off when
- * there is time before `deadline` (epoch ms). Never throws.
+ * The deps of an SEO page's run (lib/search/seo-run.ts): the real LLM and database, the admin's
+ * shop cap, the daily LLM budget, and an AliExpress client with one retry, so every call it
+ * makes is bounded and the run can keep inside its deadline.
+ */
+async function seoRunDeps(): Promise<SeoRunDeps> {
+  const { dailyCap } = guardEnv();
+  const db = serviceClient();
+  const store = new SupabaseStore(db);
+  return {
+    llm: llmProvider(),
+    ali: new AliExpressClient(aliexpressConfig(), { retries: SEO_ALI_RETRIES }),
+    store,
+    shopCap: await shopCapMode(),
+    chargeBudget: async () => {
+      if (!(await consumeDailyLlmBudget(db, new Date(), dailyCap))) {
+        throw new SearchError("capacity", "daily LLM budget is used up");
+      }
+    },
+    saveTitles: (titles) => store.saveTitles(titles),
+  };
+}
+
+function seoFailure(err: unknown): SeoResultsRun {
+  if (err instanceof SeoOutOfTimeError) return { ok: false, error: "time" };
+  return { ok: false, error: toFailure(err, "seo-refresh") };
+}
+
+/**
+ * A new run for an SEO landing page's stored results (lib/seo/refresh.ts, owner decision
+ * 2026-09-29): every product of the page's query that passes the site's filters, ranked by the
+ * site's ranking under the admin's shop cap, up to SEO_MAX_PRODUCTS, explained group by group
+ * (collectSeoResults in ./seo-run.ts). Never served from the results cache, so the products and
+ * prices are new; the parse may come from the parse cache, and the first three groups are cached
+ * for visitors' searches with the same filters. Logged as source "preview" (never a search in the
+ * stats), under the daily LLM budget. An upstream failure (AliExpress, its rate limit included) is
+ * tried once more after a short back-off when there is time before `deadline` (epoch ms). Never
+ * throws.
  */
 export async function refreshSearch(
   q: string,
-  { deadline }: { deadline: number },
-): Promise<SeoRun> {
-  const attempt = async (): Promise<SeoRun> => {
+  { deadline, previous = [] }: { deadline: number; previous?: readonly SeoResults[] },
+): Promise<SeoResultsRun> {
+  const attempt = async (): Promise<SeoResultsRun> => {
     try {
-      const { deps } = searchDeps(guardEnv().dailyCap, await shopCapMode());
-      const store = withoutResultsCache(deps.store);
-      return seoRunOf(await runSearch({ q: q.trim(), source: "preview" }, { ...deps, store }));
+      const { results } = await collectSeoResults(q, await seoRunDeps(), { deadline, previous });
+      return { ok: true, results };
     } catch (err) {
-      return { ok: false, error: toFailure(err, "seo-refresh") };
+      return seoFailure(err);
     }
   };
   return retryOnce(attempt, {
@@ -971,6 +1014,24 @@ export async function refreshSearch(
     roomMs: SEO_REFRESH_RETRY_ROOM_MS,
     deadline,
   });
+}
+
+/**
+ * Writes the lines an SEO page's stored run still lacks, without fetching (continueSeoResults in
+ * ./seo-run.ts). Never throws.
+ */
+export async function continueSeoRun(
+  results: SeoResults,
+  { deadline }: { deadline: number },
+): Promise<SeoResultsRun> {
+  try {
+    return {
+      ok: true,
+      results: (await continueSeoResults(results, await seoRunDeps(), { deadline })).results,
+    };
+  } catch (err) {
+    return seoFailure(err);
+  }
 }
 
 /**

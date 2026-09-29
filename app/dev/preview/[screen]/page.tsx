@@ -8,7 +8,9 @@
 // (the wait, then the results), /dev/preview/search-results and /dev/preview/search-update, and
 // /dev/preview/admin-settings (the /admin/settings form, whose action here saves nothing),
 // /dev/preview/footer (the footer and its newsletter form, which stores nothing here) and
-// /dev/preview/admin-newsletter (the /admin/newsletter view) from ./footer-previews.tsx.
+// /dev/preview/admin-newsletter (the /admin/newsletter view) from ./footer-previews.tsx, and
+// /dev/preview/seo-page (an SEO landing page with a made-up snapshot of 50 products,
+// ./seo-previews.tsx).
 // A 404 in production, noindex, disallowed in robots.txt and never
 // listed in the sitemap. Nothing here reads the database, AliExpress or an LLM.
 import type { Metadata } from "next";
@@ -39,6 +41,7 @@ import { RecentStripPreview } from "./home-previews";
 import { PreviewSettingsForm } from "./preview-controls";
 import { PreviewCommunityForm, PreviewGoogleForm } from "./settings-previews";
 import { isSearchScreen, SearchPreview } from "./search-previews";
+import { SeoPagePreview } from "./seo-previews";
 
 export const metadata: Metadata = {
   title: "תצוגה מקדימה לפיתוח",
@@ -57,6 +60,7 @@ const SCREENS = [
   "admin-settings",
   "footer",
   "admin-newsletter",
+  "seo-page",
 ] as const;
 type Screen = (typeof SCREENS)[number];
 
@@ -534,6 +538,17 @@ export default async function PreviewPage({
         <FakeDataNote>כמו דף הניוזלטר בניהול, עם רשומים מומצאים. אין כאן ייצוא.</FakeDataNote>
         <AdminNewsletterPreview params={await searchParams} now={now} />
       </>
+    );
+  }
+
+  if (screen === "seo-page") {
+    // An SEO landing page with a made-up snapshot of 50 products (./seo-previews.tsx).
+    return (
+      <SeoPagePreview
+        params={await searchParams}
+        now={now}
+        note={(text) => <FakeDataNote>{text}</FakeDataNote>}
+      />
     );
   }
 

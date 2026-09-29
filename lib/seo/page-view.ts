@@ -1,20 +1,21 @@
 // Everything a landing page (/s/[slug]) shows: the published row and its results. The results are
-// the page's stored snapshot (lib/seo/snapshot.ts), refreshed about weekly by the cron and when
-// the admin publishes the page; only a page without one runs its query live, once, and stores the
-// run when it has results. Server-only: runs inside the page's (ISR) render.
+// the page's stored snapshot (lib/seo/snapshot.ts): up to SEO_MAX_PRODUCTS products in groups of
+// five, refreshed about weekly by the cron and when the admin publishes the page; only a page
+// without one runs its query live, once (one page of five), and stores the run when it has
+// results. Server-only: runs inside the page's (ISR) render.
 import "server-only";
 import { unstable_cache } from "next/cache";
 import { cache } from "react";
-import type { SearchResponse } from "@/lib/types";
 import { getPublishedSeoPage, getPublishedSnapshot, type SeoPage } from "./queries";
 import { seoRefresher } from "./refresh-server";
+import type { SeoResults } from "./results";
 import { parseSlugParam } from "./slug";
 import { readSnapshot, resultsAtOf } from "./snapshot";
 
 export interface SeoPageView {
   page: SeoPage;
   /** Results for page.query; null when the page has no snapshot and its live run failed. */
-  response: SearchResponse | null;
+  results: SeoResults | null;
   /** When those results were fetched from AliExpress (ISO); null without results. */
   checkedAt: string | null;
 }
@@ -40,12 +41,12 @@ export const seoPageView = cache(async (slugParam: string): Promise<SeoPageView 
   if (!page) return null;
   const stored = await getPublishedSnapshot(slug);
   const snapshot = stored ? readSnapshot(stored, page.query) : null;
-  if (snapshot) return { page, response: snapshot.response, checkedAt: snapshot.resultsAt };
+  if (snapshot) return { page, results: snapshot.results, checkedAt: snapshot.resultsAt };
 
   const run = await seoRefresher.firstRun(page.slug, page.query, stored?.resultsAt ?? null);
   if (!run.ok) {
     await retrySoon().catch(() => undefined);
-    return { page, response: null, checkedAt: null };
+    return { page, results: null, checkedAt: null };
   }
-  return { page, response: run.response, checkedAt: resultsAtOf(run.response, new Date()) };
+  return { page, results: run.results, checkedAt: resultsAtOf(run.results, new Date()) };
 });

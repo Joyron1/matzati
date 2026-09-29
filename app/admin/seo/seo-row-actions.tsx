@@ -21,14 +21,17 @@ interface SeoRowActionsProps {
   slug: string;
   title: string;
   published: boolean;
+  /** A run left products without lines: the refresh button continues it (no new search). */
+  incomplete?: boolean;
 }
 
 /**
  * View and "רענון עכשיו" (published only), edit and delete (with a confirm step) for one landing
- * page. The refresh runs a fresh search and stores it when it is at least as good as the stored
- * results (lib/seo/refresh.ts); the line under the buttons says how it went.
+ * page. The refresh collects the page's products again and stores them when they are at least as
+ * good as the stored results (lib/seo/refresh.ts); while a run still lacks lines the button says
+ * "השלמת הרענון" and writes them without a new search. The line under the buttons says how it went.
  */
-export function SeoRowActions({ slug, title, published }: SeoRowActionsProps) {
+export function SeoRowActions({ slug, title, published, incomplete = false }: SeoRowActionsProps) {
   const remove = useMemo(() => deleteSeoPageAction.bind(null, slug), [slug]);
   const [deleteState, deleteAction, deleting] = useActionState(remove, NO_ERROR);
   const refresh = useMemo(() => refreshSeoPageAction.bind(null, slug), [slug]);
@@ -112,7 +115,7 @@ export function SeoRowActions({ slug, title, published }: SeoRowActionsProps) {
                   aria-hidden
                   className={`size-4 ${refreshing ? "motion-safe:animate-spin" : ""}`}
                 />
-                {refreshing ? "מרעננים…" : "רענון עכשיו"}
+                {refreshing ? "מרעננים…" : incomplete ? "השלמת הרענון" : "רענון עכשיו"}
                 <span className="sr-only">: {title}</span>
               </button>
             </form>
@@ -153,7 +156,9 @@ export function SeoRowActions({ slug, title, published }: SeoRowActionsProps) {
           }
         >
           {refreshing
-            ? "מחפשים מוצרים עדכניים. זה לוקח בדרך כלל עד חצי דקה."
+            ? incomplete
+              ? "כותבים את ההסברים שחסרים. זה לוקח בדרך כלל עד חצי דקה."
+              : "מחפשים מוצרים עדכניים וכותבים הסברים. זה לוקח בדרך כלל פחות מדקה."
             : (refreshState.message ?? "")}
         </p>
       )}

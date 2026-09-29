@@ -1,9 +1,9 @@
 // What a landing page (/s/[slug]) shows (lib/seo/page-view.ts), with fakes: its stored results
 // whenever it has them (never the "unavailable" card then), and one live run only without them.
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ResultProduct, SearchResponse } from "@/lib/types";
 import type { SeoPage } from "./db";
 import { seoPageView } from "./page-view";
+import { fixtureResults } from "./results-fixture";
 import type { SnapshotRun } from "./snapshot";
 
 const m = vi.hoisted(() => ({
@@ -38,50 +38,25 @@ const PAGE: SeoPage = {
   updated_at: "2026-09-28T10:00:00.000Z",
 };
 
-const PRODUCT: ResultProduct = {
-  product_id: "1005001",
-  title_he: "אוזניות",
-  title_en: "Earbuds",
-  why_he: "",
-  price_ils: 50,
-  original_price_ils: null,
-  price_is_approx: false,
-  discount_pct: null,
-  positive_feedback_pct: 96,
-  units_sold: 1200,
-  passed_tier: "standard",
-  image_urls: [],
-  category_id: "44",
-};
-
-const RESPONSE: SearchResponse = {
-  query: Q,
-  chips: [],
-  sort: "best_value",
-  checked_count: 50,
-  passed_count: 5,
-  results: [PRODUCT],
-  more_available: false,
-  fetched_at: "2026-09-27T10:00:00.000Z",
-};
+const RESULTS = fixtureResults(12);
 
 beforeEach(() => {
   vi.resetAllMocks();
   m.getPublishedSeoPage.mockResolvedValue(PAGE);
   m.getPublishedSnapshot.mockResolvedValue(null);
-  m.firstRun.mockResolvedValue({ ok: true, response: RESPONSE, degraded: false });
+  m.firstRun.mockResolvedValue({ ok: true, results: RESULTS });
   m.retrySoon.mockResolvedValue(true);
 });
 
 describe("seoPageView", () => {
   it("shows the stored results with their date, without any search", async () => {
     m.getPublishedSnapshot.mockResolvedValue({
-      results: RESPONSE,
+      results: RESULTS,
       resultsAt: "2026-09-25T01:00:00+00:00",
     });
     expect(await seoPageView(SLUG)).toEqual({
       page: PAGE,
-      response: RESPONSE,
+      results: RESULTS,
       checkedAt: "2026-09-25T01:00:00.000Z",
     });
     expect(m.firstRun).not.toHaveBeenCalled();
@@ -89,14 +64,14 @@ describe("seoPageView", () => {
 
   it("runs the query once when the page has no stored results", async () => {
     const view = await seoPageView(SLUG);
-    expect(view).toMatchObject({ response: RESPONSE, checkedAt: RESPONSE.fetched_at });
+    expect(view).toMatchObject({ results: RESULTS, checkedAt: RESULTS.fetched_at });
     expect(m.firstRun).toHaveBeenCalledWith(SLUG, Q, null);
     expect(m.retrySoon).not.toHaveBeenCalled();
   });
 
   it("runs it too when the stored results were made for the old query", async () => {
     m.getPublishedSnapshot.mockResolvedValue({
-      results: { ...RESPONSE, query: "אוזניות" },
+      results: { ...RESULTS, query: "אוזניות" },
       resultsAt: "2026-09-25T01:00:00+00:00",
     });
     await seoPageView(SLUG);
@@ -105,7 +80,7 @@ describe("seoPageView", () => {
 
   it("shows the fallback only when there is nothing stored and the run failed", async () => {
     m.firstRun.mockResolvedValue({ ok: false, error: "upstream" });
-    expect(await seoPageView(SLUG)).toEqual({ page: PAGE, response: null, checkedAt: null });
+    expect(await seoPageView(SLUG)).toEqual({ page: PAGE, results: null, checkedAt: null });
     // The fallback page is kept 10 minutes at most.
     expect(m.retrySoon).toHaveBeenCalled();
   });

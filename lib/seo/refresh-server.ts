@@ -2,7 +2,7 @@
 // instance, so requests on one instance share a page's running refresh.
 import "server-only";
 import { deployEnv } from "@/lib/env";
-import { examplePreviewRun, refreshSearch } from "@/lib/search/server";
+import { continueSeoRun, examplePreviewRun, refreshSearch } from "@/lib/search/server";
 import { serviceClient } from "@/lib/supabase/server";
 import { supabaseSnapshotStore } from "./db";
 import { createSeoRefresher } from "./refresh";
@@ -19,6 +19,7 @@ export function snapshotWritesAllowed(): boolean {
 export const seoRefresher = createSeoRefresher({
   store: () => supabaseSnapshotStore(serviceClient()),
   search: refreshSearch,
+  continueRun: continueSeoRun,
   preview: examplePreviewRun,
   writesAllowed: snapshotWritesAllowed,
 });

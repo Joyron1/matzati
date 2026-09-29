@@ -378,11 +378,11 @@ describe("supabaseSnapshotStore", () => {
   });
 
   it("stores only onto the state it decided against (same query, same results_at)", async () => {
-    const response = { query: "q" } as never;
+    const results = { query: "q" } as never;
     const write = {
       slug: SLUG,
       query: "אוזניות לריצה",
-      response,
+      results,
       resultsAt: AT.toISOString(),
       note: null,
     };
@@ -391,7 +391,7 @@ describe("supabaseSnapshotStore", () => {
       true,
     );
     expect(first.queries[0].calls).toEqual([
-      ["update", { results: response, results_at: AT.toISOString(), refresh_error: null }],
+      ["update", { results, results_at: AT.toISOString(), refresh_error: null }],
       ["eq", "slug", SLUG],
       ["eq", "query", "אוזניות לריצה"],
       ["is", "results_at", null],

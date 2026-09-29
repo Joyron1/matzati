@@ -1,8 +1,10 @@
-// Daily Vercel Cron (vercel.json, 01:00 UTC): refreshes the stored results of the SEO landing pages
-// that are due, stalest first, a few per run (lib/seo/refresh.ts refreshStale), so every published
-// page is refreshed about once a week. Only Vercel Cron may call it (Authorization: Bearer
-// CRON_SECRET). Safe to call twice: a page tried in the last 20 hours is skipped, and a refresh
-// only replaces a snapshot with a run at least as good.
+// Vercel Cron (vercel.json: daily at 01:00 and 03:00 UTC, CRON_RUNS_PER_NIGHT, Hobby's limit of 2):
+// continues the SEO landing pages whose lines are still being written, then refreshes those that
+// are due, stalest first, about one page per run (lib/seo/refresh.ts refreshStale), so every
+// published page is refreshed about once a week with up to 20 pages. Only Vercel Cron may call it
+// (Authorization: Bearer CRON_SECRET). Safe to call again: a page tried in the last 20 hours is
+// skipped (a continuation after 30 minutes), and a refresh only replaces a snapshot with a run at
+// least as good.
 import { revalidatePath } from "next/cache";
 import { isCronAuthorized } from "@/lib/seo/cron-auth";
 import { seoRefresher, snapshotWritesAllowed } from "@/lib/seo/refresh-server";
@@ -26,6 +28,7 @@ export async function GET(request: Request): Promise<Response> {
     const counts = {
       due: summary.due,
       stored: summary.stored.length,
+      preparing: summary.preparing,
       kept: summary.kept,
       failed: summary.failed,
       busy: summary.busy,

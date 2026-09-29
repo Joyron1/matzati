@@ -45,7 +45,13 @@ import {
   queryKey,
 } from "./cache-key";
 import { applyOverrides, buildChips } from "./chips";
-import { lowestUnitsSold, nextFetch, type FetchedPage, type FetchStop } from "./fetch-policy";
+import {
+  lowestUnitsSold,
+  nextFetch,
+  type FetchedPage,
+  type FetchLimits,
+  type FetchStop,
+} from "./fetch-policy";
 import type { ParsedQuery, SortPreference } from "./filters";
 import {
   poolFrom,
@@ -113,7 +119,7 @@ export class SearchError extends Error {
 }
 
 /** The provider with a step's limits on every call it makes (LLM_STAGE_LIMITS). */
-function withLimits(
+export function withLimits(
   llm: LlmProvider,
   limits: Pick<StructuredRequest<never>, "timeoutMs" | "maxRetries">,
 ): LlmProvider {
@@ -295,11 +301,11 @@ function usageWriter(
 const FETCH_SORT: ProductSort = "LAST_VOLUME_DESC";
 
 /** Name and message only, never a stack trace; our errors name keys, never their values. */
-function errorText(err: unknown): string {
+export function errorText(err: unknown): string {
   return (err instanceof Error ? `${err.name}: ${err.message}` : String(err)).slice(0, 300);
 }
 
-function toExplainInput(p: AliProduct): ExplainInput {
+export function toExplainInput(p: AliProduct): ExplainInput {
   const shared = sharedMarkOf(p);
   return {
     product_id: p.productId,
@@ -335,7 +341,7 @@ export function toResultProduct(p: AliProduct, e: Explanation | undefined): Resu
   };
 }
 
-interface Fetched {
+export interface Fetched {
   ranked: AliProduct[];
   passed: number;
   checked: number;
@@ -343,27 +349,40 @@ interface Fetched {
   pool: AliProduct[];
 }
 
+/** How far fetchAndRank goes: a visitor's search by default (SEARCH_FETCH, FETCH_BUDGET_MS). */
+export interface FetchOptions {
+  limits?: Partial<FetchLimits>;
+  /** No call after the first starts once the fetch has run this long. */
+  budgetMs?: number;
+  /** Ranked products kept (RESULTS_KEPT for a search). */
+  kept?: number;
+  /** Asked before each call after the first: false stops the fetch ("time"). */
+  mayCall?: () => boolean;
+}
+
 /**
  * Fetches by the fetch policy (./fetch-policy.ts), then filters and ranks everything found. Only
  * the first call can fail the search: a later call that fails (AliExpress's quota is shared by
  * every visitor) keeps what was found so far, and no call after the first starts once the step
- * has run FETCH_BUDGET_MS.
+ * has run FETCH_BUDGET_MS. An SEO page's refresh passes its own limits (SEO_FETCH, lib/search/
+ * seo-run.ts); the ranking is the same.
  */
-async function fetchAndRank(
+export async function fetchAndRank(
   parsed: ParsedQuery,
   deps: Required<Pick<SearchDeps, "ali" | "sleep" | "aliSpacingMs" | "now" | "shopCap">>,
-  meta: SearchMeta,
+  meta: Pick<SearchMeta, "fetchStop" | "aliCalls" | "keywordsTried" | "rejected">,
+  { limits, budgetMs = FETCH_BUDGET_MS, kept = RESULTS_KEPT, mayCall }: FetchOptions = {},
 ): Promise<Fetched> {
   const seen = new Map<string, AliProduct>();
   const calls: FetchedPage[] = [];
   const started = deps.now().getTime();
   for (;;) {
-    const decision = nextFetch({ filters: parsed, calls, pool: [...seen.values()] });
+    const decision = nextFetch({ filters: parsed, calls, pool: [...seen.values()] }, limits);
     if ("stop" in decision) {
       meta.fetchStop = decision.stop;
       break;
     }
-    if (calls.length && deps.now().getTime() - started >= FETCH_BUDGET_MS) {
+    if (calls.length && (deps.now().getTime() - started >= budgetMs || (mayCall && !mayCall()))) {
       meta.fetchStop = "time";
       break;
     }
@@ -402,7 +421,7 @@ async function fetchAndRank(
   const final = rankWithFill(pool, parsed, RESULTS_PER_PAGE, deps.shopCap);
   // passed counts every distinct product that met the filters, not just the ones we keep.
   return {
-    ranked: final.ranked.slice(0, RESULTS_KEPT),
+    ranked: final.ranked.slice(0, kept),
     passed: final.ranked.length,
     checked: pool.length,
     pool,
@@ -415,7 +434,7 @@ async function fetchAndRank(
  * one does the failure end the search. `space` waits out the gap AliExpress needs after the
  * search's product.query calls (their frequency ban is shared by every visitor).
  */
-async function ensureLinks(
+export async function ensureLinks(
   ali: AliExpressClient,
   products: AliProduct[],
   meta: Pick<SearchMeta, "linkCalls" | "aliCalls">,
@@ -1406,7 +1425,7 @@ const isExplanation = (v: unknown): v is Explanation =>
  * requirement that was removed, and every other check of explain (checkExplanation). Null when it
  * fails, or when it is the line built from the data: that product is explained instead.
  */
-function lineThatHolds(
+export function lineThatHolds(
   line: unknown,
   p: ExplainInput,
   batch: readonly ExplainInput[],

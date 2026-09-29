@@ -12,6 +12,7 @@ import {
   type SeoPage,
   type SnapshotStatusRow,
 } from "@/lib/seo/queries";
+import { canContinue, shownCount } from "@/lib/seo/results";
 import { readSnapshot, refreshNoteText } from "@/lib/seo/snapshot";
 import { SeoRowActions } from "./seo-row-actions";
 import { StatusMessage } from "../status-message";
@@ -21,11 +22,12 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-// "רענון עכשיו" runs a fresh search inside its server action (7-15 s, a retry included up to
-// about 45 s): the actions of this page get Vercel Hobby's full limit.
+// "רענון עכשיו" collects up to 50 products and explains them inside its server action (about
+// 25-45 s; every call starts only with room before 55 s, and what is left is continued by the
+// next click or cron run): the actions of this page get Vercel Hobby's full limit.
 export const maxDuration = 60;
 
-const REFRESHING = " התוצאות שלו נשמרות ברקע תוך כחצי דקה.";
+const REFRESHING = " התוצאות שלו נשמרות ברקע תוך פחות מדקה.";
 
 const STATUS: Record<string, string> = {
   created: "הדף נשמר. אם סימנתם פרסום, הוא כבר באתר.",
@@ -62,6 +64,12 @@ async function loadStatuses(): Promise<Map<string, SnapshotStatusRow> | null> {
   }
 }
 
+/** A run left groups without lines: the row's button continues it instead of searching again. */
+function needsContinuing(page: SeoPage, status: SnapshotStatusRow | undefined): boolean {
+  const snapshot = status ? readSnapshot(status, page.query) : null;
+  return snapshot !== null && (snapshot.next !== null || canContinue(snapshot.results));
+}
+
 /** The page's stored results (count and date) and, when it stored nothing, why. */
 function SnapshotStatus({
   page,
@@ -71,7 +79,9 @@ function SnapshotStatus({
   status: SnapshotStatusRow | undefined;
 }) {
   const snapshot = status ? readSnapshot(status, page.query) : null;
-  const count = snapshot?.response.results.length ?? 0;
+  const shown = snapshot ? shownCount(snapshot.results) : 0;
+  const total = snapshot?.results.results.length ?? 0;
+  const waiting = snapshot ? total - shown : 0;
   return (
     <dl className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted">
       <div className="flex gap-1">
@@ -79,7 +89,8 @@ function SnapshotStatus({
         <dd className="text-ink">
           {snapshot ? (
             <>
-              {count === 1 ? "מוצר אחד" : `${count} מוצרים`}, עודכן ב־
+              {shown === 1 ? "מוצר אחד מוצג" : `${shown} מוצרים מוצגים`}
+              {waiting > 0 && ` (ועוד ${waiting} מחכים להסברים)`}, עודכן ב־
               <time dateTime={snapshot.resultsAt}>{formatDateTime(snapshot.resultsAt)}</time>
             </>
           ) : page.published ? (
@@ -89,6 +100,14 @@ function SnapshotStatus({
           )}
         </dd>
       </div>
+      {snapshot?.next && (
+        <div className="flex gap-1">
+          <dt>רענון בהכנה:</dt>
+          <dd className="text-ink">
+            {`${snapshot.next.results.length} מוצרים, ${shownCount(snapshot.next)} כבר עם הסברים. יוצגו כשיהיו מוכנים.`}
+          </dd>
+        </div>
+      )}
       {status?.note && status.attemptedAt && (
         <div className="flex flex-wrap gap-x-1">
           <dt>
@@ -194,7 +213,12 @@ export default async function AdminSeoPage({
                 <PageMeta page={page} />
                 {statuses && <SnapshotStatus page={page} status={statuses.get(page.slug)} />}
               </div>
-              <SeoRowActions slug={page.slug} title={page.title_he} published={page.published} />
+              <SeoRowActions
+                slug={page.slug}
+                title={page.title_he}
+                published={page.published}
+                incomplete={needsContinuing(page, statuses?.get(page.slug))}
+              />
             </li>
           ))}
         </ul>
