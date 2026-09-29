@@ -1,17 +1,17 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { Coupon } from "@/lib/coupons/types";
 import type { HotProduct } from "@/lib/hot/select";
 import type { Deal, FilterChip } from "@/lib/types";
 import {
   WELCOME_TEXT,
   afterResults,
-  cardImage,
   clip,
   couponsText,
   failureText,
   goUrl,
   hotCard,
   menuList,
+  photoUrl,
   optionsList,
   resultCard,
   saleText,
@@ -31,25 +31,22 @@ describe("clip", () => {
   });
 });
 
-describe("cardImage", () => {
-  it("takes the original JPEG or PNG on AliExpress's host, never WebP or another host", () => {
-    expect(cardImage(["https://ae-pic-a1.aliexpress-media.com/kf/a.jpg"])).toContain("a.jpg");
-    expect(cardImage(["https://ae-pic-a1.aliexpress-media.com/kf/a.png"])).toContain("a.png");
-    expect(cardImage(["https://ae-pic-a1.aliexpress-media.com/kf/a.webp"])).toBeNull();
-    expect(
-      cardImage(["https://ae-pic-a1.aliexpress-media.com/kf/a.jpg_640x640.jpg"]),
-    ).not.toBeNull();
-    expect(cardImage(["https://evil.example/a.jpg"])).toBeNull();
-    expect(cardImage(["http://ae-pic-a1.aliexpress-media.com/kf/a.jpg"])).toBeNull();
-    expect(cardImage([])).toBeNull();
+describe("photoUrl", () => {
+  const ae = "https://ae-pic-a1.aliexpress-media.com/kf/a.jpg";
+  it("points at our converting route, never at AliExpress's WebP", () => {
+    expect(photoUrl("123", [ae])).toBe("https://www.matzati-il.com/api/whatsapp/photo/123");
   });
-  it("skips a bad first photo for a good second one", () => {
-    expect(
-      cardImage([
-        "https://ae-pic-a1.aliexpress-media.com/a.webp",
-        "https://ae-pic-a1.aliexpress-media.com/b.jpg",
-      ]),
-    ).toContain("b.jpg");
+  it("gives no photo when the product has none on AliExpress's host", () => {
+    expect(photoUrl("123", [])).toBeNull();
+    expect(photoUrl("123", ["https://evil.example/a.jpg"])).toBeNull();
+    expect(photoUrl("123", ["http://ae-pic-a1.aliexpress-media.com/kf/a.jpg"])).toBeNull();
+  });
+  it("uses the override address for tunnel tests, only when it is https", () => {
+    vi.stubEnv("WHATSAPP_PHOTO_BASE_URL", "https://abc.trycloudflare.com/");
+    expect(photoUrl("1", [ae])).toBe("https://abc.trycloudflare.com/api/whatsapp/photo/1");
+    vi.stubEnv("WHATSAPP_PHOTO_BASE_URL", "http://insecure.example");
+    expect(photoUrl("1", [ae])).toBe("https://www.matzati-il.com/api/whatsapp/photo/1");
+    vi.unstubAllEnvs();
   });
 });
 
@@ -71,7 +68,9 @@ describe("resultCard", () => {
     assertWithinLimits(m);
     if (m.type !== "interactive" || m.interactive.type !== "cta_url") throw new Error("not a cta");
     const i = m.interactive;
-    expect(i.header?.image.link).toContain("S123.jpg");
+    expect(i.header?.image.link).toBe(
+      "https://www.matzati-il.com/api/whatsapp/photo/1005007429991325",
+    );
     expect(i.body.text).toContain("*2. אוזניות ספורט Bluetooth עמידות למים*");
     expect(i.body.text).toContain("₪9.87");
     expect(i.body.text).toContain("98% משוב חיובי");
