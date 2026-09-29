@@ -4,7 +4,9 @@
 //
 // The cookie is first-party and readable by page scripts (not httpOnly) on purpose: the choice
 // gates optional scripts in the browser. No server code reads it, so pages stay static.
-import { z } from "zod/mini";
+//
+// No zod here: this module is in every page's browser bundle (the cookie banner), and zod was
+// 70 KB of it (Lighthouse 2026-09-30). The stored shape is five fields, checked by hand below.
 
 /** The first-party cookie that holds the visitor's choice. */
 export const CONSENT_COOKIE = "matzati_consent";
@@ -82,13 +84,18 @@ export type ConsentChoice = Record<OptionalCategory, boolean>;
 export const NECESSARY_ONLY: ConsentChoice = { analytics: false, marketing: false };
 export const ACCEPT_ALL: ConsentChoice = { analytics: true, marketing: true };
 
-const storedSchema = z.object({
-  v: z.number(),
-  necessary: z.literal(true),
-  analytics: z.boolean(),
-  marketing: z.boolean(),
-  ts: z.number(),
-});
+/** The stored fields of a cookie value that has the right shape; null otherwise. */
+function readStored(
+  json: unknown,
+): Pick<ConsentState, "v" | "analytics" | "marketing" | "ts"> | null {
+  if (typeof json !== "object" || json === null || Array.isArray(json)) return null;
+  const { v, necessary, analytics, marketing, ts } = json as Record<string, unknown>;
+  if (typeof v !== "number" || typeof ts !== "number") return null;
+  if (necessary !== true || typeof analytics !== "boolean" || typeof marketing !== "boolean") {
+    return null;
+  }
+  return { v, analytics, marketing, ts };
+}
 
 /**
  * The stored choice from the cookie's value, or null when there is none to honor: missing,
@@ -109,9 +116,9 @@ export function parseConsent(
   } catch {
     return null;
   }
-  const parsed = storedSchema.safeParse(json);
-  if (!parsed.success) return null;
-  const { v, analytics, marketing, ts } = parsed.data;
+  const parsed = readStored(json);
+  if (!parsed) return null;
+  const { v, analytics, marketing, ts } = parsed;
   if (!accepted.includes(v) || !Number.isFinite(ts)) return null;
   if (ts > now + CLOCK_SKEW_MS || now - ts > CONSENT_MAX_AGE_DAYS * DAY_MS) return null;
   return { v, necessary: true, analytics, marketing, ts };

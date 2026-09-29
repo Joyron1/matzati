@@ -17,6 +17,8 @@ import { HotProductCard, HotProductCardPlaceholder } from "./hot-product-card";
 import { HotProductsScroller } from "./hot-products-scroller";
 
 const TITLE = "מוצרים חמים";
+/** Cards on a phone's first screen (about 2.3 are visible). */
+const PRELOADED_CARDS = 2;
 const LINK =
   "inline-flex min-h-11 shrink-0 items-center gap-0.5 font-semibold text-accent-ink underline-offset-4 hover:underline";
 
@@ -94,9 +96,16 @@ export async function HotProductsCarousel() {
   return (
     <section aria-labelledby="hot-products-title" className={HOT_SECTION}>
       <HotProductsScroller label={TITLE} heading={<Heading />}>
-        {products.map((product) => (
+        {products.map((product, i) => (
           <li key={product.productId} className={HOT_ITEM}>
-            <HotProductCard product={product} now={now} sizes={HOT_ITEM_SIZES} />
+            {/* The first photos are the largest paint on phones (Lighthouse 2026-09-30): fetched
+                at high priority, not lazily; the rest wait until scrolled to. */}
+            <HotProductCard
+              product={product}
+              now={now}
+              sizes={HOT_ITEM_SIZES}
+              preload={i < PRELOADED_CARDS}
+            />
           </li>
         ))}
       </HotProductsScroller>

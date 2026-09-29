@@ -2,6 +2,13 @@
   "name": "matzati",
   "version": "0.1.0",
   "private": true,
+  "browserslist": [
+    "chrome >= 111",
+    "edge >= 111",
+    "firefox >= 115",
+    "safari >= 16.4",
+    "ios_saf >= 16.4"
+  ],
   "scripts": {
     "dev": "NODE_OPTIONS=--experimental-websocket next dev",
     "build": "next build",
