@@ -14,6 +14,7 @@ const LINKS = [
   { href: "/admin/searches", label: "חיפושים", section: ["/admin/searches"] },
   { href: "/admin/newsletter", label: "ניוזלטר", section: ["/admin/newsletter"] },
   { href: "/admin/settings", label: "הגדרות", section: ["/admin/settings"] },
+  { href: "/admin/account", label: "חשבון", section: ["/admin/account"] },
 ] as const;
 
 const within = (pathname: string, base: string) =>

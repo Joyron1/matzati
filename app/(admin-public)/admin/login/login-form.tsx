@@ -8,8 +8,11 @@ import { requestMagicLink } from "./actions";
 
 const IDLE: LoginState = { status: "idle", message: "" };
 
-/** `notice` is the Hebrew message for a failed magic link (from ?error=), shown until the next try. */
-export function LoginForm({ notice }: { notice: string | null }) {
+/**
+ * The fallback way in (a forgotten or not yet set password): a magic link to an admin address.
+ * `notice` is the Hebrew message for a failed link (from ?error=), shown until the next try.
+ */
+export function MagicLinkForm({ notice }: { notice: string | null }) {
   const [state, formAction, pending] = useActionState(requestMagicLink, IDLE);
   const inputId = useId();
   const hintId = useId();
@@ -64,7 +67,7 @@ export function LoginForm({ notice }: { notice: string | null }) {
           className="mt-2 h-12 w-full rounded-full border border-line bg-surface px-5 text-base text-ink placeholder:text-muted focus-visible:border-accent"
         />
         <p id={hintId} className="mt-2 text-sm text-muted">
-          פתחו את הקישור באותו דפדפן שבו ביקשתם אותו.
+          פתחו את הקישור באותו דפדפן שבו ביקשתם אותו. אחרי הכניסה אפשר לקבוע סיסמה בדף ״חשבון״.
         </p>
       </div>
 

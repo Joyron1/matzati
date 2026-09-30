@@ -17,8 +17,11 @@ import {
   loginErrorFromParam,
   loginErrorPath,
   loginState,
+  newPasswordError,
   normalizeEmail,
   paddingMs,
+  PASSWORD_MAX_BYTES,
+  PASSWORD_MIN_LENGTH,
   requestOrigin,
 } from "./rules";
 
@@ -240,5 +243,30 @@ describe("authCookieOptions", () => {
   it("does not override SameSite or the cookie name (lax must reach the callback)", () => {
     expect(authCookieOptions("production")).not.toHaveProperty("sameSite");
     expect(authCookieOptions("production")).not.toHaveProperty("name");
+  });
+});
+
+describe("newPasswordError", () => {
+  it("accepts a long enough password typed twice", () => {
+    expect(newPasswordError("correct horse battery", "correct horse battery")).toBeNull();
+    expect(newPasswordError("סיסמה-ארוכה-מאוד", "סיסמה-ארוכה-מאוד")).toBeNull();
+  });
+
+  it("refuses a short one, a mismatch, edge spaces and missing fields", () => {
+    expect(newPasswordError("short-pw-11", "short-pw-11")).toMatch(/12/);
+    expect(newPasswordError("correct horse battery", "correct horse batterY")).toBe(
+      "שתי הסיסמאות לא זהות.",
+    );
+    expect(newPasswordError(" correct horse battery", " correct horse battery")).toMatch(/רווח/);
+    expect(newPasswordError(null, "x")).not.toBeNull();
+    expect(newPasswordError("", "")).not.toBeNull();
+  });
+
+  it("refuses what bcrypt would cut: more than 72 bytes, Hebrew letters counting twice", () => {
+    expect(newPasswordError("a".repeat(72), "a".repeat(72))).toBeNull();
+    expect(newPasswordError("a".repeat(73), "a".repeat(73))).toMatch(/ארוכה/);
+    expect(newPasswordError("א".repeat(37), "א".repeat(37))).toMatch(/ארוכה/);
+    expect(PASSWORD_MIN_LENGTH).toBe(12);
+    expect(PASSWORD_MAX_BYTES).toBe(72);
   });
 });

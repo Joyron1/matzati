@@ -153,10 +153,10 @@ describe("requestMagicLink", () => {
     for (const c of cookies) expect(c.options).toMatchObject({ httpOnly: true, sameSite: "lax" });
   });
 
-  it("refuses the sixth request in an hour from one IP, admin or not", async () => {
+  it("refuses the eleventh request in an hour from one IP, admin or not", async () => {
     const auth = supabase(200);
     vi.stubGlobal("fetch", auth);
-    for (let i = 0; i < 5; i++) expect((await submit(OTHER)).state.status).toBe("sent");
+    for (let i = 0; i < 10; i++) expect((await submit(OTHER)).state.status).toBe("sent");
     const refused = await submit(ADMIN);
     expect(refused.state.status).toBe("rate_limited");
     expect(refused.cookies).toEqual([]);

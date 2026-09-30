@@ -1,10 +1,12 @@
 // Pure admin sign-in rules (no server-only imports, so they are unit-tested directly):
 // the ADMIN_EMAILS allow-list check, the origin for magic-link redirects, the fixed admin paths,
-// the callback error codes, every Hebrew message the login page shows and the auth cookie options.
+// the callback error codes, the password rules, every Hebrew message the login page shows and the
+// auth cookie options.
 import { z } from "zod";
 
 export const ADMIN_HOME_PATH = "/admin";
 export const ADMIN_LOGIN_PATH = "/admin/login";
+export const ADMIN_ACCOUNT_PATH = "/admin/account";
 export const AUTH_CALLBACK_PATH = "/admin/auth/callback";
 
 /** Used when a request carries no usable host (local tooling). Matches `next dev -p 3100`. */
@@ -166,6 +168,57 @@ export const loginState = (status: Exclude<LoginStatus, "idle">): LoginState => 
   status,
   message: LOGIN_MESSAGES[status],
 });
+
+// ---------------------------------------------------------------------------------------------
+// Password sign-in (the main way in since 2026-09-30; the magic link stays as the fallback)
+
+export type PasswordLoginStatus =
+  "idle" | "invalid_input" | "wrong_credentials" | "rate_limited" | "unavailable";
+
+export interface PasswordLoginState {
+  status: PasswordLoginStatus;
+  message: string;
+}
+
+/**
+ * "wrong_credentials" is the answer for a wrong password and for any address that is not an
+ * admin, with the same cookies (none) and the same minimum time, so the form never tells anyone
+ * which addresses are admins.
+ */
+export const PASSWORD_LOGIN_MESSAGES: Record<Exclude<PasswordLoginStatus, "idle">, string> = {
+  invalid_input: "כתבו כתובת אימייל תקינה וסיסמה.",
+  wrong_credentials: "האימייל או הסיסמה לא נכונים.",
+  rate_limited: "היו יותר מדי ניסיונות כניסה מהרשת הזו. נסו שוב בעוד שעה.",
+  unavailable: LOGIN_ERROR_MESSAGES.unavailable,
+};
+
+export const passwordLoginState = (
+  status: Exclude<PasswordLoginStatus, "idle">,
+): PasswordLoginState => ({ status, message: PASSWORD_LOGIN_MESSAGES[status] });
+
+/**
+ * Password length. 12 at least: an admin password guards the whole site. 72 at most: Supabase
+ * Auth hashes with bcrypt, which reads only the first 72 bytes (checked in bytes, so Hebrew
+ * letters, two bytes each, count twice).
+ */
+export const PASSWORD_MIN_LENGTH = 12;
+export const PASSWORD_MAX_BYTES = 72;
+
+/** The Hebrew reason a new password is refused, or null when it may be saved. */
+export function newPasswordError(password: unknown, confirm: unknown): string | null {
+  if (typeof password !== "string" || typeof confirm !== "string" || !password) {
+    return "כתבו סיסמה חדשה ואת אותה סיסמה שוב.";
+  }
+  if ([...password].length < PASSWORD_MIN_LENGTH) {
+    return `הסיסמה צריכה להיות באורך ${PASSWORD_MIN_LENGTH} תווים לפחות.`;
+  }
+  if (new TextEncoder().encode(password).length > PASSWORD_MAX_BYTES) {
+    return "הסיסמה ארוכה מדי. בחרו סיסמה קצרה יותר.";
+  }
+  if (password.trim() !== password) return "הסיסמה לא יכולה להתחיל או להסתיים ברווח.";
+  if (password !== confirm) return "שתי הסיסמאות לא זהות.";
+  return null;
+}
 
 /**
  * Every valid request takes at least this long, whether or not a link was sent, so response time

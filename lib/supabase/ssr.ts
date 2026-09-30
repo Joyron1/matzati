@@ -18,6 +18,42 @@ export interface AuthClientOptions {
   freezeCookiesOnFetch?: boolean;
 }
 
+/**
+ * An auth client whose cookie writes wait until `commit()`: the password sign-in writes them only
+ * after a successful admin sign-in. A failed sign-in makes the library clear its session cookies,
+ * and only admin addresses reach Supabase, so those writes alone would reveal an admin address.
+ */
+export async function deferredAuthClient(): Promise<{
+  client: SupabaseClient;
+  commit: () => void;
+}> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  if (!url || !key) {
+    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  }
+  const cookieStore = await cookies();
+  const pending = new Map<string, { value: string; options: object }>();
+  const client = createServerClient(url, key, {
+    cookieOptions: authCookieOptions(),
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
+      },
+      setAll(cookiesToSet) {
+        for (const { name, value, options } of cookiesToSet) pending.set(name, { value, options });
+      },
+    },
+  });
+  return {
+    client,
+    commit() {
+      for (const [name, { value, options }] of pending) cookieStore.set(name, value, options);
+      pending.clear();
+    },
+  };
+}
+
 /** Create one per request; never share it (it carries that request's session). */
 export async function authClient(options: AuthClientOptions = {}): Promise<SupabaseClient> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();

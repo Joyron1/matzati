@@ -27,14 +27,14 @@ const hash = "a".repeat(64);
 const now = new Date("2026-09-27T12:34:56Z");
 
 describe("allowAdminLogin", () => {
-  it("allows 5 requests per hour, then refuses", async () => {
+  it("allows 10 attempts per hour (passwords and links together), then refuses", async () => {
     const { db } = fakeDb();
     const results: boolean[] = [];
     for (let i = 0; i < ADMIN_LOGINS_PER_HOUR + 2; i++) {
       results.push(await allowAdminLogin(db, hash, now));
     }
-    expect(ADMIN_LOGINS_PER_HOUR).toBe(5);
-    expect(results).toEqual([true, true, true, true, true, false, false]);
+    expect(ADMIN_LOGINS_PER_HOUR).toBe(10);
+    expect(results).toEqual([...Array(10).fill(true), false, false]);
   });
 
   it("counts under al:<hash> in the UTC hour window", async () => {
