@@ -3,6 +3,11 @@ import { LEGACY_SITE_HOST, SITE_HOST } from "./lib/config/site";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // The site's CSS (about 14 KB) goes inline in every HTML document instead of a separate
+  // render-blocking request: on a slow connection that request finished only at about 1.5 s,
+  // behind the fonts and scripts sharing the link, and nothing painted before it (Lighthouse
+  // 2026-09-30, every page).
+  experimental: { inlineCss: true },
   // The old vercel.app address sends every page, with its path and query, to the official domain
   // (308), so old shared links and indexed pages keep working. /api stays: Vercel Cron and other
   // callers must reach the route itself, not a redirect. Other vercel.app hosts (previews) are
