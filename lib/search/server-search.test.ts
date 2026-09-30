@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { z } from "zod";
 import { EXPLAIN_SYSTEM } from "@/lib/llm/explain";
+import { TITLES_SYSTEM } from "@/lib/llm/titles";
 import type { ParsedQueryRaw } from "@/lib/llm/parse";
 import type { StructuredRequest } from "@/lib/llm/provider";
 import { MemoryStore } from "./store";
@@ -35,6 +36,7 @@ const m = vi.hoisted(() => ({
   /** Holds explain calls until released. */
   gate: null as Promise<void> | null,
   explainCalls: 0,
+  titlesCalls: 0,
   parseCalls: 0,
   shopCapMode: vi.fn(async (): Promise<"none" | "max2"> => "none"),
 }));
@@ -79,6 +81,12 @@ vi.mock("@/lib/llm/anthropic", () => ({
         cacheReadTokens: 0,
         cacheWriteTokens: 0,
       };
+      if (req.system === TITLES_SYSTEM) {
+        m.titlesCalls++;
+        const { products } = JSON.parse(req.user) as { products: { id: string }[] };
+        const items = products.map((p) => ({ id: p.id, title_he: "כבל USB לטעינה" }));
+        return { data: { items } as z.infer<T>, usage, model: this.model };
+      }
       if (req.system !== EXPLAIN_SYSTEM) {
         m.parseCalls++;
         return { data: PARSE as z.infer<T>, usage, model: this.model };
@@ -113,6 +121,7 @@ beforeEach(() => {
   m.store = new MemoryStore();
   m.gate = null;
   m.explainCalls = 0;
+  m.titlesCalls = 0;
   m.parseCalls = 0;
   m.shopCapMode.mockReset();
   m.shopCapMode.mockImplementation(async () => "none");
@@ -178,9 +187,10 @@ describe("startSearchForRequest", () => {
     release();
     const [finalA, finalB] = await Promise.all([first.value.final, second.value.final]);
     expect(finalA.ok && finalB.ok).toBe(true);
-    // One parse, one fetch and one explain call for both.
+    // One parse, one fetch, one explain and one titles call for both.
     expect(m.parseCalls).toBe(1);
     expect(m.explainCalls).toBe(1);
+    expect(m.titlesCalls).toBe(1);
     await afterJobs();
     expect(m.store.logs.map((l) => [l.searchUid, l.shared])).toEqual(
       expect.arrayContaining([
@@ -240,6 +250,7 @@ describe("the admin's shop cap setting", () => {
     expect(max2.response.cached).toBe(false);
     expect(m.parseCalls).toBe(1);
     expect(m.explainCalls).toBe(2);
+    expect(m.titlesCalls).toBe(2);
     // Switched back: the list ranked under "none" is served from the cache again.
     const back = await searchForRequest(Q, HEADERS);
     if (!back.ok) throw new Error(back.error);

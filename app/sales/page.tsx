@@ -5,7 +5,7 @@ import { CalendarClock, CloudOff, Search, TicketPercent } from "lucide-react";
 import { StateCard } from "@/components/state-card";
 import { btnMd, btnPrimary, btnSecondary } from "@/components/styles";
 import { WhatsappCta } from "@/components/whatsapp-cta";
-import { RESULTS_PER_PAGE } from "@/lib/config/site";
+import { RESULTS_FIRST_VIEW } from "@/lib/config/site";
 import { couponsForSale, hasPublishedCoupons } from "@/lib/coupons/queries";
 import { hasUpcomingSales, salesCalendar } from "@/lib/deals/queries";
 import { pageMetadata } from "@/lib/seo/page-meta";
@@ -44,8 +44,8 @@ async function NoSales() {
       <p className="max-w-md leading-relaxed text-muted">
         ברגע שאלי אקספרס תודיע על המבצע הגדול הבא, נוסיף אותו כאן עם ספירה לאחור.{" "}
         {hasCoupons
-          ? `בינתיים אפשר לעבור על הקופונים והקודים לאלי אקספרס, או לכתוב בחיפוש מה אתם צריכים ולקבל ${RESULTS_PER_PAGE} מוצרים שעברו את הסינון.`
-          : `בינתיים כתבו בחיפוש מה אתם צריכים, ונציג ${RESULTS_PER_PAGE} מוצרים שעברו את הסינון.`}
+          ? `בינתיים אפשר לעבור על הקופונים והקודים לאלי אקספרס, או לכתוב בחיפוש מה אתם צריכים ולקבל ${RESULTS_FIRST_VIEW} מוצרים שעברו את הסינון.`
+          : `בינתיים כתבו בחיפוש מה אתם צריכים, ונציג ${RESULTS_FIRST_VIEW} מוצרים שעברו את הסינון.`}
       </p>
       <div className="flex flex-wrap justify-center gap-3">
         {hasCoupons && (

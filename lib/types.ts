@@ -72,9 +72,25 @@ export interface SearchResponse {
   sort: SortPreference;
   checked_count: number;
   passed_count: number;
+  /** The first page (RESULTS_PER_PAGE), each with its "why we picked it" line. */
   results: ResultProduct[];
+  /**
+   * Places 6-10 of the first view (RESULTS_FIRST_VIEW, owner decision 2026-09-30): standard cards
+   * with a Hebrew title (lib/llm/titles.ts, or AliExpress's title when that call failed) and no line
+   * (why_he is ""). Absent on mock data and older responses.
+   */
+  extra_results?: ResultProduct[];
+  /**
+   * Products after `results` (places 6 and up): the WhatsApp bot's "עוד" (page 1 of loadMore). The
+   * results page reads more_after_first_view.
+   */
   more_available: boolean;
-  /** Handle for "show 3 more" (results cache key). Absent on mock data. */
+  /**
+   * Products after the first view (places 11 and up): /search's "עוד N אפשרויות", from page
+   * FIRST_MORE_PAGE of loadMore. Absent on mock data and older responses.
+   */
+  more_after_first_view?: boolean;
+  /** Handle for "עוד N אפשרויות" (results cache key). Absent on mock data. */
   filters_key?: string;
   /** True when served from the 14-day cache without new AliExpress or explain calls. */
   cached?: boolean;

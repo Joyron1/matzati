@@ -5,7 +5,7 @@ import { BuyButton } from "./buy-button";
 import { TitleText } from "./card-lines";
 import { Price } from "./price";
 import { ProductImage } from "./product-image";
-import { btnLg, btnMd, btnSecondary, featured, card } from "./styles";
+import { btnLg, btnMd, btnSecondary, btnSm, featured, card } from "./styles";
 import { TrustMetrics } from "./trust-metrics";
 
 interface CardProps {
@@ -139,6 +139,53 @@ export function CompactProductCard({
         <Link href={href} className={`${btnSecondary} ${btnMd}`}>
           לפרטים
         </Link>
+      </div>
+    </article>
+  );
+}
+
+/**
+ * Places 6-10 of the first view (RESULTS_FIRST_VIEW): a standard card, the site's card language
+ * (HotProductCard's photo on top) with a result's parts: our Hebrew title (the titles call, or
+ * AliExpress's title when it failed), the price, the trust numbers with the shared-numbers note, the
+ * buy button with its "קישור שותפים" note, and "לפרטים". No "why we picked it" line. Narrow enough
+ * for two in a row on a phone: the buttons take the full width and their labels may wrap. No
+ * prefetch: a product page older than a day refreshes from AliExpress, and a row of cards would do
+ * that for every card on screen.
+ */
+export function StandardProductCard({ product, rank, q }: CardProps) {
+  const href = productHref(product.product_id, q);
+  return (
+    <article className={`${card} flex h-full flex-col overflow-hidden`}>
+      <ProductImage
+        src={product.image_urls[0]}
+        // The title below names the product; the photo only helps scanning.
+        alt=""
+        className="aspect-square w-full border-b border-line"
+        iconClassName="size-10"
+        sizes="(min-width: 1280px) 220px, (min-width: 768px) 30vw, 46vw"
+      />
+      <div className="flex flex-1 flex-col gap-2.5 p-3 sm:p-4">
+        <p className="text-xs font-semibold text-muted">מקום {rank} בדירוג</p>
+        <h3 className="text-[15px] leading-snug font-semibold">
+          <Link href={href} prefetch={false} className="block hover:text-accent-ink">
+            <TitleText title={product.title_he} clamp />
+          </Link>
+        </h3>
+        <Price product={product} size="sm" />
+        <TrustMetrics product={product} short />
+        <div className="mt-auto grid gap-1 pt-1">
+          <BuyButton
+            productId={product.product_id}
+            src="search_extra"
+            searchUid={product.search_uid}
+            position={rank}
+            size="sm"
+          />
+          <Link href={href} prefetch={false} className={`${btnSecondary} ${btnSm} w-full`}>
+            לפרטים
+          </Link>
+        </div>
       </div>
     </article>
   );

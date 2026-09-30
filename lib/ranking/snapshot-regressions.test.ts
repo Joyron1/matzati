@@ -8,7 +8,7 @@ import { snapshotFiles } from "@/lib/eval/files";
 import { parseLabelFile, type Label } from "@/lib/eval/labels";
 import { distinctProducts, parseSnapshot, type Snapshot } from "@/lib/eval/snapshot";
 import { SHARED_NUMBERS, SHOP_CAP_MODES, type ShopCapMode } from "./config";
-import { findSharedNumbers, hasSharedNumbers, rankProducts, rankWithFill } from "./rank";
+import { findSharedNumbers, hasSharedNumbers, rankProducts, rankForSearch } from "./rank";
 import { markIn } from "./shared-numbers";
 
 const DIR = "fixtures/snapshots";
@@ -33,7 +33,7 @@ function load(id: string): { snap: Snapshot; pool: AliProduct[]; label: (p: AliP
 
 /** The list a search shows, under the admin's shop cap mode (the default "none" unless given). */
 const shown = (pool: AliProduct[], snap: Snapshot, mode: ShopCapMode = "none") =>
-  rankWithFill(pool, snap.parse.parsed, RESULTS_PER_PAGE, mode).ranked;
+  rankForSearch(pool, snap.parse.parsed, mode).ranked;
 
 const maxPerShop = (page: AliProduct[]) =>
   Math.max(
@@ -117,7 +117,7 @@ describe.skipIf(!available)("recorded cases on their snapshot pools", () => {
       for (const parsed of [snap.parse.parsed, live]) {
         for (const sort of ["cheapest", "best_value", "most_popular"] as const) {
           const f = { ...parsed, sort_preference: sort };
-          const list = rankWithFill(pool, f, RESULTS_PER_PAGE, "none").ranked;
+          const list = rankForSearch(pool, f, "none").ranked;
           // "Toocki PD 20W USB C To Lightnin Cable For iPhone 15 14 13 ..." (labelled wrong).
           expect(list.map((p) => p.productId)).not.toContain("1005013255643267");
           const page = list.slice(0, RESULTS_PER_PAGE);

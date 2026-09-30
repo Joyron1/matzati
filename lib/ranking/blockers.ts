@@ -3,8 +3,8 @@
 // with the ranking functions, so the numbers are exactly what "Y עברו" would count. No product that
 // failed a filter is ever shown; the count only says what removing the filter would let through.
 import type { AliProduct } from "@/lib/aliexpress/schemas";
-import { RESULTS_PER_PAGE } from "@/lib/config/site";
 import { MAX_CHIP, MIN_CHIP, requirementChipId } from "@/lib/search/chips";
+import { FILL_UP_TO } from "./config";
 import type { SearchFilters } from "@/lib/search/filters";
 import { requirementMatches } from "./match";
 import { capacitySpecs, rankWithFill } from "./rank";
@@ -27,11 +27,16 @@ export interface FilterRelaxation {
 }
 
 /**
- * "Y עברו" for a pool: standard passers, topped up from FILL_TIER to one page, as the pipeline.
- * The shop cap only reorders the list, so the count is the same under every mode ("none" here).
+ * "Y עברו" for a pool: standard passers, topped up from FILL_TIER to `fillTo` (a search's first
+ * view, FILL_UP_TO), as the pipeline. The shop cap only reorders the list, so the count is the same
+ * under every mode ("none" here).
  */
-export function passedCount(pool: readonly AliProduct[], filters: SearchFilters): number {
-  return rankWithFill([...pool], filters, RESULTS_PER_PAGE, "none").ranked.length;
+export function passedCount(
+  pool: readonly AliProduct[],
+  filters: SearchFilters,
+  fillTo: number = FILL_UP_TO,
+): number {
+  return rankWithFill([...pool], filters, fillTo, "none").ranked.length;
 }
 
 /**

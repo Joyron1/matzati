@@ -4,8 +4,12 @@
 import { costUsd } from "@/lib/llm/pricing";
 import type { LlmUsage } from "@/lib/llm/provider";
 
-/** The LLM jobs (CLAUDE.md §2): parse, explain (first page and "show more") and category tips. */
-export const LLM_CALL_KINDS = ["parse", "explain", "explain_more", "tips"] as const;
+/**
+ * The LLM jobs (CLAUDE.md §2): parse, explain (first page and "show more"), the Hebrew titles of
+ * places 6-10 (lib/llm/titles.ts; llm_usage accepts "titles" once 20260930120000_ten_results.sql is
+ * applied, SupabaseStore.logUsage keeps the other rows until then) and category tips.
+ */
+export const LLM_CALL_KINDS = ["parse", "explain", "explain_more", "titles", "tips"] as const;
 
 export type LlmCallKind = (typeof LLM_CALL_KINDS)[number];
 

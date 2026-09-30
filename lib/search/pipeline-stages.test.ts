@@ -7,6 +7,7 @@ import type { z } from "zod";
 import { AliExpressClient } from "@/lib/aliexpress/client";
 import { RESULTS_PER_PAGE } from "@/lib/config/site";
 import { EXPLAIN_SYSTEM } from "@/lib/llm/explain";
+import { TITLES_SYSTEM } from "@/lib/llm/titles";
 import type { ParsedQueryRaw } from "@/lib/llm/parse";
 import type { LlmProvider, StructuredRequest } from "@/lib/llm/provider";
 import { FILL_TIER, FILTERS } from "@/lib/ranking/config";
@@ -52,6 +53,8 @@ const LINES = [
   "כבל שעבר את הסינון ונבחר על ידי קונים רבים.",
 ];
 const TITLE = "כבל טעינה מהיר";
+/** The Hebrew title the titles call writes for places 6-10. */
+const TITLE_ONLY = "כבל USB לטעינה";
 /** A comparison's scope by the number of products compared, as EXPLAIN_SYSTEM lists them. */
 const SCOPES: Record<number, string> = { 2: "השניים", 3: "השלושה", 4: "הארבעה", 5: "החמישה" };
 
@@ -70,11 +73,21 @@ class FakeLlm implements LlmProvider {
   compare = false;
   /** Lines to write next, one per product, before the usual ones. */
   nextLines: string[] = [];
+  /** The English titles of the products of each titles call (places 6-10). */
+  titled: string[][] = [];
+  titlesFailing = false;
   private written = 0;
   constructor(private parse: ParsedQueryRaw = PARSE) {}
 
   async generateStructured<T extends z.ZodType>(req: StructuredRequest<T>) {
     const usage = { inputTokens: 900, outputTokens: 100, cacheReadTokens: 0, cacheWriteTokens: 0 };
+    if (req.system === TITLES_SYSTEM) {
+      const { products } = JSON.parse(req.user) as { products: { id: string; title_en: string }[] };
+      this.titled.push(products.map((p) => p.title_en));
+      if (this.titlesFailing) throw new Error("titles: request timed out");
+      const items = products.map((p) => ({ id: p.id, title_he: TITLE_ONLY }));
+      return { data: { items } as z.infer<T>, usage, model: this.model };
+    }
     if (req.system !== EXPLAIN_SYSTEM) {
       this.parses++;
       return { data: this.parse as z.infer<T>, usage, model: this.model };
@@ -363,7 +376,11 @@ describe("views of a checked pool (plan item 13)", () => {
     const partial = "אביזר משלים, לא הכבל עצמו: מארגן שעבר את הסינון שלנו.";
     pool.lines[page[0]] = { title_he: TITLE, why_he: partial };
     page.slice(1).forEach((id, i) => (pool.lines[id] = { title_he: TITLE, why_he: LINES[5 + i] }));
+    // Places 6-10 have titles already, so nothing at all is written for this view.
+    const ranked = pool.views[viewKeyOf("cheapest", [])].ids;
+    pool.titles = Object.fromEntries(ranked.map((id) => [id, TITLE_ONLY]));
     const calls = llm.explained.length;
+    const titleCalls = llm.titled.length;
     const stages = startSearch({ q: Q, sort: "cheapest" }, deps);
     const shown = await stages.products;
     const final = await stages.final;
@@ -374,6 +391,7 @@ describe("views of a checked pool (plan item 13)", () => {
       demoted: [page[0]],
     });
     expect(llm.explained).toHaveLength(calls);
+    expect(llm.titled).toHaveLength(titleCalls);
     // Nothing pending, so the page never swaps: what shows first is the order that is kept.
     expect(shown.pending).toBe(false);
     expect(shown.response).toEqual(final);
@@ -383,6 +401,65 @@ describe("views of a checked pool (plan item 13)", () => {
     const up = shown.response.results[RESULTS_PER_PAGE - 1];
     expect(up.why_he).toMatch(dataLine(up));
     for (const id of ids(shown.response)) expect(store.products.has(id)).toBe(true);
+  });
+
+  it("explains a product that only had a title (places 6-10) once another view shows it in 1-5", async () => {
+    const { deps, llm, store } = setup();
+    const first = await runSearch({ q: Q }, deps);
+    const entry = store.results.get(first.response.filters_key!)!;
+    const pool = poolOf(entry)!;
+    // The fetch's places 6-10 got titles only: never lines, in the pool or in the result set.
+    const titledOnly = new Set(Object.keys(pool.titles ?? {}));
+    expect(titledOnly.size).toBe(RESULTS_PER_PAGE);
+    for (const id of titledOnly) {
+      expect(pool.lines[id]).toBeUndefined();
+      expect(entry.explanations[id]).toBeUndefined();
+      expect(entry.titles?.[id]).toBe(TITLE_ONLY);
+    }
+    // A sort whose first page holds one of them.
+    const sort = (["cheapest", "most_popular"] as const).find((s) =>
+      pool.views[viewKeyOf(s, [])].ids.slice(0, RESULTS_PER_PAGE).some((id) => titledOnly.has(id)),
+    )!;
+    expect(sort).toBeDefined();
+    const page = pool.views[viewKeyOf(sort, [])].ids.slice(0, RESULTS_PER_PAGE);
+    const moved = page.filter((id) => titledOnly.has(id));
+    const calls = llm.explained.length;
+    const { response, meta } = await runSearch({ q: Q, sort }, deps);
+    expect(meta.derived).toBe(true);
+    // Its title was no line: the explain call of this view wrote one for it.
+    expect(llm.explained.length).toBe(calls + 1);
+    const titleOf = new Map(response.results.map((r) => [r.product_id, r]));
+    for (const id of moved) {
+      const card = titleOf.get(id)!;
+      expect(llm.explained.at(-1)).toContain(card.title_en);
+      expect(card.why_he).not.toBe("");
+      expect(card.why_he).not.toMatch(dataLine(card));
+    }
+    // And the pool now holds its line, beside its title.
+    const after = poolOf(store.results.get(first.response.filters_key!)!)!;
+    for (const id of moved) expect(after.lines[id]).toBeDefined();
+  });
+
+  it("shows places 6-10 of a view with titles already written, and writes only the missing ones", async () => {
+    const { deps, llm, store } = setup();
+    const first = await runSearch({ q: Q }, deps);
+    const pool = poolOf(store.results.get(first.response.filters_key!)!)!;
+    const known = new Set(Object.keys(pool.titles ?? {}));
+    const view = pool.views[viewKeyOf("most_popular", [])].ids;
+    const second = view.slice(RESULTS_PER_PAGE, 2 * RESULTS_PER_PAGE);
+    const titleCalls = llm.titled.length;
+    const { response } = await runSearch({ q: Q, sort: "most_popular" }, deps);
+    const extra = response.extra_results!;
+    expect(extra.map((r) => r.product_id)).toEqual(second);
+    expect(extra.every((r) => r.why_he === "" && r.title_he !== r.title_en)).toBe(true);
+    // Only products without any Hebrew title (no line, no title) went to the titles call.
+    const needed = second.filter((id) => !known.has(id) && !pool.lines[id]);
+    if (needed.length) {
+      expect(llm.titled.length).toBe(titleCalls + 1);
+      expect(llm.titled.at(-1)).toHaveLength(needed.length);
+    } else {
+      expect(llm.titled.length).toBe(titleCalls);
+    }
   });
 
   it("keeps a line already on screen when a new line of the page repeats it", async () => {

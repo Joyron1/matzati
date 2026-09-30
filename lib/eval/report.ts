@@ -1,6 +1,6 @@
 // Runs variants over the snapshots and summarizes and compares the runs. Pure: the script
 // (scripts/eval-offline.ts) does the file I/O.
-import { RESULTS_PER_PAGE } from "@/lib/config/site";
+import { RESULTS_FIRST_VIEW, RESULTS_PER_PAGE } from "@/lib/config/site";
 import { DEFAULT_SHOP_CAP_MODE, RANKING_VERSION, type ShopCapMode } from "@/lib/ranking/config";
 import { labelLetter, labelsFor, type LabelBook } from "./labels";
 import {
@@ -33,6 +33,18 @@ export interface RunSummary {
   exactlyOnePage: string[];
   /** At least two pages passed (the A11 gate wants 90% of queries here). */
   twoPagesOrMore: number;
+  /**
+   * The first view (RESULTS_FIRST_VIEW, 10 since 2026-09-30: the first page and the next): cards
+   * shown in all, the queries that show fewer than a full view (but some), and the labels of its
+   * cards. Absent in saved reports from before it (a comparison computes it again).
+   */
+  firstView?: {
+    shown: number;
+    under: string[];
+    good: number;
+    labelled: number;
+    wrong: number;
+  };
   moreAvailable: number;
   /** Queries with two or more of one shop on the first page (the name is from pages of 3). */
   sameShopTop3: string[];
@@ -121,6 +133,24 @@ export function shopShares(results: readonly QueryResult[]): RunSummary["shops"]
   };
 }
 
+/** RunSummary.firstView over the queries that ran: the first page and the page after it. */
+function firstViewOf(ok: readonly QueryResult[]): NonNullable<RunSummary["firstView"]> {
+  const cards = ok.flatMap((r) => [...r.top3, ...r.next3].slice(0, RESULTS_FIRST_VIEW));
+  const labelled = cards.filter((l) => l.label !== null);
+  return {
+    shown: cards.length,
+    under: ok
+      .filter((r) => {
+        const n = r.top3.length + r.next3.length;
+        return n > 0 && n < RESULTS_FIRST_VIEW;
+      })
+      .map((r) => r.id),
+    good: labelled.filter((l) => l.label === "exact" || l.label === "reasonable").length,
+    labelled: labelled.length,
+    wrong: labelled.filter((l) => l.label === "wrong").length,
+  };
+}
+
 export function summarize(results: QueryResult[]): RunSummary {
   const ok = results.filter((r) => !r.error);
   const ids = (pred: (r: QueryResult) => boolean) => ok.filter(pred).map((r) => r.id);
@@ -140,6 +170,7 @@ export function summarize(results: QueryResult[]): RunSummary {
     underOnePage: ids((r) => r.passed > 0 && r.passed < RESULTS_PER_PAGE),
     exactlyOnePage: ids((r) => r.passed === RESULTS_PER_PAGE),
     twoPagesOrMore: ids((r) => r.passed >= 2 * RESULTS_PER_PAGE).length,
+    firstView: firstViewOf(ok),
     moreAvailable: ids((r) => r.moreAvailable).length,
     sameShopTop3: ids((r) => r.sameShopTop3 >= 2),
     sameShop3Plus: ids((r) => r.sameShopTop3 >= 3),
@@ -320,6 +351,12 @@ export function totalsOf(s: RunSummary): Record<string, number | string | null> 
     "under one page": s.underOnePage.length,
     "exactly one page (no more)": s.exactlyOnePage.length,
     "two pages+ passed": s.twoPagesOrMore,
+    "first view cards (up to 10 each)": s.firstView?.shown ?? null,
+    "under a full first view (1-9)": s.firstView?.under.length ?? null,
+    "first view exact/reasonable": s.firstView
+      ? ratio(s.firstView.good, s.firstView.labelled)
+      : null,
+    "wrong in the first view": s.firstView?.wrong ?? null,
     "more available": s.moreAvailable,
     "2+ same shop on page 1": s.sameShopTop3.length,
     "3+ same shop on page 1": s.sameShop3Plus?.length ?? null,

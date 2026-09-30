@@ -10,7 +10,7 @@ import {
   isRequestedProduct,
   passesFilters,
   rankProducts,
-  rankWithFill,
+  rankForSearch,
   rejectionCounts,
   type RejectReason,
 } from "@/lib/ranking/rank";
@@ -32,13 +32,13 @@ export type RankFn = (
 ) => { ranked: AliProduct[]; fillIds: string[] };
 
 /**
- * What fetchAndRank does after fetching: standard passers, topped up to one page from FILL_TIER,
+ * What fetchAndRank does after fetching: standard passers, topped up to the first view (FILL_UP_TO) from FILL_TIER,
  * under the shop cap mode (the admin's setting; DEFAULT_SHOP_CAP_MODE until one is chosen).
  */
 export const pipelineRankFor =
   (shopCap: ShopCapMode): RankFn =>
   (pool, filters) =>
-    rankWithFill(pool, filters, RESULTS_PER_PAGE, shopCap);
+    rankForSearch(pool, filters, shopCap);
 
 /** pipelineRankFor the default mode. */
 export const pipelineRank: RankFn = pipelineRankFor(DEFAULT_SHOP_CAP_MODE);
@@ -118,7 +118,7 @@ function fetchState(
     pool: [...pool],
     ranked: rankProducts(pool, filters).length,
     // The shop cap only reorders: the count is the same under every mode.
-    passed: rankWithFill(pool, filters, RESULTS_PER_PAGE, "none").ranked.length,
+    passed: rankForSearch(pool, filters, "none").ranked.length,
     rejected: rejectionCounts(pool, filters),
     captured,
   };

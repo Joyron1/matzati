@@ -16,9 +16,9 @@ import { SearchComposer } from "@/components/search-composer";
 import { SearchIdeas } from "@/components/search-guide";
 import { card } from "@/components/styles";
 import { BRAND } from "@/lib/config/brand";
-import { RESULTS_PER_PAGE } from "@/lib/config/site";
+import { RESULTS_FIRST_VIEW, RESULTS_PER_PAGE } from "@/lib/config/site";
 import { nextSale } from "@/lib/deals/queries";
-import { FILL_TIER, FILTERS } from "@/lib/ranking/config";
+import { FILL_TIER, FILL_UP_TO, FILTERS } from "@/lib/ranking/config";
 import { popularSearches } from "@/lib/seo/queries";
 import { seoPath } from "@/lib/seo/slug";
 
@@ -31,13 +31,14 @@ const STEPS = [
   {
     Icon: SlidersHorizontal,
     title: "אנחנו מסננים",
-    // Both tiers (lib/ranking/config.ts): the fill tier only tops up to 3 results.
-    body: `רק מוצרים עם ${FILTERS.minPositiveFeedbackPct}% משוב חיובי ומעלה ולפחות ${FILTERS.minUnitsSold} מכירות ב־30 הימים האחרונים. אם אין מספיק, משלימים ממוצרים עם ${FILL_TIER.minPositiveFeedbackPct}% ומעלה ולפחות ${FILL_TIER.minUnitsSold} מכירות. כל המספרים מאלי אקספרס.`,
+    // Both tiers (lib/ranking/config.ts): the fill tier only tops up to the first view (FILL_UP_TO).
+    body: `רק מוצרים עם ${FILTERS.minPositiveFeedbackPct}% משוב חיובי ומעלה ולפחות ${FILTERS.minUnitsSold} מכירות ב־30 הימים האחרונים. אם אין מספיק, משלימים עד ${FILL_UP_TO} תוצאות ממוצרים עם ${FILL_TIER.minPositiveFeedbackPct}% ומעלה ולפחות ${FILL_TIER.minUnitsSold} מכירות. כל המספרים מאלי אקספרס.`,
   },
   {
     Icon: ListChecks,
-    title: `בוחרים מתוך ${RESULTS_PER_PAGE}`,
-    body: "ליד כל מוצר כתוב למה הוא נבחר. אפשר להסיר סינון ולחפש שוב בלחיצה.",
+    title: `בוחרים מתוך ${RESULTS_FIRST_VIEW}`,
+    // The explained page (RESULTS_PER_PAGE) and places 6-10 under it (RESULTS_FIRST_VIEW).
+    body: `ליד ${RESULTS_PER_PAGE} הראשונים כתוב למה בחרנו בהם, ומתחתם עוד ${RESULTS_FIRST_VIEW - RESULTS_PER_PAGE} שעברו את הסינון. אפשר להסיר סינון ולחפש שוב בלחיצה.`,
   },
 ];
 
@@ -120,7 +121,7 @@ export default function HomePage() {
           >
             <span className="block text-balance">כתבו מה אתם צריכים.</span>
             <span className="block text-balance text-accent">
-              קבלו {RESULTS_PER_PAGE} מוצרים שעברו סינון.
+              קבלו {RESULTS_FIRST_VIEW} מוצרים שעברו סינון.
             </span>
           </h1>
           {/* Not on phones: the H1 and "איך זה עובד" say it too. */}

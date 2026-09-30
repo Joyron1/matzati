@@ -98,7 +98,10 @@ export type SearchFailure =
   | "unavailable";
 
 /** A response to one visitor request: its results carry the uid of its search_log row. */
-export type LoggedSearchResponse = Omit<SearchResponse, "results"> & { results: LoggedResult[] };
+export type LoggedSearchResponse = Omit<SearchResponse, "results" | "extra_results"> & {
+  results: LoggedResult[];
+  extra_results?: LoggedResult[];
+};
 
 export type SearchPageResult =
   | { ok: true; response: LoggedSearchResponse }
@@ -269,7 +272,12 @@ async function logShared(
 
 /** The response for one request, its results tagged with that request's search_log uid. */
 function tagged(response: SearchResponse, searchUid: string): LoggedSearchResponse {
-  return { ...response, results: response.results.map((r) => ({ ...r, search_uid: searchUid })) };
+  const tag = (r: ResultProduct): LoggedResult => ({ ...r, search_uid: searchUid });
+  return {
+    ...response,
+    results: response.results.map(tag),
+    ...(response.extra_results ? { extra_results: response.extra_results.map(tag) } : {}),
+  };
 }
 
 /**
@@ -495,7 +503,7 @@ class RateLimitedError extends Error {
 }
 
 /**
- * "עוד N אפשרויות" for a cached result set. `page` is 1 for the second page (results 6-10). A
+ * "עוד N אפשרויות" for a cached result set. `page` is 1 for the second page (results 6-10, the WhatsApp bot); /search starts at FIRST_MORE_PAGE (2, places 11-15). A
  * page that still needs an explain call counts against the visitor's per-IP limit (when `headers`
  * are given) before the daily LLM budget, so one client cannot drain the budget with parallel
  * requests. Pages that are already explained are free.

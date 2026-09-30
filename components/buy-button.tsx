@@ -2,7 +2,7 @@ import { ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { AFFILIATE_NOTE, BUY_LABEL } from "@/lib/copy";
 import { goHref } from "@/lib/search-url";
-import { btnLg, btnMd, btnPrimary } from "./styles";
+import { btnLg, btnMd, btnPrimary, btnSm } from "./styles";
 
 interface BuyButtonProps {
   productId: string;
@@ -12,9 +12,15 @@ interface BuyButtonProps {
   searchUid?: string;
   /** On a result card: its 1-based rank, logged by /go. */
   position?: number;
-  size?: "lg" | "md";
+  /** "sm": a narrow card (two in a row on a phone): the short label "לקנייה". */
+  size?: "lg" | "md" | "sm";
   className?: string;
 }
+
+const SIZE_CLASS = { lg: btnLg, md: btnMd, sm: btnSm } as const;
+
+/** The visible label of a small buy button; the icon and the card say it leaves for AliExpress. */
+const SHORT_BUY_LABEL = "לקנייה";
 
 /**
  * The affiliate disclosure next to a link that leaves for AliExpress through /go (CLAUDE.md §1):
@@ -48,10 +54,19 @@ export function BuyButton({
         href={goHref(productId, src, { searchUid, position })}
         target="_blank"
         rel="sponsored nofollow noopener"
-        className={`${btnPrimary} ${size === "lg" ? btnLg : btnMd} w-full`}
+        className={`${btnPrimary} ${SIZE_CLASS[size]} w-full`}
       >
-        {BUY_LABEL}
-        <ExternalLink aria-hidden className="size-[18px]" />
+        {size === "sm" ? (
+          // A narrow card (two in a row on a phone, five on desktop): the full label wrapped to two
+          // or three lines (2026-09-30), so it shows "לקנייה" and says the rest to screen readers.
+          <>
+            <span aria-hidden>{SHORT_BUY_LABEL}</span>
+            <span className="sr-only">{BUY_LABEL}</span>
+          </>
+        ) : (
+          BUY_LABEL
+        )}
+        <ExternalLink aria-hidden className="size-[18px] shrink-0" />
         <span className="sr-only">(נפתח בכרטיסייה חדשה)</span>
       </a>
       <AffiliateNoteLink className="self-center" />

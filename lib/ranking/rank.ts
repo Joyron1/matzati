@@ -1,10 +1,12 @@
 // Deterministic filter and rank (CLAUDE.md §6.5-6). Pure: no I/O, no LLM.
 import type { AliProduct } from "@/lib/aliexpress/schemas";
+import { RESULTS_PER_PAGE } from "@/lib/config/site";
 import type { SearchFilters, SortPreference } from "@/lib/search/filters";
 import {
   CATEGORY_CONSISTENCY,
   FEEDBACK_PRIOR,
   FILL_TIER,
+  FILL_UP_TO,
   FILTERS,
   PRICE_FIT,
   SMALL_CAPACITY_FACTOR,
@@ -23,7 +25,7 @@ import {
   tokenize,
   type Spec,
 } from "./match";
-import { asksForSmall, coverageWords, relevance } from "./relevance";
+import { asksForSmall, coverageWords, preferenceFit, relevance } from "./relevance";
 import {
   feedbackForScore,
   findSharedNumbers,
@@ -176,7 +178,8 @@ export function scoreContext(
 }
 
 /**
- * Trust (feedback, volume), price fit and relevance. Within a maximum price the shopper stated,
+ * Trust (feedback, volume), price fit, relevance, and the stated preferences the title says
+ * (preferenceFit: "Number 3" for "יום הולדת 3", WEIGHTS.preference). Within a maximum price the shopper stated,
  * every price fits fully: being cheaper than the budget is no merit (owner decision, item 6). The
  * discount is shown, never scored. A shop that shares numbers gets no feedback above the prior,
  * and a sales number several of its listings share counts once (shared-numbers.ts).
@@ -199,7 +202,8 @@ export function score(p: AliProduct, ctx: ScoreContext): number {
     feedback * w.feedback +
     volume * (filters.sort_preference === "most_popular" ? w.volumeMostPopular : w.volume) +
     priceFit * w.priceFit +
-    relevance(p.title, filters, ctx.words) * w.relevance
+    relevance(p.title, filters, ctx.words) * w.relevance +
+    preferenceFit(p.title, filters) * w.preference
   );
 }
 
@@ -337,8 +341,9 @@ export function trustTierOf(
 
 /**
  * The list a search shows: standard ranking, topped up to `target` results from FILL_TIER only
- * when too few products meet FILTERS, then the shop cap of `shopCap` over pages of `target`
- * (diversifyShops; the admin's setting, lib/settings). Standard products come first, except that
+ * when too few products meet FILTERS (FILL_UP_TO for a search), then the shop cap of `shopCap`
+ * over pages of `pageSize` (diversifyShops; the admin's setting, lib/settings; a search passes
+ * RESULTS_PER_PAGE, the page the cap's first-page share is about; `target` by default). Standard products come first, except that
  * "cheapest" orders the whole list by price, fill products included; every other gate (price,
  * type, requirements) applies to both tiers unchanged. Shared numbers are judged over every
  * product checked (`products`), and the products of a shop that shares them come back marked
@@ -350,6 +355,7 @@ export function rankWithFill(
   filters: SearchFilters,
   target: number,
   shopCap: ShopCapMode,
+  pageSize: number = target,
 ): { ranked: RankedProduct[]; fillIds: string[] } {
   const shared = findSharedNumbers(products);
   const standard = rankEntries(products, filters, FILTERS, shared);
@@ -370,9 +376,22 @@ export function rankWithFill(
   return {
     ranked: diversifyShops(
       merged.map((e) => e.p),
-      target,
+      pageSize,
       shopCap,
     ),
     fillIds,
   };
+}
+
+/**
+ * rankWithFill as a visitor's search ranks: topped up to FILL_UP_TO (the first view, 10) from
+ * FILL_TIER, the shop cap over pages of RESULTS_PER_PAGE. The pipeline, the checked pool's views,
+ * the fetch policy's "passed" count and the offline replay all rank with it.
+ */
+export function rankForSearch(
+  products: AliProduct[],
+  filters: SearchFilters,
+  shopCap: ShopCapMode,
+): { ranked: RankedProduct[]; fillIds: string[] } {
+  return rankWithFill(products, filters, FILL_UP_TO, shopCap, RESULTS_PER_PAGE);
 }

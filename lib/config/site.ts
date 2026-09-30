@@ -2,11 +2,26 @@
 export const RESULTS_PER_PAGE = 5;
 
 /**
- * Ranked products a search keeps (the result set it caches): three pages. "עוד N אפשרויות" shows
- * pages two and three from it, and a fetch saves every one of them to `products` (/p's similar
- * products read them).
+ * Results on the first view of /search (owner decision 2026-09-30: 10, was one page of 5): places
+ * 1 to RESULTS_PER_PAGE with their "why we picked it" lines (the explain call), then places 6-10
+ * as standard product cards with a Hebrew title only (the titles call, lib/llm/titles.ts). The
+ * second trust tier (FILL_TIER, lib/ranking/config.ts) tops a search up to this many.
  */
-export const RESULTS_KEPT = 3 * RESULTS_PER_PAGE;
+export const RESULTS_FIRST_VIEW = 2 * RESULTS_PER_PAGE;
+
+/**
+ * The first page "עוד N אפשרויות" loads on /search (loadMore's page index, 0-based): the page
+ * right after the first view (2: places 11-15). The WhatsApp bot, which shows one page of 5 at a
+ * time, still asks for page 1 (places 6-10) first.
+ */
+export const FIRST_MORE_PAGE = RESULTS_FIRST_VIEW / RESULTS_PER_PAGE;
+
+/**
+ * Ranked products a search keeps (the result set it caches): four pages (owner decision
+ * 2026-09-30, was three). The first view shows 10, "עוד N אפשרויות" places 11-15 and 16-20, and a
+ * fetch saves every one of them to `products` (/p's similar products read them).
+ */
+export const RESULTS_KEPT = 4 * RESULTS_PER_PAGE;
 
 /**
  * Products an SEO landing page (/s/[slug]) shows at most (owner decision 2026-09-29): every product

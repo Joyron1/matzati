@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { Requirement, SearchFilters } from "@/lib/search/filters";
 import { RELEVANCE } from "./config";
-import { asksForSmall, coverageWords, relevance } from "./relevance";
+import {
+  asksForSmall,
+  coverageWords,
+  preferenceFit,
+  relevance,
+  statesPreference,
+  titleSaysPhrase,
+} from "./relevance";
+import { agePhrases } from "@/lib/llm/parse";
 
 const req = (en: string, alt: string[] = []): Requirement => ({ en, alt, he: "דרישה" });
 
@@ -90,5 +98,60 @@ describe("asksForSmall", () => {
     expect(
       asksForSmall({ keywords_en: "power bank 10000mah", product_terms: ["power bank"] }),
     ).toBe(false);
+  });
+});
+
+describe("preferences as whole phrases (an age or number for a birthday)", () => {
+  const three = { words: agePhrases(3), he: "יום הולדת 3" };
+
+  it("reads the phrases sellers title a number with", () => {
+    for (const title of [
+      "Sonic Balloons Number 3 Foil Balloon Birthday Party Decoration",
+      "Sonic 3rd Birthday Party Balloons Set",
+      "Happy Third Birthday Sonic Balloon Kit",
+      "Sonic Balloons for 3 Years Old Boy Birthday",
+      "Sonic Hedgehog Balloon 3-Year-Old Birthday",
+      "Number-3 Gold Foil Balloon Sonic",
+    ]) {
+      expect(statesPreference(title, three)).toBe(true);
+    }
+  });
+
+  it("never matches another number, a count, a size or a range", () => {
+    for (const title of [
+      "Sonic Balloons 3pcs Birthday Party",
+      "Sonic Foil Balloon 3m Ribbon",
+      "3 in 1 Sonic Balloon Set Birthday",
+      "Sonic Balloons for 1-3 Years Kids",
+      "Sonic Number 30 Balloon",
+      "Sonic Number 3-5 Candles",
+      "Sonic 13th Birthday Balloons",
+      "Sonic Balloons 3.5 inch",
+      "Sonic Balloons 23 Years Anniversary",
+    ]) {
+      expect(statesPreference(title, three)).toBe(false);
+    }
+    expect(titleSaysPhrase("Number 3 Balloon", "number 3")).toBe(true);
+    expect(titleSaysPhrase("Number 35 Balloon", "number 3")).toBe(false);
+  });
+
+  it("never counts a phrase's words one by one toward the coverage", () => {
+    const f = {
+      keywords_en: "sonic birthday balloons",
+      requirements: [req("sonic")],
+      preferences: [three],
+    };
+    expect(coverageWords(f)).toEqual(["birthday", "balloon"]);
+  });
+
+  it("is the share of the search's preferences a title states", () => {
+    const f = {
+      preferences: [three, { words: ["laptop", "phone"], he: "לטלפון ולמחשב נייד" }],
+    };
+    expect(preferenceFit("Sonic Number 3 Balloon", f)).toBe(0.5);
+    expect(preferenceFit("Sonic Number 3 Balloon for Phone and Laptop", f)).toBe(1);
+    expect(preferenceFit("Sonic Balloon for Phone", f)).toBe(0);
+    expect(preferenceFit("Sonic Balloon", { preferences: [] })).toBe(0);
+    expect(preferenceFit("Sonic Balloon", {})).toBe(0);
   });
 });

@@ -11,8 +11,11 @@ import { fixSpelling } from "./text-checks";
 // parsedQuerySchema, normalizeParsed or the parse model, so cached parses from the old version are
 // never served. 6: the code guards of docs/search-quality-plan.md A8 (normalizeParsed). 7: a
 // named character, franchise, team or brand is a requirement ("בלונים ליום הולדת של סוניק" found
-// Pokémon balloons, 2026-09-30: "sonic" was only a keyword).
-export const PARSE_VERSION = 7;
+// Pokémon balloons, 2026-09-30: "sonic" was only a keyword). 8: an age or number for a birthday or
+// party item ("יום הולדת 3", "בת 5") is a preference with the seller phrasings of it ("3rd
+// birthday", "number 3"), never a requirement, and the keywords say it the way sellers title it
+// (the `preferences` field; owner request 2026-09-30: no Sonic balloon shown said "3").
+export const PARSE_VERSION = 8;
 
 const MAX_KEYWORD_WORDS = 6;
 const MAX_PRODUCT_TERMS = 4;
@@ -35,6 +38,12 @@ export const parsedQuerySchema = z.object({
       he: z.string(),
     }),
   ),
+  preferences: z.array(
+    z.object({
+      phrases: z.array(z.string()),
+      he: z.string(),
+    }),
+  ),
   keywords_en: z.string(),
   min_price_ils: z.number().nullable(),
   max_price_ils: z.number().nullable(),
@@ -42,7 +51,12 @@ export const parsedQuerySchema = z.object({
   category_hint: z.string().nullable(),
 });
 
-export type ParsedQueryRaw = z.infer<typeof parsedQuerySchema>;
+/**
+ * The model's answer. `preferences` is optional here only for answers recorded before PARSE_VERSION
+ * 8 (fixtures, the offline replay): the schema the model answers with always has it.
+ */
+export type ParsedQueryRaw = Omit<z.infer<typeof parsedQuerySchema>, "preferences"> &
+  Partial<Pick<z.infer<typeof parsedQuerySchema>, "preferences">>;
 
 // Examples are deliberately different from the eval queries (fixtures/llm/), so the eval keeps
 // measuring generalization.
@@ -57,15 +71,16 @@ Fix typos and slang (רמקל=רמקול). "גן ילדים", or "לגן"/"בג�
   - alt: 0-3 other seller phrasings, each whole ("anc", "noise reduction").
   - Numeric spec: number+unit, no space ("65w"), alt empty.
   - A character, franchise, team or brand the user named is always a requirement, in the product's own Latin spelling: סוניק -> "sonic", ספיידרמן -> "spiderman" (alt "spider-man"), פרוזן -> "frozen", מכבי -> "maccabi". Otherwise items of another character pass.
-  - Not requirements: the product itself; what nearly all such products have ("bluetooth" for a speaker); a device it fits or works with, unless many such products would not ("s24" for a phone case); who it is for, the occasion, a general use ("למשרד", "לקמפינג") and praise.
-- keywords_en: 2-4 words as sellers title it: a product_terms phrase plus the main requirement or a use word ("camping"). No gift, occasion, audience or praise words (gift, mom, best) unless part of the product name ("kids scooter"); no synonym pairs ("foldable folding").
+  - Not requirements: the product itself; what nearly all such products have ("bluetooth" for a speaker); a device it fits or works with, unless many such products would not ("s24" for a phone case); who it is for, the occasion, a general use ("למשרד", "לקמפינג") and praise; an age or number (see preferences).
+- preferences: an age or number the user gives for a birthday or party item ("יום הולדת 3", "בת 5", "גיל 40"): one item, phrases the way sellers title it ("3rd birthday", "third birthday", "number 3", "3 years", "3 year old"), he as the user said it ("יום הולדת 3"). Otherwise [].
+- keywords_en: 2-4 words as sellers title it: a product_terms phrase plus the main requirement or a use word ("camping"); with a birthday age or number, that too ("sonic 3rd birthday balloons"). No gift, occasion, audience or praise words (gift, mom, best) unless part of the product name ("kids scooter", "birthday balloons"); no synonym pairs ("foldable folding").
 - min/max_price_ils: a shekel budget only (ש״ח, ₪ or a bare number): עד/בפחות מ/מתחת ל X -> max; מ/מעל/לפחות X -> min; בין X ל־Y -> both. Ages, sizes, specs and models (בת 5, 2 מטר, S24) are not prices. Otherwise null.
 - sort_preference: cheapest for הכי זול, most_popular for popular or best-selling, else best_value.
 - category_hint: broader 2-3 word English phrase or null.
 
 Hebrew labels (product_he, requirement he): short and spelled right, the usual phrase ("אטום לדליפות"), with ״ ׳ never ASCII quotes (ס״מ). Never a price.
 
-Example: "מנורת שולחן מתקפלת נטענת למשרד עד 120 ש״ח" -> {"product_he":"מנורת שולחן למשרד","product_terms":["desk lamp","table lamp"],"requirements":[{"en":"foldable","alt":["folding"],"he":"מתקפלת"},{"en":"rechargeable","alt":["usb charging","built-in battery"],"he":"נטענת"}],"keywords_en":"foldable desk lamp","min_price_ils":null,"max_price_ils":120,"sort_preference":"best_value","category_hint":"office lighting"}`;
+Example: "מנורת שולחן מתקפלת נטענת למשרד עד 120 ש״ח" -> {"product_he":"מנורת שולחן למשרד","product_terms":["desk lamp","table lamp"],"requirements":[{"en":"foldable","alt":["folding"],"he":"מתקפלת"},{"en":"rechargeable","alt":["usb charging","built-in battery"],"he":"נטענת"}],"preferences":[],"keywords_en":"foldable desk lamp","min_price_ils":null,"max_price_ils":120,"sort_preference":"best_value","category_hint":"office lighting"}`;
 
 // Sent on a retry. The parse runs at temperature 0, so repeating the same request would mostly
 // repeat the same unusable answer.
@@ -151,6 +166,8 @@ export type ParseFix =
     }
   | { kind: "requirement_rephrased"; from: string; to: string }
   | { kind: "requirement_dropped"; requirement: string; he: string }
+  /** An age or number the model made a requirement ("3rd birthday") became a preference. */
+  | { kind: "age_preference"; from: string }
   | { kind: "term_added"; term: string; from: string }
   | { kind: "gift_term"; from: string; to: string | null }
   | { kind: "gift_keyword"; from: string; to: string };
@@ -259,11 +276,100 @@ function preferenceWords(phrases: string[], productTerms: string[]): string[] {
   return [...new Set(words)].filter((w) => !said.has(w));
 }
 
+const ORDINAL_WORDS = [
+  "first",
+  "second",
+  "third",
+  "fourth",
+  "fifth",
+  "sixth",
+  "seventh",
+  "eighth",
+  "ninth",
+  "tenth",
+];
+/** The largest age or number a preference names. */
+const MAX_AGE = 120;
+/** Seller phrasings kept per number preference. */
+const MAX_AGE_PHRASES = 10;
+
+/** 1st, 2nd, 3rd, 4th, 11th, 21st, 40th. */
+function ordinal(n: number): string {
+  const tens = n % 100;
+  const suffix = tens >= 11 && tens <= 13 ? "th" : (["th", "st", "nd", "rd"][n % 10] ?? "th");
+  return `${n}${suffix}`;
+}
+
+/**
+ * How sellers title an age or number of a birthday or party item: "3rd birthday", "third
+ * birthday", "number 3", "3 years", "3 year old", "age 3". Whole phrases: the ranking matches
+ * each as a whole and never inside "3pcs", "3m" or "3 in 1" (titleSaysPhrase in
+ * lib/ranking/relevance.ts).
+ */
+export function agePhrases(n: number): string[] {
+  const word = ORDINAL_WORDS[n - 1];
+  return [
+    `${ordinal(n)} birthday`,
+    ...(word ? [`${word} birthday`] : []),
+    `number ${n}`,
+    `${n} years`,
+    `${n} year old`,
+    `age ${n}`,
+  ];
+}
+
+/** The number a phrase names: its digits ("3rd birthday", "number 3") or an ordinal word. */
+function numberIn(phrase: string): number | null {
+  const digits = /(?:^|\s)(\d{1,3})(?:st|nd|rd|th)?(?=\s|$)/.exec(phrase);
+  const word = phrase.split(" ").find((w) => ORDINAL_WORDS.includes(w));
+  const n = digits ? Number(digits[1]) : word ? ORDINAL_WORDS.indexOf(word) + 1 : 0;
+  return n >= 1 && n <= MAX_AGE ? n : null;
+}
+
+/** A requirement phrase that is really an age or number ("3rd birthday", "number 5", "40 years"). */
+const AGE_PHRASE = new RegExp(
+  `^(?:\\d{1,3}(?:st|nd|rd|th)? (?:birthday|years?(?: old)?)|number \\d{1,3}|age \\d{1,3}|(?:${ORDINAL_WORDS.join("|")}) birthday)$`,
+);
+
+/**
+ * The preference for an age or number (PARSE_SYSTEM "preferences"): the model's phrases of 2-3
+ * words that name the number, plus the usual seller phrasings of it (agePhrases). Null when no
+ * phrase names a number from 1 to MAX_AGE: only numbers are taken from the model's preferences.
+ */
+function numberPreference(phrases: string[], he: string): Preference | null {
+  const named = uniquePhrases(phrases.map(english)).filter((p) => {
+    const size = p.split(" ").length;
+    return size >= 2 && size <= 3 && numberIn(p) !== null;
+  });
+  const n = named.length ? numberIn(named[0]) : null;
+  if (n === null) return null;
+  const words = uniquePhrases([...named.filter((p) => numberIn(p) === n), ...agePhrases(n)]);
+  return { words: words.slice(0, MAX_AGE_PHRASES), he: hebrew(he) || `גיל ${n}` };
+}
+
+const PARTY_HE = /יום\s*הולדת|יומולדת|מסיבה|מסיבת/;
+const AGE_HE =
+  /(?:יום\s*הולדת|יומולדת)\s*(?:ה\s*[-־]?\s*)?(\d{1,3})(?!\d)|(?:^|[^א-ת])[לו]?(?:בן|בת|גיל)\s*[-־]?\s*(\d{1,3})(?!\d)/;
+
+/**
+ * The age or number of a birthday or party request, from the Hebrew itself ("ליום הולדת 3", "מסיבה
+ * לבת 5"), for a parse whose model left it out: the same preference the model should have given.
+ */
+function agePreferenceFrom(query: string): Preference | null {
+  if (!PARTY_HE.test(query)) return null;
+  const m = AGE_HE.exec(query);
+  if (!m) return null;
+  const n = Number(m[1] ?? m[2]);
+  if (!(n >= 1 && n <= MAX_AGE)) return null;
+  return { words: agePhrases(n), he: m[1] ? `יום הולדת ${n}` : `גיל ${n}` };
+}
+
 function normalizeRequirements(
   raw: ParsedQueryRaw["requirements"],
   productTerms: string[],
   fixes: ParseFix[],
   preferences: Preference[],
+  ages: Preference[],
 ): Requirement[] {
   // A phrase that every product term already says is met by any matching title, so it would
   // filter nothing while its chip promised something (the eval's must_have ["smart", "watch"]).
@@ -283,8 +389,17 @@ function normalizeRequirements(
     // An empty en is replaced by the first alt, so a stated requirement is not silently lost.
     const phrases = uniquePhrases([r.en, ...r.alt].map(english)).filter((p) => !covered(p));
     if (!phrases.length) continue;
-    const kept = sellerPhrases(phrases, fixes);
     const he = hebrew(r.he);
+    // An age or number is never a filter: "3rd birthday" would drop every balloon that says
+    // "Number 3". It is the number preference instead.
+    const age = phrases.find((p) => AGE_PHRASE.test(p));
+    if (age) {
+      fixes.push({ kind: "age_preference", from: phrases[0] });
+      const pref = numberPreference(phrases, he);
+      if (pref) ages.push(pref);
+      continue;
+    }
+    const kept = sellerPhrases(phrases, fixes);
     if (!kept.length) {
       // Its chip goes too: a chip must name a filter that runs. What the shopper asked for stays
       // as a preference (plan item 8): its words raise relevance, and the page says it was not
@@ -448,13 +563,25 @@ export function normalizeParsedWithFixes(
   const hint = raw.category_hint === null ? "" : english(raw.category_hint);
   const category = noGarden ? withoutGarden(hint) : hint;
 
-  const preferences: Preference[] = [];
+  const dropped: Preference[] = [];
+  const ages: Preference[] = [];
+  // Against the model's own terms: an added plain term must not turn a phrase every term says
+  // ("wireless" for ["wireless earbuds"]) into a requirement.
+  const requirements = normalizeRequirements(raw.requirements, modelTerms, fixes, dropped, ages);
+  for (const p of raw.preferences ?? []) {
+    const pref = numberPreference(p.phrases, p.he);
+    if (pref) ages.push(pref);
+  }
+  const fromQuery = ages.length ? null : agePreferenceFrom(query);
+  // One number preference (the first the model named), before the needs no title could state.
+  const preferences = [
+    ...[...ages, ...(fromQuery ? [fromQuery] : [])].slice(0, 1),
+    ...dropped,
+  ].slice(0, MAX_REQUIREMENTS);
   const parsed: ParsedQuery = {
     keywords_en: words.join(" "),
     product_terms: productTerms,
-    // Against the model's own terms: an added plain term must not turn a phrase every term says
-    // ("wireless" for ["wireless earbuds"]) into a requirement.
-    requirements: normalizeRequirements(raw.requirements, modelTerms, fixes, preferences),
+    requirements,
     ...(preferences.length ? { preferences } : {}),
     ...(min !== undefined ? { min_price_ils: min } : {}),
     ...(max !== undefined ? { max_price_ils: max } : {}),

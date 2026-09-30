@@ -31,6 +31,8 @@ class FakeDb {
   calls: { table: string; op: Op; payload?: unknown; options?: unknown }[] = [];
   /** "table:op" pairs that answer with an error; "throw" makes from() throw instead. */
   failing = new Set<string>();
+  /** A write with a row this refuses fails whole, as a check constraint fails an insert. */
+  refuses: ((table: string, row: Row) => boolean) | null = null;
 
   rows(table: string): Row[] {
     if (!this.tables.has(table)) this.tables.set(table, []);
@@ -109,6 +111,9 @@ class FakeQuery implements PromiseLike<{ data: unknown; error: { message: string
       this.filters.every(([c, v]) => value(r, c) === v) &&
       this.inFilters.every(([c, vs]) => vs.includes(value(r, c)));
     const payload = (Array.isArray(this.payload) ? this.payload : [this.payload]) as Row[];
+    if (op !== "select" && payload.some((r) => db.refuses?.(table, r))) {
+      return { data: null, error: { message: "violates check constraint" } };
+    }
     if (op === "select") {
       const found = rows.filter(matches).map((r) => structuredClone(r));
       return { data: this.single ? (found[0] ?? null) : found, error: null };
@@ -540,6 +545,33 @@ describe("SupabaseStore", () => {
       const db = new FakeDb();
       await new SupabaseStore(db.client()).logUsage([]);
       expect(db.calls).toHaveLength(0);
+    });
+
+    it("keeps the other calls when llm_usage does not accept 'titles' yet (before the migration)", async () => {
+      const db = new FakeDb();
+      // 20260930120000_ten_results.sql not applied: the old check refuses the whole insert.
+      db.refuses = (table, row) => table === "llm_usage" && row.kind === "titles";
+      const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+      const call = (kind: "parse" | "explain" | "titles") => ({
+        kind,
+        model: "claude-haiku-4-5",
+        usage: { inputTokens: 900, outputTokens: 100, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      });
+      try {
+        await new SupabaseStore(db.client()).logUsage([
+          call("parse"),
+          call("explain"),
+          call("titles"),
+        ]);
+      } finally {
+        errors.mockRestore();
+      }
+      expect(db.calls.filter((c) => c.table === "llm_usage")).toHaveLength(2);
+      expect(db.rows("llm_usage").map((r) => r.kind)).toEqual(["parse", "explain"]);
+      // Once applied, the titles call is written with the others.
+      const applied = new FakeDb();
+      await new SupabaseStore(applied.client()).logUsage([call("parse"), call("titles")]);
+      expect(applied.rows("llm_usage").map((r) => r.kind)).toEqual(["parse", "titles"]);
     });
   });
 

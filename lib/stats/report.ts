@@ -101,10 +101,19 @@ export interface FailureStats {
 }
 
 /**
- * Result-card positions (stats_click_positions, 20260928230000_five_results.sql): 1 (featured),
- * the rest of the first page (2 to RESULTS_PER_PAGE), and the pages of "עוד N אפשרויות" after it.
+ * Result-card positions (stats_click_positions, 20260930120000_ten_results.sql): 1 (featured),
+ * the rest of the explained page (2 to RESULTS_PER_PAGE), places 6-10 of the first view
+ * (RESULTS_FIRST_VIEW, standard cards), and the pages of "עוד N אפשרויות" after it (11 and up).
+ * The group names differ from the earlier function's ("more" was 6 and up): until the migration
+ * is applied, that function's rows fail the schema and the section says it could not load, rather
+ * than count places 6-10 as "עוד".
  */
-export const CLICK_POSITION_GROUPS = ["featured", "first_page", "more"] as const;
+export const CLICK_POSITION_GROUPS = [
+  "featured",
+  "first_page",
+  "first_view",
+  "more_pages",
+] as const;
 export type ClickPositionGroup = (typeof CLICK_POSITION_GROUPS)[number];
 
 export interface ClickPositionStats {

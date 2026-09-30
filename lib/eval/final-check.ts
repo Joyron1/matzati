@@ -99,7 +99,9 @@ export interface Caps {
 /**
  * Hard caps for one day's final check. LLM: the plan's ~58 calls (29 searches, a parse and an
  * explain each) plus a little room for retries. AliExpress: the plan's "up to 87" (29 x 3
- * product.query), which the owner approved.
+ * product.query), which the owner approved. Unchanged since the first view of 10 (2026-09-30): a
+ * search may now make a titles call and a 4th product.query, so a full run can reach a cap before
+ * its last query; the request past a cap is never sent, and that query is recorded as capped.
  */
 export const FINAL_CAPS: Caps = { llmRequests: 60, aliRequests: 87 };
 
@@ -109,22 +111,30 @@ export const PARSE_ATTEMPTS = 2;
 export const ALI_RETRIES = 2;
 /** ensureLinks (lib/search/pipeline.ts): at most one link.generate call (12 products, one batch). */
 export const LINK_CALLS_PER_SEARCH = 1;
-/** Per call, from llm_usage (Haiku 4.5, 2026-09-28; docs/search-quality-plan.md): estimates. */
-export const UNIT_USD = { parse: 0.00195, explain: 0.00263 } as const;
+/**
+ * Per call, from llm_usage (Haiku 4.5, 2026-09-28; docs/search-quality-plan.md): estimates. The
+ * titles call (places 6-10, 2026-09-30) is not measured yet: about 700 input and 200 output tokens
+ * for 5 titles, so about $0.0017 at $1 / $5 per million tokens (lib/llm/pricing.ts).
+ */
+export const UNIT_USD = { parse: 0.00195, explain: 0.00263, titles: 0.0017 } as const;
+
+/** Calls a search makes without a retry or an unusable answer: a parse, an explain, a titles. */
+export const LLM_CALLS_PER_SEARCH = 3;
 
 /** The most requests one search can make, from the pipeline's own limits. */
 export interface SearchBound {
-  llm: { parse: number; explain: number; total: number };
+  llm: { parse: number; explain: number; titles: number; total: number };
   ali: { calls: number; tries: number; total: number };
 }
 
 export function searchBound(): SearchBound {
   const parse = PARSE_ATTEMPTS * (1 + LLM_STAGE_LIMITS.parse.maxRetries);
   const explain = 1 + LLM_STAGE_LIMITS.explain.maxRetries;
+  const titles = 1 + LLM_STAGE_LIMITS.titles.maxRetries;
   const calls = MAX_ALI_CALLS + LINK_CALLS_PER_SEARCH;
   const tries = 1 + ALI_RETRIES;
   return {
-    llm: { parse, explain, total: parse + explain },
+    llm: { parse, explain, titles, total: parse + explain + titles },
     ali: { calls, tries, total: calls * tries },
   };
 }
@@ -164,7 +174,7 @@ export interface FinalPlan {
   bound: SearchBound;
   llm: Budget;
   ali: Budget;
-  /** A parse and an explain call per search to run, at UNIT_USD. */
+  /** A parse, an explain and a titles call per search to run, at UNIT_USD. */
   expectedUsd: number;
 }
 
@@ -220,9 +230,9 @@ export function planFinalRun(
     selected: only ? planned.filter((p) => only.has(p.id)).map((p) => p.id) : null,
     toRun,
     bound,
-    llm: budget(caps.llmRequests, used.llm, bound.llm.total, 2),
+    llm: budget(caps.llmRequests, used.llm, bound.llm.total, LLM_CALLS_PER_SEARCH),
     ali: budget(caps.aliRequests, used.ali, bound.ali.total, bound.ali.calls),
-    expectedUsd: round(toRun.length * (UNIT_USD.parse + UNIT_USD.explain), 4),
+    expectedUsd: round(toRun.length * (UNIT_USD.parse + UNIT_USD.explain + UNIT_USD.titles), 4),
   };
 }
 
@@ -248,7 +258,7 @@ export function formatPlan(plan: FinalPlan): string {
   }
   lines.push(
     `  Most per search: LLM ${bound.llm.total} requests (parse ${PARSE_ATTEMPTS} attempts x ` +
-      `${1 + LLM_STAGE_LIMITS.parse.maxRetries} tries, explain ${bound.llm.explain}); AliExpress ` +
+      `${1 + LLM_STAGE_LIMITS.parse.maxRetries} tries, explain ${bound.llm.explain}, titles ${bound.llm.titles}); AliExpress ` +
       `${bound.ali.total} requests (${MAX_ALI_CALLS} product.query + ${LINK_CALLS_PER_SEARCH} link.generate, ` +
       `${bound.ali.tries} tries each).`,
     `  LLM requests:        at most ${llm.max} (hard cap ${llm.cap} for the whole check, ${llm.used} used by earlier runs; ` +

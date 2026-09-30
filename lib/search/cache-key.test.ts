@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CACHE_TTL_DAYS,
+  canonicalFilters,
   CACHE_TTL_HOURS,
   DEGRADED_RESULTS_TTL_HOURS,
   EMPTY_RESULTS_TTL_HOURS,
@@ -9,7 +10,11 @@ import {
   isFreshResults,
   normalizeQuery,
   queryKey,
+  RESULTS_SHAPE,
 } from "./cache-key";
+import { EXPLAIN_VERSION } from "@/lib/llm/explain";
+import { TITLES_VERSION } from "@/lib/llm/titles";
+import { RANKING_VERSION } from "@/lib/ranking/config";
 import type { SearchFilters } from "./filters";
 
 describe("normalizeQuery", () => {
@@ -48,6 +53,26 @@ describe("filtersKey", () => {
   };
   /** The key under the default shop cap mode. */
   const fk = (f: Parameters<typeof filtersKey>[0]) => filtersKey(f, "none");
+
+  it("holds every version and the result set's shape, so an older set is never served", () => {
+    const canon = canonicalFilters(base, "none");
+    expect(canon).toMatchObject({
+      rv: RANKING_VERSION,
+      ev: EXPLAIN_VERSION,
+      tv: TITLES_VERSION,
+      rs: RESULTS_SHAPE,
+    });
+    // 10 on the first view (5 explained), 20 kept: the 5 / 15 sets of before have another key.
+    expect(RESULTS_SHAPE).toBe("10/5/20");
+    expect(RANKING_VERSION).toBeGreaterThanOrEqual(10);
+  });
+
+  it("holds the preferences' whole phrases (an age), so another age never shares a result set", () => {
+    const three = { ...base, preferences: [{ words: ["3rd birthday", "number 3"], he: "3" }] };
+    const four = { ...base, preferences: [{ words: ["4th birthday", "number 4"], he: "4" }] };
+    expect(fk(three)).not.toBe(fk(four));
+    expect(fk(three)).not.toBe(fk(base));
+  });
 
   it("holds the shop cap mode, so a list ranked under one mode is never served under the other", () => {
     expect(filtersKey(base, "none")).not.toBe(filtersKey(base, "max2"));

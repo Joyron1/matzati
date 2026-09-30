@@ -10,7 +10,8 @@
 // /dev/preview/search-results   the finished results at once
 // /dev/preview/search-update    a sort change: its buttons move to another view of the same search
 //                               (ranked in 0.3 s, complete at 2 s), or with ?slow=1 a new fetch
-// ?n=<results per page> on each (RESULTS_PER_PAGE by default), ?sort=<sort>.
+// ?n=<results per page> on each (RESULTS_PER_PAGE by default), ?x=<places 6-10 shown> (5 after a
+// full page, else 0), ?sort=<sort>.
 import type { ReactNode } from "react";
 import {
   completeResults,
@@ -106,7 +107,65 @@ const PRODUCTS: {
     pct: 97.5,
     sold: 860,
   },
+  {
+    en: "Adjustable Drawer Dividers Spring Loaded Expandable Organizer 4 Pack",
+    he: "מחיצות קפיץ מתכווננות למגירה, 4 יחידות",
+    why: "",
+    data: "96.8% משוב חיובי ו־745 נמכרו ב־30 הימים האחרונים.",
+    price: 14.2,
+    pct: 96.8,
+    sold: 745,
+  },
+  {
+    en: "Adjustable Makeup Drawer Organizer Stackable Clear Trays",
+    he: "מגשי איפור שקופים ומתכווננים למגירה",
+    why: "",
+    data: "98% משוב חיובי ו־612 נמכרו ב־30 הימים האחרונים.",
+    price: 12.9,
+    pct: 98,
+    sold: 612,
+  },
+  {
+    en: "Adjustable Office Desk Drawer Organizer Tray",
+    he: "מגש מתכוונן למגירת שולחן משרדי",
+    why: "",
+    data: "95.1% משוב חיובי ו־433 נמכרו ב־30 הימים האחרונים.",
+    price: 17.8,
+    pct: 95.1,
+    sold: 433,
+  },
+  {
+    en: "Adjustable Sock Drawer Organizer Foldable 16 Grids",
+    he: "מארגן גרביים מתקפל למגירה, 16 תאים",
+    why: "",
+    data: "97.3% משוב חיובי ו־389 נמכרו ב־30 הימים האחרונים.",
+    price: 8.6,
+    pct: 97.3,
+    sold: 389,
+  },
+  {
+    en: "Adjustable Bamboo Utensil Drawer Organizer Expandable Cutlery Tray",
+    he: "מגש סכו״ם מבמבוק מתרחב למגירה",
+    why: "",
+    data: "93.4% משוב חיובי ו־27 נמכרו ב־30 הימים האחרונים.",
+    price: 19.9,
+    pct: 93.4,
+    sold: 27,
+  },
 ];
+
+/** Products of places 6-10: standard cards, a Hebrew title and no line. */
+function extraResults(from: number, count: number, sort: SortPreference, written: boolean) {
+  return results(from + count, sort, written)
+    .slice(from)
+    .map((r, i) => ({
+      ...r,
+      why_he: "",
+      // One shows the shared-numbers note, the last one met the second tier only.
+      ...(i === 1 ? { shared_numbers: { feedback: true, sales: false } } : {}),
+      ...(r.units_sold !== null && r.units_sold < 100 ? { passed_tier: "fill" as const } : {}),
+    }));
+}
 
 /** The first `n` products in the order of `sort`: as ranked, or with their lines written. */
 function results(n: number, sort: SortPreference, written: boolean): LoggedResult[] {
@@ -135,15 +194,22 @@ function results(n: number, sort: SortPreference, written: boolean): LoggedResul
   }));
 }
 
-function response(shown: LoggedResult[], sort: SortPreference, now: Date): LoggedSearchResponse {
+function response(
+  shown: LoggedResult[],
+  extra: LoggedResult[],
+  sort: SortPreference,
+  now: Date,
+): LoggedSearchResponse {
   return {
     query: PREVIEW_QUERY,
     chips: PREVIEW_CHIPS,
     sort,
     checked_count: 150,
-    passed_count: shown.length ? 12 : 0,
+    passed_count: shown.length ? 17 : 0,
     results: shown,
+    extra_results: extra,
     more_available: shown.length > 0,
+    more_after_first_view: extra.length === RESULTS_PER_PAGE,
     filters_key: `preview-${sort}-${shown.length}`,
     cached: false,
     fetched_at: now.toISOString(),
@@ -162,6 +228,8 @@ type PreviewCase = (typeof CASES)[number];
 
 interface Stages {
   n: number;
+  /** Places 6-10 after a full first page (standard cards). */
+  x: number;
   sort: SortPreference;
   kind: PreviewCase;
   /** Understood, ranked and complete, in ms. */
@@ -174,9 +242,12 @@ interface Stages {
  * The view of a made-up search, built exactly as app/search/page.tsx builds it, its results made
  * inert (they link to /search).
  */
-function previewView(now: Date, { n, sort, kind, u, r, d }: Stages): SearchViewData {
+function previewView(now: Date, { n, x, sort, kind, u, r, d }: Stages): SearchViewData {
   const props: SearchViewProps = { q: PREVIEW_QUERY, sort, without: [], retryHref: "#" };
   const count = kind === "empty" ? 0 : n;
+  const extraCount = count ? Math.min(x, PRODUCTS.length - count) : 0;
+  // A cached set shows its titles at once; after a failed call they are AliExpress's.
+  const extra = (titled: boolean) => extraResults(count, extraCount, sort, titled);
   const failed = { ok: false as const, error: "upstream" as const };
   const stream: SearchStream = {
     understood: after(u, {
@@ -189,7 +260,12 @@ function previewView(now: Date, { n, sort, kind, u, r, d }: Stages): SearchViewD
         : after(r, {
             ok: true as const,
             value: {
-              response: response(results(count, sort, kind === "cached"), sort, now),
+              response: response(
+                results(count, sort, kind === "cached"),
+                extra(kind === "cached"),
+                sort,
+                now,
+              ),
               // A cached set shows at once; nothing is written for an empty one.
               pending: count > 0 && kind !== "cached",
             },
@@ -199,7 +275,12 @@ function previewView(now: Date, { n, sort, kind, u, r, d }: Stages): SearchViewD
         ? after(r, failed)
         : after(d, {
             ok: true as const,
-            value: response(results(count, sort, kind !== "data"), sort, now),
+            value: response(
+              results(count, sort, kind !== "data"),
+              extra(kind !== "data"),
+              sort,
+              now,
+            ),
           }),
   };
   const started: Promise<Staged<SearchStream>> = Promise.resolve({ ok: true, value: stream });
@@ -247,6 +328,8 @@ export function SearchPreview({
   note: (text: string) => ReactNode;
 }) {
   const n = Math.max(1, numberParam(params.n, RESULTS_PER_PAGE, PRODUCTS.length));
+  // Places 6-10 follow a full first page only (fewer passed otherwise).
+  const x = numberParam(params.x, n === RESULTS_PER_PAGE ? RESULTS_PER_PAGE : 0, RESULTS_PER_PAGE);
   const sort = parseSort(params.sort) ?? "best_value";
   const kind = CASES.find((c) => c === first(params.case)) ?? "written";
 
@@ -255,6 +338,7 @@ export function SearchPreview({
     const slow = first(params.slow) === "1";
     const view = previewView(now, {
       n,
+      x,
       sort,
       kind,
       u: opening ? 0 : 150,
@@ -287,6 +371,7 @@ export function SearchPreview({
   const instant = screen === "search-results";
   const view = previewView(now, {
     n,
+    x,
     sort,
     kind,
     u: instant ? 0 : numberParam(params.u, 1_800, 60_000),

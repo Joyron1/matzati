@@ -14,23 +14,24 @@
 // to remove it (lib/ranking/blockers.ts).
 import { MAX_PAGE_SIZE } from "@/lib/aliexpress/affiliate";
 import type { AliProduct } from "@/lib/aliexpress/schemas";
-import { RESULTS_PER_PAGE, SEO_MAX_PRODUCTS } from "@/lib/config/site";
+import { RESULTS_FIRST_VIEW, RESULTS_PER_PAGE, SEO_MAX_PRODUCTS } from "@/lib/config/site";
 import { passedCount, requirementBlocksAll } from "@/lib/ranking/blockers";
-import { FILL_TIER, FILTERS } from "@/lib/ranking/config";
+import { FILL_TIER, FILL_UP_TO, FILTERS } from "@/lib/ranking/config";
 import { rejectionCounts } from "@/lib/ranking/rank";
 import type { ParsedQuery } from "./filters";
 
-/** product.query calls per search at most: the app key's quota is shared by every visitor. */
-export const MAX_ALI_CALLS = 3;
 /**
- * Fetch until this many products pass: two pages, so "עוד N אפשרויות" is a full page (10 for pages
- * of 5; it was 6 for pages of 3). Measured on the 32 snapshots (npm run eval:offline -- --compare
- * current-6,current, 2026-09-28, docs/search-quality-wave-a.md "Five results"): 10 instead of 6
- * makes 44 replayed calls instead of 38 and 4 more queries want a call the snapshots lack (about 10
- * more calls live, 0.3 per search), still at most MAX_ALI_CALLS; it fills page 2 in 4 more queries
- * and takes one wrong card off ex-8's first page.
+ * product.query calls per search at most: the app key's quota is shared by every visitor. Owner
+ * decision 2026-09-30: 4 (was 3), so a niche search (a character's party items) can reach the
+ * first view of 10 and a page after it.
  */
-export const TARGET_PASSED = 2 * RESULTS_PER_PAGE;
+export const MAX_ALI_CALLS = 4;
+/**
+ * Fetch until this many products pass: the first view (RESULTS_FIRST_VIEW, 10) and one page of
+ * "עוד N אפשרויות" (owner decision 2026-09-30: 15, was 10 for one page of 5 and a page after it).
+ * The offline numbers of the change are in CLAUDE.md §6.4.
+ */
+export const TARGET_PASSED = RESULTS_FIRST_VIEW + RESULTS_PER_PAGE;
 /** Checked products after which a requirement that blocks everything stops the search. */
 export const REQUIREMENT_STOP_CHECKED = 100;
 /** Pages of the primary keywords at most; later calls go to broader keywords. */
@@ -43,25 +44,34 @@ export interface FetchLimits {
   maxCalls: number;
   /** Pages of the primary keywords at most. */
   primaryPages: number;
+  /**
+   * How many results FILL_TIER tops the ranking up to (rankWithFill's target): what "passed"
+   * counts, and while fewer pass, the next page of the primary keywords may still pass at
+   * FILL_TIER's sales bar.
+   */
+  fillTo: number;
 }
 
-/** A visitor's search: two pages pass, 3 calls, 2 pages of the primary keywords. */
+/** A visitor's search: 15 pass, 4 calls, 2 pages of the primary keywords, filled up to 10. */
 export const SEARCH_FETCH: FetchLimits = {
   target: TARGET_PASSED,
   maxCalls: MAX_ALI_CALLS,
   primaryPages: PRIMARY_PAGES,
+  fillTo: FILL_UP_TO,
 };
 
 /**
  * An SEO landing page's refresh (lib/search/seo-run.ts, owner decision 2026-09-29): it shows up to
  * SEO_MAX_PRODUCTS passers, so it may make up to 5 calls (the same steps in the same order, spaced
  * the same way), and take more pages of the primary keywords while they can pass the trust bar.
- * Only the refresh uses it: a visitor's search keeps SEARCH_FETCH.
+ * Only the refresh uses it: a visitor's search keeps SEARCH_FETCH. Its ranking fills up to one
+ * page (RESULTS_PER_PAGE), as before the first view of 10 (lib/search/seo-run.ts).
  */
 export const SEO_FETCH: FetchLimits = {
   target: SEO_MAX_PRODUCTS,
   maxCalls: 5,
   primaryPages: 5,
+  fillTo: RESULTS_PER_PAGE,
 };
 
 /** Words in a keyword step built from a product phrase and a requirement, at most. */
@@ -107,9 +117,37 @@ const bare = (w: string) => w.replace(/['’]s?$/, "");
 /** Keyword sets are compared as sets of words: AliExpress does not care about their order. */
 const wordSet = (s: string) => [...new Set(words(s))].sort().join(" ");
 
+/** Words that name a number but hold no digit ("third birthday", "number 3", "3 years old"). */
+const NUMBER_WORDS = new Set(
+  "first second third fourth fifth sixth seventh eighth ninth tenth number age year years old".split(
+    " ",
+  ),
+);
+
 /**
- * What a keyword step is: the parse's own keywords, those without audience and praise words
- * ("general"), also without the requirement words ("reduced"), a product phrase with the main
+ * The words of the preferences' whole phrases (lib/ranking/relevance.ts) that say a number: its
+ * digits ("3", "3rd") and the words around one ("number", "third", "years"). A product phrase or a
+ * requirement never loses a word this way.
+ */
+function preferenceNumberWords(parsed: ParsedQuery): Set<string> {
+  const kept = new Set(
+    [parsed.product_terms[0] ?? "", ...parsed.requirements.flatMap((r) => [r.en, ...r.alt])]
+      .flatMap(words)
+      .map(bare),
+  );
+  return new Set(
+    (parsed.preferences ?? [])
+      .flatMap((p) => p.words)
+      .filter((phrase) => /\d/.test(phrase) || words(phrase).some((w) => NUMBER_WORDS.has(w)))
+      .flatMap(words)
+      .filter((w) => (/\d/.test(w) || NUMBER_WORDS.has(w)) && !kept.has(w)),
+  );
+}
+
+/**
+ * What a keyword step is: the parse's own keywords, those without audience and praise words and
+ * without the number a preference names ("general": "sonic birthday balloons" after "sonic 3rd
+ * birthday balloons"), also without the requirement words ("reduced"), a product phrase with the main
  * requirement ("term"), or the broader category hint ("category").
  */
 export type KeywordKind = "primary" | "general" | "reduced" | "term" | "category";
@@ -136,7 +174,12 @@ export function keywordSteps(parsed: ParsedQuery): KeywordStep[] {
     const b = bare(w.toLowerCase());
     return AUDIENCE.has(b) && !nameTokens.has(b);
   };
-  const general = tokens.filter((w) => !FILLER.has(w.toLowerCase()) && !audience(w));
+  // An age or number the search prefers ("sonic 3rd birthday balloons" for "יום הולדת 3") narrows
+  // the keyword search like an audience word, and it is no filter: broader steps drop it.
+  const numbers = preferenceNumberWords(parsed);
+  const general = tokens.filter(
+    (w) => !FILLER.has(w.toLowerCase()) && !audience(w) && !numbers.has(w.toLowerCase()),
+  );
   const reduced = general.filter((w) => !reqTokens.has(w.toLowerCase()));
 
   // The primary keywords always come first, as the parse gave them.
@@ -210,13 +253,14 @@ export type FetchDecision = { step: FetchStep } | { stop: FetchStop };
  * The next page of the primary keywords, when AliExpress has more and it can still pass the
  * trust bar. Results come by sales (LAST_VOLUME_DESC), so no product on the next page sold more
  * than the fewest on this one: once those are under the bar, the next page cannot pass. The bar is
- * FILL_TIER's while fewer than a page pass (FILL_TIER tops the first page up), FILTERS' after.
+ * FILL_TIER's while fewer than `fillTo` pass (FILL_TIER tops the first view up), FILTERS' after.
  */
 function nextPrimaryPage(
   s: FetchProgress,
   primary: string,
   passed: number,
   primaryPages: number,
+  fillTo: number,
 ): FetchStep | null {
   const last = s.calls
     .filter((c) => c.keywords === primary)
@@ -227,9 +271,7 @@ function nextPrimaryPage(
       ? last.totalRecords > last.pageNo * MAX_PAGE_SIZE
       : last.count >= FULL_PAGE_WITHOUT_TOTAL;
   const bar =
-    passed < RESULTS_PER_PAGE
-      ? Math.min(FILL_TIER.minUnitsSold, FILTERS.minUnitsSold)
-      : FILTERS.minUnitsSold;
+    passed < fillTo ? Math.min(FILL_TIER.minUnitsSold, FILTERS.minUnitsSold) : FILTERS.minUnitsSold;
   if (!more || last.lowestUnitsSold === null || last.lowestUnitsSold < bar) return null;
   return { keywords: primary, pageNo: last.pageNo + 1 };
 }
@@ -249,13 +291,14 @@ export function nextFetch(
     target = SEARCH_FETCH.target,
     maxCalls = SEARCH_FETCH.maxCalls,
     primaryPages = SEARCH_FETCH.primaryPages,
+    fillTo = SEARCH_FETCH.fillTo,
   }: Partial<FetchLimits> = {},
 ): FetchDecision {
   const steps = keywordSteps(s.filters);
   const primary = steps[0].keywords;
   if (!s.calls.length) return { step: { keywords: primary, pageNo: 1 } };
   if (s.calls.length >= maxCalls) return { stop: "calls" };
-  const passed = passedCount(s.pool, s.filters);
+  const passed = passedCount(s.pool, s.filters, fillTo);
   if (passed >= target) return { stop: "enough" };
   if (
     s.pool.length >= REQUIREMENT_STOP_CHECKED &&
@@ -265,7 +308,7 @@ export function nextFetch(
   }
   const r = rejectionCounts([...s.pool], s.filters);
   const trustLimited = r.feedback + r.volume > r.type + r.requirement;
-  const page = nextPrimaryPage(s, primary, passed, primaryPages);
+  const page = nextPrimaryPage(s, primary, passed, primaryPages, fillTo);
   if (page && !trustLimited) return { step: page };
   const tried = new Set(s.calls.map((c) => wordSet(c.keywords)));
   for (const kind of trustLimited ? TRUST_ORDER : RELEVANCE_ORDER) {

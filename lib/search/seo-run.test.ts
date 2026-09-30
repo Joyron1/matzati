@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import type { z } from "zod";
 import { AliExpressClient } from "@/lib/aliexpress/client";
-import { RESULTS_PER_PAGE, SEO_MAX_PRODUCTS } from "@/lib/config/site";
+import { RESULTS_KEPT, RESULTS_PER_PAGE, SEO_MAX_PRODUCTS } from "@/lib/config/site";
 import { EXPLAIN_SYSTEM } from "@/lib/llm/explain";
 import type { ParsedQueryRaw } from "@/lib/llm/parse";
 import type { LlmProvider, StructuredRequest } from "@/lib/llm/provider";
@@ -339,14 +339,15 @@ describe("collectSeoResults (owner decision 2026-09-29)", () => {
     });
   });
 
-  it("caches its first three groups for visitors' searches with the same filters", async () => {
+  it("caches its first groups (RESULTS_KEPT) for visitors' searches with the same filters", async () => {
     const s = setup({ pages: [range(0, 50)] });
     const { results } = await collect(s);
     const [entry] = [...s.store.results.values()];
     expect(entry.products.map((p) => p.productId)).toEqual(
-      results.results.slice(0, 15).map((p) => p.product_id),
+      results.results.slice(0, RESULTS_KEPT).map((p) => p.product_id),
     );
-    expect(Object.keys(entry.explanations)).toHaveLength(15);
+    // Every one with its line, so a visitor's places 6-10 need no titles call.
+    expect(Object.keys(entry.explanations)).toHaveLength(RESULTS_KEPT);
   });
 
   it("makes more product.query calls than a search, up to five, until 50 pass", async () => {

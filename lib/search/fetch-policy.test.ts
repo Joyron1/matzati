@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AliProduct } from "@/lib/aliexpress/schemas";
-import { RESULTS_PER_PAGE } from "@/lib/config/site";
+import { RESULTS_FIRST_VIEW, RESULTS_PER_PAGE } from "@/lib/config/site";
+import { FILL_TIER, FILL_UP_TO } from "@/lib/ranking/config";
 import {
   keywordLadder,
   keywordSteps,
@@ -8,6 +9,7 @@ import {
   MAX_ALI_CALLS,
   nextFetch,
   REQUIREMENT_STOP_CHECKED,
+  SEO_FETCH,
   TARGET_PASSED,
   type FetchedPage,
 } from "./fetch-policy";
@@ -141,8 +143,9 @@ describe("nextFetch", () => {
     expect(after([])).toEqual({ step: { keywords: P, pageNo: 1 } });
   });
 
-  it("stops once two pages pass (TARGET_PASSED), and after MAX_ALI_CALLS calls", () => {
-    expect(TARGET_PASSED).toBe(2 * RESULTS_PER_PAGE);
+  it("stops once the first view and a page pass (TARGET_PASSED), and after MAX_ALI_CALLS calls", () => {
+    expect(TARGET_PASSED).toBe(RESULTS_FIRST_VIEW + RESULTS_PER_PAGE);
+    expect(MAX_ALI_CALLS).toBe(4);
     expect(
       after([
         call(
@@ -162,13 +165,16 @@ describe("nextFetch", () => {
         ),
       ]),
     ).toEqual({ step: { keywords: P, pageNo: 2 } });
-    const three = [
+    const four = [
       call(P, 1, [offType()]),
       call(P, 2, [offType()]),
       call("water bottle", 1, [offType()]),
+      call("leakproof sports bottle", 1, [offType()]),
     ];
-    expect(three).toHaveLength(MAX_ALI_CALLS);
-    expect(after(three)).toEqual({ stop: "calls" });
+    expect(four).toHaveLength(MAX_ALI_CALLS);
+    expect(after(four)).toEqual({ stop: "calls" });
+    // One call before the limit, the search goes on.
+    expect(after(four.slice(0, 3))).not.toEqual({ stop: "calls" });
   });
 
   it("takes page 2 while relevance limits the results and page 2 can still pass the trust bar", () => {
@@ -182,27 +188,44 @@ describe("nextFetch", () => {
     const p1 = [...times(2, () => good()), ...times(20, () => offType())];
     const noMore = after([call(P, 1, p1, 22)]);
     expect(noMore).toEqual({ step: { keywords: "leakproof sports bottle", pageNo: 1 } });
-    // Fewer than a page pass: the bar is FILL_TIER's 30 sales.
-    const low = [...times(2, () => good()), ...times(47, () => offType()), good({ unitsSold: 29 })];
+    // Fewer than the first view pass (FILL_UP_TO): the bar is FILL_TIER's sales.
+    const fill = FILL_TIER.minUnitsSold;
+    const low = [
+      ...times(2, () => good()),
+      ...times(47, () => offType()),
+      good({ unitsSold: fill - 1 }),
+    ];
     expect(after([call(P, 1, low)])).toEqual(noMore);
-    const fillable = [...times(2, () => good()), ...times(47, () => offType({ unitsSold: 30 }))];
-    // 30-sale off-type items are volume rejections (trust): broader keywords first.
+    const fillable = [...times(2, () => good()), ...times(47, () => offType({ unitsSold: fill }))];
+    // Off-type items at FILL_TIER's sales are volume rejections (trust): broader keywords first.
     expect(after([call(P, 1, fillable)])).toEqual({
       step: { keywords: "water bottle", pageNo: 1 },
     });
-    // With a page (RESULTS_PER_PAGE) passing, the bar is FILTERS' 100 sales.
+    // With the first view passing, the bar is FILTERS' 100 sales.
+    const view = [
+      ...times(FILL_UP_TO, () => good()),
+      ...times(48 - FILL_UP_TO, () => offType()),
+      good({ unitsSold: 99 }),
+    ];
+    expect(after([call(P, 1, view)])).toEqual(noMore);
+    const enough = [
+      ...times(FILL_UP_TO, () => good()),
+      ...times(48 - FILL_UP_TO, () => offType()),
+      good({ unitsSold: 100 }),
+    ];
+    expect(after([call(P, 1, enough)])).toEqual({ step: { keywords: P, pageNo: 2 } });
+    // One page passing is not the first view yet: page 2 may still pass at FILL_TIER's bar. An SEO
+    // refresh (SEO_FETCH) fills one page only, as before, so there FILTERS' bar holds.
     const page = [
       ...times(RESULTS_PER_PAGE, () => good()),
       ...times(48 - RESULTS_PER_PAGE, () => offType()),
       good({ unitsSold: 99 }),
     ];
-    expect(after([call(P, 1, page)])).toEqual(noMore);
-    const enough = [
-      ...times(RESULTS_PER_PAGE, () => good()),
-      ...times(48 - RESULTS_PER_PAGE, () => offType()),
-      good({ unitsSold: 100 }),
-    ];
-    expect(after([call(P, 1, enough)])).toEqual({ step: { keywords: P, pageNo: 2 } });
+    expect(after([call(P, 1, page)])).toEqual({ step: { keywords: P, pageNo: 2 } });
+    expect(SEO_FETCH.fillTo).toBe(RESULTS_PER_PAGE);
+    const [seoCall] = call(P, 1, page);
+    const seo = nextFetch({ filters: BOTTLE, calls: [seoCall], pool: page }, SEO_FETCH);
+    expect(seo).not.toEqual({ step: { keywords: P, pageNo: 2 } });
   });
 
   it("goes to broader keywords first when trust limited the results, page 2 last", () => {

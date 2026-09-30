@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FILL_UP_TO } from "@/lib/ranking/config";
 import {
   ALL_CAPTURED,
   CURRENT_POLICY,
@@ -95,18 +96,21 @@ describe("R5_POLICY (fetchAndRank before item 5)", () => {
 describe("CURRENT_POLICY (nextFetch in lib/search/fetch-policy.ts)", () => {
   it("takes page 2 after a page 1 of 49 limited by relevance, then broader keywords", () => {
     const page1 = [...times(2, () => good()), ...times(47, () => offType())];
+    // Up to MAX_ALI_CALLS (4) calls while fewer than TARGET_PASSED pass.
     expect(steps(CURRENT_POLICY, [p1(page1), p2(), l1(), l2()]).steps).toEqual([
       "primary-p1",
       "primary-p2",
       "ladder-1",
+      "ladder-2",
     ]);
   });
 
   it("skips page 2 when page 1's fewest sales are under the trust bar", () => {
-    // A page (5) passes, so the bar is FILTERS' 100 sales; page 1 ends at 50, so page 2 cannot pass.
+    // The first view (FILL_UP_TO, 10) passes, so the bar is FILTERS' 100 sales; page 1 ends at 50,
+    // so page 2 cannot pass.
     const page1 = [
-      ...times(5, () => good()),
-      ...times(43, () => offType()),
+      ...times(FILL_UP_TO, () => good()),
+      ...times(38, () => offType()),
       good({ unitsSold: 50 }),
     ];
     expect(steps(CURRENT_POLICY, [p1(page1), p2(), l1(), l2()]).steps).toEqual([
@@ -222,7 +226,7 @@ describe("policyByName", () => {
     expect(policyByName("all")).toBe(ALL_CAPTURED);
     expect(policyByName("until-6-3").name).toBe("until-6-3");
     expect(policyByName("until-9-2").name).toBe("until-9-2");
-    expect(policyByName("until-6").name).toBe("until-6-3");
+    expect(policyByName("until-6").name).toBe("until-6-4");
     expect(() => policyByName("nope")).toThrow(/unknown fetch policy/);
   });
 });

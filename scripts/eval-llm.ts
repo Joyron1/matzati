@@ -116,7 +116,7 @@ const CAVEAT = "הכותרת לא מציינת";
 
 /** One LLM call with its token counts and cost. */
 interface CallRecord {
-  kind: "parse" | "explain";
+  kind: "parse" | "explain" | "titles";
   model: string;
   inputTokens: number;
   outputTokens: number;
@@ -203,7 +203,7 @@ function summarize(records: EvalRecord[], model: string, usdIls: number | null) 
     llmCalls: calls.length,
     aliexpressCalls: sum(done.map((r) => r.meta?.aliCalls ?? 0)),
     cacheHits: done.length - fresh.length,
-    tokens: { parse: tokens("parse"), explain: tokens("explain") },
+    tokens: { parse: tokens("parse"), explain: tokens("explain"), titles: tokens("titles") },
     totalUsd: round(total, 5),
     /** Every search run, cache hits included: what a search costs on average. */
     avgUsdPerSearch: done.length ? round(total / done.length, 5) : 0,

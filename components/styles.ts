@@ -14,6 +14,11 @@ export const btnBusy = "aria-disabled:cursor-not-allowed aria-disabled:opacity-6
 
 export const btnLg = "h-14 px-7 text-base";
 export const btnMd = "h-12 px-5 text-[15px]";
+/**
+ * A button of a narrow card (two in a row on a phone): 44px tall at least, its label wrapping
+ * instead of overflowing the card (the base keeps a label on one line, so this overrides it).
+ */
+export const btnSm = "min-h-11 whitespace-normal! px-3 py-2 text-sm leading-snug text-balance";
 
 export const card = "rounded-card border border-line bg-surface";
 export const featured = "rounded-composer border border-line bg-surface shadow-soft";

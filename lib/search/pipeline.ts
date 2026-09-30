@@ -20,6 +20,7 @@ import {
 } from "@/lib/llm/explain";
 import { parseQuery } from "@/lib/llm/parse";
 import type { LlmProvider, StructuredRequest } from "@/lib/llm/provider";
+import { titleProducts } from "@/lib/llm/titles";
 import { usefulRelaxations } from "@/lib/ranking/blockers";
 import { demoteFlaggedLeads } from "@/lib/ranking/featured-guard";
 import {
@@ -29,8 +30,8 @@ import {
   trustTierOf,
   type RejectReason,
 } from "@/lib/ranking/rank";
-import { RESULTS_KEPT, RESULTS_PER_PAGE } from "@/lib/config/site";
-import { DEFAULT_SHOP_CAP_MODE, type ShopCapMode } from "@/lib/ranking/config";
+import { RESULTS_FIRST_VIEW, RESULTS_KEPT, RESULTS_PER_PAGE } from "@/lib/config/site";
+import { DEFAULT_SHOP_CAP_MODE, FILL_UP_TO, type ShopCapMode } from "@/lib/ranking/config";
 import { isListableQuery } from "@/lib/recent/privacy";
 import { fixTransliterations } from "@/lib/transliterations";
 import type { SearchArrival } from "@/lib/search-url";
@@ -65,6 +66,7 @@ import {
   type RankedView,
 } from "./pool";
 import type {
+  CachedPool,
   CachedResults,
   CacheLevel,
   Explanation,
@@ -79,7 +81,7 @@ import type {
 export { keywordLadder } from "./fetch-policy";
 
 export const MAX_QUERY_LENGTH = 200;
-/** How many ranked products we keep per search: three pages (lib/config/site.ts). */
+/** How many ranked products we keep per search: four pages (lib/config/site.ts). */
 export { RESULTS_KEPT };
 
 /**
@@ -89,19 +91,22 @@ export { RESULTS_KEPT };
  * titles. The retry is for the Hebrew titles (2026-09-30: a Sonic search timed out at 10 s once and
  * showed English titles; visitor explain calls take 4.6 s at the median, 6.5 s at p90). An SEO
  * refresh (lib/search/seo-run.ts) plans its time around `seoExplain`, one 10 s try per group, and
- * a later run writes a group that failed.
+ * a later run writes a group that failed. The titles of places 6-10 (lib/llm/titles.ts) run beside
+ * explain with the same limits; when they fail, those cards show AliExpress's titles.
  */
 export const LLM_STAGE_LIMITS = {
   parse: { timeoutMs: 10_000, maxRetries: 1 },
   explain: { timeoutMs: 10_000, maxRetries: 1 },
+  titles: { timeoutMs: 10_000, maxRetries: 1 },
   seoExplain: { timeoutMs: 10_000, maxRetries: 0 },
 } as const;
 
 /**
  * No AliExpress call after the first starts once the fetch step has run this long: what was found
- * is ranked instead (a call that retries can take over 20 s).
+ * is ranked instead (a call that retries can take over 20 s). 14 s since 2026-09-30 (was 12 s),
+ * with up to 4 calls (MAX_ALI_CALLS).
  */
-export const FETCH_BUDGET_MS = 12_000;
+export const FETCH_BUDGET_MS = 14_000;
 
 export type SearchErrorCode =
   | "invalid_query"
@@ -192,8 +197,10 @@ export interface SearchInput {
 /** An LLM call recorded by the pipeline; K narrows the jobs one entry point can make. */
 export type UsageOf<K extends LlmCallKind> = Omit<LlmUsageRecord, "kind"> & { kind: K };
 
-/** A search makes parse and explain calls; "show more" (loadMore) makes explain_more calls. */
-export interface SearchMeta<K extends LlmCallKind = "parse" | "explain"> {
+/**
+ * A search makes parse, explain and titles calls; "show more" (loadMore) makes explain_more calls.
+ */
+export interface SearchMeta<K extends LlmCallKind = "parse" | "explain" | "titles"> {
   cache: CacheLevel;
   /** Every LLM call made, also written to llm_usage (SearchStore.logUsage). */
   llmUsage: UsageOf<K>[];
@@ -212,8 +219,15 @@ export interface SearchMeta<K extends LlmCallKind = "parse" | "explain"> {
    * after the first failed and the search went on with what it had. Null before a fetch.
    */
   fetchStop?: FetchStop | "time" | "failed" | null;
-  /** The explain call failed: the lines were built from the data, and the results kept 48 h. */
+  /** The explain call failed: the lines were built from the data, and the results kept 1 hour. */
   explainFailed?: boolean;
+  /**
+   * The titles call for places 6-10 failed (or the budget was out): those cards show AliExpress's
+   * titles, and a new result set is kept 1 hour (degraded), as after a failed explain call.
+   */
+  titlesFailed?: boolean;
+  /** Titles of that call the checks rejected (their cards show AliExpress's titles). */
+  titlesRejected?: number;
   /** First-page products the safety net moved down (demoteFlaggedLeads), for evals and tests. */
   demoted?: string[];
   /** Ranked from a pool already checked (a sort change, a removed requirement): no fetch. */
@@ -422,8 +436,10 @@ export async function fetchAndRank(
   }
   const pool = [...seen.values()];
   meta.rejected = rejectionCounts(pool, parsed);
-  // Too few met FILTERS: top up to one page from the second trust tier (FILL_TIER).
-  const final = rankWithFill(pool, parsed, RESULTS_PER_PAGE, deps.shopCap);
+  // Too few met FILTERS: top up to the first view (FILL_UP_TO; an SEO refresh: one page) from the
+  // second trust tier (FILL_TIER). The shop cap's first page is RESULTS_PER_PAGE either way.
+  const fillTo = limits?.fillTo ?? FILL_UP_TO;
+  const final = rankWithFill(pool, parsed, fillTo, deps.shopCap, RESULTS_PER_PAGE);
   // passed counts every distinct product that met the filters, not just the ones we keep.
   return {
     ranked: final.ranked.slice(0, kept),
@@ -557,6 +573,35 @@ function understoodOf(q: string, filters: ParsedQuery): UnderstoodSearch {
   };
 }
 
+/** A stored map's Hebrew titles (stored jsonb is not trusted): non-empty strings only. */
+function titlesIn(value: unknown): Record<string, string> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      (e): e is [string, string] => typeof e[1] === "string" && e[1].trim() !== "",
+    ),
+  );
+}
+
+/** The Hebrew title a line holds, if any (a line of any view, or of this result set). */
+function lineTitle(line: unknown): string | undefined {
+  return isExplanation(line) && line.title_he ? line.title_he : undefined;
+}
+
+/**
+ * Places 6-10 of the first view (RESULTS_FIRST_VIEW): standard cards with a Hebrew title and no
+ * line. The title is the product's line's when it has one, else the titles call's, else
+ * AliExpress's (toResultProduct).
+ */
+function extraResults(cached: CachedResults, titles = titlesIn(cached.titles)): ResultProduct[] {
+  return cached.products.slice(RESULTS_PER_PAGE, RESULTS_FIRST_VIEW).map((p) =>
+    toResultProduct(p, {
+      title_he: lineTitle(cached.explanations[p.productId]) ?? titles[p.productId] ?? null,
+      why_he: "",
+    }),
+  );
+}
+
 function respond(
   q: string,
   filters: ParsedQuery,
@@ -571,7 +616,9 @@ function respond(
     checked_count: cached.checked,
     passed_count: cached.passed,
     results: shown.map((p) => toResultProduct(p, cached.explanations[p.productId])),
+    extra_results: extraResults(cached),
     more_available: cached.products.length > RESULTS_PER_PAGE,
+    more_after_first_view: cached.products.length > RESULTS_FIRST_VIEW,
     filters_key: key,
     cached: fromCache,
     fetched_at: cached.createdAt,
@@ -643,6 +690,8 @@ type DiagMeta = Pick<
   | "explainRejected"
   | "derived"
   | "linesReused"
+  | "titlesFailed"
+  | "titlesRejected"
 >;
 
 /**
@@ -652,7 +701,8 @@ type DiagMeta = Pick<
 export function diagOf(meta: DiagMeta): SearchDiag | null {
   const fetched = meta.fetchStop !== null && meta.fetchStop !== undefined;
   const explained = meta.explainFailed === true || meta.explainRejected.length > 0;
-  if (!fetched && !explained && !meta.demoted?.length && !meta.derived) return null;
+  const titled = meta.titlesFailed === true || (meta.titlesRejected ?? 0) > 0;
+  if (!fetched && !explained && !titled && !meta.demoted?.length && !meta.derived) return null;
   return {
     fetch_stop: meta.fetchStop ?? null,
     keywords_tried: [...meta.keywordsTried],
@@ -661,6 +711,8 @@ export function diagOf(meta: DiagMeta): SearchDiag | null {
     explain_rejected: meta.explainRejected.length,
     ...(meta.derived ? { derived: true as const } : {}),
     ...(meta.linesReused ? { lines_reused: meta.linesReused } : {}),
+    ...(meta.titlesFailed ? { titles_failed: true as const } : {}),
+    ...(meta.titlesRejected ? { titles_rejected: meta.titlesRejected } : {}),
   };
 }
 
@@ -751,7 +803,8 @@ function searchLogEntry(
     parsed: filters,
     resultIds: products.map((p) => p.productId),
     cache: meta.cache,
-    resultsCount: response.results.length,
+    // Every card of the first view: the explained page and places 6-10.
+    resultsCount: response.results.length + (response.extra_results?.length ?? 0),
     source: origin.source,
     categoryId: response.results[0]?.category_id ?? null,
     listable: isListableSearch(q, origin, response.results.length),
@@ -872,8 +925,9 @@ async function runStages(
   if (!q || q.length > MAX_QUERY_LENGTH) {
     throw new SearchError("invalid_query", `query must be 1-${MAX_QUERY_LENGTH} characters`);
   }
-  const meta = newMeta<"parse" | "explain">("none");
-  let charged = false;
+  const meta = newMeta<"parse" | "explain" | "titles">("none");
+  // One charge per search, shared by the explain and titles calls that start together.
+  let charge: Promise<void> | null = null;
   const state: SearchRun = {
     deps,
     meta,
@@ -883,11 +937,7 @@ async function runStages(
     writeUsage: usageWriter(deps.store, meta),
     now: deps.now ?? (() => new Date()),
     sleep: deps.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms))),
-    chargeOnce: async () => {
-      if (charged) return;
-      charged = true;
-      await deps.beforeLlmWork?.();
-    },
+    chargeOnce: () => (charge ??= Promise.resolve().then(() => deps.beforeLlmWork?.())),
     shopCap: deps.shopCap ?? DEFAULT_SHOP_CAP_MODE,
   };
   try {
@@ -920,6 +970,11 @@ interface ViewPlan {
   known: Record<string, Explanation>;
   /** Lines written for other results of the same pool: reused only where they hold. */
   reusable: Record<string, unknown>;
+  /**
+   * Hebrew titles the titles call wrote for this result set or any view of its pool: shown in
+   * places 6-10 only, never taken for a line (places 1-5 are explained).
+   */
+  titles: Record<string, string>;
   /** A hit: the cached entry itself. */
   hit?: CachedResults;
   /** A view ranked from a pool: the result set that holds the pool. */
@@ -1004,6 +1059,7 @@ function hitPlan(hit: CachedResults, key: string, filters: ParsedQuery): ViewPla
     createdAt: hit.createdAt,
     known: hit.explanations,
     reusable: poolOf(hit)?.lines ?? {},
+    titles: { ...titlesIn(poolOf(hit)?.titles), ...titlesIn(hit.titles) },
     hit,
   };
 }
@@ -1058,6 +1114,8 @@ async function derivedPlan(
       createdAt: base.createdAt,
       known: {},
       reusable: { ...base.explanations, ...poolOf(base)?.lines },
+      // Titles only for places 6-10: a product with a title and no line is explained in 1-5.
+      titles: { ...titlesIn(poolOf(base)?.titles), ...titlesIn(base.titles) },
       base: { key: baseKey, entry: base },
     };
   }
@@ -1108,25 +1166,57 @@ async function fetchedPlan(
     createdAt: now().toISOString(),
     known: {},
     reusable: {},
+    titles: {},
     fetch: { parsed, without, pool },
   };
 }
 
-/** The result set of a plan with these products (in this order) and lines. */
+/**
+ * The result set of a plan with these products (in this order), lines and titles (only those of
+ * products it keeps that have no line with a title of their own).
+ */
 function entryOf(
   plan: ViewPlan,
   products: AliProduct[],
   explanations: Record<string, Explanation>,
+  titles: Record<string, string> = {},
 ): CachedResults {
+  const own = Object.fromEntries(
+    products.flatMap((p) =>
+      titles[p.productId] && !explanations[p.productId]?.title_he
+        ? [[p.productId, titles[p.productId]]]
+        : [],
+    ),
+  );
   return {
     filters: plan.filters,
     checked: plan.checked,
     passed: plan.passed,
     products,
     explanations,
+    ...(Object.keys(own).length ? { titles: own } : {}),
     createdAt: plan.createdAt,
     ...(plan.blockers ? { blockers: plan.blockers } : {}),
   };
+}
+
+/**
+ * Places 6-10 of `order` and the Hebrew titles known for them without a call: a line's title (this
+ * result set's, or one written for any view of its pool) or a title the titles call wrote before.
+ * `untitled` are the ones the titles call is for.
+ */
+function secondOf(
+  order: readonly AliProduct[],
+  plan: ViewPlan,
+): { second: AliProduct[]; known: Record<string, string>; untitled: AliProduct[] } {
+  const second = order.slice(RESULTS_PER_PAGE, RESULTS_FIRST_VIEW);
+  const known: Record<string, string> = {};
+  for (const p of second) {
+    const id = p.productId;
+    const title = lineTitle(plan.known[id]) ?? lineTitle(plan.reusable[id]) ?? plan.titles[id];
+    if (title) known[id] = title;
+  }
+  return { second, known, untitled: second.filter((p) => !known[p.productId]) };
 }
 
 const titlesOf = (lines: Record<string, Explanation>) =>
@@ -1146,12 +1236,14 @@ interface Guarded {
 /**
  * Safety net (plan item 2, lib/ranking/featured-guard.ts): a first-page product whose line says it
  * is not the searched product moves down; the model only marks, the code decides. A product that
- * moves up gets the sentence from the data (no extra call).
+ * moves up gets the sentence from the data (no extra call), with the Hebrew title it had in
+ * places 6-10 when it had one (`titleOf`).
  */
 function guardFirstPage(
   plan: ViewPlan,
   explained: Record<string, Explanation>,
   shopCap: ShopCapMode,
+  titleOf: (id: string) => string | undefined = () => undefined,
 ): Guarded {
   const guarded = demoteFlaggedLeads(
     plan.products,
@@ -1161,11 +1253,16 @@ function guardFirstPage(
     shopCap,
   );
   const promoted = guarded.ranked.slice(0, RESULTS_PER_PAGE).filter((p) => !explained[p.productId]);
+  const fromData = explanationsFromData(promoted);
+  for (const p of promoted) {
+    const title = titleOf(p.productId);
+    if (title) fromData[p.productId] = { ...fromData[p.productId], title_he: title };
+  }
   return {
     ranked: guarded.ranked,
     demoted: guarded.demoted,
     promoted,
-    explanations: { ...explained, ...explanationsFromData(promoted) },
+    explanations: { ...explained, ...fromData },
   };
 }
 
@@ -1188,88 +1285,114 @@ async function finish(
   if (reused) meta.linesReused = reused;
   const missing = page.filter((p) => !lines[p.productId]);
   const fresh = plan.source === "fetched";
+  // A Hebrew title known without a call: a line's (any view's) or the titles call's before.
+  const knownTitle = (id: string) =>
+    lineTitle(plan.known[id]) ?? lineTitle(plan.reusable[id]) ?? plan.titles[id];
   // Every line is known: the final order is known too (a hit's went through the net when cached).
-  const settled = !plan.hit && !missing.length ? guardFirstPage(plan, lines, state.shopCap) : null;
+  const settled =
+    !plan.hit && !missing.length ? guardFirstPage(plan, lines, state.shopCap, knownTitle) : null;
+  const order = settled?.ranked ?? plan.products;
+  // Places 6-10: titles known without a call (a line's, or the titles call's of any view), and
+  // the ones the titles call writes now, beside the explain call.
+  const { known, untitled } = secondOf(order, plan);
+  const firstView = order.slice(0, RESULTS_FIRST_VIEW);
 
   // The rows the cards' /go links read, saved before the cards show, in one batch: every product a
   // fetch kept (RESULTS_KEPT, all linked: its later pages and /p's similar products need the rows
-  // too, and the data is the fetch's own, so no call is added), the page of a ranked view (with a
-  // product the safety net moved onto it), and a hit's products that were never shown. Titles only
-  // where a line was written. Data from a pool keeps the time it was fetched (saveProducts'
-  // checkedAt); titles written later are saved under the same time.
+  // too, and the data is the fetch's own, so no call is added), the first view of a ranked view
+  // (with a product the safety net moved onto it), and a hit's products that were never shown.
+  // Titles only where a line was written. Data from a pool keeps the time it was fetched
+  // (saveProducts' checkedAt); titles written later are saved under the same time.
   const checkedAt = fresh ? undefined : new Date(plan.createdAt);
   const titledAt = checkedAt ?? state.now();
   const unsaved = plan.hit
     ? missing
     : fresh
       ? plan.products
-      : [...page, ...(settled?.promoted ?? [])];
+      : [...new Map([...page, ...firstView].map((p) => [p.productId, p])).values()];
   if (unsaved.length) await deps.store.saveProducts(unsaved, titlesOf(lines), checkedAt);
 
   meta.timings.products_ms = Math.round(run.clock() - run.started);
-  // SearchResponse.cached: no product.query call and no explain call for this response.
-  const cached = !fresh && !missing.length;
+  // SearchResponse.cached: no product.query call and no explain or titles call for this response.
+  const cached = !fresh && !missing.length && !untitled.length;
   const shown = respond(
     q,
     plan.filters,
     settled
-      ? entryOf(plan, settled.ranked, settled.explanations)
-      : entryOf(plan, plan.products, { ...lines, ...explanationsFromData(missing) }),
+      ? entryOf(plan, settled.ranked, settled.explanations, known)
+      : entryOf(plan, plan.products, { ...lines, ...explanationsFromData(missing) }, known),
     plan.key,
     cached,
   );
-  stages.products.resolve({ response: shown, pending: missing.length > 0 });
+  stages.products.resolve({ response: shown, pending: missing.length > 0 || untitled.length > 0 });
 
-  // A hit whose page was explained before: nothing else to do.
-  if (plan.hit && !missing.length) {
+  // A hit whose first view was written before: nothing else to do.
+  if (plan.hit && !missing.length && !untitled.length) {
     stages.final.resolve(shown);
     const log = searchLogEntry(q, plan.filters, plan.hit.products, shown, state);
     await Promise.all([quietly("logSearch", () => deps.store.logSearch(log)), writeUsage()]);
     return { response: shown, meta, log };
   }
 
-  // The missing lines, while a fetch ranks the other views of its pool.
-  const [added, pooled] = await Promise.all([
+  // The missing lines and titles, while a fetch ranks the other views of its pool.
+  const [added, pooled, titled] = await Promise.all([
     missing.length ? explainMissing(plan, page, missing, state) : null,
     plan.fetch ? poolOfFetch(plan, plan.fetch, state) : null,
+    untitled.length ? titleMissing(plan, untitled, state) : null,
   ]);
   const written = added?.written ?? {};
+  const writtenTitles = titled ?? {};
   let guarded = settled;
   if (!guarded) {
     let explained = { ...lines, ...added?.lines };
     // Lines of different calls side by side: the same line twice says nothing about either. The
     // lines already on screen (reused) stay; a new one that repeats one of them falls back.
     if (!fresh) explained = withoutRepeats(page, explained, new Set(Object.keys(lines)));
-    guarded = guardFirstPage(plan, explained, state.shopCap);
+    // A product the safety net moves up from place 6 keeps the Hebrew title it had there.
+    guarded = guardFirstPage(
+      plan,
+      explained,
+      state.shopCap,
+      (id) => writtenTitles[id] ?? knownTitle(id),
+    );
   }
   meta.demoted = guarded.demoted;
-  const { ranked, promoted, explanations } = guarded;
+  const { ranked, explanations } = guarded;
+  const titles = { ...plan.titles, ...known, ...writtenTitles };
 
-  // Lines from the data after a failed explain call: kept an hour only, then explained again.
-  const degraded = meta.explainFailed || plan.hit?.degraded === true;
+  // Lines from the data after a failed explain call, or AliExpress's titles after a failed titles
+  // call: a new result set is kept an hour only, then written again. A hit is never marked for a
+  // failed titles call: its lines stay, and its next request writes the titles again.
+  const degraded =
+    meta.explainFailed || (meta.titlesFailed === true && !plan.hit) || plan.hit?.degraded === true;
   const results: CachedResults = {
     ...(plan.hit ?? {}),
-    ...entryOf(plan, ranked, { ...plan.hit?.explanations, ...explanations }),
+    ...entryOf(plan, ranked, { ...plan.hit?.explanations, ...explanations }, titles),
     ...(degraded ? { degraded: true } : {}),
   };
   const response = respond(q, plan.filters, results, plan.key, cached);
+  // A product the safety net moved into the first view shows a card too (saved already when the
+  // order was settled before the products showed, or with every product a fetch kept).
+  const shownBefore = new Set(firstView.map((p) => p.productId));
+  const late = ranked.slice(0, RESULTS_FIRST_VIEW).filter((p) => !shownBefore.has(p.productId));
   await Promise.all([
-    cacheResults(q, plan, results, written, pooled, state, ctx),
-    // A product the safety net moved onto the first page shows a card too (saved already when the
-    // order was settled before the products showed, or with every product a fetch kept).
-    promoted.length && !settled && !fresh ? deps.store.saveProducts(promoted, {}, checkedAt) : null,
+    cacheResults(q, plan, results, { lines: written, titles: writtenTitles }, pooled, state, ctx),
+    late.length && !fresh ? deps.store.saveProducts(late, {}, checkedAt) : null,
   ]);
   stages.final.resolve(response);
 
   const log = searchLogEntry(q, plan.filters, ranked, response, state);
-  const titled = missing.filter((p) => explanations[p.productId]?.title_he);
+  // Our Hebrew titles go to products.title_he too, so /p and similar products show them.
+  const newTitles = { ...writtenTitles, ...titlesOf(explanations) };
+  const titledRows = [
+    ...missing.filter((p) => explanations[p.productId]?.title_he),
+    ...untitled.filter((p) => writtenTitles[p.productId]),
+  ];
   await Promise.all([
     quietly("logSearch", () => deps.store.logSearch(log)),
     writeUsage(),
-    titled.length
-      ? quietly("saveProducts", () =>
-          deps.store.saveProducts(titled, titlesOf(explanations), titledAt),
-        )
+    titledRows.length
+      ? quietly("saveProducts", () => deps.store.saveProducts(titledRows, newTitles, titledAt))
       : null,
     // A parse whose own filters found nothing is kept as long as that empty result set (48 h), not
     // 14 days: the next search after that parses again. Chips removed are the visitor's choice.
@@ -1291,26 +1414,34 @@ async function finish(
  * The result sets a finished search writes. A fetch: its own, with the pool of every view it can
  * serve (./pool.ts), on the result set fetched for the parse's own sort (a fetch for another sort
  * writes that one too, its first page to be explained when it is first shown). A ranked view: its
- * own, and its new lines into the pool it came from. A hit: its added lines (not after a failed
- * explain call: the next request explains them, as "עוד N" does).
+ * own, and its new lines and titles into the pool it came from. A hit: its added lines and titles
+ * (not after a failed explain call: the next request explains them, as "עוד N" does). Titles go to
+ * the pool's own map (CachedPool.titles), never into its lines.
  */
 async function cacheResults(
   q: string,
   plan: ViewPlan,
   results: CachedResults,
-  written: Record<string, Explanation>,
+  written: { lines: Record<string, Explanation>; titles: Record<string, string> },
   pooled: PooledFetch | null,
   { deps, meta, shopCap }: SearchRun,
   ctx: SearchContext,
 ): Promise<void> {
   const store = deps.store;
-  const hasLines = Object.keys(written).length > 0;
+  const hasNew = Object.keys(written.lines).length > 0 || Object.keys(written.titles).length > 0;
+  const withWritten = (pool: CachedPool): CachedPool => ({
+    ...pool,
+    lines: { ...pool.lines, ...written.lines },
+    ...(pool.titles || Object.keys(written.titles).length
+      ? { titles: { ...titlesIn(pool.titles), ...written.titles } }
+      : {}),
+  });
   if (plan.hit) {
     if (meta.explainFailed) return;
     const pool = poolOf(plan.hit);
     await store.updateResults(plan.key, {
       ...results,
-      ...(pool ? { pool: { ...pool, lines: { ...pool.lines, ...written } } } : {}),
+      ...(pool ? { pool: withWritten(pool) } : {}),
     });
     return;
   }
@@ -1318,11 +1449,8 @@ async function cacheResults(
     const pool = poolOf(plan.base.entry);
     await Promise.all([
       store.putResults(plan.key, q, results),
-      pool && hasLines
-        ? store.updateResults(plan.base.key, {
-            ...plan.base.entry,
-            pool: { ...pool, lines: { ...pool.lines, ...written } },
-          })
+      pool && hasNew
+        ? store.updateResults(plan.base.key, { ...plan.base.entry, pool: withWritten(pool) })
         : null,
     ]);
     return;
@@ -1332,20 +1460,16 @@ async function cacheResults(
     return;
   }
   const baseKey = filtersKey(applyOverrides(ctx.parsed, ctx.without), shopCap);
+  const poolOfViews = (own: readonly AliProduct[]) =>
+    withWritten(poolFrom(pooled.views, own, plan.products, {}));
   if (baseKey === plan.key) {
-    await store.putResults(plan.key, q, {
-      ...results,
-      pool: poolFrom(pooled.views, results.products, plan.products, written),
-    });
+    await store.putResults(plan.key, q, { ...results, pool: poolOfViews(results.products) });
     return;
   }
   await Promise.all([
     store.putResults(plan.key, q, results),
     pooled.base
-      ? store.putResults(baseKey, q, {
-          ...pooled.base,
-          pool: poolFrom(pooled.views, pooled.base.products, plan.products, written),
-        })
+      ? store.putResults(baseKey, q, { ...pooled.base, pool: poolOfViews(pooled.base.products) })
       : null,
   ]);
 }
@@ -1566,6 +1690,53 @@ async function explainMissing(
     lines[p.productId] = holds ?? { title_he: line.title_he, why_he: whyFromData(input) };
   }
   return { lines, written };
+}
+
+/**
+ * One titles call (lib/llm/titles.ts) for the products of places 6-10 without a known Hebrew title,
+ * beside the explain call and with its limits (LLM_STAGE_LIMITS.titles). The model gets the Hebrew
+ * labels only, never the raw query. When the call fails, or the daily budget is out for a result
+ * set that needed no fetch, those cards keep AliExpress's titles (meta.titlesFailed; a new result
+ * set is then cached `degraded`, as after a failed explain call). A refusal of ours (SearchError) is
+ * never swallowed. Returns the titles that passed the checks.
+ */
+async function titleMissing(
+  plan: ViewPlan,
+  products: AliProduct[],
+  state: SearchRun,
+): Promise<Record<string, string>> {
+  const { deps, meta, run } = state;
+  try {
+    await state.chargeOnce();
+  } catch (err) {
+    if (plan.source === "fetched") throw err;
+    if (!(err instanceof SearchError && err.code === "capacity")) {
+      console.error(`[search] budget check failed, AliExpress titles: ${errorText(err)}`);
+    }
+    meta.titlesFailed = true;
+    return {};
+  }
+  const context = explainContextFrom(plan.filters);
+  try {
+    const res = await timed(run, meta, "titles_ms", () =>
+      titleProducts(
+        withLimits(deps.llm, LLM_STAGE_LIMITS.titles),
+        { product_he: context.product_he, requirements_he: context.requirements_he },
+        products.map((p) => ({ product_id: p.productId, title_en: p.title })),
+      ),
+    );
+    meta.llmUsage.push({ kind: "titles", usage: res.usage, model: res.model });
+    const rejected = res.items.filter((i) => i.rejected).length;
+    if (rejected) meta.titlesRejected = (meta.titlesRejected ?? 0) + rejected;
+    return Object.fromEntries(
+      res.items.flatMap((i) => (i.title_he ? [[i.product_id, i.title_he]] : [])),
+    );
+  } catch (err) {
+    if (err instanceof SearchError) throw err;
+    console.error(`[search] titles failed, AliExpress titles: ${errorText(err)}`);
+    meta.titlesFailed = true;
+    return {};
+  }
 }
 
 /**

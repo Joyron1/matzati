@@ -685,6 +685,103 @@ describe("a named character as a requirement", () => {
   });
 });
 
+describe("an age or number for a birthday (PARSE_VERSION 8)", () => {
+  const Q = "בלונים ליום הולדת 3 של סוניק";
+  const sonic3 = raw({
+    product_he: "בלונים ליום הולדת",
+    product_terms: ["birthday balloons", "balloons"],
+    requirements: [req("sonic", [], "סוניק")],
+    preferences: [{ phrases: ["3rd birthday", "number 3", "3 year old"], he: "יום הולדת 3" }],
+    keywords_en: "sonic 3rd birthday balloons",
+    max_price_ils: null,
+    category_hint: "party decorations",
+  });
+
+  it("tells the model: a preference with seller phrasings, and the number in the keywords", () => {
+    expect(PARSE_SYSTEM).toMatch(
+      /preferences: an age or number[^\n]*"3rd birthday"[^\n]*"number 3"/,
+    );
+    expect(PARSE_SYSTEM).toContain("sonic 3rd birthday balloons");
+    expect(PARSE_SYSTEM).toMatch(/Not requirements:[^\n]*an age or number/);
+    expect(Object.keys(parsedQuerySchema.shape)).toContain("preferences");
+  });
+
+  it("keeps it as a preference with the usual phrasings, never a requirement", () => {
+    const p = normalizeParsed(sonic3, Q)!;
+    expect(p.requirements.map((r) => r.en)).toEqual(["sonic"]);
+    expect(p.keywords_en).toBe("sonic 3rd birthday balloons");
+    expect(p.preferences).toEqual([
+      {
+        words: expect.arrayContaining([
+          "3rd birthday",
+          "third birthday",
+          "number 3",
+          "3 years",
+          "3 year old",
+        ]),
+        he: "יום הולדת 3",
+      },
+    ]);
+    // Every phrase names the number: never a bare word such as "birthday".
+    expect(p.preferences![0].words.every((w) => /\b3|third/.test(w))).toBe(true);
+  });
+
+  it("turns an age the model made a requirement into the preference", () => {
+    const { parsed, fixes } = normalizeParsedWithFixes(
+      raw({
+        ...sonic3,
+        requirements: [req("sonic", [], "סוניק"), req("3rd birthday", ["number 3"], "יום הולדת 3")],
+        preferences: [],
+      }),
+      Q,
+    );
+    expect(parsed?.requirements.map((r) => r.en)).toEqual(["sonic"]);
+    expect(parsed?.preferences?.[0]).toMatchObject({ he: "יום הולדת 3" });
+    expect(parsed?.preferences?.[0].words).toContain("number 3");
+    expect(fixes).toContainEqual({ kind: "age_preference", from: "3rd birthday" });
+  });
+
+  it("finds the age in the Hebrew when the model left it out", () => {
+    const missed = { ...sonic3, preferences: [] };
+    expect(normalizeParsed(missed, Q)?.preferences).toEqual([
+      { words: expect.arrayContaining(["3rd birthday", "number 3"]), he: "יום הולדת 3" },
+    ]);
+    expect(normalizeParsed(missed, "מסיבת יום הולדת לבת 5 עם בלונים")?.preferences?.[0]).toEqual({
+      words: expect.arrayContaining(["5th birthday", "fifth birthday", "number 5"]),
+      he: "גיל 5",
+    });
+    // Not a party: a size or a count stays out of it.
+    expect(normalizeParsed(missed, "בלונים 3 מטר")?.preferences).toBeUndefined();
+    // A price is never an age.
+    expect(normalizeParsed(missed, "בלונים ליום הולדת עד 40 ש״ח")?.preferences).toBeUndefined();
+  });
+
+  it("takes only a number from the model's preferences, and writes ordinals right", () => {
+    const noNumber = raw({ preferences: [{ phrases: ["birthday party"], he: "למסיבה" }] });
+    expect(normalizeParsed(noNumber)?.preferences).toBeUndefined();
+    const forty = normalizeParsed(
+      raw({ preferences: [{ phrases: ["40th birthday"], he: "יום הולדת 40" }] }),
+    )!;
+    expect(forty.preferences?.[0].words).toEqual(
+      expect.arrayContaining(["40th birthday", "number 40", "40 years"]),
+    );
+    const words = (n: number) =>
+      normalizeParsed(raw({ preferences: [{ phrases: [`number ${n}`], he: "x" }] }))!
+        .preferences![0].words;
+    expect(words(1)).toContain("1st birthday");
+    expect(words(2)).toContain("2nd birthday");
+    expect(words(11)).toContain("11th birthday");
+    expect(words(21)).toContain("21st birthday");
+  });
+
+  it("a parse recorded before version 8 (no preferences field) still normalizes", () => {
+    const old: ParsedQueryRaw = { ...sonic3 };
+    delete old.preferences;
+    expect("preferences" in old).toBe(false);
+    expect(normalizeParsed(old)?.requirements.map((r) => r.en)).toEqual(["sonic"]);
+  });
+});
+
 describe("parsedQuerySchema", () => {
   it("converts to a structured-output schema with every field required", () => {
     const { schema } = zodOutputFormat(parsedQuerySchema);

@@ -34,8 +34,8 @@ const inShops = (list: [string, string | null][]) =>
 describe("diversifyShops", () => {
   it("caps 'max2' at 2 of the first page and the same share of the kept list", () => {
     expect(RESULTS_PER_PAGE).toBe(5);
-    expect(SHOP_CAPS.max2).toEqual({ firstPage: 2, kept: 6, keptSize: RESULTS_KEPT });
-    expect(RESULTS_KEPT).toBe(15);
+    expect(SHOP_CAPS.max2).toEqual({ firstPage: 2, kept: 8, keptSize: RESULTS_KEPT });
+    expect(RESULTS_KEPT).toBe(20);
     expect(SHOP_CAPS.none).toBeNull();
     expect(DEFAULT_SHOP_CAP_MODE).toBe("none");
   });
@@ -66,7 +66,7 @@ describe("diversifyShops", () => {
     expect(ids(diversifyShops(ranking, RESULTS_PER_PAGE, "none"))).toEqual(ids(ranking));
   });
 
-  it("'max2' shows at most 2 of one shop on the first page and 6 in the kept list", () => {
+  it("'max2' shows at most 2 of one shop on the first page and 8 in the kept list", () => {
     const out = diversifyShops(ranking, RESULTS_PER_PAGE, "max2");
     expect(ids(out)).toEqual([
       // First page: two of A, then B and C move up.
@@ -75,25 +75,26 @@ describe("diversifyShops", () => {
       "b1",
       "c1",
       "b2",
-      // The kept list: A's next four fit (6 in 15), the others keep their order.
+      // The kept list: A's next six fit (8 in 20), the others keep their order.
       "a3",
       "a4",
       "a5",
       "a6",
+      "a7",
+      "a8",
       "b3",
       "c2",
       "c3",
       "b4",
       "c4",
       "b5",
-      // Past the kept list nothing is capped.
-      "a7",
-      "a8",
+      // Past A's share of the kept list, it waits for the others.
       "a9",
     ]);
     const shopA = (list: AliProduct[]) => list.filter((p) => p.shop.id === "A").length;
     expect(shopA(out.slice(0, RESULTS_PER_PAGE))).toBe(2);
-    expect(shopA(out.slice(0, RESULTS_KEPT))).toBe(6);
+    // The ninth of A comes only once no other shop has a product left.
+    expect(shopA(out.slice(0, -1))).toBe(8);
     // Nothing is dropped.
     expect(ids(out).sort()).toEqual(ids(ranking).sort());
   });

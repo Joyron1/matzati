@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { RESULTS_PER_PAGE } from "@/lib/config/site";
+import { RESULTS_FIRST_VIEW, RESULTS_PER_PAGE } from "@/lib/config/site";
 import { FILL_TIER, FILTERS } from "@/lib/ranking/config";
 import {
   FILTER_AFTER_MS,
@@ -264,6 +264,8 @@ describe("WAIT_TIPS", () => {
       expect(all).toContain(`${t.minPositiveFeedbackPct}%`);
       expect(all).toContain(`ו־${t.minUnitsSold} מכירות`);
     }
-    expect(all).toContain(`מציגים ${RESULTS_PER_PAGE} מוצרים`);
+    expect(all).toContain(
+      `מציגים עד ${RESULTS_FIRST_VIEW} מוצרים, ול־${RESULTS_PER_PAGE} הראשונים`,
+    );
   });
 });

@@ -15,7 +15,7 @@ import {
   type RecentSearchFilter,
   type RecentSearchList,
 } from "@/lib/recent/types";
-import { RESULTS_PER_PAGE } from "@/lib/config/site";
+import { RESULTS_FIRST_VIEW } from "@/lib/config/site";
 import { pageMetadata } from "@/lib/seo/page-meta";
 
 export const metadata: Metadata = {
@@ -46,7 +46,7 @@ function NothingYet() {
     <StateCard Icon={History} title="עוד אין חיפושים להצגה">
       <p className="max-w-md leading-relaxed text-muted">
         חיפושים שמוצאים מוצרים יופיעו כאן. בינתיים כתבו בחיפוש מה אתם צריכים, ונציג{" "}
-        {RESULTS_PER_PAGE} מוצרים שעברו את הסינון.
+        {RESULTS_FIRST_VIEW} מוצרים שעברו את הסינון.
       </p>
       <Link href="/" className={`${btnPrimary} ${btnMd}`}>
         לחיפוש מוצר

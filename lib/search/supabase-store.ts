@@ -311,9 +311,15 @@ export class SupabaseStore implements SearchStore {
   /** One llm_usage row per call, in a single insert. Token counts and cost only. */
   async logUsage(records: LlmUsageRecord[]): Promise<void> {
     if (!records.length) return;
-    await this.write("logUsage", () =>
-      this.db.from("llm_usage").insert(records.map((r) => ({ ...usageRow(r), env: this.env }))),
-    );
+    const insert = (rows: LlmUsageRecord[]) => () =>
+      this.db.from("llm_usage").insert(rows.map((r) => ({ ...usageRow(r), env: this.env })));
+    if (await this.write("logUsage", insert(records))) return;
+    // Until 20260930120000_ten_results.sql is applied, llm_usage's kind check refuses "titles",
+    // and with it the whole insert: the other calls of the batch are still written.
+    const others = records.filter((r) => r.kind !== "titles");
+    if (others.length && others.length < records.length) {
+      await this.write("logUsage without titles", insert(others));
+    }
   }
 
   /**

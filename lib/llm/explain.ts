@@ -102,9 +102,20 @@ export const explainSchema = z.object({
   ),
 });
 
+/**
+ * The title rule of EXPLAIN_SYSTEM, word for word, which the titles call (./titles.ts) gives its
+ * model too, so a title of places 6-10 is written like one of places 1-5.
+ */
+export const TITLE_RULE =
+  "title_he (≤60 chars): what the product is, from title_en only; an accessory or part (replacement head, cover) is named as that item. Keep brands, models and specs exactly (IP67, 20000mAh), no unit conversion, no feature missing from title_en.";
+
+/** The script rules of EXPLAIN_SYSTEM ("Both fields: ..."), shared with ./titles.ts the same way. */
+export const HEBREW_SCRIPT_RULE =
+  "Natural Israeli Hebrew. Hebrew letters; Latin only for brands, models and specs, with a maqaf after a prefix (ב־4K). Abbreviations with ״ ׳ never ASCII quotes (ס״מ). No emoji or exclamation marks.";
+
 export const EXPLAIN_SYSTEM = `Write Hebrew copy for an Israeli shopping site. Return one item per input product, same id and order, even when sort_preference is "cheapest".
 
-title_he (≤60 chars): what the product is, from title_en only; an accessory or part (replacement head, cover) is named as that item. Keep brands, models and specs exactly (IP67, 20000mAh), no unit conversion, no feature missing from title_en.
+${TITLE_RULE}
 
 why_he: one sentence of 40-${WHY_MAX} chars ending with a period: how it fits the search, from the input data only.
 - A feature only if title_en states it. End with "אבל הכותרת לא מציינת <requirement>" only for a requirements_he item title_en lacks; never about anything else.
@@ -115,7 +126,7 @@ why_he: one sentence of 40-${WHY_MAX} chars ending with a period: how it fits th
 - Comparisons only when true in this input: "הזול", "הנמכר ביותר" or "המשוב החיובי הגבוה ביותר" + the scope for the number of products: "מבין החמישה" (5), "מבין הארבעה" (4), "מבין השלושה" (3), "מבין השניים" (2), none for one. No other superlatives (הכי טוב, משתלם, מושלם).
 - No personal details (age, recipient, names): the line is reused for other shoppers.
 
-Both fields: plural gender-neutral address (שלכם, תוכלו; never שלך, אתה). Natural Israeli Hebrew. Hebrew letters; Latin only for brands, models and specs, with a maqaf after a prefix (ב־4K). Abbreviations with ״ ׳ never ASCII quotes (ס״מ). No emoji or exclamation marks.
+Both fields: plural gender-neutral address (שלכם, תוכלו; never שלך, אתה). ${HEBREW_SCRIPT_RULE}
 
 Example: search {"product_he":"מזרן יוגה","requirements_he":["נגד החלקה"]}, title_en "TPE Yoga Mat 6mm Non Slip", cheapest of five, 97.5% feedback -> title_he "מזרן יוגה TPE 6mm", why_he "מזרן נגד החלקה, 97.5% משוב חיובי והזול מבין החמישה."`;
 
@@ -232,17 +243,37 @@ function whyProblem(
   return null;
 }
 
-function titleProblem(title: string, p: ExplainInput): CopyProblem | null {
+function titleProblem(title: string, titleEn: string): CopyProblem | null {
   if (!title) return "empty";
   if (title.length > TITLE_MAX) return "too_long";
   if (hasForeignScript(title)) return "foreign_script";
   if (hasMixedScript(title)) return "mixed_script";
   if (hasGarbledWord(title)) return "garbled_word";
   // What is left once the Latin words were dropped must still be a Hebrew name.
-  if (!/[א-ת]{2}/.test(title) || hasForeignWord(title, p.title_en)) return "foreign_word";
+  if (!/[א-ת]{2}/.test(title) || hasForeignWord(title, titleEn)) return "foreign_word";
   // Numbers in the title must come from the original title (model names, specs).
-  if (!numbersAreGrounded(title, p.title_en, [])) return "ungrounded_number";
+  if (!numbersAreGrounded(title, titleEn, [])) return "ungrounded_number";
   return null;
+}
+
+/**
+ * A title_he the model wrote, repaired as the site shows it, or null with the problem that
+ * rejects it (the card then shows AliExpress's title). A Latin word that is not a brand, model or
+ * spec is dropped rather than failing the title, which would show the English title_en instead
+ * ("מארגן מגירות Expandable" → "מארגן מגירות"), and so is a name the English title puts after
+ * "for" unless the Hebrew says "for" too; an English word written in Hebrew letters becomes Hebrew
+ * ("פלוש" → "מפרווה רכה"); known misspellings are fixed (tidyHebrew). Explain (checkExplanation)
+ * and the titles call of places 6-10 (./titles.ts) both check their titles here.
+ */
+export function checkTitle(
+  titleHe: string,
+  titleEn: string,
+): { title_he: string | null; problem: CopyProblem | null } {
+  const written = tidyHebrew(titleHe.trim());
+  const title = fixTransliterations(withoutForeignWords(written, titleEn), titleEn);
+  // Nothing but Latin words that are not names: "foreign_word".
+  const problem = written && !title ? "foreign_word" : titleProblem(title, titleEn);
+  return { title_he: problem ? null : title, problem };
 }
 
 export interface CheckedCopy {
@@ -325,23 +356,15 @@ export function checkExplanation(
   // An English word written in Hebrew letters becomes Hebrew in the line too ("מארגן כלים
   // וטבלוואר" → "מארגן כלים וכלי אוכל"), before the checks, so they judge the line that is shown.
   const why = fixTransliterations(caveat.why, p.title_en);
-  // A Latin word that is not a brand, model or spec is dropped rather than failing the title,
-  // which would show the English title_en instead ("מארגן מגירות Expandable" → "מארגן מגירות"),
-  // and an English word written in Hebrew letters becomes Hebrew ("פלוש" → "מפרווה רכה").
-  const written = tidyHebrew(item.title_he.trim());
-  const title = fixTransliterations(withoutForeignWords(written, p.title_en), p.title_en);
+  // The title is repaired rather than rejected where it can be (checkTitle).
+  const title = checkTitle(item.title_he, p.title_en);
   let wp = caveat.problem ?? whyProblem(why, p, batch, context);
   // Too little left after our own cut is not a line the model cut off, so the title stays.
   if (caveat.cut && (wp === "empty" || wp === "truncated")) wp = "unrequested_caveat";
   // A cut-off line usually means the title was cut at the same ASCII quote ("מארגן סכו").
-  const tp =
-    wp === "truncated"
-      ? "truncated"
-      : written && !title
-        ? "foreign_word" // nothing but Latin words that are not names
-        : titleProblem(title, p);
+  const tp = wp === "truncated" ? "truncated" : title.problem;
   return {
-    title_he: tp ? null : title,
+    title_he: tp ? null : title.title_he,
     why_he: wp ? null : why,
     title_problem: tp,
     why_problem: wp,

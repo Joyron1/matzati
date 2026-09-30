@@ -1,6 +1,6 @@
 // Display text for /admin/stats. Costs of a few calls are fractions of a cent, so small USD
 // amounts keep four decimals instead of rounding to "$0.00".
-import { RESULTS_PER_PAGE } from "@/lib/config/site";
+import { RESULTS_FIRST_VIEW, RESULTS_PER_PAGE } from "@/lib/config/site";
 import type { SearchOriginKind } from "@/lib/search/store";
 import type { ClickPositionGroup } from "./report";
 import type { LlmCallKind } from "./usage";
@@ -96,11 +96,12 @@ export function failureLabel(code: string): string | null {
   return Object.hasOwn(FAILURE_LABELS, code) ? FAILURE_LABELS[code] : null;
 }
 
-// The bounds of stats_click_positions (20260928230000_five_results.sql), which a test checks.
+// The bounds of stats_click_positions (20260930120000_ten_results.sql), which a test checks.
 const POSITION_LABELS: Record<ClickPositionGroup, string> = {
   featured: "התוצאה הראשית (מקום 1)",
-  first_page: `שאר העמוד הראשון (מקומות 2 עד ${RESULTS_PER_PAGE})`,
-  more: `${MORE_BUTTON} (מקום ${RESULTS_PER_PAGE + 1} ומעלה)`,
+  first_page: `שאר התוצאות עם ״למה בחרנו״ (מקומות 2 עד ${RESULTS_PER_PAGE})`,
+  first_view: `עוד אפשרויות בתצוגה הראשונה (מקומות ${RESULTS_PER_PAGE + 1} עד ${RESULTS_FIRST_VIEW})`,
+  more_pages: `${MORE_BUTTON} (מקום ${RESULTS_FIRST_VIEW + 1} ומעלה)`,
 };
 
 export function clickPositionLabel(group: ClickPositionGroup): string {
@@ -111,6 +112,7 @@ const KIND_LABELS: Record<LlmCallKind, string> = {
   parse: "הבנת החיפוש",
   explain: "הסבר לתוצאות",
   explain_more: `הסבר ל${MORE_BUTTON}`,
+  titles: `שמות בעברית למקומות ${RESULTS_PER_PAGE + 1} עד ${RESULTS_FIRST_VIEW}`,
   tips: "טיפים לקטגוריה",
 };
 

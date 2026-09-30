@@ -77,11 +77,12 @@ function pick<T>(
 /**
  * The other products of a cached result set, in the order the search ranked them, with the numbers
  * and prices the results page showed (as fetched at `createdAt`, the shared-numbers mark included).
- * The title is the line written for that result set, else our stored title, else AliExpress's.
+ * The title is the line written for that result set (or the title its places 6-10 showed), else
+ * our stored title, else AliExpress's.
  * `stored` maps the ids that have a row to their stored Hebrew title. Null when none is left.
  */
 export function similarFromSearch(
-  cached: Pick<CachedResults, "products" | "explanations" | "createdAt">,
+  cached: Pick<CachedResults, "products" | "explanations" | "createdAt" | "titles">,
   {
     currentId,
     q,
@@ -99,9 +100,13 @@ export function similarFromSearch(
   return {
     source: { kind: "search" },
     checkedAt: cached.createdAt,
-    items: products.map((p) =>
-      searchItem(p, q, cached.explanations[p.productId]?.title_he, stored),
-    ),
+    items: products.map((p) => {
+      // A line's title, else the title places 6-10 showed (the titles call), else a stored one.
+      const titled = cached.titles?.[p.productId];
+      const written =
+        cached.explanations[p.productId]?.title_he ?? (typeof titled === "string" ? titled : null);
+      return searchItem(p, q, written, stored);
+    }),
   };
 }
 

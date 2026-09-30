@@ -1,9 +1,10 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { AliExpressClient } from "@/lib/aliexpress/client";
-import { RESULTS_KEPT, RESULTS_PER_PAGE } from "@/lib/config/site";
+import { RESULTS_FIRST_VIEW, RESULTS_KEPT, RESULTS_PER_PAGE } from "@/lib/config/site";
 import { EXPLAIN_SYSTEM } from "@/lib/llm/explain";
-import type { ParsedQueryRaw } from "@/lib/llm/parse";
+import { TITLES_SYSTEM } from "@/lib/llm/titles";
+import { agePhrases, type ParsedQueryRaw } from "@/lib/llm/parse";
 import type { LlmProvider, StructuredRequest } from "@/lib/llm/provider";
 import type { z } from "zod";
 import { queryKey } from "./cache-key";
@@ -18,6 +19,7 @@ import {
   SearchError,
   searchFailureCode,
 } from "./pipeline";
+import { MAX_ALI_CALLS } from "./fetch-policy";
 import { MemoryStore } from "./store";
 
 // Real product.query response ("usb cable", ILS), captured by check:ali.
@@ -54,15 +56,22 @@ class FakeLlm implements LlmProvider {
   /** Per call: its kind and the limits it was sent with. */
   limits: { kind: string; timeoutMs?: number; maxRetries?: number }[] = [];
   /** Set to make that kind of call throw, as a timeout or an API error does. */
-  failing = new Set<"parse" | "explain">();
+  failing = new Set<"parse" | "explain" | "titles">();
   /** The why_he of the i-th product of an explain batch. */
   why: (i: number) => string = (i) => WHYS[i % WHYS.length];
   constructor(private parse: ParsedQueryRaw | null = PARSE) {}
   async generateStructured<T extends z.ZodType>(req: StructuredRequest<T>) {
     const usage = { inputTokens: 900, outputTokens: 100, cacheReadTokens: 0, cacheWriteTokens: 0 };
-    const kind = req.system === EXPLAIN_SYSTEM ? "explain" : "parse";
+    const kind =
+      req.system === EXPLAIN_SYSTEM ? "explain" : req.system === TITLES_SYSTEM ? "titles" : "parse";
     this.limits.push({ kind, timeoutMs: req.timeoutMs, maxRetries: req.maxRetries });
     if (this.failing.has(kind)) throw new Error(`${kind}: request timed out`);
+    if (kind === "titles") {
+      this.calls.push("titles");
+      const { products } = JSON.parse(req.user) as { products: { id: string }[] };
+      const items = products.map((p) => ({ id: p.id, title_he: "כבל USB לטעינה" }));
+      return { data: { items } as z.infer<T>, usage, model: this.model };
+    }
     if (kind === "explain") {
       this.calls.push("explain");
       const { products } = JSON.parse(req.user) as { products: { id: string }[] };
@@ -94,7 +103,7 @@ describe("runSearch", () => {
   it("parses, fetches, ranks, explains and returns at most a page of grounded results", async () => {
     const { deps, llm, fetchMock } = setup();
     const { response, meta } = await runSearch({ q: "כבל USB עד 40 ש״ח" }, deps);
-    expect(llm.calls).toEqual(["parse", "explain"]);
+    expect(llm.calls).toEqual(["parse", "explain", "titles"]);
     expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(1);
     expect(meta.cache).toBe("none");
     expect(response.results.length).toBeGreaterThan(0);
@@ -106,6 +115,57 @@ describe("runSearch", () => {
       expect(r.title_en.toLowerCase()).toContain("cable");
     }
     expect(response.chips.map((c) => c.label_he)).toEqual(["כבל USB", "עד ₪40"]);
+    // Places 6-10: standard cards with the titles call's Hebrew title and no line.
+    expect(response.extra_results).toHaveLength(RESULTS_FIRST_VIEW - RESULTS_PER_PAGE);
+    for (const r of response.extra_results!) {
+      expect(r).toMatchObject({ title_he: "כבל USB לטעינה", why_he: "" });
+      expect(r.units_sold).toBeGreaterThanOrEqual(100);
+    }
+    const shown = [...response.results, ...response.extra_results!].map((r) => r.product_id);
+    expect(new Set(shown).size).toBe(RESULTS_FIRST_VIEW);
+  });
+
+  it("gives places 6-10 their Hebrew titles from the cache: a hit needs no titles call", async () => {
+    const { deps, llm, store } = setup({ ...PARSE, max_price_ils: null });
+    const fresh = await runSearch({ q: "כבל USB" }, deps);
+    const entry = store.results.get(fresh.response.filters_key!)!;
+    // Stored as titles, never as lines: places 6-10 have no line of their own.
+    const second = entry.products
+      .slice(RESULTS_PER_PAGE, RESULTS_FIRST_VIEW)
+      .map((p) => p.productId);
+    expect(Object.keys(entry.titles ?? {}).sort()).toEqual([...second].sort());
+    for (const id of second) expect(entry.explanations[id]).toBeUndefined();
+    // Saved to products.title_he too, for /p and similar products.
+    for (const id of second) expect(store.products.get(id)?.titleHe).toBe("כבל USB לטעינה");
+    const again = await runSearch({ q: "כבל USB" }, deps);
+    expect(again.response.cached).toBe(true);
+    expect(again.response.extra_results).toEqual(fresh.response.extra_results);
+    expect(llm.calls).toEqual(["parse", "explain", "titles"]);
+    expect(fresh.response.more_after_first_view).toBe(entry.products.length > RESULTS_FIRST_VIEW);
+  });
+
+  it("shows AliExpress's titles in places 6-10 when the titles call fails, and keeps the set an hour", async () => {
+    const { deps, llm, store } = setup({ ...PARSE, max_price_ils: null });
+    llm.failing.add("titles");
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const { response, meta, log } = await runSearch({ q: "כבל USB" }, { ...deps, now: () => T0 });
+      expect(meta.titlesFailed).toBe(true);
+      // The first page keeps its lines; places 6-10 show AliExpress's titles.
+      expect(response.results.every((r) => r.why_he && r.title_he !== r.title_en)).toBe(true);
+      expect(response.extra_results!.every((r) => r.title_he === r.title_en)).toBe(true);
+      expect(store.results.get(response.filters_key!)?.degraded).toBe(true);
+      expect(log.diag).toMatchObject({ titles_failed: true });
+    } finally {
+      errors.mockRestore();
+    }
+    llm.failing.clear();
+    expect((await runSearch({ q: "כבל USB" }, { ...deps, now: () => at(0.9) })).meta.cache).toBe(
+      "results",
+    );
+    const later = await runSearch({ q: "כבל USB" }, { ...deps, now: () => at(1) });
+    expect(later.meta.cache).toBe("parse");
+    expect(later.response.extra_results![0].title_he).toBe("כבל USB לטעינה");
   });
 
   it("serves the same query from the 14-day cache without any LLM or AliExpress call", async () => {
@@ -115,7 +175,7 @@ describe("runSearch", () => {
     const again = await runSearch({ q: 'כבל usb  עד 40 ש"ח' }, deps);
     expect(again.meta.cache).toBe("results");
     expect(again.response.cached).toBe(true);
-    expect(llm.calls).toEqual(["parse", "explain"]);
+    expect(llm.calls).toEqual(["parse", "explain", "titles"]);
     expect(fetchMock.mock.calls.length).toBe(callsBefore);
   });
 
@@ -126,10 +186,10 @@ describe("runSearch", () => {
     await runSearch({ q: "כבל USB עד 40 ש״ח" }, { ...deps, now: () => t0 });
     const cached = await runSearch({ q: "כבל USB עד 40 ש״ח" }, { ...deps, now: () => after(335) });
     expect(cached.meta.cache).toBe("results");
-    expect(llm.calls).toEqual(["parse", "explain"]);
+    expect(llm.calls).toEqual(["parse", "explain", "titles"]);
     const fresh = await runSearch({ q: "כבל USB עד 40 ש״ח" }, { ...deps, now: () => after(336) });
     expect(fresh.meta.cache).toBe("none");
-    expect(llm.calls).toEqual(["parse", "explain", "parse", "explain"]);
+    expect(llm.calls).toEqual(["parse", "explain", "titles", "parse", "explain", "titles"]);
   });
 
   it("says when the results were fetched, also when they come from the cache", async () => {
@@ -149,7 +209,7 @@ describe("runSearch", () => {
     await runSearch({ q: "כבל USB עד 40 ש״ח" }, deps);
     const { response, meta } = await runSearch({ q: "כבל USB עד 40 ש״ח", without: ["max"] }, deps);
     expect(meta.cache).toBe("parse");
-    expect(llm.calls).toEqual(["parse", "explain", "explain"]);
+    expect(llm.calls).toEqual(["parse", "explain", "titles", "explain", "titles"]);
     expect(response.chips.map((c) => c.id)).toEqual(["product"]);
   });
 
@@ -202,7 +262,7 @@ describe("daily LLM budget (beforeLlmWork)", () => {
     const { deps, llm } = setup();
     const beforeLlmWork = vi.fn(async () => {});
     await runSearch({ q: Q }, { ...deps, beforeLlmWork });
-    expect(llm.calls).toEqual(["parse", "explain"]);
+    expect(llm.calls).toEqual(["parse", "explain", "titles"]);
     expect(beforeLlmWork).toHaveBeenCalledTimes(1);
     const again = await runSearch({ q: Q }, { ...deps, beforeLlmWork });
     expect(again.meta.cache).toBe("results");
@@ -243,7 +303,7 @@ describe("daily LLM budget (beforeLlmWork)", () => {
       runSearch({ q: Q, without: ["max"] }, { ...deps, beforeLlmWork }),
     ).rejects.toMatchObject({ code: "capacity" });
     expect(fetchMock.mock.calls.length).toBe(fetches);
-    expect(llm.calls).toEqual(["parse", "explain"]);
+    expect(llm.calls).toEqual(["parse", "explain", "titles"]);
   });
 });
 
@@ -310,8 +370,10 @@ describe("search_log (stats)", () => {
     expect(first).toMatchObject({
       query: Q,
       queryNorm: "כבל usb עד ₪40",
-      resultsCount: fresh.response.results.length,
+      // Every card of the first view: the explained page and places 6-10.
+      resultsCount: fresh.response.results.length + fresh.response.extra_results!.length,
     });
+    expect(first.resultsCount).toBeGreaterThan(RESULTS_PER_PAGE);
     expect(first.resultsCount).toBeGreaterThan(0);
     expect(first.resultIds.length).toBeGreaterThanOrEqual(first.resultsCount);
     expect(first.parsed?.max_price_ils).toBe(40);
@@ -452,9 +514,14 @@ describe("llm_usage (stats)", () => {
         model: "claude-haiku-4-5",
         usage: expect.objectContaining({ outputTokens: 100 }),
       },
+      {
+        kind: "titles",
+        model: "claude-haiku-4-5",
+        usage: expect.objectContaining({ outputTokens: 100 }),
+      },
     ]);
     await runSearch({ q: Q }, deps); // full cache hit: no LLM call, no usage row
-    expect(store.usage).toHaveLength(2);
+    expect(store.usage).toHaveLength(3);
   });
 
   it("records the paid attempts of a parse that failed twice", async () => {
@@ -593,13 +660,11 @@ describe("keywordLadder", () => {
   it("broadens without audience and praise words, then without requirement words", () => {
     expect(
       keywordLadder({
-        ...PARSE,
         keywords_en: "kids water bottle leak proof durable",
         product_terms: ["water bottle"],
         requirements: [{ en: "leak proof", alt: [], he: "לא נוזל" }],
         product_he: "בקבוק מים",
-        min_price_ils: undefined,
-        max_price_ils: undefined,
+        sort_preference: "best_value",
         category_hint: "drinkware bottles",
       }),
     ).toEqual([
@@ -608,6 +673,32 @@ describe("keywordLadder", () => {
       "water bottle",
       "drinkware bottles",
     ]);
+  });
+
+  it("drops the number a birthday preference names once the number-specific keywords find too few", () => {
+    const ladder = keywordLadder({
+      keywords_en: "sonic 3rd birthday balloons",
+      product_terms: ["birthday balloons", "balloons"],
+      requirements: [{ en: "sonic", alt: [], he: "סוניק" }],
+      preferences: [{ words: agePhrases(3), he: "יום הולדת 3" }],
+      product_he: "בלונים ליום הולדת",
+      sort_preference: "best_value",
+      category_hint: "party balloons",
+    });
+    expect(ladder[0]).toBe("sonic 3rd birthday balloons");
+    // The next broader step keeps the character and the product, without "3rd".
+    expect(ladder[1]).toBe("sonic birthday balloons");
+    expect(ladder.slice(1).every((k) => !/\b3(?:rd)?\b|number/.test(k))).toBe(true);
+    // A number that is part of the product's own name or a requirement stays.
+    expect(
+      keywordLadder({
+        keywords_en: "65w usb c charger",
+        product_terms: ["usb c charger"],
+        requirements: [{ en: "65w", alt: [], he: "65W" }],
+        product_he: "מטען",
+        sort_preference: "best_value",
+      })[0],
+    ).toBe("65w usb c charger");
   });
 });
 
@@ -641,13 +732,15 @@ describe("search_log telemetry (origin, timings, calls, uid, failures)", () => {
     const clockMs = () => (t += 5);
     const fresh = await runSearch({ q: Q }, { ...deps, clockMs });
     // One clock reading at the start, two per step, one when the products are ready (before
-    // their lines: plan item 15), one when the row is written.
+    // their lines: plan item 15), one when the row is written. Explain and titles run side by
+    // side: each starts before the other ends.
     expect(fresh.log.timings).toEqual({
       parse_ms: 5,
       fetch_ms: 5,
-      explain_ms: 5,
+      explain_ms: 15,
+      titles_ms: 5,
       products_ms: 25,
-      total_ms: 40,
+      total_ms: 50,
     });
     expect(fresh.log.aliCalls).toBe(fetchMock.mock.calls.length);
     expect(fresh.log.aliCalls).toBeGreaterThanOrEqual(1);
@@ -661,7 +754,7 @@ describe("search_log telemetry (origin, timings, calls, uid, failures)", () => {
       timings: { parse_ms: null, fetch_ms: null, explain_ms: null },
     });
     const refined = await runSearch({ q: Q, without: ["max"] }, { ...deps, clockMs });
-    expect(refined.log.timings).toMatchObject({ parse_ms: null, fetch_ms: 5, explain_ms: 5 });
+    expect(refined.log.timings).toMatchObject({ parse_ms: null, fetch_ms: 5, explain_ms: 15 });
   });
 
   it("gives every row its own search uid, a random UUID by default", async () => {
@@ -753,7 +846,7 @@ const queries = (fetchMock: ReturnType<typeof setup>["fetchMock"]) =>
     .filter((c) => sent(c, "method") === "aliexpress.affiliate.product.query")
     .map((c) => `${sent(c, "keywords")} p${sent(c, "page_no")}`);
 
-/** Few titles of the fixture state 240W, so fewer than 6 pass and the search keeps fetching. */
+/** Few titles of the fixture state 240W, so fewer than 15 pass and the search keeps fetching. */
 const PARSE_240W: ParsedQueryRaw = {
   ...PARSE,
   keywords_en: "240w usb cable",
@@ -778,18 +871,23 @@ const dataLine = (r: { shared_numbers?: { feedback: boolean; sales: boolean } })
 };
 
 describe("fetch until enough pass (plan item 5)", () => {
-  it("stops after one call once 6 pass", async () => {
+  it("stops after one call once TARGET_PASSED (15) pass", async () => {
     const { deps, fetchMock } = setup();
     const { meta } = await runSearch({ q: Q }, deps);
     expect(meta).toMatchObject({ aliCalls: 1, fetchStop: "enough" });
     expect(queries(fetchMock)).toEqual(["usb cable p1"]);
   });
 
-  it("fetches page 2, then another product phrase while fewer than 6 pass, at most 3 calls", async () => {
+  it("fetches page 2, then broader keywords while fewer than 15 pass, at most MAX_ALI_CALLS calls", async () => {
     const { deps, fetchMock } = setup(PARSE_240W);
     const { meta, response } = await runSearch({ q: "כבל 240W" }, deps);
-    expect(queries(fetchMock)).toEqual(["240w usb cable p1", "240w usb cable p2", "240w cable p1"]);
-    expect(meta).toMatchObject({ aliCalls: 3, fetchStop: "calls" });
+    expect(queries(fetchMock)).toEqual([
+      "240w usb cable p1",
+      "240w usb cable p2",
+      "240w cable p1",
+      "usb cable p1",
+    ]);
+    expect(meta).toMatchObject({ aliCalls: MAX_ALI_CALLS, fetchStop: "calls" });
     expect(response.results.every((r) => /240w/i.test(r.title_en))).toBe(true);
   });
 
@@ -842,11 +940,13 @@ describe("LLM failures and limits (plan item 7)", () => {
     expect(LLM_STAGE_LIMITS).toEqual({
       parse: { timeoutMs: 10_000, maxRetries: 1 },
       explain: { timeoutMs: 10_000, maxRetries: 1 },
+      titles: { timeoutMs: 10_000, maxRetries: 1 },
       seoExplain: { timeoutMs: 10_000, maxRetries: 0 },
     });
     expect(llm.limits).toEqual([
       { kind: "parse", ...LLM_STAGE_LIMITS.parse },
       { kind: "explain", ...LLM_STAGE_LIMITS.explain },
+      { kind: "titles", ...LLM_STAGE_LIMITS.titles },
     ]);
   });
 
@@ -863,7 +963,7 @@ describe("LLM failures and limits (plan item 7)", () => {
         expect(r.why_he).toMatch(dataLine(r));
       }
       expect(store.results.get(response.filters_key!)?.degraded).toBe(true);
-      expect(store.usage.map((u) => u.kind)).toEqual(["parse"]);
+      expect(store.usage.map((u) => u.kind)).toEqual(["parse", "titles"]);
     } finally {
       errors.mockRestore();
     }
@@ -1072,15 +1172,20 @@ describe("products a fetch saves (the similar products of /p)", () => {
     const [first, firstTitles] = save.mock.calls[0];
     expect(first.map((p) => p.productId).sort()).toEqual([...kept].sort());
     expect(Object.values(firstTitles).filter(Boolean)).toEqual([]);
-    // Then only the titles written for the page shown, and nothing else.
+    // Then only the titles written for the first view (the lines' and the titles call's).
     expect(save).toHaveBeenCalledTimes(2);
     const [titled, titles] = save.mock.calls[1];
-    expect(titled.map((p) => p.productId)).toEqual(response.results.map((r) => r.product_id));
-    expect(Object.values(titles).every((t) => t === "כבל טעינה מהיר")).toBe(true);
-    for (const id of kept.slice(RESULTS_PER_PAGE)) {
+    expect(titled.map((p) => p.productId)).toEqual(
+      [...response.results, ...response.extra_results!].map((r) => r.product_id),
+    );
+    expect(titled.map((p) => titles[p.productId])).toEqual([
+      ...response.results.map(() => "כבל טעינה מהיר"),
+      ...response.extra_results!.map(() => "כבל USB לטעינה"),
+    ]);
+    for (const id of kept.slice(RESULTS_FIRST_VIEW)) {
       expect(store.products.get(id)).toMatchObject({ titleHe: null });
     }
-    expect(llm.calls).toEqual(["parse", "explain"]);
+    expect(llm.calls).toEqual(["parse", "explain", "titles"]);
   });
 
   it("saves nothing more for a cached search", async () => {
@@ -1102,7 +1207,7 @@ describe("the shop cap mode (the admin's setting)", () => {
     expect(max2.response.filters_key).not.toBe(none.response.filters_key);
     expect(max2.meta.cache).toBe("parse");
     expect(fetchMock.mock.calls.length).toBeGreaterThan(calls);
-    expect(llm.calls).toEqual(["parse", "explain", "explain"]);
+    expect(llm.calls).toEqual(["parse", "explain", "titles", "explain", "titles"]);
     // Under "max2" no shop has more than 2 products on the first page (one fixture shop has 20).
     const page = (key: string) =>
       store.results
@@ -1133,7 +1238,7 @@ describe("first-page safety net (plan item 2, demoteFlaggedLeads)", () => {
     // extra call.
     const movedUp = response.results[RESULTS_PER_PAGE - 1];
     expect(movedUp.why_he).toMatch(dataLine(movedUp));
-    expect(llm.calls).toEqual(["parse", "explain"]);
+    expect(llm.calls).toEqual(["parse", "explain", "titles"]);
     // Saved, so its card on a later page can still go through /go.
     expect(store.products.has(demoted)).toBe(true);
   });

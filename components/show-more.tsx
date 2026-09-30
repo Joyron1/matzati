@@ -44,8 +44,18 @@ async function fetchMore(filtersKey: string, page: number): Promise<MoreResponse
 /**
  * "עוד N אפשרויות" (RESULTS_PER_PAGE): loads the next ranked page of the cached result set and
  * focuses it. The results page shows only once its result set is cached, so it is there to read.
+ * `fromPage` is the first page it loads (loadMore's 0-based index): FIRST_MORE_PAGE after a first
+ * view of 10 (places 11-15), 1 for a response without places 6-10.
  */
-export function ShowMore({ filtersKey, q }: { filtersKey: string; q: string }) {
+export function ShowMore({
+  filtersKey,
+  q,
+  fromPage = 1,
+}: {
+  filtersKey: string;
+  q: string;
+  fromPage?: number;
+}) {
   const [pages, setPages] = useState<LoggedResult[][]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<MoreError | null>(null);
@@ -56,7 +66,7 @@ export function ShowMore({ filtersKey, q }: { filtersKey: string; q: string }) {
     if (loading) return;
     setLoading(true);
     setError(null);
-    const page = pages.length + 1;
+    const page = fromPage + pages.length;
     const result = await fetchMore(filtersKey, page);
     setLoading(false);
     if (typeof result === "string") {
@@ -83,7 +93,7 @@ export function ShowMore({ filtersKey, q }: { filtersKey: string; q: string }) {
   return (
     <div className="w-full space-y-5">
       {pages.map((products, i) => {
-        const first = (i + 1) * RESULTS_PER_PAGE + 1;
+        const first = (fromPage + i) * RESULTS_PER_PAGE + 1;
         const last = first + products.length - 1;
         return (
           <section

@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { z } from "zod";
 import { AliExpressClient } from "@/lib/aliexpress/client";
 import { EXPLAIN_SYSTEM, whyFromData } from "@/lib/llm/explain";
+import { TITLES_SYSTEM } from "@/lib/llm/titles";
 import type { ParsedQueryRaw } from "@/lib/llm/parse";
 import type { LlmProvider, StructuredRequest } from "@/lib/llm/provider";
 import { MAX_ALI_CALLS } from "@/lib/search/fetch-policy";
@@ -119,8 +120,9 @@ describe("planFinalRun", () => {
   it("bounds a search by the pipeline's own limits", () => {
     const bound = searchBound();
     // Parse: 2 attempts, each tried twice (LLM_STAGE_LIMITS.parse.maxRetries 1); explain tried
-    // twice (LLM_STAGE_LIMITS.explain.maxRetries 1, for the Hebrew titles).
-    expect(bound.llm).toEqual({ parse: 4, explain: 2, total: 6 });
+    // twice (LLM_STAGE_LIMITS.explain.maxRetries 1, for the Hebrew titles); the titles of places
+    // 6-10 tried twice too (LLM_STAGE_LIMITS.titles.maxRetries 1).
+    expect(bound.llm).toEqual({ parse: 4, explain: 2, titles: 2, total: 8 });
     expect(bound.ali).toEqual({
       calls: MAX_ALI_CALLS + 1,
       tries: 1 + ALI_RETRIES,
@@ -135,7 +137,7 @@ describe("planFinalRun", () => {
       cap: 60,
       used: 0,
       left: 60,
-      uncapped: 180,
+      uncapped: 240,
       max: 60,
       noRetries: 60,
     });
@@ -157,9 +159,10 @@ describe("planFinalRun", () => {
 
   it("prints the numbers the owner sees for the real 29 queries", () => {
     // On 2026-09-28 five examples repeat an eval query word for word (gift, car holder, night
-    // light, power bank, slippers): 24 searches, at most 60 LLM requests (120 without the cap,
-    // 48 without retries) and 87 AliExpress requests (288 without the cap). Checked by rule, not
-    // by value, so a change of the home examples does not fail this test.
+    // light, power bank, slippers): 24 searches, at most 60 LLM requests (192 without the cap, 72
+    // without retries: a parse, an explain and a titles call each, since 2026-09-30) and 87
+    // AliExpress requests (360 without the cap). Checked by rule, not by value, so a change of the
+    // home examples does not fail this test.
     const plan = planFinalRun(realQueries());
     const copies = plan.queries.filter((x) => x.sameAs);
     for (const c of copies) {
@@ -168,13 +171,13 @@ describe("planFinalRun", () => {
     }
     expect(plan.toRun).toHaveLength(29 - copies.length);
     const n = plan.toRun.length;
-    expect(plan.llm).toMatchObject({ max: Math.min(60, 6 * n), uncapped: 6 * n });
-    expect(plan.ali).toMatchObject({ max: Math.min(87, 12 * n), uncapped: 12 * n });
+    expect(plan.llm).toMatchObject({ max: Math.min(60, 8 * n), uncapped: 8 * n });
+    expect(plan.ali).toMatchObject({ max: Math.min(87, 15 * n), uncapped: 15 * n });
     const text = formatPlan(plan);
     expect(text).toContain(`${n} to search now, ${copies.length} same as an earlier query`);
     expect(text).toContain(`LLM requests:        at most ${plan.llm.max} (hard cap 60`);
     expect(text).toContain(`AliExpress requests: at most ${plan.ali.max} (hard cap 87`);
-    expect(text).toContain(`could ask for ${6 * n}`);
+    expect(text).toContain(`could ask for ${8 * n}`);
     for (const c of copies) expect(text).toContain(`${c.id} = ${c.sameAs}`);
     // Only ASCII: the plan prints ids and numbers, never the Hebrew queries.
     expect(/^[\x20-\x7e\n]*$/.test(text)).toBe(true);
@@ -190,7 +193,7 @@ describe("planFinalRun", () => {
     expect(copy.queries.find((x) => x.id === "b")?.sameAs).toBe("a");
     expect(copy.selected).toEqual(["b"]);
     expect(copy.toRun).toEqual(["a"]);
-    expect(copy.llm.uncapped).toBe(6);
+    expect(copy.llm.uncapped).toBe(8);
     expect(formatPlan(copy)).toContain("Selected with --only: b; searched for them: a.");
     expect(planFinalRun(queries, { only: new Set(["c"]) }).toRun).toEqual(["c"]);
     // Its source recorded already: nothing to search, the copy is made from it.
@@ -250,17 +253,25 @@ const USAGE = { inputTokens: 900, outputTokens: 100, cacheReadTokens: 0, cacheWr
 class ScriptedLlm implements LlmProvider {
   readonly name = "anthropic" as const;
   readonly model = "claude-haiku-4-5";
-  sent: { kind: "parse" | "explain"; maxRetries?: number }[] = [];
+  sent: { kind: "parse" | "explain" | "titles"; maxRetries?: number }[] = [];
   constructor(
     private readonly script: ("timeout" | "unusable" | "ok")[] = [],
     private readonly parse: ParsedQueryRaw = PARSE,
+    /** The titles call's own script (it runs beside explain, so their order is not fixed). */
+    private readonly titlesScript: ("timeout" | "ok")[] = [],
   ) {}
   async generateStructured<T extends z.ZodType>(req: StructuredRequest<T>) {
-    const kind = req.system === EXPLAIN_SYSTEM ? "explain" : "parse";
+    const kind =
+      req.system === EXPLAIN_SYSTEM ? "explain" : req.system === TITLES_SYSTEM ? "titles" : "parse";
     this.sent.push({ kind, maxRetries: req.maxRetries });
-    const step = this.script.shift() ?? "ok";
+    const step = (kind === "titles" ? this.titlesScript.shift() : this.script.shift()) ?? "ok";
     if (step === "timeout") throw new APIConnectionTimeoutError();
     if (step === "unusable") return { data: null, usage: USAGE, model: this.model };
+    if (kind === "titles") {
+      const { products } = JSON.parse(req.user) as { products: { id: string }[] };
+      const items = products.map((p) => ({ id: p.id, title_he: "כבל USB לטעינה" }));
+      return { data: { items } as z.infer<T>, usage: USAGE, model: this.model };
+    }
     if (kind === "explain") {
       const { products } = JSON.parse(req.user) as { products: { id: string }[] };
       const items = products.map((p, i) => ({
@@ -357,10 +368,14 @@ const PRODUCTS = readFileSync(
 );
 
 /** runSearch as the final check runs it: capped provider, capped fetch, in-memory store. */
-function cappedSearch(script: ConstructorParameters<typeof ScriptedLlm>[0], caps = FINAL_CAPS) {
+function cappedSearch(
+  script: ConstructorParameters<typeof ScriptedLlm>[0],
+  caps = FINAL_CAPS,
+  titlesScript: ConstructorParameters<typeof ScriptedLlm>[2] = [],
+) {
   const llmCap = new RequestCap("LLM", caps.llmRequests);
   const aliCap = new RequestCap("AliExpress", caps.aliRequests);
-  const inner = new ScriptedLlm(script);
+  const inner = new ScriptedLlm(script, PARSE, titlesScript);
   const fetchMock = vi.fn<typeof fetch>(async () => new Response(PRODUCTS));
   const ali = new AliExpressClient(
     { appKey: "k", appSecret: "s", trackingId: "t", gateway: "https://g.test/sync" },
@@ -378,31 +393,33 @@ function cappedSearch(script: ConstructorParameters<typeof ScriptedLlm>[0], caps
 describe("a search under the caps (the real pipeline, faked services)", () => {
   it("reaches the per-search bound and never goes past it", async () => {
     // Parse: a timeout, then an unusable answer; the retry attempt: a timeout, then a parse.
-    // Explain: a timeout, then the lines.
-    const t = cappedSearch(["timeout", "unusable", "timeout", "ok", "timeout", "ok"]);
+    // Explain: a timeout, then the lines. Titles (places 6-10): a timeout, then the titles.
+    const t = cappedSearch(["timeout", "unusable", "timeout", "ok", "timeout", "ok"], FINAL_CAPS, [
+      "timeout",
+      "ok",
+    ]);
     const { response, meta } = await runSearch({ q: "כבל USB עד 40 ש״ח" }, t.deps);
     expect(response.results.length).toBeGreaterThan(0);
-    expect(t.inner.sent.map((s) => s.kind)).toEqual([
-      "parse",
-      "parse",
-      "parse",
-      "parse",
-      "explain",
-      "explain",
-    ]);
+    expect(response.extra_results?.every((r) => r.title_he === "כבל USB לטעינה")).toBe(true);
+    const kinds = t.inner.sent.map((s) => s.kind);
+    expect(kinds.slice(0, 4)).toEqual(["parse", "parse", "parse", "parse"]);
+    // Explain and titles run side by side: their tries interleave.
+    expect(kinds.slice(4).sort()).toEqual(["explain", "explain", "titles", "titles"]);
     expect(t.llmCap.used).toBe(searchBound().llm.total);
     expect(t.aliCap.used).toBe(t.fetchMock.mock.calls.length);
     expect(t.aliCap.used).toBe(meta.aliCalls + meta.linkCalls);
     expect(t.aliCap.used).toBeLessThanOrEqual(searchBound().ali.total);
   });
 
-  it("marks a search that met the LLM cap: the explain request is refused, never sent", async () => {
+  it("marks a search that met the LLM cap: explain and titles are refused, never sent", async () => {
     const t = cappedSearch(["ok"], { llmRequests: 1, aliRequests: 87 });
     const { meta } = await runSearch({ q: "כבל USB עד 40 ש״ח" }, t.deps);
-    // The pipeline shows lines from the data when explain fails; the eval sees the refusal.
+    // The pipeline shows lines from the data and AliExpress's titles when these calls fail; the
+    // eval sees the refusals.
     expect(meta.explainFailed).toBe(true);
+    expect(meta.titlesFailed).toBe(true);
     expect(t.inner.sent.map((s) => s.kind)).toEqual(["parse"]);
-    expect(t.llmCap).toMatchObject({ used: 1, refused: 1 });
+    expect(t.llmCap).toMatchObject({ used: 1, refused: 2 });
   });
 
   it("sends no AliExpress request past the cap (retries included)", async () => {

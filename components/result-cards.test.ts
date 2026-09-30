@@ -4,7 +4,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { LoggedResult } from "@/lib/search-url";
-import { ResultCards } from "./result-cards";
+import { ExtraResultCards, ResultCards } from "./result-cards";
 
 const result = (i: number): LoggedResult => ({
   product_id: `100500${i}`,
@@ -68,5 +68,49 @@ describe("ResultCards", () => {
     expect(out).toContain(
       `<span dir="ltr" lang="en" class="text-end line-clamp-2">${english.title_he}</span>`,
     );
+  });
+});
+
+/** Places 6-10 as the page renders them (ExtraResultCards). */
+const extraHtml = (results: LoggedResult[]) =>
+  renderToStaticMarkup(createElement(ExtraResultCards, { results, q: "כבל USB" })).replace(
+    /<!-- -->/g,
+    "",
+  );
+
+describe("ExtraResultCards (places 6-10 of the first view)", () => {
+  const extra = [6, 7, 8, 9, 10].map((i) => ({ ...result(i), why_he: "" }));
+
+  it("renders standard cards: title, price, numbers, buy and details, and no line", () => {
+    const out = extraHtml(extra);
+    expect(out).toContain("עוד אפשרויות שעברו את הסינון");
+    expect(out).toContain('מקומות <bdi dir="ltr">6</bdi> עד <bdi dir="ltr">10</bdi> בדירוג');
+    for (const [i, r] of extra.entries()) {
+      expect(out).toContain(r.title_he);
+      expect(out).toContain(`מקום ${6 + i} בדירוג`);
+      // Its buy button carries the search and its place on the page.
+      expect(out).toContain(
+        `/go/${r.product_id}?src=search_extra&amp;s=${r.search_uid}&amp;pos=${6 + i}`,
+      );
+      expect(out).toContain(`href="/p/${r.product_id}?q=`);
+    }
+    expect(out.match(/>קישור שותפים</g)).toHaveLength(extra.length);
+    expect(out.match(/>לפרטים</g)).toHaveLength(extra.length);
+    expect(out).not.toContain("למה בחרנו:");
+    expect(out).toContain("משוב חיובי");
+    // Two in a row on phones, more on wider screens; a list of cards.
+    expect(out).toContain("grid-cols-2");
+    expect(out).toContain("xl:grid-cols-5");
+    expect(out).toMatch(/<ul[^>]*>(<li>.*?<\/li>){5}<\/ul>/);
+  });
+
+  it("says when a card shares its numbers with other listings of its shop", () => {
+    const shared = { ...extra[0], shared_numbers: { feedback: true, sales: false } };
+    expect(extraHtml([shared])).toContain("רוב המוצרים שבדקנו מהחנות הזו");
+    expect(extraHtml([shared])).toContain('מקום <bdi dir="ltr">6</bdi> בדירוג');
+  });
+
+  it("renders nothing without products", () => {
+    expect(extraHtml([])).toBe("");
   });
 });

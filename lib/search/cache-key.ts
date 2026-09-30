@@ -7,12 +7,21 @@
 // results. Reuse happens only when the filters that drive the results are identical.
 // Prompt and ranking versions are part of the keys, so changing either never serves stale work.
 import { createHash } from "node:crypto";
+import { RESULTS_FIRST_VIEW, RESULTS_KEPT, RESULTS_PER_PAGE } from "@/lib/config/site";
 import { EXPLAIN_VERSION } from "@/lib/llm/explain";
 import { PARSE_VERSION } from "@/lib/llm/parse";
 import { fixSpelling } from "@/lib/llm/text-checks";
+import { TITLES_VERSION } from "@/lib/llm/titles";
 import { RANKING_VERSION, type ShopCapMode } from "@/lib/ranking/config";
 import { normalizePhrase, tokenize } from "@/lib/ranking/match";
 import type { ParsedQuery, SearchFilters } from "./filters";
+
+/**
+ * The shape of a cached result set, part of its key: how many the first view shows, how many of
+ * them are explained, and how many are kept. A result set of another shape (the 5 of the first
+ * view and 15 kept before 2026-09-30) is never served: it has no titles for places 6-10.
+ */
+export const RESULTS_SHAPE = `${RESULTS_FIRST_VIEW}/${RESULTS_PER_PAGE}/${RESULTS_KEPT}`;
 
 /** How long parses and results are reused (owner decision 2026-09-27: 14 days, was 48h). */
 export const CACHE_TTL_DAYS = 14;
@@ -73,6 +82,8 @@ export function canonicalFilters(
   return {
     rv: RANKING_VERSION,
     ev: EXPLAIN_VERSION,
+    tv: TITLES_VERSION,
+    rs: RESULTS_SHAPE,
     sc: shopCap,
     k: sortedUnique(words(f.keywords_en)),
     t: unique(f.product_terms.map((t) => tokenize(t).join(" "))),

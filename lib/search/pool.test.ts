@@ -8,7 +8,7 @@ import { RESULTS_KEPT, RESULTS_PER_PAGE } from "@/lib/config/site";
 import { loadSnapshots, SNAPSHOT_DIR } from "@/lib/eval/files";
 import { distinctProducts } from "@/lib/eval/snapshot";
 import { FILL_TIER, FILTERS, SHOP_CAP_MODES } from "@/lib/ranking/config";
-import { passesFilters, rankWithFill, rejectReason } from "@/lib/ranking/rank";
+import { passesFilters, rankForSearch, rejectReason } from "@/lib/ranking/rank";
 import { filtersKey } from "./cache-key";
 import { applyOverrides, MAX_CHIP, MIN_CHIP, requirementChipId } from "./chips";
 import type { ParsedQuery } from "./filters";
@@ -115,7 +115,7 @@ describe.skipIf(!present)("views of the real snapshot pools", () => {
           // Only a view that removes a requirement and leaves fewer than a page is not kept: that
           // request fetches again.
           expect(spec.removesMore).toBe(true);
-          const passed = rankWithFill(pool, spec.filters, RESULTS_PER_PAGE, mode).ranked.length;
+          const passed = rankForSearch(pool, spec.filters, mode).ranked.length;
           expect(passed).toBeLessThan(RESULTS_PER_PAGE);
           continue;
         }
@@ -135,7 +135,7 @@ describe.skipIf(!present)("views of the real snapshot pools", () => {
       // The pool keeps each product of the views once, and none the result set holds itself.
       const own = views.find(([key]) => key === viewKeyOf(parsed.sort_preference, []))!;
       expect(own[1].view.ids).toEqual(
-        rankWithFill(pool, parsed, RESULTS_PER_PAGE, mode)
+        rankForSearch(pool, parsed, mode)
           .ranked.slice(0, KEPT)
           .map((p) => p.productId),
       );

@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import { parseEnvelope, parseJsonKeepingIds } from "@/lib/aliexpress/client";
 import { parseCategories, parseProductPage, type AliProduct } from "@/lib/aliexpress/schemas";
 import type { ParsedQuery, Requirement, SearchFilters } from "@/lib/search/filters";
-import { CATEGORY_LABELS, FILL_TIER, FILTERS, SHOP_CAP_MODES, WEIGHTS } from "./config";
+import { agePhrases } from "@/lib/llm/parse";
+import { CATEGORY_LABELS, FILL_TIER, FILL_UP_TO, FILTERS, SHOP_CAP_MODES, WEIGHTS } from "./config";
 import { tokenize } from "./match";
 import {
   categoryOutliers,
@@ -14,6 +15,7 @@ import {
   rankProducts,
   rejectReason,
   rejectionCounts,
+  rankForSearch,
   rankWithFill,
   score,
   scoreContext,
@@ -1199,8 +1201,11 @@ describe("trust tiers", () => {
   it("classifies products by the thresholds they meet", () => {
     expect(trustTierOf({ positiveFeedbackPct: 92, unitsSold: 150 })).toBe("standard");
     expect(trustTierOf({ positiveFeedbackPct: 100, unitsSold: 67 })).toBe("fill");
-    expect(trustTierOf({ positiveFeedbackPct: 94, unitsSold: 67 })).toBeNull();
-    expect(trustTierOf({ positiveFeedbackPct: 100, unitsSold: 29 })).toBeNull();
+    // FILL_TIER since 2026-09-30: 93% and 20 sales (was 95% and 30).
+    expect(trustTierOf({ positiveFeedbackPct: 94, unitsSold: 67 })).toBe("fill");
+    expect(trustTierOf({ positiveFeedbackPct: 93, unitsSold: 20 })).toBe("fill");
+    expect(trustTierOf({ positiveFeedbackPct: 92.9, unitsSold: 67 })).toBeNull();
+    expect(trustTierOf({ positiveFeedbackPct: 100, unitsSold: 19 })).toBeNull();
     expect(trustTierOf({ positiveFeedbackPct: null, unitsSold: 5000 })).toBeNull();
   });
 
@@ -1257,5 +1262,76 @@ describe("trust tiers", () => {
       "none",
     );
     expect(ranked).toEqual([]);
+  });
+});
+
+// Owner request 2026-09-30: "בלונים ליום הולדת 3 של סוניק" showed 5 Sonic balloons, all from the
+// second tier (43-90 sales, 97.8-100% feedback), and none said "3".
+describe("a preference the title states (the age of a birthday)", () => {
+  const balloons = filters({
+    keywords_en: "sonic 3rd birthday balloons",
+    product_terms: ["birthday balloons", "balloons"],
+    requirements: [req("sonic")],
+    preferences: [{ words: agePhrases(3), he: "יום הולדת 3" }],
+  });
+  const balloon = (id: string, title: string, fb: number, sold: number) =>
+    product({ productId: id, title, positiveFeedbackPct: fb, unitsSold: sold, price: 20 });
+  const plain = [
+    balloon("p1", "Sonic Birthday Balloons Party Decoration Set", 100, 90),
+    balloon("p2", "Sonic Hedgehog Balloons Birthday Party Supplies", 99.1, 74),
+    balloon("p3", "Sonic Foil Balloons Kids Birthday Decor", 98.6, 61),
+    balloon("p4", "Sonic Balloons 3pcs Birthday Party Set", 100, 88),
+  ];
+  const withAge = [
+    balloon("n1", "Sonic Balloons Number 3 Foil Balloon Birthday", 97.8, 43),
+    balloon("n2", "Sonic 3rd Birthday Party Balloons", 98.2, 52),
+  ];
+
+  it("ranks the comparable passers that say the age first, among the second tier too", () => {
+    const { ranked } = rankForSearch([...plain, ...withAge], balloons, "none");
+    expect(ids(ranked)).toHaveLength(plain.length + withAge.length);
+    expect(ids(ranked).slice(0, 2).sort()).toEqual(["n1", "n2"]);
+    // "3pcs" is a count, not the age: no lift.
+    expect(ids(ranked).indexOf("p4")).toBeGreaterThan(1);
+    // The same list without the preference: they are not first.
+    const without = rankForSearch([...plain, ...withAge], { ...balloons, preferences: [] }, "none");
+    expect(ids(without.ranked).slice(0, 2)).not.toEqual(ids(ranked).slice(0, 2));
+  });
+
+  it("never lifts a clearly less trusted product far ahead", () => {
+    const weak = balloon("w", "Sonic Balloons Number 3 Birthday", 91, 150);
+    const strong = [
+      balloon("s1", "Sonic Birthday Balloons Party Set", 99.2, 4200),
+      balloon("s2", "Sonic Balloons Birthday Decoration", 98.8, 2600),
+    ];
+    const { ranked } = rankForSearch([weak, ...strong], balloons, "none");
+    expect(ids(ranked)).toEqual(["s1", "s2", "w"]);
+    // A second-tier product that says it never passes one that meets FILTERS.
+    const filled = rankForSearch(
+      [
+        balloon("f", "Sonic Number 3 Balloon Birthday", 100, 60),
+        balloon("std", "Sonic Birthday Balloons", 91, 120),
+      ],
+      balloons,
+      "none",
+    );
+    expect(ids(filled.ranked)).toEqual(["std", "f"]);
+    // The lift is WEIGHTS.preference at most: 5 points of positive feedback.
+    expect(WEIGHTS.preference).toBeLessThanOrEqual(1);
+    const ctx = scoreContext(balloons, [weak, ...strong]);
+    const lift =
+      score(weak, ctx) -
+      score(weak, scoreContext({ ...balloons, preferences: [] }, [weak, ...strong]));
+    expect(lift).toBeCloseTo(WEIGHTS.preference, 5);
+  });
+
+  it("fills up to the first view (FILL_UP_TO) from the second tier", () => {
+    const many = Array.from({ length: 12 }, (_, i) =>
+      balloon(`f${i}`, `Sonic Birthday Balloons Set ${String.fromCharCode(65 + i)}`, 96, 30 + i),
+    );
+    const { ranked, fillIds } = rankForSearch(many, balloons, "none");
+    expect(FILL_UP_TO).toBe(10);
+    expect(ranked).toHaveLength(FILL_UP_TO);
+    expect(fillIds).toHaveLength(FILL_UP_TO);
   });
 });

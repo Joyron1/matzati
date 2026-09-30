@@ -16,7 +16,7 @@ import type { ReactNode } from "react";
 import { BlockerHint, BlockerList, chipBlockers } from "@/components/filter-blockers";
 import { FilterChips } from "@/components/filter-chips";
 import { LinkPending } from "@/components/pending-navigation";
-import { ResultCards } from "@/components/result-cards";
+import { ExtraResultCards, ResultCards } from "@/components/result-cards";
 import { ResultsAnnouncer } from "@/components/search-wait/results-announcer";
 import type { RankedSignal, UnderstoodSignal } from "@/components/search-wait/signals";
 import { ShareLink } from "@/components/share-link";
@@ -24,6 +24,7 @@ import { ShowMore } from "@/components/show-more";
 import { SortBar } from "@/components/sort-bar";
 import { StateCard } from "@/components/state-card";
 import { btnMd, btnPrimary, btnSecondary } from "@/components/styles";
+import { FIRST_MORE_PAGE } from "@/lib/config/site";
 import { APPROX_PRICE_NOTE } from "@/lib/copy";
 import { formatCount, formatDateTime, formatWait } from "@/lib/format";
 import { FILTERS } from "@/lib/ranking/config";
@@ -193,6 +194,12 @@ function Results({
   }
 
   const shown = response.results;
+  // Places 6-10 (standard cards, no line). A response without them (mock data) keeps the old
+  // "עוד N" from place 6.
+  const extra = response.extra_results;
+  const firstView = [...shown, ...(extra ?? [])];
+  const moreFromPage = extra ? FIRST_MORE_PAGE : 1;
+  const moreAvailable = extra ? response.more_after_first_view === true : response.more_available;
   // Server-rendered with the server's clock; results can come from the 14-day cache.
   const checkedAt = staleFetchedAt(response.fetched_at, new Date());
   return (
@@ -208,7 +215,7 @@ function Results({
           <p className="text-sm text-muted">
             {/* When the second trust tier filled in, one pair of numbers would be false for some
                 cards, so the line names the criteria and links to the full rules instead. */}
-            {shown.some((p) => p.passed_tier === "fill") ? (
+            {firstView.some((p) => p.passed_tier === "fill") ? (
               <>
                 הסינון: משוב חיובי ומספר מכירות ב־30 הימים האחרונים לפי{" "}
                 <Link
@@ -226,7 +233,7 @@ function Results({
               </>
             )}
             {priceChips.length > 0 ? ", בתוך התקציב" : ""}.
-            {shown.some((p) => p.price_is_approx) && <> {APPROX_PRICE_NOTE}</>}
+            {firstView.some((p) => p.price_is_approx) && <> {APPROX_PRICE_NOTE}</>}
           </p>
           {checkedAt && (
             <p className="text-sm text-muted">
@@ -240,13 +247,19 @@ function Results({
 
       {/* Its own cards per result set: a sort change keeps the page, not the cards. */}
       <ResultCards key={response.filters_key} results={shown} q={q} />
+      {extra && <ExtraResultCards key={`extra-${response.filters_key}`} results={extra} q={q} />}
 
       <div className="flex flex-col items-center gap-4 pt-2">
         {blockers.length > 0 && (
           <BlockerHint blocker={blockers[0]} q={q} sort={sort} without={without} />
         )}
-        {response.more_available && response.filters_key && (
-          <ShowMore key={response.filters_key} filtersKey={response.filters_key} q={q} />
+        {moreAvailable && response.filters_key && (
+          <ShowMore
+            key={response.filters_key}
+            filtersKey={response.filters_key}
+            q={q}
+            fromPage={moreFromPage}
+          />
         )}
         <ShareLink text={`מצאתי תוצאות לחיפוש "${q}"`} label="שיתוף החיפוש בוואטסאפ" />
       </div>

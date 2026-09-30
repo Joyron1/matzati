@@ -1,6 +1,6 @@
 // Filter thresholds and ranking weights (CLAUDE.md §6.5-6). Defaults are to be tuned against
 // real data. The UI reads FILTERS too, so the numbers we show always match the numbers we use.
-import { RESULTS_KEPT, RESULTS_PER_PAGE } from "@/lib/config/site";
+import { RESULTS_FIRST_VIEW, RESULTS_KEPT, RESULTS_PER_PAGE } from "@/lib/config/site";
 
 export interface TrustThresholds {
   minPositiveFeedbackPct: number;
@@ -13,15 +13,24 @@ export const FILTERS: TrustThresholds = {
 };
 
 /**
- * Second tier (owner decision 2026-09-27), used only to fill up to 3 results when too few meet
- * FILTERS. Niche products (licensed toys, for example) are fragmented across many small sellers
- * with fewer than 100 sales a month; a higher feedback bar keeps them trustworthy. The UI states
- * the thresholds a product actually met; it does not label these products.
+ * Second tier (owner decision 2026-09-27), used only to fill up to FILL_UP_TO results when too few
+ * meet FILTERS. Niche products (licensed toys, party items for one character) are fragmented
+ * across many small sellers with fewer than 100 sales a month; a higher feedback bar keeps them
+ * trustworthy. The UI states the thresholds a product actually met; it does not label these
+ * products. Owner decision 2026-09-30: 93% and 20 sales (was 95% and 30; a Sonic birthday search
+ * showed 5 products, all from this tier, and rejected 50 on feedback).
  */
 export const FILL_TIER: TrustThresholds = {
-  minPositiveFeedbackPct: 95,
-  minUnitsSold: 30,
+  minPositiveFeedbackPct: 93,
+  minUnitsSold: 20,
 };
+
+/**
+ * How many results FILL_TIER tops a search up to: the first view (RESULTS_FIRST_VIEW, 10; owner
+ * decision 2026-09-30, it was one page of 5). An SEO page's refresh keeps its own one page
+ * (lib/search/seo-run.ts), so its stored results are ranked as before.
+ */
+export const FILL_UP_TO = RESULTS_FIRST_VIEW;
 
 /**
  * Score weights. The discount is shown on the card but never scored: almost every listing claims
@@ -39,6 +48,16 @@ export const WEIGHTS = {
    * or reached the first page in two queries; 3 fixed both, and 4 changed nothing more.
    */
   relevance: 3,
+  /**
+   * A stated preference the title says (SearchFilters.preferences: "Number 3" or "3rd Birthday"
+   * for "יום הולדת 3"), times the share of the search's preferences it says (owner request
+   * 2026-09-30). 1 is 5 points of positive feedback, or about 4.6 times the sales: enough to move a
+   * "Number 3" balloon (97.8%, 43 sales) above a comparable one that names "birthday balloons" word
+   * for word (100%, 90 sales; relevance's primary-term part alone is worth 0.6), and never enough
+   * to lift a clearly less trusted one (91% on 150 sales against 99% on thousands) or a product of
+   * the second trust tier above the first (rank.test.ts, "a preference the title states").
+   */
+  preference: 1,
 } as const;
 
 /**
@@ -99,7 +118,7 @@ export interface ShopCap {
 
 const MAX2_FIRST_PAGE = 2;
 
-/** "max2": 2 of the first page (RESULTS_PER_PAGE), and the same share of RESULTS_KEPT (6 of 15). */
+/** "max2": 2 of the first page (RESULTS_PER_PAGE), and the same share of RESULTS_KEPT (8 of 20). */
 export const MAX2_SHOP_CAP: ShopCap = {
   firstPage: MAX2_FIRST_PAGE,
   kept: Math.round((MAX2_FIRST_PAGE * RESULTS_KEPT) / RESULTS_PER_PAGE),
@@ -193,5 +212,8 @@ export const DEDUP = {
  * reused. 7: shared numbers (SHARED_NUMBERS), which also marks listings in the cached results.
  * 8: pages of 5 (RESULTS_PER_PAGE, RESULTS_KEPT 15) and the shop cap setting (SHOP_CAP_MODES).
  * 9: device connector fit (./connectors.ts: no Lightning cable for an iPhone 15).
+ * 10: 10 results on the first view and 20 kept (RESULTS_FIRST_VIEW, RESULTS_KEPT), FILL_TIER 93%
+ * and 20 sales topping up to 10 (FILL_UP_TO), and a preference the title states moves a product up
+ * (WEIGHTS.preference; whole phrases such as "3rd birthday", ./relevance.ts).
  */
-export const RANKING_VERSION = 9;
+export const RANKING_VERSION = 10;

@@ -1,5 +1,45 @@
+import { RESULTS_PER_PAGE } from "@/lib/config/site";
 import type { LoggedResult } from "@/lib/search-url";
-import { CompactProductCard, FeaturedProductCard } from "./product-cards";
+import { CompactProductCard, FeaturedProductCard, StandardProductCard } from "./product-cards";
+
+/**
+ * Places 6-10 of the first view (RESULTS_FIRST_VIEW, owner decision 2026-09-30), right under the
+ * explained page: a small heading and a grid of standard cards (StandardProductCard), two in a row
+ * on phones, three from md, five from xl. A list, so a screen reader says how many there are.
+ */
+export function ExtraResultCards({ results, q }: { results: LoggedResult[]; q: string }) {
+  if (!results.length) return null;
+  const first = RESULTS_PER_PAGE + 1;
+  const last = RESULTS_PER_PAGE + results.length;
+  return (
+    <section aria-labelledby="first-view-extra" className="space-y-3">
+      <div className="space-y-1">
+        <h2 id="first-view-extra" className="text-lg font-bold">
+          עוד אפשרויות שעברו את הסינון
+        </h2>
+        <p className="text-sm text-muted">
+          {results.length > 1 ? (
+            <>
+              מקומות <bdi dir="ltr">{first}</bdi> עד <bdi dir="ltr">{last}</bdi> בדירוג
+            </>
+          ) : (
+            <>
+              מקום <bdi dir="ltr">{first}</bdi> בדירוג
+            </>
+          )}
+          , בלי ההסבר ״למה בחרנו״.
+        </p>
+      </div>
+      <ul className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-5">
+        {results.map((p, i) => (
+          <li key={p.product_id}>
+            <StandardProductCard product={p} rank={first + i} q={q} />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
 /**
  * The first page of results on /search, complete (titles and lines written): the featured card

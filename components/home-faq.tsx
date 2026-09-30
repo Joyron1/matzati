@@ -6,11 +6,10 @@ import Link from "next/link";
 import { ChevronDown, ChevronLeft } from "lucide-react";
 import { Suspense, type ReactNode } from "react";
 import { hasPublishedCoupons } from "@/lib/coupons/queries";
-import { FILL_TIER, FILTERS } from "@/lib/ranking/config";
+import { FILL_TIER, FILL_UP_TO, FILTERS } from "@/lib/ranking/config";
 import { jsonLdScript } from "@/lib/seo/structured-data";
 import { SearchTipsAnswer, searchTipsText } from "./search-guide";
 import { card } from "./styles";
-import { RESULTS_PER_PAGE } from "@/lib/config/site";
 
 interface FaqItem {
   /** Also the fragment that links to the question (/#faq-hot). */
@@ -54,10 +53,10 @@ const FAQ: FaqItem[] = [
   {
     id: "faq-filters",
     question: "איך בוחרים את המוצרים?",
-    // Both tiers (lib/ranking/config.ts): the fill tier only tops up to 3 results.
+    // Both tiers (lib/ranking/config.ts): the fill tier only tops up to the first view (FILL_UP_TO).
     answer: [
       `אנחנו מחפשים באלי אקספרס לפי מה שכתבתם ובודקים כל מוצר שחוזר. עובר רק מוצר עם ${TRUST}, מהסוג שביקשתם, בטווח המחיר ועם הדרישות שכתבתם. מוצר שחסרים לו הנתונים האלה לא עובר.`,
-      `כשאין מספיק מוצרים כאלה, משלימים עד ${RESULTS_PER_PAGE} ממוצרים עם ${FILL_TIER.minPositiveFeedbackPct}% משוב חיובי ומעלה ולפחות ${FILL_TIER.minUnitsSold} מכירות. את מה שעבר מדרגים לפי המשוב, מספר המכירות וההתאמה למחיר. כל המספרים מאלי אקספרס.`,
+      `כשאין מספיק מוצרים כאלה, משלימים עד ${FILL_UP_TO} תוצאות ממוצרים עם ${FILL_TIER.minPositiveFeedbackPct}% משוב חיובי ומעלה ולפחות ${FILL_TIER.minUnitsSold} מכירות. את מה שעבר מדרגים לפי המשוב, מספר המכירות וההתאמה למחיר ולמה שחיפשתם. כל המספרים מאלי אקספרס.`,
     ],
   },
   {

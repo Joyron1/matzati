@@ -11,7 +11,7 @@
 import type { AliProduct } from "@/lib/aliexpress/schemas";
 import { RESULTS_PER_PAGE } from "@/lib/config/site";
 import type { ShopCapMode } from "@/lib/ranking/config";
-import { rankWithFill } from "@/lib/ranking/rank";
+import { rankForSearch } from "@/lib/ranking/rank";
 import type { FilterBlocker } from "@/lib/types";
 import { applyOverrides, MAX_CHIP, MIN_CHIP, requirementChipId } from "./chips";
 import type { ParsedQuery, SortPreference } from "./filters";
@@ -99,7 +99,7 @@ export function rankView(
   blockers: (pool: AliProduct[], filters: ParsedQuery, passed: number) => FilterBlocker[],
   shopCap: ShopCapMode,
 ): RankedView | null {
-  const { ranked } = rankWithFill(pool, spec.filters, RESULTS_PER_PAGE, shopCap);
+  const { ranked } = rankForSearch(pool, spec.filters, shopCap);
   if (spec.removesMore && ranked.length < RESULTS_PER_PAGE) return null;
   const shown = ranked.slice(0, kept);
   return {

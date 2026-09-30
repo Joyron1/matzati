@@ -613,7 +613,7 @@ export async function collectSeoResults(
         ? quietly("saveProducts", () => deps.store.saveProducts(titled, titles, createdAt))
         : null,
       // Visitors searching for the same filters get this result set too (its first three groups
-      // are the search's three pages), as the page's earlier refreshes gave them.
+      // are the search's four pages), as the page's earlier refreshes gave them.
       states[0] === "model"
         ? quietly("putResults", () =>
             deps.store.putResults(filtersKey(filters, deps.shopCap), query, {

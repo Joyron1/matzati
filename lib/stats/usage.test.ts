@@ -1,3 +1,4 @@
+import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { costUsd } from "@/lib/llm/pricing";
 import { LLM_CALL_KINDS, usageRow } from "./usage";
@@ -52,6 +53,16 @@ describe("usageRow", () => {
   });
 
   it("knows exactly the kinds the llm_usage check constraint allows", () => {
-    expect([...LLM_CALL_KINDS]).toEqual(["parse", "explain", "explain_more", "tips"]);
+    expect([...LLM_CALL_KINDS]).toEqual(["parse", "explain", "explain_more", "titles", "tips"]);
+    // The newest migration that sets the check (20260930120000_ten_results.sql) lists them all.
+    const dir = "supabase/migrations";
+    const latest = readdirSync(dir)
+      .filter((f) => f.endsWith(".sql"))
+      .sort()
+      .map((f) => readFileSync(`${dir}/${f}`, "utf8"))
+      .filter((sql) => /llm_usage_kind_check|kind text not null check \(kind in/.test(sql))
+      .at(-1)!;
+    const allowed = /check \(kind in \(([^)]*)\)\)/.exec(latest)![1];
+    expect(allowed.split(",").map((k) => k.trim().replace(/'/g, ""))).toEqual([...LLM_CALL_KINDS]);
   });
 });

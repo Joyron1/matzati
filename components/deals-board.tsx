@@ -13,7 +13,7 @@ import { COUPON_DISCLAIMER } from "./community-coupon";
 import { CopyButton } from "./copy-button";
 import { StateCard } from "./state-card";
 import { btnMd, btnSecondary, card } from "./styles";
-import { RESULTS_PER_PAGE } from "@/lib/config/site";
+import { RESULTS_FIRST_VIEW } from "@/lib/config/site";
 
 const FILTERS: { value: DealType | "all"; label: string }[] = [
   { value: "all", label: "הכול" },
@@ -120,7 +120,7 @@ export function DealsBoard({ deals }: { deals: Deal[] }) {
           {/* Point to the WhatsApp channel only once it exists (the CTA below says "בקרוב"). */}
           {BRAND.whatsappChannelUrl
             ? "אנחנו מעלים רק דילים שבדקנו. הצטרפו לערוץ הוואטסאפ למטה ונעדכן כשיעלו חדשים."
-            : `אנחנו מעלים רק דילים שבדקנו. בינתיים כתבו בחיפוש מה אתם צריכים, ונציג ${RESULTS_PER_PAGE} מוצרים שעברו את הסינון.`}
+            : `אנחנו מעלים רק דילים שבדקנו. בינתיים כתבו בחיפוש מה אתם צריכים, ונציג ${RESULTS_FIRST_VIEW} מוצרים שעברו את הסינון.`}
         </p>
         <Link href="/" className={`${btnSecondary} ${btnMd}`}>
           לחיפוש מוצר

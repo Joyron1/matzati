@@ -47,6 +47,11 @@ export interface SearchTimings {
   fetch_ms: number | null;
   explain_ms: number | null;
   /**
+   * The titles call for places 6-10 (lib/llm/titles.ts), which runs beside explain. Absent on
+   * older rows and when no title was missing.
+   */
+  titles_ms?: number | null;
+  /**
    * From the start of the search to the moment its products could be shown, before their lines
    * were written (the results page streams them first, plan item 15). Absent on older rows.
    */
@@ -64,7 +69,11 @@ export interface SearchLogEntry {
   /** Every product kept for the search (up to RESULTS_KEPT), or the page shown for "more". */
   resultIds: string[];
   cache: CacheLevel;
-  /** Results in this response (0-3). 0 is a zero-result search; always 0 for a failed one. */
+  /**
+   * Result cards this response showed: for a search, every card of the first view (0-10: the
+   * explained page and places 6-10, RESULTS_FIRST_VIEW); for "עוד N אפשרויות", its page (0-5).
+   * 0 is a zero-result search; always 0 for a failed one.
+   */
   resultsCount: number;
   source: SearchSource;
   /** First-level AliExpress category of the first product shown; null when none was shown. */
@@ -123,6 +132,13 @@ export interface SearchDiag {
   derived?: true;
   /** Lines written earlier for other results of the same pool that still held here. */
   lines_reused?: number;
+  /**
+   * The titles call for places 6-10 failed (or the daily budget was out): those cards showed
+   * AliExpress's titles. Absent otherwise.
+   */
+  titles_failed?: true;
+  /** Titles of that call the checks rejected (the card showed AliExpress's). Absent for none. */
+  titles_rejected?: number;
 }
 
 export interface Explanation {
@@ -139,6 +155,13 @@ export interface CachedResults {
   products: AliProduct[];
   /** Explanations by product id: the first page's up front, each next page's on "show more". */
   explanations: Record<string, Explanation>;
+  /**
+   * Hebrew titles by product id for products the first view shows without a line (places 6-10,
+   * RESULTS_FIRST_VIEW), written by the titles call (lib/llm/titles.ts). Never a line: a product
+   * with only a title here is still explained whenever it is shown in places 1-5 or on a page of
+   * "עוד N אפשרויות". Absent on older entries and when every such product has a line.
+   */
+  titles?: Record<string, string>;
   createdAt: string;
   /**
    * A search that showed fewer than a page: the filters whose removal lets more of the checked
@@ -185,6 +208,12 @@ export interface CachedPool {
    * shown with before it is reused.
    */
   lines: Record<string, Explanation>;
+  /**
+   * Hebrew titles the titles call wrote for any view of this pool (places 6-10), by product id. A
+   * title depends on its product only, so any view may show it in places 6-10; it never stands for
+   * a line (a view's places 1-5 are explained). Absent on older entries.
+   */
+  titles?: Record<string, string>;
 }
 
 export interface SearchStore {

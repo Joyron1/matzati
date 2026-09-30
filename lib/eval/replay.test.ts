@@ -23,14 +23,14 @@ const ranked = (n: number) =>
 
 describe("evaluateQuery", () => {
   it("reports the calls, the pool, what passed and the first two pages", () => {
-    // Two pages and more pass on page 1 (TARGET_PASSED), so the policy stops there.
-    const top = ranked(12);
+    // The first view and a page pass on page 1 (TARGET_PASSED, 15), so the policy stops there.
+    const top = ranked(17);
     const snap = snapshot([call("primary-p1", BOTTLE.keywords_en, 1, [...top, offType()])]);
     const r = evaluateQuery(snap, noLabels, current);
     expect(r.fetch).toEqual({ steps: ["primary-p1"], calls: 1, missing: null });
     expect(r).toMatchObject({
-      checked: 13,
-      passed: 12,
+      checked: 18,
+      passed: 17,
       fill: 0,
       shown: RESULTS_PER_PAGE,
       moreAvailable: true,
@@ -126,9 +126,9 @@ describe("evaluateQuery", () => {
   });
 
   it("the whole-pool policy checks every captured product", () => {
-    // Page 1 alone passes TARGET_PASSED (10), so the live policy stops there.
+    // Page 1 alone passes TARGET_PASSED (15), so the live policy stops there.
     const snap = snapshot([
-      call("primary-p1", BOTTLE.keywords_en, 1, ranked(10)),
+      call("primary-p1", BOTTLE.keywords_en, 1, ranked(15)),
       call(
         "primary-p2",
         BOTTLE.keywords_en,
@@ -137,8 +137,8 @@ describe("evaluateQuery", () => {
       ),
     ]);
     const r = evaluateQuery(snap, noLabels, { name: "all", policy: ALL_CAPTURED });
-    expect(r).toMatchObject({ checked: 15, snapshotPool: 15 });
-    expect(evaluateQuery(snap, noLabels, current).checked).toBe(10);
+    expect(r).toMatchObject({ checked: 20, snapshotPool: 20 });
+    expect(evaluateQuery(snap, noLabels, current).checked).toBe(15);
   });
 
   it("ranks under the variant's shop cap mode", () => {
@@ -171,11 +171,14 @@ describe("filtersFor", () => {
 });
 
 describe("rankLikePipeline", () => {
-  it("keeps at most RESULTS_KEPT (15) products and counts every passer", () => {
-    const r = rankLikePipeline(ranked(17), BOTTLE);
+  it("keeps at most RESULTS_KEPT (20) products and counts every passer", () => {
+    const many = times(22, () => null).map((_, i) =>
+      good({ positiveFeedbackPct: 99 - i * 0.2, unitsSold: 50_000 - i * 2_000 }),
+    );
+    const r = rankLikePipeline(many, BOTTLE);
     expect(r.kept).toHaveLength(RESULTS_KEPT);
-    expect(RESULTS_KEPT).toBe(15);
-    expect(r.passed).toBe(17);
+    expect(RESULTS_KEPT).toBe(20);
+    expect(r.passed).toBe(22);
   });
 });
 

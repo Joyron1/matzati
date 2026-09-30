@@ -38,7 +38,7 @@ export interface FetchState {
   pool: readonly AliProduct[];
   /** rankProducts(pool) length: FILTERS passers after duplicate removal (the pipeline's `ranked`). */
   ranked: number;
-  /** rankWithFill(pool, RESULTS_PER_PAGE) length: what "Y עברו" would say now. */
+  /** rankForSearch(pool) length (filled up to the first view): what "Y עברו" would say now. */
   passed: number;
   /** rejectionCounts(pool): the first filter each product failed. */
   rejected: Readonly<Record<RejectReason, number>>;
@@ -102,7 +102,7 @@ function liveFetchPolicy(name: string, target: number): FetchPolicy {
 
 /**
  * fetchAndRank in lib/search/pipeline.ts: nextFetch in lib/search/fetch-policy.ts over the calls
- * made so far (until TARGET_PASSED pass or 3 calls; page 2 while it can pass the trust bar,
+ * made so far (until TARGET_PASSED pass or MAX_ALI_CALLS calls; page 2 while it can pass the trust bar,
  * broader keywords by what blocked; an early stop on a requirement no otherwise passing product
  * mentions). The pipeline runs the same function, and lib/eval/parity.test.ts checks both on
  * every snapshot. Steps built from a product phrase or without audience words are often not
@@ -140,6 +140,8 @@ function r5Ladder(parsed: ParsedQuery): string[] {
 
 /** RESULTS_PER_PAGE when R5_POLICY was the live rule (pages of 3), frozen with it. */
 const R5_PAGE = 3;
+/** MAX_ALI_CALLS when R5_POLICY was the live rule, frozen with it (the live limit is 4 since 2026-09-30). */
+const R5_MAX_CALLS = 3;
 
 /**
  * fetchAndRank as of 2026-09-28 before item 5 (RANKING_VERSION 5), frozen to compare against:
@@ -157,7 +159,7 @@ export const R5_POLICY: FetchPolicy = {
     const ladder = r5Ladder(s.filters);
     const primary = ladder[0];
     if (!s.calls.length) return { keywords: primary, pageNo: 1 };
-    if (s.calls.length >= PIPELINE_MAX_CALLS) return null;
+    if (s.calls.length >= R5_MAX_CALLS) return null;
     if (s.calls.length === 1) {
       const first = s.calls[0];
       const r = s.rejected;
