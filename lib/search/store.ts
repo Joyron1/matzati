@@ -139,6 +139,11 @@ export interface SearchDiag {
   titles_failed?: true;
   /** Titles of that call the checks rejected (the card showed AliExpress's). Absent for none. */
   titles_rejected?: number;
+  /**
+   * Explain's Hebrew titles a check refused (the card showed AliExpress's English title): the
+   * product, the rule (CopyProblem) and what the model wrote, at most 10. Absent for none.
+   */
+  title_rejections?: { product_id: string; problem: string; title_he: string }[];
 }
 
 export interface Explanation {

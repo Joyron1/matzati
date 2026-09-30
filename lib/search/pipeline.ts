@@ -694,6 +694,27 @@ type DiagMeta = Pick<
   | "titlesRejected"
 >;
 
+/** At most this many refused titles are kept in one search's diag. */
+const MAX_TITLE_REJECTIONS = 10;
+
+/**
+ * The Hebrew titles explain wrote that a check refused (the card then showed AliExpress's English
+ * title): the product, the rule and what the model wrote, so the rules can be tuned from real
+ * refusals (2026-09-30: 48 of 261 first-page cards had a line or title refused in 4 days, and the
+ * count alone did not say which rule). Product text only, never the visitor's query.
+ */
+function titleRejections(rejected: DiagMeta["explainRejected"]): {
+  title_rejections?: SearchDiag["title_rejections"];
+} {
+  const out = rejected.flatMap(({ product_id, rejected: r }) => {
+    const item = r as { title_problem?: string; title_he?: string } | null;
+    return item?.title_problem
+      ? [{ product_id, problem: item.title_problem, title_he: (item.title_he ?? "").slice(0, 160) }]
+      : [];
+  });
+  return out.length ? { title_rejections: out.slice(0, MAX_TITLE_REJECTIONS) } : {};
+}
+
 /**
  * search_log.diag for a request that fetched, explained or ranked something itself (SearchDiag),
  * null for a full cache hit or a failure before any of it.
@@ -709,6 +730,7 @@ export function diagOf(meta: DiagMeta): SearchDiag | null {
     demoted: [...(meta.demoted ?? [])],
     explain_failed: meta.explainFailed === true,
     explain_rejected: meta.explainRejected.length,
+    ...titleRejections(meta.explainRejected),
     ...(meta.derived ? { derived: true as const } : {}),
     ...(meta.linesReused ? { lines_reused: meta.linesReused } : {}),
     ...(meta.titlesFailed ? { titles_failed: true as const } : {}),

@@ -9,6 +9,7 @@ import type { LlmProvider, StructuredRequest } from "@/lib/llm/provider";
 import type { z } from "zod";
 import { queryKey } from "./cache-key";
 import {
+  diagOf,
   emptyParseCreatedAt,
   FETCH_BUDGET_MS,
   isListableSearch,
@@ -1126,6 +1127,26 @@ describe("search_log owner and diag (plan item 10)", () => {
     });
     await runSearch({ q: Q }, deps);
     expect(store.logs[1].diag).toBeNull();
+  });
+
+  it("keeps the refused Hebrew titles: the product, the rule and the model's words", () => {
+    const diag = diagOf({
+      fetchStop: "enough",
+      keywordsTried: ["gold number balloon"],
+      explainFailed: false,
+      explainRejected: [
+        {
+          product_id: "1",
+          rejected: { title_he: "בלון מספר 101 ס״מ", title_problem: "ungrounded_number" },
+        },
+        { product_id: "2", rejected: { why_he: "x", why_problem: "too_short" } },
+      ],
+    } as Parameters<typeof diagOf>[0]);
+    expect(diag?.explain_rejected).toBe(2);
+    // Only title refusals: a refused why-line keeps its Hebrew title.
+    expect(diag?.title_rejections).toEqual([
+      { product_id: "1", problem: "ungrounded_number", title_he: "בלון מספר 101 ס״מ" },
+    ]);
   });
 
   it("marks the owner's 'more' page too", async () => {

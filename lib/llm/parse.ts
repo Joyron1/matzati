@@ -14,8 +14,10 @@ import { fixSpelling } from "./text-checks";
 // Pokémon balloons, 2026-09-30: "sonic" was only a keyword). 8: an age or number for a birthday or
 // party item ("יום הולדת 3", "בת 5") is a preference with the seller phrasings of it ("3rd
 // birthday", "number 3"), never a requirement, and the keywords say it the way sellers title it
-// (the `preferences` field; owner request 2026-09-30: no Sonic balloon shown said "3").
-export const PARSE_VERSION = 8;
+// (the `preferences` field; owner request 2026-09-30: no Sonic balloon shown said "3"). 9: with a
+// number preference the product terms lose the number (withoutNumbers: "number 5 balloon" turned
+// away gold number balloons).
+export const PARSE_VERSION = 9;
 
 const MAX_KEYWORD_WORDS = 6;
 const MAX_PRODUCT_TERMS = 4;
@@ -523,6 +525,34 @@ function withBaseTerms(terms: string[], fixes: ParseFix[]): string[] {
   return out;
 }
 
+/** A number word of an age or number: "5", "3rd", "third". */
+const isNumberWord = (w: string) =>
+  /^\d{1,3}(?:st|nd|rd|th)?$/.test(w) || ORDINAL_WORDS.includes(w);
+
+/**
+ * The product terms of a search with a number preference, without the number: the number decides
+ * the order (the preference), never whether a product is the product. 2026-09-30: "בלון מספר 5 זהב
+ * ליום הולדת" was parsed with the terms "number 5 balloon" and "5 balloon", and the type gate
+ * turned away 61 of 119 gold number balloons ("32inch Gold Number Foil Balloons 0-9"). A term
+ * that is only a number goes; the plain product noun then remains ("5 balloon" → "balloon").
+ */
+function withoutNumbers(terms: string[], fixes: ParseFix[]): string[] {
+  const out = uniquePhrases(
+    terms
+      .map((t) =>
+        t
+          .split(" ")
+          .filter((w) => !isNumberWord(w))
+          .join(" "),
+      )
+      .filter(Boolean),
+  );
+  if (!out.length) return terms;
+  for (const t of out)
+    if (!terms.includes(t)) fixes.push({ kind: "term_added", term: t, from: "number" });
+  return out.slice(0, MAX_PRODUCT_TERMS + 2);
+}
+
 const budget = (n: number | null) => (n !== null && Number.isFinite(n) && n > 0 ? n : undefined);
 
 /**
@@ -574,13 +604,11 @@ export function normalizeParsedWithFixes(
   }
   const fromQuery = ages.length ? null : agePreferenceFrom(query);
   // One number preference (the first the model named), before the needs no title could state.
-  const preferences = [
-    ...[...ages, ...(fromQuery ? [fromQuery] : [])].slice(0, 1),
-    ...dropped,
-  ].slice(0, MAX_REQUIREMENTS);
+  const number = [...ages, ...(fromQuery ? [fromQuery] : [])].slice(0, 1);
+  const preferences = [...number, ...dropped].slice(0, MAX_REQUIREMENTS);
   const parsed: ParsedQuery = {
     keywords_en: words.join(" "),
-    product_terms: productTerms,
+    product_terms: number.length ? withoutNumbers(productTerms, fixes) : productTerms,
     requirements,
     ...(preferences.length ? { preferences } : {}),
     ...(min !== undefined ? { min_price_ils: min } : {}),

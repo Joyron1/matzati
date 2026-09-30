@@ -2,6 +2,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { describe, expect, it } from "vitest";
 import type { z } from "zod";
 import { requirementMatches } from "@/lib/ranking/match";
+import { isRequestedProduct } from "@/lib/ranking/type-gate";
 import {
   normalizeParsed,
   normalizeParsedWithFixes,
@@ -654,6 +655,45 @@ describe("PARSE_SYSTEM", () => {
   it("makes a named character, franchise or brand a requirement (Sonic balloons found Pokémon)", () => {
     expect(PARSE_SYSTEM).toMatch(/character, franchise, team or brand[^\n]*requirement/);
     expect(PARSE_SYSTEM).toContain('סוניק -> "sonic"');
+  });
+});
+
+describe("a number preference never narrows the product terms", () => {
+  // "בלון מספר 5 זהב ליום הולדת" as the model parsed it on 2026-09-30: the number in the terms
+  // turned away 61 of 119 gold number balloons.
+  const five = raw({
+    product_he: "בלון מספר 5 זהב",
+    product_terms: ["number 5 balloon", "5 balloon"],
+    requirements: [req("gold", ["golden"], "זהב")],
+    preferences: [{ phrases: ["number 5", "5th birthday"], he: "מספר 5" }],
+    keywords_en: "number 5 gold balloon birthday",
+    max_price_ils: null,
+    category_hint: "party balloons",
+  });
+
+  it("drops the number from the terms and keeps the product", () => {
+    const p = normalizeParsed(five)!;
+    expect(p.product_terms).toEqual(["number balloon", "balloon"]);
+    expect(p.preferences?.[0]).toMatchObject({ he: "מספר 5" });
+    expect(p.preferences?.[0].words).toContain("number 5");
+  });
+
+  it("lets gold number balloons through the type gate", () => {
+    const p = normalizeParsed(five)!;
+    for (const title of [
+      "32inch Gold Number Foil Balloons 0-9 Birthday Party Decoration",
+      "40 Inch Gold Number 5 Foil Balloon Happy Birthday",
+      "Big Size Golden Number Balloons Anniversary Party",
+    ]) {
+      expect(isRequestedProduct(title, p)).toBe(true);
+    }
+  });
+
+  it("keeps the number in the terms when there is no number preference", () => {
+    const p = normalizeParsed(
+      raw({ product_terms: ["usb c hub 7 in 1"], requirements: [], keywords_en: "usb c hub" }),
+    )!;
+    expect(p.product_terms[0]).toBe("usb c hub 7 in 1");
   });
 });
 
