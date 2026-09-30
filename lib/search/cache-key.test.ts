@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   CACHE_TTL_DAYS,
   CACHE_TTL_HOURS,
+  DEGRADED_RESULTS_TTL_HOURS,
   EMPTY_RESULTS_TTL_HOURS,
   filtersKey,
   isFresh,
@@ -132,9 +133,12 @@ describe("isFreshResults", () => {
     expect(isFreshResults(created, 0, new Date("2026-09-29T10:00:00Z"))).toBe(false);
   });
 
-  it("keeps a degraded result set (lines from the data) for 48h only", () => {
+  it("keeps a degraded result set (English titles, lines from the data) for an hour only", () => {
     const created = new Date("2026-09-27T10:00:00Z");
-    expect(isFreshResults(created, 4, new Date("2026-09-29T09:59:00Z"), true)).toBe(true);
-    expect(isFreshResults(created, 4, new Date("2026-09-29T10:00:00Z"), true)).toBe(false);
+    expect(DEGRADED_RESULTS_TTL_HOURS).toBe(1);
+    expect(isFreshResults(created, 4, new Date("2026-09-27T10:59:00Z"), true)).toBe(true);
+    expect(isFreshResults(created, 4, new Date("2026-09-27T11:00:00Z"), true)).toBe(false);
+    // An empty set has no titles to fix: its 48 h stand, degraded or not.
+    expect(isFreshResults(created, 0, new Date("2026-09-29T09:59:00Z"), true)).toBe(true);
   });
 });

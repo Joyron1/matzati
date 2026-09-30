@@ -99,18 +99,25 @@ export function filtersKey(
 /**
  * How long a result set with no products is reused: the 48h of before the 14-day decision, so a
  * momentary gap in the AliExpress catalog does not say "nothing found" for two weeks. The same
- * holds for a result set whose explain call failed (lines built from the data, `degraded`) and for
- * the parse of a search whose own filters found nothing (emptyParseCreatedAt in ./pipeline.ts).
+ * holds for the parse of a search whose own filters found nothing (emptyParseCreatedAt in
+ * ./pipeline.ts).
  */
 export const EMPTY_RESULTS_TTL_HOURS = 48;
+
+/**
+ * How long a result set whose explain call failed (lines built from the data and AliExpress's
+ * English titles, `degraded`) is reused: an hour, so the next searches after it get the Hebrew
+ * titles and lines (2026-09-30: it was 48 h, and a Sonic search stayed in English for everyone).
+ */
+export const DEGRADED_RESULTS_TTL_HOURS = 1;
 
 export function isFresh(createdAt: Date, now: Date, ttlHours: number = CACHE_TTL_HOURS): boolean {
   return now.getTime() - createdAt.getTime() < ttlHours * 3_600_000;
 }
 
 /**
- * Freshness of a cached result set: CACHE_TTL_HOURS, or EMPTY_RESULTS_TTL_HOURS when it is empty
- * or `degraded` (CachedResults.degraded).
+ * Freshness of a cached result set: CACHE_TTL_HOURS, EMPTY_RESULTS_TTL_HOURS when it is empty, or
+ * DEGRADED_RESULTS_TTL_HOURS when it is `degraded` (CachedResults.degraded).
  */
 export function isFreshResults(
   createdAt: Date,
@@ -118,6 +125,6 @@ export function isFreshResults(
   now: Date,
   degraded = false,
 ): boolean {
-  const short = productCount === 0 || degraded;
-  return isFresh(createdAt, now, short ? EMPTY_RESULTS_TTL_HOURS : CACHE_TTL_HOURS);
+  if (productCount > 0 && degraded) return isFresh(createdAt, now, DEGRADED_RESULTS_TTL_HOURS);
+  return isFresh(createdAt, now, productCount === 0 ? EMPTY_RESULTS_TTL_HOURS : CACHE_TTL_HOURS);
 }

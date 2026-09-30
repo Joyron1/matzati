@@ -841,7 +841,8 @@ describe("LLM failures and limits (plan item 7)", () => {
     await runSearch({ q: Q }, deps);
     expect(LLM_STAGE_LIMITS).toEqual({
       parse: { timeoutMs: 10_000, maxRetries: 1 },
-      explain: { timeoutMs: 10_000, maxRetries: 0 },
+      explain: { timeoutMs: 10_000, maxRetries: 1 },
+      seoExplain: { timeoutMs: 10_000, maxRetries: 0 },
     });
     expect(llm.limits).toEqual([
       { kind: "parse", ...LLM_STAGE_LIMITS.parse },
@@ -849,7 +850,7 @@ describe("LLM failures and limits (plan item 7)", () => {
     ]);
   });
 
-  it("shows the products with lines from the data when explain fails, and keeps them 48 h", async () => {
+  it("shows the products with lines from the data when explain fails, and keeps them an hour", async () => {
     const { deps, llm, store } = setup();
     llm.failing.add("explain");
     const errors = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -867,9 +868,9 @@ describe("LLM failures and limits (plan item 7)", () => {
       errors.mockRestore();
     }
     llm.failing.clear();
-    const within = await runSearch({ q: Q }, { ...deps, now: () => at(47) });
+    const within = await runSearch({ q: Q }, { ...deps, now: () => at(0.9) });
     expect(within.meta.cache).toBe("results");
-    const later = await runSearch({ q: Q }, { ...deps, now: () => at(48) });
+    const later = await runSearch({ q: Q }, { ...deps, now: () => at(1) });
     expect(later.meta.cache).toBe("parse");
     expect(later.response.results[0].why_he).toBe(WHYS[0]);
   });

@@ -285,14 +285,14 @@ describe("SupabaseStore", () => {
       expect(await store.getResults("empty-day", new Date("2026-09-27T10:00:00Z"))).not.toBeNull();
       await store.putResults("empty-3d", "q", empty("2026-09-24T10:00:00.000Z"));
       expect(await store.getResults("empty-3d", new Date("2026-09-27T10:00:00Z"))).toBeNull();
-      // Lines from the data after a failed explain call: 48h only as well.
+      // English titles and lines from the data after a failed explain call: an hour only.
       const degraded = (at: string) => ({ ...results(at), degraded: true });
-      await store.putResults("degraded-day", "q", degraded("2026-09-26T10:00:00.000Z"));
+      await store.putResults("degraded-now", "q", degraded("2026-09-27T09:30:00.000Z"));
       expect(
-        await store.getResults("degraded-day", new Date("2026-09-27T10:00:00Z")),
+        await store.getResults("degraded-now", new Date("2026-09-27T10:00:00Z")),
       ).not.toBeNull();
-      await store.putResults("degraded-3d", "q", degraded("2026-09-24T10:00:00.000Z"));
-      expect(await store.getResults("degraded-3d", new Date("2026-09-27T10:00:00Z"))).toBeNull();
+      await store.putResults("degraded-2h", "q", degraded("2026-09-27T08:00:00.000Z"));
+      expect(await store.getResults("degraded-2h", new Date("2026-09-27T10:00:00Z"))).toBeNull();
       db.rows("search_cache").push({
         filters_key: "bad",
         response: { nope: true },

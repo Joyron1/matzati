@@ -118,8 +118,9 @@ describe("planFinalRun", () => {
 
   it("bounds a search by the pipeline's own limits", () => {
     const bound = searchBound();
-    // Parse: 2 attempts, each tried twice (LLM_STAGE_LIMITS.parse.maxRetries 1); explain once.
-    expect(bound.llm).toEqual({ parse: 4, explain: 1, total: 5 });
+    // Parse: 2 attempts, each tried twice (LLM_STAGE_LIMITS.parse.maxRetries 1); explain tried
+    // twice (LLM_STAGE_LIMITS.explain.maxRetries 1, for the Hebrew titles).
+    expect(bound.llm).toEqual({ parse: 4, explain: 2, total: 6 });
     expect(bound.ali).toEqual({
       calls: MAX_ALI_CALLS + 1,
       tries: 1 + ALI_RETRIES,
@@ -134,7 +135,7 @@ describe("planFinalRun", () => {
       cap: 60,
       used: 0,
       left: 60,
-      uncapped: 150,
+      uncapped: 180,
       max: 60,
       noRetries: 60,
     });
@@ -167,13 +168,13 @@ describe("planFinalRun", () => {
     }
     expect(plan.toRun).toHaveLength(29 - copies.length);
     const n = plan.toRun.length;
-    expect(plan.llm).toMatchObject({ max: Math.min(60, 5 * n), uncapped: 5 * n });
+    expect(plan.llm).toMatchObject({ max: Math.min(60, 6 * n), uncapped: 6 * n });
     expect(plan.ali).toMatchObject({ max: Math.min(87, 12 * n), uncapped: 12 * n });
     const text = formatPlan(plan);
     expect(text).toContain(`${n} to search now, ${copies.length} same as an earlier query`);
     expect(text).toContain(`LLM requests:        at most ${plan.llm.max} (hard cap 60`);
     expect(text).toContain(`AliExpress requests: at most ${plan.ali.max} (hard cap 87`);
-    expect(text).toContain(`could ask for ${5 * n}`);
+    expect(text).toContain(`could ask for ${6 * n}`);
     for (const c of copies) expect(text).toContain(`${c.id} = ${c.sameAs}`);
     // Only ASCII: the plan prints ids and numbers, never the Hebrew queries.
     expect(/^[\x20-\x7e\n]*$/.test(text)).toBe(true);
@@ -189,7 +190,7 @@ describe("planFinalRun", () => {
     expect(copy.queries.find((x) => x.id === "b")?.sameAs).toBe("a");
     expect(copy.selected).toEqual(["b"]);
     expect(copy.toRun).toEqual(["a"]);
-    expect(copy.llm.uncapped).toBe(5);
+    expect(copy.llm.uncapped).toBe(6);
     expect(formatPlan(copy)).toContain("Selected with --only: b; searched for them: a.");
     expect(planFinalRun(queries, { only: new Set(["c"]) }).toRun).toEqual(["c"]);
     // Its source recorded already: nothing to search, the copy is made from it.
@@ -377,7 +378,8 @@ function cappedSearch(script: ConstructorParameters<typeof ScriptedLlm>[0], caps
 describe("a search under the caps (the real pipeline, faked services)", () => {
   it("reaches the per-search bound and never goes past it", async () => {
     // Parse: a timeout, then an unusable answer; the retry attempt: a timeout, then a parse.
-    const t = cappedSearch(["timeout", "unusable", "timeout", "ok"]);
+    // Explain: a timeout, then the lines.
+    const t = cappedSearch(["timeout", "unusable", "timeout", "ok", "timeout", "ok"]);
     const { response, meta } = await runSearch({ q: "כבל USB עד 40 ש״ח" }, t.deps);
     expect(response.results.length).toBeGreaterThan(0);
     expect(t.inner.sent.map((s) => s.kind)).toEqual([
@@ -385,6 +387,7 @@ describe("a search under the caps (the real pipeline, faked services)", () => {
       "parse",
       "parse",
       "parse",
+      "explain",
       "explain",
     ]);
     expect(t.llmCap.used).toBe(searchBound().llm.total);

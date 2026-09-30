@@ -1,6 +1,7 @@
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { describe, expect, it } from "vitest";
 import type { z } from "zod";
+import { requirementMatches } from "@/lib/ranking/match";
 import {
   normalizeParsed,
   normalizeParsedWithFixes,
@@ -648,6 +649,39 @@ describe("PARSE_SYSTEM", () => {
   it("spells out the labels and the meaning of גן that the model got wrong", () => {
     expect(PARSE_SYSTEM).toContain("אטום לדליפות");
     expect(PARSE_SYSTEM).toMatch(/גן[^\n]*kindergarten/);
+  });
+
+  it("makes a named character, franchise or brand a requirement (Sonic balloons found Pokémon)", () => {
+    expect(PARSE_SYSTEM).toMatch(/character, franchise, team or brand[^\n]*requirement/);
+    expect(PARSE_SYSTEM).toContain('סוניק -> "sonic"');
+  });
+});
+
+describe("a named character as a requirement", () => {
+  // "בלונים ליום הולדת 3 של סוניק" as PARSE_VERSION 7 is told to parse it.
+  const sonic = raw({
+    product_he: "בלונים ליום הולדת",
+    product_terms: ["balloons", "party balloons"],
+    requirements: [req("sonic", ["sonic the hedgehog"], "סוניק")],
+    keywords_en: "sonic birthday balloons",
+    max_price_ils: null,
+    category_hint: "party decorations",
+  });
+
+  it("keeps a one-word name as a requirement, with its long form", () => {
+    expect(normalizeParsed(sonic)?.requirements).toEqual([
+      { en: "sonic", alt: ["sonic the hedgehog"], he: "סוניק" },
+    ]);
+  });
+
+  it("lets through only titles that name it", () => {
+    const [sonicReq] = normalizeParsed(sonic)!.requirements;
+    expect(requirementMatches("Sonic The Hedgehog Birthday Party Balloons Set", sonicReq)).toBe(
+      true,
+    );
+    expect(requirementMatches("Pokemon Pikachu Birthday Balloons Party Decoration", sonicReq)).toBe(
+      false,
+    );
   });
 });
 

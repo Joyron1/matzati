@@ -85,11 +85,16 @@ export { RESULTS_KEPT };
 /**
  * Limits per LLM step (docs/search-quality-plan.md item 7), so a slow or failing model cannot hold
  * a visitor for a minute: the parse gets one retry and then fails the search with "llm"; explain
- * gets none and falls back to lines built from the data.
+ * gets one retry too and then falls back to lines built from the data, with AliExpress's English
+ * titles. The retry is for the Hebrew titles (2026-09-30: a Sonic search timed out at 10 s once and
+ * showed English titles; visitor explain calls take 4.6 s at the median, 6.5 s at p90). An SEO
+ * refresh (lib/search/seo-run.ts) plans its time around `seoExplain`, one 10 s try per group, and
+ * a later run writes a group that failed.
  */
 export const LLM_STAGE_LIMITS = {
   parse: { timeoutMs: 10_000, maxRetries: 1 },
-  explain: { timeoutMs: 10_000, maxRetries: 0 },
+  explain: { timeoutMs: 10_000, maxRetries: 1 },
+  seoExplain: { timeoutMs: 10_000, maxRetries: 0 },
 } as const;
 
 /**
@@ -1240,7 +1245,7 @@ async function finish(
   meta.demoted = guarded.demoted;
   const { ranked, promoted, explanations } = guarded;
 
-  // Lines from the data after a failed explain call: kept 48 h only, then explained again.
+  // Lines from the data after a failed explain call: kept an hour only, then explained again.
   const degraded = meta.explainFailed || plan.hit?.degraded === true;
   const results: CachedResults = {
     ...(plan.hit ?? {}),

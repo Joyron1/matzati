@@ -147,7 +147,7 @@ export interface CachedResults {
   blockers?: FilterBlocker[];
   /**
    * The explain call failed and the first page shows lines built from the data: the entry is
-   * reused for EMPTY_RESULTS_TTL_HOURS only (isFreshResults), then explained again.
+   * reused for DEGRADED_RESULTS_TTL_HOURS only (isFreshResults), then explained again.
    */
   degraded?: boolean;
   /**

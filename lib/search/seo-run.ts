@@ -74,14 +74,14 @@ export const SEO_ALI_RETRIES = 1;
 /**
  * Time rules of a run. A call starts only with room for its worst case before the deadline, so
  * the run ends inside the function's limit (maxDuration 60 s; callers pass 55 s): an explain call
- * is limited to 10 s (LLM_STAGE_LIMITS, no retry), a product.query or link.generate call with the
+ * is limited to 10 s (LLM_STAGE_LIMITS.seoExplain, no retry), a product.query or link.generate call with the
  * refresh's client to 8 s, a 1.2 s wait and 8 s again.
  */
 export const SEO_RUN_LIMITS = {
   /** Explain calls running at once. */
   explainConcurrency: 3,
   /** Left before the deadline to start an explain call: its limit and the writes after it. */
-  explainRoomMs: LLM_STAGE_LIMITS.explain.timeoutMs + 2_000,
+  explainRoomMs: LLM_STAGE_LIMITS.seoExplain.timeoutMs + 2_000,
   /** One AliExpress call's worst case with SEO_ALI_RETRIES (8 s, 1.2 s, 8 s). */
   aliCallMs: 17_200,
   /** No product.query after the first starts once the fetch has run this long. */
@@ -268,7 +268,7 @@ async function explainGroup(
   run.meta.explainCalls++;
   try {
     const res = await explainProducts(
-      withLimits(run.deps.llm, LLM_STAGE_LIMITS.explain),
+      withLimits(run.deps.llm, LLM_STAGE_LIMITS.seoExplain),
       context,
       inputs,
     );

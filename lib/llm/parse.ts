@@ -9,8 +9,10 @@ import { fixSpelling } from "./text-checks";
 
 // Part of the parse cache key (lib/search/cache-key.ts). Bump it on any change to PARSE_SYSTEM,
 // parsedQuerySchema, normalizeParsed or the parse model, so cached parses from the old version are
-// never served. 6: the code guards of docs/search-quality-plan.md A8 (normalizeParsed).
-export const PARSE_VERSION = 6;
+// never served. 6: the code guards of docs/search-quality-plan.md A8 (normalizeParsed). 7: a
+// named character, franchise, team or brand is a requirement ("בלונים ליום הולדת של סוניק" found
+// Pokémon balloons, 2026-09-30: "sonic" was only a keyword).
+export const PARSE_VERSION = 7;
 
 const MAX_KEYWORD_WORDS = 6;
 const MAX_PRODUCT_TERMS = 4;
@@ -54,6 +56,7 @@ Fix typos and slang (רמקל=רמקול). "גן ילדים", or "לגן"/"בג�
   - en: ONE short phrase for the whole requirement, the way sellers write it in titles ("foldable", "noise cancelling"). Never split into words, never a description.
   - alt: 0-3 other seller phrasings, each whole ("anc", "noise reduction").
   - Numeric spec: number+unit, no space ("65w"), alt empty.
+  - A character, franchise, team or brand the user named is always a requirement, in the product's own Latin spelling: סוניק -> "sonic", ספיידרמן -> "spiderman" (alt "spider-man"), פרוזן -> "frozen", מכבי -> "maccabi". Otherwise items of another character pass.
   - Not requirements: the product itself; what nearly all such products have ("bluetooth" for a speaker); a device it fits or works with, unless many such products would not ("s24" for a phone case); who it is for, the occasion, a general use ("למשרד", "לקמפינג") and praise.
 - keywords_en: 2-4 words as sellers title it: a product_terms phrase plus the main requirement or a use word ("camping"). No gift, occasion, audience or praise words (gift, mom, best) unless part of the product name ("kids scooter"); no synonym pairs ("foldable folding").
 - min/max_price_ils: a shekel budget only (ש״ח, ₪ or a bare number): עד/בפחות מ/מתחת ל X -> max; מ/מעל/לפחות X -> min; בין X ל־Y -> both. Ages, sizes, specs and models (בת 5, 2 מטר, S24) are not prices. Otherwise null.
