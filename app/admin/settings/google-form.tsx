@@ -113,9 +113,10 @@ export function GoogleSettingsForm({
         >
           <div className="space-y-2 rounded-2xl bg-surface-2 p-4 text-sm leading-relaxed">
             <p>
-              Google Analytics נטען רק אצל מבקרים שאישרו עוגיות סטטיסטיקה. כשיש מזהה שמור, הודעת
-              העוגיות, מדיניות העוגיות ומדיניות הפרטיות מתארות אותו, וכל המבקרים יתבקשו לבחור שוב
-              בהודעת העוגיות.
+              Google Analytics נטען אצל כל המבקרים במצב ההסכמה המתקדם של Google (Consent Mode): בלי
+              אישור הוא שולח מדידה בלי עוגיות ובלי מזהה, ואת עוגיות <Ltr>_ga</Ltr> הוא שומר רק אצל
+              מי שאישר עוגיות סטטיסטיקה. כשיש מזהה שמור, הודעת העוגיות, מדיניות העוגיות ומדיניות
+              הפרטיות מתארות אותו, וכל המבקרים יתבקשו לבחור שוב בהודעת העוגיות.
             </p>
             <p>
               חשוב: האתר שולח צפייה בדף בכל מעבר עמוד בעצמו, בלי טקסט החיפוש. לכן כבו ב־Google
@@ -125,6 +126,12 @@ export function GoogleSettingsForm({
                 settings → Page changes based on browser history events
               </Ltr>
               . אחרת כל צפייה תיספר פעמיים, ו־Google תקבל גם את הכתובת המלאה, כולל מה שחיפשו.
+            </p>
+            <p>
+              חשוב לא פחות: כבו גם את{" "}
+              <Ltr>Data streams → (the site) → Enhanced measurement → Site search</Ltr>. המדידה הזו
+              קוראת את הכתובת בדפדפן בעצמה ושולחת ל־Google את טקסט החיפוש (<Ltr>search_term</Ltr>),
+              בניגוד למה שמדיניות הפרטיות מבטיחה (נבדק בדפדפן אמיתי ב־3.10.2026).
             </p>
           </div>
         </ConnectionField>

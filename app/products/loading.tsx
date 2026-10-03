@@ -1,16 +1,17 @@
 const PILL_WIDTHS = [64, 136, 152, 128, 120];
 
-// The page's layout (app/hot/page.tsx): on phones the filters are one closed "סינון ומיון" row.
-export default function HotLoading() {
+// The layout of /products and its category pages: on phones the filters are one closed "סינון ומיון"
+// row. The heading is generic, since this shows for every category until its page streams.
+export default function ProductsLoading() {
   return (
     <div
-      className="mx-auto max-w-6xl space-y-5 px-4 pt-6 sm:space-y-8 sm:px-6 sm:pt-12"
+      className="mx-auto max-w-6xl space-y-5 px-4 pt-6 sm:space-y-8 sm:px-6 sm:pt-10"
       aria-busy="true"
     >
       <div className="max-w-2xl space-y-3">
-        <h1 className="font-display text-4xl sm:text-5xl">מוצרים חמים</h1>
+        <h1 className="font-display text-4xl sm:text-5xl">כל המוצרים</h1>
         <p role="status" className="text-lg leading-relaxed text-muted">
-          טוענים את המוצרים החמים...
+          טוענים את המוצרים...
         </p>
       </div>
       <div className="space-y-4">

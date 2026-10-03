@@ -31,6 +31,8 @@ interface LinkProps {
   q: string;
   sort?: SortPreference;
   without: string[];
+  /** The category the search is limited to, kept by a removal. */
+  cat?: string;
 }
 
 /**
@@ -67,8 +69,8 @@ function whatBlocked(b: ChipBlocker): string {
   return `אף מוצר שעבר את שאר הסינונים לא נמצא בטווח המחיר ${label}.`;
 }
 
-function removeHref(b: ChipBlocker, { q, sort, without }: LinkProps) {
-  return searchHref({ q, sort, without: [...without, b.chip.id] });
+function removeHref(b: ChipBlocker, { q, sort, without, cat }: LinkProps) {
+  return searchHref({ q, sort, without: [...without, b.chip.id], cat });
 }
 
 // Like btnPrimary / btnSecondary at btnMd, but a long chip label may wrap onto a second line

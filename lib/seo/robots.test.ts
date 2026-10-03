@@ -45,6 +45,8 @@ describe("robots.txt", () => {
     for (const rule of rules) {
       for (const path of [
         "/",
+        "/products",
+        "/products/%D7%AA%D7%9B%D7%A9%D7%99%D7%98%D7%99%D7%9D",
         "/hot",
         "/hot?cat=44",
         "/s/x",

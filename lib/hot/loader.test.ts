@@ -567,3 +567,36 @@ describe("retry schedule", () => {
     expect(failureKind(new Error("Missing or invalid environment variables"))).toBe("lasting");
   });
 });
+
+describe("pages 2 and 3 of a list (owner request 2026-10-03)", () => {
+  it("fetches a page by its key, cached and backed off as a list of its own", async () => {
+    const t = setup([fixtureText("cat44-HE"), fixtureText("cat44-HE.page2")]);
+    const first = await t.loader.load("44", t.deps);
+    const second = await t.loader.load("44:2", t.deps);
+    expect(t.listCalls()).toBe(2);
+    expect(t.sent(0).get("page_no")).toBe("1");
+    // The page 2 list call comes after page 1's list and hot links calls.
+    expect(t.sent(2).get("method")).toBe(METHOD);
+    expect(t.sent(2).get("category_ids")).toBe("44");
+    expect(t.sent(2).get("page_no")).toBe("2");
+    expect(second.key).toBe("44:2");
+    expect(second.products.length).toBeGreaterThan(0);
+    expect(second.products.map((p) => p.productId)).not.toEqual(
+      first.products.map((p) => p.productId),
+    );
+    // Its products are saved too, so /p and /go work for them.
+    expect(t.saved).toHaveLength(2);
+    // Joined while recent: no call.
+    await t.loader.load("44:2", t.deps);
+    expect(t.listCalls()).toBe(2);
+  });
+
+  it("never calls for a key outside the allowed ids and pages", async () => {
+    const t = setup([fixtureText("cat44-HE")]);
+    for (const key of ["44:4", "2", "2:2", "405", "44:1", "abc"]) {
+      // The type allows only HotListKey; a key from elsewhere must still fail without a call.
+      await expect(t.loader.load(key as "44", t.deps)).rejects.toBeInstanceOf(HotPoolError);
+    }
+    expect(t.fetchMock).not.toHaveBeenCalled();
+  });
+});

@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { HOT_CATEGORY_IDS } from "./categories";
 import {
   HOT_MAX_PAGES,
+  hotBack,
   hotBackHref,
   hotCanonicalPath,
   hotHref,
   hotProductHref,
+  hotRedirectHref,
   isNarrowed,
   parseHotParams,
   type HotFilter,
@@ -67,13 +70,15 @@ describe("parseHotParams", () => {
   });
 });
 
-describe("hotHref", () => {
+const enc = (slug: string) => `/products/${encodeURIComponent(slug)}`;
+
+describe("hotHref (the hub's mixed list)", () => {
   it("is the bare path for the defaults", () => {
-    expect(hotHref({})).toBe("/hot");
-    expect(hotHref(DEFAULTS)).toBe("/hot");
+    expect(hotHref({})).toBe("/products");
+    expect(hotHref(DEFAULTS)).toBe("/products");
   });
 
-  it("builds cat, price, sort, code, video and page in that order", () => {
+  it("builds price, sort, code, video and page in that order, and never a category", () => {
     expect(
       hotHref({
         category: "44",
@@ -83,12 +88,11 @@ describe("hotHref", () => {
         withVideo: true,
         page: 2,
       }),
-    ).toBe("/hot?cat=44&price=over-200&sort=discount&code=1&video=1&page=2");
+    ).toBe("/products?price=over-200&sort=discount&code=1&video=1&page=2");
   });
 
   it("round-trips through parseHotParams", () => {
     const filter: HotFilter = {
-      category: "1501",
       price: "100-200",
       sort: "price_desc",
       withCode: false,
@@ -106,36 +110,78 @@ describe("hotHref", () => {
       sort: "random",
       page: 0,
     } as unknown as HotFilter;
-    expect(hotHref(bad)).toBe("/hot");
-    expect(hotHref({ page: 2.5 })).toBe("/hot");
-    expect(hotHref({ page: 50 })).toBe(`/hot?page=${HOT_MAX_PAGES}`);
+    expect(hotHref(bad)).toBe("/products");
+    expect(hotHref({ page: 2.5 })).toBe("/products");
+    expect(hotHref({ page: 50 })).toBe(`/products?page=${HOT_MAX_PAGES}`);
   });
 });
 
 describe("hotCanonicalPath", () => {
-  it("keeps only the category", () => {
-    expect(hotCanonicalPath()).toBe("/hot");
-    expect(hotCanonicalPath("26")).toBe("/hot?cat=26");
+  it("is the category's page, or /products for the mix", () => {
+    expect(hotCanonicalPath()).toBe("/products");
+    expect(hotCanonicalPath("26")).toBe(enc("צעצועים"));
+    // The whole Home & Garden list, never its decor slice.
+    expect(hotCanonicalPath("15")).toBe(enc("בית-ומטבח"));
   });
 });
 
-describe("hotProductHref and hotBackHref", () => {
+describe("hotRedirectHref (/hot, permanently redirected)", () => {
+  it("sends /hot to /products and keeps the filters that mean the same", () => {
+    expect(hotRedirectHref({})).toBe("/products");
+    expect(hotRedirectHref({ price: "50-100", sort: "discount", code: "1", page: "2" })).toBe(
+      "/products?price=50-100&sort=discount&code=1&page=2",
+    );
+  });
+
+  it("sends /hot?cat=<id> to that category's page with its filters, without cat", () => {
+    expect(hotRedirectHref({ cat: "44" })).toBe(enc("אלקטרוניקה"));
+    expect(hotRedirectHref({ cat: "7", price: "under-50", video: "1", page: "3" })).toBe(
+      `${enc("מחשבים-ומשרד")}?price=under-50&video=1&page=3`,
+    );
+    for (const id of HOT_CATEGORY_IDS) {
+      expect(hotRedirectHref({ cat: id }).startsWith("/products/")).toBe(true);
+    }
+  });
+
+  it("drops an unknown category, an unknown filter and a bad page, as /hot did", () => {
+    expect(hotRedirectHref({ cat: "999", sort: "random", page: "x" })).toBe("/products");
+    expect(hotRedirectHref({ cat: "200001508" })).toBe("/products");
+  });
+});
+
+describe("hotProductHref and hotBack", () => {
   it("links a card to /p with the list it came from, and /p back to that list", () => {
     expect(hotProductHref("1005009727076652", "44")).toBe("/p/1005009727076652?from=hot&cat=44");
     expect(hotProductHref("1005009727076652")).toBe("/p/1005009727076652?from=hot");
+    // A slice's key is its second-level id.
+    expect(hotProductHref("1", "3710")).toBe("/p/1?from=hot&cat=3710");
     const back = (href: string) =>
-      hotBackHref(Object.fromEntries(new URL(href, "https://example.test").searchParams));
-    expect(back(hotProductHref("1", "26"))).toBe("/hot?cat=26");
-    expect(back(hotProductHref("1"))).toBe("/hot");
+      hotBack(Object.fromEntries(new URL(href, "https://example.test").searchParams));
+    expect(back(hotProductHref("1", "26"))).toMatchObject({
+      href: enc("צעצועים"),
+      label: "חזרה לצעצועים ומשחקי ילדים",
+    });
+    expect(back(hotProductHref("1", "3710"))?.href).toBe(enc("עיצוב-ואביזרי-נוי"));
+    expect(back(hotProductHref("1"))).toEqual({
+      href: "/products",
+      label: "חזרה לכל המוצרים",
+      category: null,
+    });
   });
 
-  it("goes back only for from=hot, and never to a category outside the list", () => {
+  it("keeps old /hot links (/p?from=hot&cat=<first-level id>) working", () => {
+    expect(hotBackHref({ from: "hot", cat: "7" })).toBe(enc("מחשבים-ומשרד"));
+    expect(hotBack({ from: "hot", cat: "7" })?.category?.key).toBe("7");
+  });
+
+  it("goes back only for from=hot, and never to a category outside the catalog", () => {
     expect(hotBackHref({})).toBeNull();
     expect(hotBackHref({ q: "אוזניות", cat: "44" })).toBeNull();
     expect(hotBackHref({ from: "recent" })).toBeNull();
-    expect(hotBackHref({ from: "hot", cat: "999" })).toBe("/hot");
-    expect(hotBackHref({ from: ["hot", "x"], cat: ["15"] })).toBe("/hot?cat=15");
+    expect(hotBackHref({ from: "hot", cat: "999" })).toBe("/products");
+    expect(hotBackHref({ from: ["hot", "x"], cat: ["15"] })).toBe(enc("בית-ומטבח"));
     expect(hotBackHref(Object.create({ from: "hot" }) as Record<string, string>)).toBeNull();
+    expect(hotProductHref("1", "999")).toBe("/p/1?from=hot");
   });
 });
 

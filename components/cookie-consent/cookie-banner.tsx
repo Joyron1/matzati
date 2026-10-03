@@ -22,7 +22,8 @@ const button = "min-h-11 grow px-2.5 text-sm sm:grow-0 sm:px-4";
  * fits without scrolling inside. On a phone on its side the text and the buttons sit side by
  * side (cookie-consent.module.css). From sm the fixed box itself is the centered card, so no
  * invisible strip beside it catches clicks meant for the page. `analyticsInUse`: Google Analytics
- * is configured, so the text says statistics are available, and only with consent.
+ * is configured, so the text says it counts visits without cookies and sets its statistics
+ * cookies only with consent (Consent Mode "advanced", components/analytics/gtag.ts).
  */
 export function CookieBanner({
   analyticsInUse = false,
@@ -77,7 +78,7 @@ export function CookieBanner({
           {/* What is stored, item by item: /cookies (STORAGE_INVENTORY). */}
           <p className="mt-1 text-sm leading-relaxed text-muted">
             {analyticsInUse
-              ? "אנחנו שומרים בדפדפן את מה שהכרחי לאתר. עוגיות סטטיסטיקה (Google Analytics) יופעלו רק אם תאשרו, ועוגיות שיווק לא בשימוש."
+              ? "אנחנו שומרים בדפדפן את מה שהכרחי לאתר. Google Analytics סופר ביקורים בלי עוגיות ובלי מזהה קבוע, ואת עוגיות הסטטיסטיקה שלו נשמור רק אם תאשרו. עוגיות שיווק לא בשימוש."
               : "אנחנו שומרים בדפדפן רק את מה שהכרחי לאתר. עוגיות סטטיסטיקה ושיווק לא בשימוש, ונפעיל אותן רק אם תאשרו."}{" "}
             <Link
               href={LEGAL_PATHS.cookies}

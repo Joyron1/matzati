@@ -91,11 +91,11 @@ const FAQ: FaqItem[] = [
     id: "faq-hot",
     question: "מה זה מוצרים חמים?",
     // The hot list is AliExpress's pool of products with a hot commission (docs/aliexpress-api.md,
-    // Hot products). That is disclosed in /terms#affiliate and next to the list on /hot, not here.
+    // Hot products). That is disclosed in /terms#affiliate and next to the lists on /products, not here.
     answer: [
-      `מוצרים שנמכרים הרבה באלי אקספרס, מתוך רשימת המוצרים החמים שאלי אקספרס מפרסמת לשותפים שלה. גם אותם אנחנו מסננים: מוצג רק מוצר עם ${TRUST}. בעמוד המוצרים החמים אפשר לבחור קטגוריה ולסנן.`,
+      `מוצרים שנמכרים הרבה באלי אקספרס, מתוך רשימת המוצרים החמים שאלי אקספרס מפרסמת לשותפים שלה. גם אותם אנחנו מסננים: מוצג רק מוצר עם ${TRUST}. בעמוד ״כל המוצרים״ אפשר לבחור קטגוריה, לסנן ולחפש בתוך קטגוריה.`,
     ],
-    more: <MoreLink href="/hot" label="למוצרים החמים" />,
+    more: <MoreLink href="/products" label="לכל המוצרים" />,
   },
 ];
 

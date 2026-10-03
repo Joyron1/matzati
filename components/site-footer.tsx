@@ -7,10 +7,10 @@ import {
   Cookie,
   ExternalLink,
   FileText,
-  Flame,
   Handshake,
   History,
   Info,
+  LayoutGrid,
   Search,
   ShieldCheck,
   SlidersHorizontal,
@@ -25,7 +25,7 @@ import { DEALS_ENABLED } from "@/lib/config/site";
 import { hasPublishedCoupons } from "@/lib/coupons/queries";
 import { hasPublishedDeals, hasUpcomingSales } from "@/lib/deals/queries";
 import { COOKIE_SETTINGS_BUTTON_ID } from "@/lib/consent/store";
-import { HOT_PATH } from "@/lib/hot/params";
+import { PRODUCTS_PATH } from "@/lib/hot/params";
 import { subscribeToNewsletter } from "@/lib/newsletter/actions";
 import { getCommunityLink, type CommunityLink } from "@/lib/settings/community";
 import { CookieSettingsButton } from "./cookie-consent/cookie-settings-button";
@@ -50,7 +50,7 @@ export interface FooterOffers {
 function siteLinks(offers: FooterOffers): FooterLink[] {
   return [
     { href: "/", label: "חיפוש", Icon: Search },
-    { href: HOT_PATH, label: "מוצרים חמים", Icon: Flame },
+    { href: PRODUCTS_PATH, label: "כל המוצרים", Icon: LayoutGrid },
     { href: "/searches", label: "חיפושים אחרונים", Icon: History },
     ...(offers.coupons ? [{ href: "/coupons", label: "קופונים", Icon: TicketPercent }] : []),
     ...(offers.sales ? [{ href: "/sales", label: "מבצעים", Icon: CalendarDays }] : []),

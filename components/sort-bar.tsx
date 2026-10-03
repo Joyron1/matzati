@@ -18,11 +18,14 @@ export function SortBar({
   q,
   active,
   without,
+  cat,
 }: {
   q: string;
   /** The sort the results were ranked with (parsed or overridden). */
   active: SortPreference;
   without: string[];
+  /** The category the search is limited to, kept by a sort change. */
+  cat?: string;
 }) {
   return (
     <nav aria-label="סדר התוצאות" className="flex flex-wrap items-center gap-2">
@@ -32,7 +35,7 @@ export function SortBar({
         return (
           <Link
             key={s.value}
-            href={searchHref({ q, sort: s.value, without })}
+            href={searchHref({ q, sort: s.value, without, cat })}
             aria-current={current ? "true" : undefined}
             className={`relative inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold ${
               current

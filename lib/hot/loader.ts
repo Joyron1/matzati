@@ -8,8 +8,12 @@
 // last RECENT_MS is reused while the cache entry is still being written; a list that failed is not
 // fetched again until its retry time (retryDelayMs); and this instance's hot calls start at least
 // ALI_SPACING_MS apart. One list costs one call (plus the client's retries of a rate limit or a
-// server error, at most two), plus the hot links call below: never a second page, since two calls
-// seconds apart return different lists (docs/aliexpress-api.md, Hot products).
+// server error, at most two), plus the hot links call below. A key names one page of one list
+// (HotListKey: "44" is page 1, "44:2" and "44:3" pages 2 and 3, owner request 2026-10-03); pages 2
+// and 3 are separate lists with their own cache entry, fetched only when a visitor asks for more
+// products (lib/hot/category-list.ts). Two calls seconds apart return different lists
+// (docs/aliexpress-api.md, Hot products), so pages of different fetches may overlap or skip
+// products: the category page merges them by product id.
 //
 // Retry times: a lasting failure (a missing permission or key, a rejected request, a list where
 // nothing passes our filters) waits HOT_LIST_TTL_MS, as long as a good list is kept. A passing one
@@ -32,7 +36,7 @@ import { HOT_LINK_TYPE, generateLinks, queryHotProducts } from "@/lib/aliexpress
 import type { AliExpressClient } from "@/lib/aliexpress/client";
 import { AliExpressError, type AliExpressErrorKind } from "@/lib/aliexpress/errors";
 import type { AliProduct } from "@/lib/aliexpress/schemas";
-import type { HotCategoryId } from "./categories";
+import { parseHotListKey, type HotListKey } from "./categories";
 import {
   hotLinkSources,
   productsWithoutHotLink,
@@ -43,7 +47,7 @@ import {
 import { selectHotProducts, toHotProduct, type HotProduct } from "./select";
 
 export interface HotPool {
-  key: HotCategoryId;
+  key: HotListKey;
   /** What we show, by 30-day sales. Never empty. */
   products: HotProduct[];
   /** Products AliExpress returned, before our filters. */
@@ -138,9 +142,9 @@ interface Failure {
 }
 
 export class HotPoolLoader {
-  private readonly inFlight = new Map<HotCategoryId, Promise<HotPool>>();
-  private readonly recent = new Map<HotCategoryId, { pool: HotPool; at: number }>();
-  private readonly failures = new Map<HotCategoryId, Failure>();
+  private readonly inFlight = new Map<HotListKey, Promise<HotPool>>();
+  private readonly recent = new Map<HotListKey, { pool: HotPool; at: number }>();
+  private readonly failures = new Map<HotListKey, Failure>();
   private queue: Promise<unknown> = Promise.resolve();
   private lastCallEnd: number | null = null;
   private readonly recentMs: number;
@@ -160,7 +164,7 @@ export class HotPoolLoader {
   }
 
   /** True while `key` failed and waits for its retry time: load() would make no call. */
-  isWaiting(key: HotCategoryId): boolean {
+  isWaiting(key: HotListKey): boolean {
     const failed = this.failures.get(key);
     return failed !== undefined && this.clock() < failed.retryAt;
   }
@@ -171,7 +175,7 @@ export class HotPoolLoader {
    * cache keeps the list it had. `deps` is called inside the fetch, so a config error (a missing
    * key) counts as a failure too.
    */
-  load(key: HotCategoryId, deps: () => HotFetchDeps): Promise<HotPool> {
+  load(key: HotListKey, deps: () => HotFetchDeps): Promise<HotPool> {
     const running = this.inFlight.get(key);
     if (running) return running;
     const now = this.clock();
@@ -231,7 +235,7 @@ export class HotPoolLoader {
    * (keepStoredHotLinks), else the list's link. Neither the set nor the order changes.
    */
   private async withHotLinks(
-    key: HotCategoryId,
+    key: HotListKey,
     deps: Pick<HotFetchDeps, "ali" | "storedLinks">,
     products: AliProduct[],
   ): Promise<AliProduct[]> {
@@ -259,7 +263,7 @@ export class HotPoolLoader {
    * products exist. Never throws: when the read fails they keep the list's links.
    */
   private async keepStoredHotLinks(
-    key: HotCategoryId,
+    key: HotListKey,
     storedLinks: HotFetchDeps["storedLinks"],
     products: AliProduct[],
   ): Promise<AliProduct[]> {
@@ -278,10 +282,19 @@ export class HotPoolLoader {
     }
   }
 
-  private async fetch(key: HotCategoryId, makeDeps: () => HotFetchDeps): Promise<HotPool> {
+  private async fetch(key: HotListKey, makeDeps: () => HotFetchDeps): Promise<HotPool> {
+    // Only an allowed id and page (lib/hot/categories.ts): a key from anywhere else fails as a
+    // lasting failure, before any call.
+    const list = parseHotListKey(key);
+    if (!list) throw new HotPoolError("failed", `${key}: not an allowed hot list`);
     const deps = makeDeps();
     const { ali, saveProducts } = deps;
-    const page = await this.spaced(() => queryHotProducts(ali, { categoryId: key }));
+    const page = await this.spaced(() =>
+      queryHotProducts(ali, {
+        categoryId: list.id,
+        ...(list.page > 1 ? { pageNo: list.page } : {}),
+      }),
+    );
     const fetchedAt = new Date(this.clock());
     const selected = selectHotProducts(page.products);
     if (!selected.length) {

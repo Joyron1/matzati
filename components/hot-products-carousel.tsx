@@ -3,7 +3,7 @@ import { after, connection } from "next/server";
 import { ChevronLeft, Flame } from "lucide-react";
 import type { ReactNode } from "react";
 import { HOT_FILTER_NOTE, HOT_TITLES_NOTE } from "@/lib/hot/copy";
-import { HOT_PATH } from "@/lib/hot/params";
+import { PRODUCTS_PATH } from "@/lib/hot/params";
 import { hotCarouselProducts, warmCarouselLists } from "@/lib/hot/queries";
 import {
   HOT_HEADER_ROW,
@@ -58,7 +58,7 @@ function NoteLink({
 }
 
 /**
- * Where the list comes from, what passed and how titles are made, with the links to /hot and to
+ * Where the list comes from, what passed and how titles are made, with the links to /products and to
  * its "מאיפה הרשימה" (the source list is AliExpress's affiliate hot list: the commission it may
  * pay changes neither our filter nor the order). `ghost`: the same size, no links.
  */
@@ -69,11 +69,11 @@ function Notes({ ghost = false }: { ghost?: boolean }) {
         מתוך רשימת המוצרים החמים שאלי אקספרס מציעה לשותפים. {HOT_FILTER_NOTE} {HOT_TITLES_NOTE}
       </p>
       <div className="flex shrink-0 flex-wrap gap-x-5">
-        <NoteLink ghost={ghost} href={`${HOT_PATH}#hot-about-title`}>
+        <NoteLink ghost={ghost} href={`${PRODUCTS_PATH}#hot-about-title`}>
           מאיפה הרשימה
         </NoteLink>
-        <NoteLink ghost={ghost} href={HOT_PATH}>
-          לכל המוצרים החמים
+        <NoteLink ghost={ghost} href={PRODUCTS_PATH}>
+          לכל המוצרים
           <ChevronLeft aria-hidden className="size-4" />
         </NoteLink>
       </div>

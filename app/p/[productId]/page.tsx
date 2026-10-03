@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { SimilarProducts } from "@/components/similar-products";
 import { BRAND } from "@/lib/config/brand";
-import { hotBackHref, parseHotParams } from "@/lib/hot/params";
+import { hotBack as hotBackOf } from "@/lib/hot/params";
 import { clip } from "@/lib/og/bidi";
 import { productTitleView } from "@/lib/product-title";
 import { firstParam, parseSort, parseWithout } from "@/lib/search-url";
@@ -42,7 +42,8 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
   const { productId } = await params;
   const query = await searchParams;
   const q = firstParam(query.q).trim().slice(0, 200);
-  const hotBack = hotBackHref(query);
+  // Opened from a hot list (from=hot&cat=<catalog key>, also the old /hot links): back to it.
+  const hotBack = hotBackOf(query);
   const data = await productForPage(productId);
   if (!data) notFound();
 
@@ -52,7 +53,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
     q,
     sort: parseSort(query.sort),
     without: parseWithout(query.without),
-    hot: hotBack ? { category: parseHotParams(query).category } : null,
+    hot: hotBack ? { category: hotBack.category } : null,
   };
   return (
     <ProductView

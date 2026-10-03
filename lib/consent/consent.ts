@@ -27,8 +27,27 @@ export const CONSENT_VERSION = 2;
  * Added to CONSENT_VERSION while Google Analytics is configured (/admin/settings, "חיבור לגוגל"):
  * the banner then says statistics are available, so a choice made under the notice without it
  * (which said statistics were not in use) is not consent to it, and every visitor is asked again.
+ * Multiplied by ANALYTICS_NOTICE_REVISION, so the analytics notice can change on its own.
  */
 export const ANALYTICS_NOTICE_OFFSET = 1000;
+
+/**
+ * Revision of what the notice says about Google Analytics while it is configured. Bump it when
+ * that text changes meaning: only the analytics notice changes, so pages without Google Analytics
+ * (BASE_NOTICE) keep honoring their choices, and under ANALYTICS_NOTICE only the newest counts.
+ *
+ * 1 (2026-09-28, version 1001, then 1002 with CONSENT_VERSION 2): strict mode, nothing was sent to
+ *   Google before consent.
+ * 2 (2026-10-03, version 2002): Consent Mode "advanced" (owner decision). Google now gets cookieless
+ *   measurement from every visitor, and the _ga cookies only after consent. A "yes" or "no" given
+ *   when the notice said nothing reached Google without consent was a choice about something else,
+ *   so it is not honored and everyone is asked again. CONSENT_VERSION is not bumped: the base
+ *   notice (no Google Analytics) did not change.
+ */
+export const ANALYTICS_NOTICE_REVISION = 2;
+
+/** The notice version stored with a choice made under analytics notice `revision`. */
+const analyticsVersion = (revision: number) => CONSENT_VERSION + ANALYTICS_NOTICE_OFFSET * revision;
 
 /** The notice a page shows: the version it stores with a new choice and the ones it honors. */
 export interface ConsentNotice {
@@ -39,19 +58,23 @@ export interface ConsentNotice {
 }
 
 /**
- * While no optional tool is configured. It also honors a choice made under ANALYTICS_NOTICE:
- * nothing optional runs here, and a moment when the setting cannot be read (the page then renders
- * as if Google Analytics were not configured) must not ask everyone again.
+ * While no optional tool is configured. It also honors a choice made under any revision of
+ * ANALYTICS_NOTICE (of this CONSENT_VERSION): nothing optional runs here, and a moment when the
+ * setting cannot be read (the page then renders as if Google Analytics were not configured) must
+ * not ask everyone again.
  */
 export const BASE_NOTICE: ConsentNotice = {
   version: CONSENT_VERSION,
-  accepts: [CONSENT_VERSION, CONSENT_VERSION + ANALYTICS_NOTICE_OFFSET],
+  accepts: [
+    CONSENT_VERSION,
+    ...Array.from({ length: ANALYTICS_NOTICE_REVISION }, (_, i) => analyticsVersion(i + 1)),
+  ],
 };
 
-/** While Google Analytics is configured: only a choice made under this notice counts. */
+/** While Google Analytics is configured: only a choice made under its current revision counts. */
 export const ANALYTICS_NOTICE: ConsentNotice = {
-  version: CONSENT_VERSION + ANALYTICS_NOTICE_OFFSET,
-  accepts: [CONSENT_VERSION + ANALYTICS_NOTICE_OFFSET],
+  version: analyticsVersion(ANALYTICS_NOTICE_REVISION),
+  accepts: [analyticsVersion(ANALYTICS_NOTICE_REVISION)],
 };
 
 /** The notice for a page: ANALYTICS_NOTICE while Google Analytics is configured. */

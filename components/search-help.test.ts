@@ -28,7 +28,7 @@ describe("SearchHelpBox", () => {
     expect(out).toContain("נסו תקציב רחב יותר, או חפשו בלי הגבלת מחיר.");
     expect(out).toContain("without=req%3Asonic");
     expect(out).toContain("without=max");
-    expect(out).toContain('href="/hot"');
+    expect(out).toContain('href="/products"');
     expect(out).toContain('href="/#ideas-title"');
     expect(out).toContain("בדקו את האיות");
   });

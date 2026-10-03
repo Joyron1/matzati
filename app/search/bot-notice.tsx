@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Bot } from "lucide-react";
 import { StateCard } from "@/components/state-card";
 import { btnMd, btnPrimary, btnSecondary } from "@/components/styles";
-import { HOT_PATH } from "@/lib/hot/params";
+import { PRODUCTS_PATH } from "@/lib/hot/params";
 import { popularSearches } from "@/lib/seo/queries";
 import { seoPath } from "@/lib/seo/slug";
 
@@ -28,8 +28,8 @@ export async function BotSearchNotice({ query }: { query: string }) {
           <Link href="/" className={`${btnPrimary} ${btnMd}`}>
             לעמוד הבית
           </Link>
-          <Link href={HOT_PATH} className={`${btnSecondary} ${btnMd}`}>
-            למוצרים החמים
+          <Link href={PRODUCTS_PATH} className={`${btnSecondary} ${btnMd}`}>
+            לכל המוצרים
           </Link>
         </div>
         <p className="max-w-xl text-sm text-pretty text-muted">

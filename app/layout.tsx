@@ -93,8 +93,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           {/* Last in the DOM: Tab reaches the cookie banner after the footer. Client-only, so the
               layout reads no cookies and pages stay static. */}
           <ConsentManager analyticsInUse={measurementId !== null} />
-          {/* Google Analytics only while the owner has set an id, and inside it nothing loads
-              before the visitor accepts statistics (ConsentGate). Renders no HTML. */}
+          {/* Google Analytics only while the owner has set an id, in Consent Mode "advanced": it
+              loads for every visitor with all consent denied (cookieless pings) and sets its
+              cookies only after the visitor accepts statistics; nothing on /admin or /dev.
+              Renders no HTML. */}
           {measurementId && <GoogleAnalytics measurementId={measurementId} />}
           {/* Vercel Web Analytics: cookieless, no query strings, no admin pages (/privacy). */}
           <VercelAnalytics />

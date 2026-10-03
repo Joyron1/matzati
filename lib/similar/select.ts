@@ -1,13 +1,13 @@
 // "מוצרים דומים שיעניינו אתכם" on /p: other products of the list that led to the page, in that
 // list's order. Pure: the reads are in ./load.ts, and nothing here fetches, ranks or writes.
 // - From a search (/p?q=): the other ranked products of that query's cached result set.
-// - From /hot (/p?from=hot&cat=): the other products of that cached hot list, by 30-day sales.
+// - From a hot list (/p?from=hot&cat=<catalog key>, /products): the other products of that cached
+//   hot list, by 30-day sales.
 // Only products with a row in `products` are shown, since /p serves nothing else (a fetch saves
 // every product it kept, RESULTS_KEPT; result sets cached before that may lack rows past the pages
 // they showed). Hebrew titles are shown with the known transliterations fixed
 // (lib/transliterations.ts).
 import type { AliProduct } from "@/lib/aliexpress/schemas";
-import type { HotCategoryId } from "@/lib/hot/categories";
 import { hotProductHref } from "@/lib/hot/params";
 import type { HotProduct } from "@/lib/hot/select";
 import { hotTitle } from "@/lib/product-title";
@@ -148,14 +148,15 @@ export function similarFromHot(
   products: HotProduct[],
   {
     currentId,
-    category,
+    categoryKey,
     categoryHe,
     fetchedAt,
     stored,
     limit = SIMILAR_LIMIT,
   }: {
     currentId: string;
-    category: HotCategoryId;
+    /** The catalog key of the list's category (lib/catalog/categories.ts), kept in the links. */
+    categoryKey: string;
     categoryHe: string | null;
     fetchedAt: string;
     stored: ReadonlyMap<string, unknown>;
@@ -169,7 +170,7 @@ export function similarFromHot(
     checkedAt: fetchedAt,
     items: picked.map((p) => ({
       productId: p.productId,
-      href: hotProductHref(p.productId, category),
+      href: hotProductHref(p.productId, categoryKey),
       title: hotTitle(p.title),
       imageUrl: p.imageUrl || null,
       price: {

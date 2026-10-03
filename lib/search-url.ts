@@ -1,5 +1,6 @@
 // Used by client components too (ShowMore renders result cards): no zod here. The /go parameters
 // are validated on the server (clickRefFrom in lib/search/server.ts).
+import { catalogByFirstLevel } from "./catalog/categories";
 import type { ResultProduct, SortPreference } from "./types";
 
 type Param = string | string[] | undefined;
@@ -34,6 +35,22 @@ export function parseWithout(value: Param): string[] {
   return [...new Set(ids)].slice(0, MAX_REMOVED);
 }
 
+/**
+ * The category a search is limited to (/search?cat=, a /products category page's search box): a
+ * first-level id with a whole-list category in the catalog (lib/catalog/categories.ts). Anything
+ * else is ignored, so a link can never make product.query search an id we do not offer.
+ */
+export function parseSearchCategory(value: Param): string | undefined {
+  const v = firstParam(value);
+  return /^\d+$/.test(v) && catalogByFirstLevel(v) ? v : undefined;
+}
+
+/** "בקטגוריה: תכשיטים": the removable chip of a search limited to a category, or null. */
+export function searchCategoryChip(categoryId: string | undefined): string | null {
+  const category = categoryId ? catalogByFirstLevel(categoryId) : null;
+  return category ? `בקטגוריה: ${category.nameHe}` : null;
+}
+
 /** The `from` of one of our own links, or undefined for a query the visitor typed. */
 export function parseFrom(value: Param): SearchFrom | undefined {
   const v = firstParam(value);
@@ -66,15 +83,18 @@ export interface SearchHrefInput {
   without?: string[];
   /** Set on our own links to a query the visitor did not type (see SearchFrom). */
   from?: SearchFrom;
+  /** The category the search is limited to (parseSearchCategory); omitted, no limit. */
+  cat?: string;
 }
 
 /** Builds a /search URL. Empty values are omitted to keep URLs short and shareable. */
-export function searchHref({ q, sort, without = [], from }: SearchHrefInput): string {
+export function searchHref({ q, sort, without = [], from, cat }: SearchHrefInput): string {
   const params = new URLSearchParams({ q });
   if (sort) params.set("sort", sort);
   const unique = [...new Set(without)];
   if (unique.length) params.set("without", unique.join(","));
   if (from) params.set("from", from);
+  if (cat && parseSearchCategory(cat)) params.set("cat", cat);
   return `/search?${params.toString()}`;
 }
 

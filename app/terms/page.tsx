@@ -12,7 +12,7 @@ import { RESULTS_PER_PAGE } from "@/lib/config/site";
 import { AFFILIATE_SECTION_ID, LEGAL_PATHS } from "@/lib/config/legal";
 import { AFFILIATE_NOTE } from "@/lib/copy";
 import { SEARCHES_PER_DAY, SEARCHES_PER_HOUR } from "@/lib/guard/rate-limit";
-import { HOT_PATH } from "@/lib/hot/params";
+import { PRODUCTS_PATH } from "@/lib/hot/params";
 import { FILL_TIER, FILTERS } from "@/lib/ranking/config";
 import { pageMetadata } from "@/lib/seo/page-meta";
 
@@ -180,10 +180,10 @@ export default function TermsPage() {
             את אותו ציון. מוצר לא יעלה למעלה רק כי הוא משלם לנו יותר.
           </li>
           <li>
-            רשימת <Link href={HOT_PATH}>המוצרים החמים</Link> (בעמוד שלה ובעמוד הבית) היא רשימה שאלי
-            אקספרס מציעה לשותפים שלה, ועל רוב המוצרים בה היא מציעה עמלה גבוהה יותר. בעמוד המוצרים
-            החמים זה כתוב גם ליד הרשימה. גם עליה חל הסינון שלנו, והעמלה לא משפיעה על הסינון ועל
-            הסדר.
+            רשימת המוצרים החמים (בעמוד <Link href={PRODUCTS_PATH}>כל המוצרים</Link>, בעמודי
+            הקטגוריות שלו ובעמוד הבית) היא רשימה שאלי אקספרס מציעה לשותפים שלה, ועל רוב המוצרים בה
+            היא מציעה עמלה גבוהה יותר. בעמוד כל המוצרים ובעמודי הקטגוריות זה כתוב גם ליד הרשימה. גם
+            עליה חל הסינון שלנו, והעמלה לא משפיעה על הסינון ועל הסדר.
           </li>
           <li>
             כשאלי אקספרס מציעה על מוצר מהרשימה הזו עמלה גבוהה מהרגילה, הקישור שלנו אליו הוא מהסוג

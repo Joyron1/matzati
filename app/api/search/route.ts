@@ -2,7 +2,8 @@
 import { z } from "zod";
 import { absoluteUrl } from "@/lib/config/site";
 import { isBotUserAgent } from "@/lib/guard/bots";
-import { HOT_PATH } from "@/lib/hot/params";
+import { PRODUCTS_PATH } from "@/lib/hot/params";
+import { parseSearchCategory } from "@/lib/search-url";
 import { MAX_QUERY_LENGTH } from "@/lib/search/pipeline";
 import { cachedSearchForBot, searchForRequest, type SearchFailure } from "@/lib/search/server";
 
@@ -13,7 +14,15 @@ const bodySchema = z.object({
   q: z.string().trim().min(1).max(MAX_QUERY_LENGTH),
   without: z.array(z.string().max(120)).max(10).optional(),
   sort: z.enum(["best_value", "cheapest", "most_popular"]).optional(),
+  /** A first-level category to limit the search to; an id outside the catalog is ignored. */
+  cat: z.string().max(20).optional(),
 });
+
+/** The search input of a valid body: `cat` becomes the category only when the catalog has it. */
+function searchInput({ cat, ...rest }: z.infer<typeof bodySchema>) {
+  const category = parseSearchCategory(cat);
+  return { ...rest, ...(category ? { category } : {}) };
+}
 
 const STATUS: Record<SearchFailure, number> = {
   invalid_query: 400,
@@ -41,14 +50,14 @@ function errorResponse(error: string, status: number, retryAfterSec?: number) {
  */
 async function botResponse(input: z.infer<typeof bodySchema>, headers: Headers) {
   const noindex = { "Cache-Control": "no-store", "X-Robots-Tag": "noindex" };
-  const cached = await cachedSearchForBot(input, headers);
+  const cached = await cachedSearchForBot(searchInput(input), headers);
   if (cached) return Response.json(cached, { headers: noindex });
   return Response.json(
     {
       error: "bots_only",
       message:
-        "The live search runs for visitors only. Read the home page, the hot products and the published search pages instead.",
-      links: [absoluteUrl("/"), absoluteUrl(HOT_PATH), absoluteUrl("/llms.txt")],
+        "The live search runs for visitors only. Read the home page, the product categories and the published search pages instead.",
+      links: [absoluteUrl("/"), absoluteUrl(PRODUCTS_PATH), absoluteUrl("/llms.txt")],
     },
     { headers: noindex },
   );
@@ -63,7 +72,7 @@ export async function POST(request: Request) {
   if (isBotUserAgent(request.headers.get("user-agent"))) {
     return botResponse(body.data, request.headers);
   }
-  const result = await searchForRequest(body.data, request.headers);
+  const result = await searchForRequest(searchInput(body.data), request.headers);
   if (!result.ok) return errorResponse(result.error, STATUS[result.error], result.retryAfterSec);
   return Response.json(result.response, { headers: { "Cache-Control": "no-store" } });
 }

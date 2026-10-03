@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   ACCEPT_ALL,
   ANALYTICS_NOTICE,
+  ANALYTICS_NOTICE_OFFSET,
+  ANALYTICS_NOTICE_REVISION,
   BASE_NOTICE,
   CONSENT_COOKIE,
   CONSENT_MAX_AGE_DAYS,
@@ -145,6 +147,24 @@ describe("the notice while Google Analytics is configured", () => {
     expect(parseConsent(choiceUnder(ANALYTICS_NOTICE.version), NOW, BASE_NOTICE)).not.toBeNull();
     expect(parseConsent(choiceUnder(ANALYTICS_NOTICE.version), NOW)).not.toBeNull();
   });
+
+  it("revision 2 (Consent Mode advanced, 2026-10-03) asks again everyone who chose under revision 1", () => {
+    expect(CONSENT_VERSION).toBe(2);
+    expect(ANALYTICS_NOTICE_REVISION).toBe(2);
+    expect(ANALYTICS_NOTICE.version).toBe(2002);
+    expect(ANALYTICS_NOTICE.accepts).toEqual([2002]);
+    // A yes or a no given when the notice said nothing reached Google without consent.
+    const underStrict = CONSENT_VERSION + ANALYTICS_NOTICE_OFFSET;
+    expect(underStrict).toBe(1002);
+    expect(parseConsent(choiceUnder(underStrict), NOW, ANALYTICS_NOTICE)).toBeNull();
+    expect(parseConsent(choiceUnder(1001), NOW, ANALYTICS_NOTICE)).toBeNull();
+    // The base notice did not change, so its choices and every revision's still count there.
+    expect(BASE_NOTICE.accepts).toEqual([2, 1002, 2002]);
+    expect(parseConsent(choiceUnder(underStrict), NOW, BASE_NOTICE)).not.toBeNull();
+    expect(parseConsent(choiceUnder(CONSENT_VERSION), NOW, BASE_NOTICE)).not.toBeNull();
+    // And nothing from before CONSENT_VERSION 2.
+    expect(parseConsent(choiceUnder(1), NOW, BASE_NOTICE)).toBeNull();
+  });
 });
 
 describe("readCookie and consentFromCookies", () => {
@@ -248,9 +268,12 @@ describe("what the notice says", () => {
       expect(item.provider).toContain("Google");
       expect(item.duration).toContain("שנתיים");
     }
-    expect(consentCategories(true).find((c) => c.id === "analytics")?.description).toContain(
-      "Google Analytics",
-    );
+    const statistics = consentCategories(true).find((c) => c.id === "analytics")?.description;
+    expect(statistics).toContain("Google Analytics");
+    // Consent Mode advanced: measured without cookies for everyone, cookies only with consent.
+    expect(statistics).toContain("גם בלי אישור");
+    expect(statistics).toContain("בלי עוגיות ובלי מזהה קבוע");
+    expect(statistics).toContain("אם תאשרו, יישמרו בדפדפן גם עוגיות");
     expect(consentCategories(true).find((c) => c.id === "marketing")?.inUse).toBe(false);
   });
 });

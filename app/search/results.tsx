@@ -45,6 +45,8 @@ export interface SearchViewProps {
   q: string;
   sort?: SortPreference;
   without: string[];
+  /** The category the search is limited to (/search?cat=), kept by every link of the page. */
+  cat?: string;
   /** The page's own URL: "ניסיון נוסף" reloads it. */
   retryHref: string;
 }
@@ -112,7 +114,7 @@ export function SearchResultsView({
   response,
   ...props
 }: SearchViewProps & { response: LoggedSearchResponse }) {
-  const { q, sort, without } = props;
+  const { q, sort, without, cat } = props;
   const outcome =
     response.results.length > 0
       ? `בדקנו ${formatCount(response.checked_count)} מוצרים. ${formatCount(response.passed_count)} עברו את הסינון.`
@@ -125,12 +127,13 @@ export function SearchResultsView({
         q={q}
         sort={sort}
         without={without}
+        cat={cat}
         highlightIds={highlightIds(response)}
         notFiltered={response.not_filtered}
       />
       {/* One per result set: a sort change or a removed chip is said again, also with the same counts. */}
       <ResultsAnnouncer key={response.filters_key} text={outcome} />
-      <Results response={response} q={q} sort={sort} without={without} />
+      <Results response={response} q={q} sort={sort} without={without} cat={cat} />
     </div>
   );
 }
@@ -140,7 +143,8 @@ function Results({
   q,
   sort,
   without,
-}: Pick<SearchViewProps, "q" | "sort" | "without"> & { response: LoggedSearchResponse }) {
+  cat,
+}: Pick<SearchViewProps, "q" | "sort" | "without" | "cat"> & { response: LoggedSearchResponse }) {
   const priceChips = response.chips.filter((c) => c.kind === "max_price" || c.kind === "min_price");
   // What kept the checked products out (item 12), most useful first; never a product that failed.
   const blockers = chipBlockers(response.blockers, response.chips);
@@ -173,7 +177,7 @@ function Results({
           {blockers.length === 0 && <> {advice}</>}
         </p>
         {blockers.length > 0 ? (
-          <BlockerList blockers={blockers} q={q} sort={sort} without={without} />
+          <BlockerList blockers={blockers} q={q} sort={sort} without={without} cat={cat} />
         ) : (
           priceChips.length > 0 && (
             <Link
@@ -181,6 +185,7 @@ function Results({
                 q,
                 sort,
                 without: [...without, ...priceChips.map((c) => c.id)],
+                cat,
               })}
               className={`${btnPrimary} ${btnMd} relative`}
             >
@@ -204,6 +209,7 @@ function Results({
           q={q}
           sort={sort}
           without={without}
+          cat={cat}
         />
       </StateCard>
     );
@@ -258,7 +264,7 @@ function Results({
             </p>
           )}
         </div>
-        <SortBar q={q} active={response.sort} without={without} />
+        <SortBar q={q} active={response.sort} without={without} cat={cat} />
       </div>
 
       {/* Its own cards per result set: a sort change keeps the page, not the cards. */}
@@ -275,10 +281,11 @@ function Results({
             q={q}
             sort={sort}
             without={without}
+            cat={cat}
           />
         ) : (
           blockers.length > 0 && (
-            <BlockerHint blocker={blockers[0]} q={q} sort={sort} without={without} />
+            <BlockerHint blocker={blockers[0]} q={q} sort={sort} without={without} cat={cat} />
           )
         )}
         {moreAvailable && response.filters_key && (
@@ -367,6 +374,7 @@ function Failed({
   q,
   sort,
   without,
+  cat,
   retryHref,
   failure,
   chips,
@@ -378,7 +386,7 @@ function Failed({
   return (
     <div data-search-results className="space-y-6">
       <h1 className="sr-only">תוצאות חיפוש עבור {q}</h1>
-      {chips && <FilterChips chips={chips} q={q} sort={sort} without={without} />}
+      {chips && <FilterChips chips={chips} q={q} sort={sort} without={without} cat={cat} />}
       <ResultsAnnouncer text={title} />
       <StateCard Icon={Icon} title={title}>
         <p className="max-w-md leading-relaxed text-muted">{body}</p>

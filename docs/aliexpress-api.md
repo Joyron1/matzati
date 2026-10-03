@@ -117,6 +117,18 @@ type 2 links for hot products since 2026-09-28 (App links, Refresh below).
 
 ## Open items
 
+- "כל המוצרים" (2026-10-03): verified with real calls the same day (counts: products returned /
+  passing FILTERS):
+  - `product.query` `keywords=usb cable` with `category_ids=44`: 50 / 46, every product first-level
+    44 (without it: 50 / 45, only 27 in 44). The param narrows the search; `productQueryParams`
+    sends it for a search inside a category.
+  - `hotproduct.query` `category_ids=36` `page_no=2`: 47 / 39, all 36 (page 1: 48 / 39).
+  - `hotproduct.query` with a SECOND-level id returns that category's hot list: 3710 Home Decor
+    49 / 38, 100001824 Festive & Party Supplies 50 / 47, 100006664 Pet Products 49 / 41 (all with
+    first-level 15). `slice.directFetch` is on for those three catalog slices.
+  - First lists: 1511 Watches 49 / 47, 1524 Luggage & Bags 48 / 44, 320 Weddings & Events 49 / 29
+    (mostly dresses: not used; "אירועים ומסיבות" lists 100001824 instead).
+
 - `product.sku.detail.get` and `promotion.info.get` return `InsufficientPermission`. The owner can
   request them in the API Permission Group (doc 1940); confirm each with one call before building
   on it. `hotproduct.query` works since the Advanced API group was activated (2026-09-28).

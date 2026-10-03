@@ -28,16 +28,19 @@ import { FILL_TIER, FILTERS } from "@/lib/ranking/config";
 import { searchHref } from "@/lib/search-url";
 import type { ProductPageData } from "@/lib/search/server";
 
-/** The back link: to the search the visitor came from, to /hot, or to a new search. */
-function backLink(q: string, hotBack: string | null) {
+/**
+ * The back link: to the search the visitor came from, to the hot list (its category page, or
+ * /products), or to a new search.
+ */
+function backLink(q: string, hotBack: { href: string; label: string } | null) {
   if (q) return { href: searchHref({ q }), label: "חזרה לתוצאות" };
-  if (hotBack) return { href: hotBack, label: "חזרה למוצרים החמים" };
+  if (hotBack) return { href: hotBack.href, label: hotBack.label };
   return { href: "/", label: "לחיפוש חדש" };
 }
 
 /**
- * `q` is the search the visitor came from ("" for none); `hotBack` the /hot list a card was opened
- * from (hotBackHref), or null; `now` is the time of the render. `similar` is shown last, at full
+ * `q` is the search the visitor came from ("" for none); `hotBack` the hot list a card was opened
+ * from (its link and label, lib/hot/params.ts hotBack), or null; `now` is the time of the render. `similar` is shown last, at full
  * width: the page passes the similar products there (components/similar-products.tsx), streamed.
  */
 export function ProductView({
@@ -49,7 +52,7 @@ export function ProductView({
 }: {
   data: ProductPageData;
   q: string;
-  hotBack?: string | null;
+  hotBack?: { href: string; label: string } | null;
   now: Date;
   similar?: ReactNode;
 }) {

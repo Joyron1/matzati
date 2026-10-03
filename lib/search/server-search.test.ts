@@ -271,4 +271,30 @@ describe("the admin's shop cap setting", () => {
     expect(a.value.filters_key).not.toBe(b.value.filters_key);
     expect(m.explainCalls).toBe(2);
   });
+
+  it("never lets a search limited to a category join the unrestricted run, or the other way", async () => {
+    let release!: () => void;
+    m.gate = new Promise<void>((r) => (release = r));
+    const plain = await startSearchForRequest(Q, HEADERS);
+    const scoped = await startSearchForRequest({ ...Q, category: "44" }, HEADERS);
+    const scopedToo = await startSearchForRequest({ ...Q, category: "44" }, HEADERS);
+    if (!plain.ok || !scoped.ok || !scopedToo.ok) throw new Error("not started");
+    release();
+    const [a, b, c] = await Promise.all([
+      plain.value.final,
+      scoped.value.final,
+      scopedToo.value.final,
+    ]);
+    if (!a.ok || !b.ok || !c.ok) throw new Error("search failed");
+    expect(a.value.filters_key).not.toBe(b.value.filters_key);
+    // The second category request joined the first: one explain call each for two runs.
+    expect(c.value.filters_key).toBe(b.value.filters_key);
+    expect(m.explainCalls).toBe(2);
+    const sentCategories = fetchMock.mock.calls
+      .map(([, init]) => new URLSearchParams(String(init?.body)))
+      .filter((p) => p.get("method") === "aliexpress.affiliate.product.query")
+      .map((p) => p.get("category_ids"));
+    expect(sentCategories).toContain("44");
+    expect(sentCategories).toContain(null);
+  });
 });

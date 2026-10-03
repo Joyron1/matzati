@@ -5,7 +5,8 @@
 //
 // Google Analytics is on only while the owner has set its measurement id (/admin/settings): the
 // pages then use consentCategories(true) and storageInventory(id), and the notice version changes
-// on its own (consentNotice in ./consent.ts). CONSENT_CATEGORIES and STORAGE_INVENTORY are the
+// on its own (consentNotice in ./consent.ts). It measures every visitor without cookies and sets
+// its cookies only with consent (Consent Mode "advanced", components/analytics/gtag.ts). CONSENT_CATEGORIES and STORAGE_INVENTORY are the
 // site without it.
 import type { ConsentCategory } from "./consent";
 
@@ -39,12 +40,16 @@ export const CONSENT_CATEGORIES: readonly ConsentCategoryInfo[] = [
   },
 ];
 
-/** The statistics category while Google Analytics is configured. */
+/**
+ * The statistics category while Google Analytics is configured, in Consent Mode "advanced"
+ * (components/analytics/gtag.ts): cookieless measurement for everyone, the _ga cookies only with
+ * consent. Changing what this says means bumping ANALYTICS_NOTICE_REVISION (./consent.ts).
+ */
 const ANALYTICS_IN_USE: ConsentCategoryInfo = {
   id: "analytics",
   label: "סטטיסטיקה",
   description:
-    "מדידת השימוש באתר עם Google Analytics, כדי להבין מה עובד ומה כדאי לשפר. פועלות רק אם תפעילו אותן.",
+    "מדידת השימוש באתר עם Google Analytics, כדי להבין מה עובד ומה כדאי לשפר. גם בלי אישור, Google מקבלת מכל עמוד נתוני שימוש בלי עוגיות ובלי מזהה קבוע. אם תאשרו, יישמרו בדפדפן גם עוגיות של Google Analytics עם מזהה אקראי, כדי להבחין בין מבקרים חדשים לחוזרים.",
   inUse: true,
 };
 

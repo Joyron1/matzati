@@ -10,7 +10,12 @@ import { STALE_RESULTS_HOURS } from "@/lib/config/site";
 import { aliexpressConfig } from "@/lib/env";
 import { SupabaseStore } from "@/lib/search/supabase-store";
 import { serviceClient } from "@/lib/supabase/server";
-import { HOT_CATEGORY_IDS, MIX_CATEGORY_IDS, type HotCategoryId } from "./categories";
+import {
+  CAROUSEL_CATEGORY_IDS,
+  MIX_CATEGORY_IDS,
+  type HotCategoryId,
+  type HotListKey,
+} from "./categories";
 import { parseStoredLinkRows, type StoredLinkRow } from "./links";
 import {
   HOT_LIST_TTL_MS,
@@ -43,10 +48,11 @@ const HOT_VERSION = 1;
 export const CAROUSEL_SIZE = 50;
 /**
  * The hot categories the carousel adds to the mix, each only while this instance already holds a
- * list of it (from /hot, or from the warm-up after an earlier home view): the carousel never waits
- * for one of them (warmCarouselLists).
+ * list of it (from a /products category page, or from the warm-up after an earlier home view):
+ * the carousel never waits for one of them (warmCarouselLists). The categories /hot had
+ * (CAROUSEL_CATEGORY_IDS), so the /products additions cost no warm-up calls. Page 1 only.
  */
-export const CAROUSEL_EXTRA_CATEGORY_IDS: readonly HotCategoryId[] = HOT_CATEGORY_IDS.filter(
+export const CAROUSEL_EXTRA_CATEGORY_IDS: readonly HotCategoryId[] = CAROUSEL_CATEGORY_IDS.filter(
   (id) => !(MIX_CATEGORY_IDS as readonly string[]).includes(id),
 );
 /**
@@ -101,7 +107,7 @@ function fetchDeps(): HotFetchDeps {
 
 // Failures are thrown inside, so they are never cached.
 const cachedPool = unstable_cache(
-  async (key: HotCategoryId): Promise<HotPool> => loader.load(key, fetchDeps),
+  async (key: HotListKey): Promise<HotPool> => loader.load(key, fetchDeps),
   ["hot-products", String(HOT_VERSION)],
   { revalidate: REVALIDATE_SECONDS, tags: [HOT_TAG] },
 );
@@ -111,7 +117,7 @@ const cachedPool = unstable_cache(
  * served from here without reading the cache (a stale entry would start a refresh that the loader
  * refuses and Next logs, on every view), and it stands in when the cache has no entry to serve.
  */
-const served = new Map<HotCategoryId, HotPool>();
+const served = new Map<HotListKey, HotPool>();
 
 export type HotPoolResult = { ok: true; pool: HotPool } | { ok: false; reason: HotPoolFailure };
 
@@ -124,7 +130,7 @@ function shown(pool: HotPool): HotPoolResult {
 }
 
 /** One category's list. Never throws: a failure is logged (once per attempt) and returned. */
-export async function loadHotPool(category: HotCategoryId): Promise<HotPoolResult> {
+export async function loadHotPool(category: HotListKey): Promise<HotPoolResult> {
   const last = served.get(category);
   if (last && loader.isWaiting(category)) return shown(last);
   try {
@@ -149,7 +155,7 @@ export async function loadHotPool(category: HotCategoryId): Promise<HotPoolResul
  * it is while its background refresh is refused (Next logs that refusal). Never throws.
  */
 export async function cachedHotPool(
-  category: HotCategoryId,
+  category: HotListKey,
   now = Date.now(),
 ): Promise<HotPool | null> {
   const last = served.get(category);
@@ -159,6 +165,16 @@ export async function cachedHotPool(
       ? shown(last)
       : await readOnly.run(true, () => loadHotPool(category));
   return res.ok ? res.pool : null;
+}
+
+/**
+ * The list this instance last served for `key`, with the current FILTERS, or null: never a cache
+ * read or an AliExpress call (the /products hub's category photos).
+ */
+export function servedHotPool(key: HotListKey): HotPool | null {
+  const last = served.get(key);
+  const res = last ? shown(last) : null;
+  return res?.ok ? res.pool : null;
 }
 
 export type HotMixResult = { ok: true; pools: HotPool[] } | { ok: false; reason: HotPoolFailure };

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Compass, Flame, X } from "lucide-react";
+import { Compass, LayoutGrid, X } from "lucide-react";
 import { formatCount } from "@/lib/format";
 import { searchHref } from "@/lib/search-url";
 import type { GeneralTip, RemovalTip, SearchHelp } from "@/lib/search/help-tips";
@@ -15,6 +15,8 @@ interface LinkProps {
   q: string;
   sort?: SortPreference;
   without: string[];
+  /** The category the search is limited to, kept by a removal. */
+  cat?: string;
 }
 
 const GENERAL_COPY: Record<GeneralTip, string> = {
@@ -48,12 +50,12 @@ function removalText(tip: RemovalTip) {
   }
 }
 
-function removalLink(tip: RemovalTip, { q, sort, without }: LinkProps) {
+function removalLink(tip: RemovalTip, { q, sort, without, cat }: LinkProps) {
   const chips = tip.kind === "price" ? tip.chips : [tip.chip];
   const label = chips.length === 1 ? `חיפוש בלי ״${chips[0].label_he}״` : "חיפוש בלי סינון המחיר";
   return (
     <Link
-      href={searchHref({ q, sort, without: [...without, ...chips.map((c) => c.id)] })}
+      href={searchHref({ q, sort, without: [...without, ...chips.map((c) => c.id)], cat })}
       className={`${btnSecondary} relative min-h-11 shrink-0 px-4 text-sm whitespace-normal! text-center`}
     >
       <X aria-hidden className="size-4 shrink-0" />
@@ -68,7 +70,7 @@ const linkClass =
 
 /**
  * The tips: filters to remove (each with a link to the search without it), ways to write the search
- * again, and links to the hot products and the search ideas. `heading` names the box (a real
+ * again, and links to all products (/products) and the search ideas. `heading` names the box (a real
  * heading).
  */
 export function SearchHelpBox({
@@ -112,9 +114,9 @@ export function SearchHelpBox({
         ))}
       </ul>
       <div className="flex flex-wrap gap-x-5">
-        <Link href="/hot" className={linkClass}>
-          <Flame aria-hidden className="size-4 shrink-0" />
-          למוצרים החמים
+        <Link href="/products" className={linkClass}>
+          <LayoutGrid aria-hidden className="size-4 shrink-0" />
+          לכל המוצרים
         </Link>
         <Link href="/#ideas-title" className={linkClass}>
           <Compass aria-hidden className="size-4 shrink-0" />

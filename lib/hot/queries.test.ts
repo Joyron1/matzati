@@ -282,7 +282,7 @@ describe("warmCarouselLists (after a home view)", () => {
 
   it("never makes the view wait: the extra lists join the pick only once warmed", async () => {
     await allLists();
-    const { HOT_CATEGORY_IDS, MIX_CATEGORY_IDS } = await import("./categories");
+    const { CAROUSEL_CATEGORY_IDS, MIX_CATEGORY_IDS } = await import("./categories");
     const q = await import("./queries");
     const view = () => q.hotCarouselProducts(new Date(clock.now), seeded(9));
     const before = await view();
@@ -310,8 +310,9 @@ describe("warmCarouselLists (after a home view)", () => {
     while ((await q.warmCarouselLists(clock.now)).length) {
       /* warming */
     }
-    expect(new Set(sent())).toEqual(new Set(HOT_CATEGORY_IDS));
-    expect(sent()).toHaveLength(HOT_CATEGORY_IDS.length);
+    // Only the categories /hot had: the /products additions are never warmed for the carousel.
+    expect(new Set(sent())).toEqual(new Set(CAROUSEL_CATEGORY_IDS));
+    expect(sent()).toHaveLength(CAROUSEL_CATEGORY_IDS.length);
     expect(await q.warmCarouselLists(clock.now)).toEqual([]);
   });
 

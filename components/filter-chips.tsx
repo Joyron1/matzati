@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { RotateCcw, X } from "lucide-react";
-import { searchHref } from "@/lib/search-url";
+import { searchCategoryChip, searchHref } from "@/lib/search-url";
 import type { FilterChip, SortPreference } from "@/lib/types";
 import { LinkPending, RestoreFocus } from "./pending-navigation";
 
@@ -10,6 +10,11 @@ interface FilterChipsProps {
   /** Sort override from the URL, kept when a chip is removed. */
   sort?: SortPreference;
   without: string[];
+  /**
+   * The category the search is limited to (/search?cat=): shown first as a removable chip
+   * (removing it is the same search without the category), and kept by every other link here.
+   */
+  cat?: string;
   /** Chips to draw attention to, e.g. the price filter when nothing passed. */
   highlightIds?: string[];
   /** Stated needs that are not filters (SearchResponse.not_filtered), named under the chips. */
@@ -34,6 +39,18 @@ export function notFilteredNote(labels: string[]): string {
 }
 
 /**
+ * The search without its category: the same query, sort and removed chips (the parse is reused, so
+ * no parse call; the results are the unrestricted search's own).
+ */
+export function categoryRemovedHref({
+  q,
+  sort,
+  without,
+}: Pick<FilterChipsProps, "q" | "sort" | "without">): string {
+  return searchHref({ q, sort, without });
+}
+
+/**
  * "הבנתי ככה" row. Removing a chip searches without that filter: from the products already checked
  * when enough of them pass (lib/search/pool.ts), else anew. The results on screen stay meanwhile
  * (components/pending-navigation.tsx).
@@ -43,13 +60,28 @@ export function FilterChips({
   q,
   sort,
   without,
+  cat,
   highlightIds = [],
   notFiltered = [],
 }: FilterChipsProps) {
+  const categoryChip = searchCategoryChip(cat);
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
       <span className="text-sm font-semibold text-muted">הבנתי ככה:</span>
       <ul className="flex flex-wrap gap-2">
+        {categoryChip && (
+          <li>
+            <Link
+              href={categoryRemovedHref({ q, sort, without })}
+              aria-label={`הסרת הסינון: ${categoryChip}`}
+              className="relative inline-flex min-h-11 items-center gap-1.5 rounded-full bg-accent-soft ps-4 pe-3 text-sm font-semibold text-accent-ink hover:bg-accent hover:text-on-accent"
+            >
+              {categoryChip}
+              <X aria-hidden className="size-4" />
+              <LinkPending />
+            </Link>
+          </li>
+        )}
         {chips.map((chip) => {
           const ring = highlightIds.includes(chip.id)
             ? "ring-2 ring-gold ring-offset-2 ring-offset-bg"
@@ -58,7 +90,7 @@ export function FilterChips({
             <li key={chip.id}>
               {chip.removable ? (
                 <Link
-                  href={searchHref({ q, sort, without: [...without, chip.id] })}
+                  href={searchHref({ q, sort, without: [...without, chip.id], cat })}
                   aria-label={`הסרת הסינון: ${chip.label_he}`}
                   className={`relative inline-flex min-h-11 items-center gap-1.5 rounded-full bg-accent-soft ps-4 pe-3 text-sm font-semibold text-accent-ink hover:bg-accent hover:text-on-accent ${ring}`}
                 >
@@ -77,7 +109,7 @@ export function FilterChips({
       </ul>
       {without.length > 0 && (
         <Link
-          href={searchHref({ q, sort })}
+          href={searchHref({ q, sort, cat })}
           data-restore-filters
           className="relative inline-flex min-h-11 items-center gap-1.5 rounded-full px-2 text-sm font-medium text-muted underline-offset-4 hover:text-ink hover:underline"
         >
@@ -90,7 +122,10 @@ export function FilterChips({
         <p className="w-full text-sm text-pretty text-muted">{notFilteredNote(notFiltered)}</p>
       )}
       {/* A removed chip took keyboard focus with it: it goes to the next place to act. */}
-      <RestoreFocus when={without.join(",")} targets={["a[data-restore-filters]", "a"]} />
+      <RestoreFocus
+        when={`${without.join(",")}|${cat ?? ""}`}
+        targets={["a[data-restore-filters]", "a"]}
+      />
     </div>
   );
 }

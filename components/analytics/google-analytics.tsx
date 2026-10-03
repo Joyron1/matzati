@@ -2,10 +2,8 @@
 
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef } from "react";
-import { ConsentGate } from "@/components/cookie-consent/consent-gate";
 import { BRAND } from "@/lib/config/brand";
 import { ANALYTICS_NOTICE, consentAllows } from "@/lib/consent/consent";
-import { consentStore } from "@/lib/consent/store";
 import { useConsent } from "@/lib/consent/use-consent";
 import {
   analyticsLocation,
@@ -64,11 +62,12 @@ function afterTitleChange(previous: string | null, send: () => void): () => void
 }
 
 /**
- * Mounted only while the visitor accepts statistics (ConsentGate): loads gtag.js on a measured
- * page, sends one page view per route change, and on unmount (consent withdrawn) tells Google to
- * stop and deletes the _ga cookies.
+ * Mounted once the visitor's choice is known (in the browser, after hydration): sets the consent
+ * state, loads gtag.js on a measured page (all consent denied first; analytics_storage granted
+ * only with the visitor's consent), and sends one reduced page view per route change, with or
+ * without consent. Nothing on /admin or /dev.
  */
-function GtagTracker({ measurementId }: { measurementId: string }) {
+function GtagTracker({ measurementId, granted }: { measurementId: string; granted: boolean }) {
   const pathname = usePathname();
   const search = useSearchParams().toString();
   const route = search ? `${pathname}?${search}` : pathname;
@@ -76,8 +75,15 @@ function GtagTracker({ measurementId }: { measurementId: string }) {
   // The raw document title at the last page view, to notice when the next page's title is in.
   const lastTitle = useRef<string | null>(null);
 
-  // Declared first, so on a new page it runs before the page view below. grant() does nothing
-  // while already on; the route only feeds the first load's config.
+  // Declared first, so the consent state is known before the load below: a visitor who accepted
+  // earlier is granted before gtag.js arrives. A change later (accept, withdraw) updates
+  // analytics_storage; without consent the _ga cookies are deleted.
+  useEffect(() => {
+    browserGtag(measurementId).consent(granted);
+  }, [measurementId, granted]);
+
+  // Before the page view below. start() does nothing while already on; the route only feeds the
+  // first load's config.
   useEffect(() => {
     const gtag = browserGtag(measurementId);
     if (!tracked) {
@@ -85,7 +91,7 @@ function GtagTracker({ measurementId }: { measurementId: string }) {
       return;
     }
     const page = currentPage(route);
-    if (page) gtag.grant(page);
+    if (page) gtag.start(page);
   }, [measurementId, tracked, route]);
 
   useEffect(() => {
@@ -98,40 +104,27 @@ function GtagTracker({ measurementId }: { measurementId: string }) {
     });
   }, [measurementId, tracked, route]);
 
-  // Consent withdrawn (ConsentGate unmounts this): stop sending and delete the cookies. Checked
-  // against the stored choice, so React's development-only remount does not count as one.
-  useEffect(
-    () => () => {
-      if (!consentAllows(consentStore(ANALYTICS_NOTICE).getSnapshot(), "analytics")) {
-        browserGtag(measurementId).revoke();
-      }
-    },
-    [measurementId],
-  );
-
   return null;
 }
 
 /**
- * Google Analytics 4 for the id the owner set in /admin/settings. The root layout renders it only
- * while an id is set; nothing loads before the visitor accepts "סטטיסטיקה" under the notice that
- * says Google Analytics is in use (ANALYTICS_NOTICE), and _ga cookies left from an earlier consent
- * are deleted while there is none.
+ * Google Analytics 4 for the id the owner set in /admin/settings, in Consent Mode "advanced"
+ * (owner decision 2026-10-03; the one exception to the ConsentGate rule besides Vercel Web
+ * Analytics, CLAUDE.md §9): the root layout renders it only while an id is set, and it loads
+ * gtag.js for every visitor with all consent denied, so Google gets cookieless pings with the
+ * reduced address and no identifier. Only a visitor who accepts "סטטיסטיקה" under the notice that
+ * describes this (ANALYTICS_NOTICE) gets analytics_storage granted and the _ga cookies. Renders no
+ * HTML, and nothing before the browser has read the consent cookie.
  */
 export function GoogleAnalytics({ measurementId }: { measurementId: string }) {
   const { consent } = useConsent(ANALYTICS_NOTICE);
-  const refused = consent !== undefined && !consentAllows(consent, "analytics");
-
-  useEffect(() => {
-    if (refused) browserGtag(measurementId).clearCookies();
-  }, [refused, measurementId]);
-
+  // Unknown on the server and during hydration: nothing until the cookie is read, so a visitor
+  // who accepted is granted before gtag.js loads, never after a first denied page view.
+  if (consent === undefined) return null;
   return (
-    <ConsentGate category="analytics" notice={ANALYTICS_NOTICE}>
-      {/* useSearchParams: rendered in the browser only (the gate), the boundary keeps it local. */}
-      <Suspense fallback={null}>
-        <GtagTracker measurementId={measurementId} />
-      </Suspense>
-    </ConsentGate>
+    // useSearchParams: rendered in the browser only (above), the boundary keeps it local.
+    <Suspense fallback={null}>
+      <GtagTracker measurementId={measurementId} granted={consentAllows(consent, "analytics")} />
+    </Suspense>
   );
 }

@@ -73,6 +73,9 @@ const label = (he: string) => fixSpelling(he.replace(/\s+/g, " ").trim());
  * query's lines) are part of the key too. Keyword words are a set: AliExpress ignores their order.
  * So is the shop cap mode the list is ranked under (the admin's setting, lib/settings): after a
  * switch, a list ranked under the other mode is never served, and the first searches fetch again.
+ * A search limited to a category (category_id) adds it; without one the key is exactly what it was
+ * before categories existed, so every cached result set stays valid, and a category search never
+ * shares a key with the unrestricted one.
  */
 export function canonicalFilters(
   f: SearchFilters & Partial<Pick<ParsedQuery, "category_hint" | "product_he">>,
@@ -97,6 +100,7 @@ export function canonicalFilters(
     min: round(f.min_price_ils),
     max: round(f.max_price_ils),
     s: f.sort_preference,
+    ...(f.category_id ? { c: f.category_id } : {}),
   };
 }
 

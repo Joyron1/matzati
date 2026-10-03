@@ -1,21 +1,27 @@
 // Google Analytics 4 through Google's gtag.js, for the measurement id the owner sets in
-// /admin/settings. Nothing here runs before the visitor accepts statistics: the loader
-// (./google-analytics.tsx) mounts inside <ConsentGate category="analytics"> and drives this
-// controller. createGtag takes its environment as an argument so it runs in unit tests;
-// browserGtag binds it to the real window and document.
+// /admin/settings, in Google Consent Mode v2 "advanced" (owner decision 2026-10-03): the loader
+// (./google-analytics.tsx, NOT inside ConsentGate) loads gtag.js on every measured page for every
+// visitor, with all consent denied first, so Google gets cookieless pings until the visitor
+// accepts statistics; only then is analytics_storage granted and the _ga cookies written.
+// createGtag takes its environment as an argument so it runs in unit tests; browserGtag binds it
+// to the real window and document.
 //
 // What it sends is kept small on purpose:
-// - Google Consent Mode v2: every type defaults to denied, then only analytics_storage is
-//   granted; the ad types stay denied, with ads data redaction, no Google signals and no ad
-//   personalization.
+// - Google Consent Mode v2: ad_storage, ad_user_data, ad_personalization and analytics_storage
+//   default to denied before gtag.js is added; analytics_storage alone is granted, and only while
+//   the visitor accepts statistics. The ad types stay denied forever, with ads data redaction, no
+//   Google signals and no ad personalization. While analytics_storage is denied gtag.js reads and
+//   writes no cookies (cookieless pings).
 // - anonymize_ip (GA4 does not store IP addresses anyway), host-only cookies that last 2 years
-//   from the last visit (as /cookies states).
-// - Page views are sent by this code, once per route change, with the address reduced to its path
-//   and a short list of parameters that never hold what a visitor typed (the search text "q" is
-//   dropped), and /search's title (which holds the query) replaced. No page view on /admin or /dev.
-// - Withdrawing consent denies analytics_storage, sets Google's own opt-out flag
-//   (window["ga-disable-<id>"]) so nothing more is sent, and deletes the _ga cookies; gtag.js
-//   itself stays in memory until the next page load.
+//   from the last visit (as /cookies states), written by gtag.js only once storage is granted.
+// - Page views are sent by this code, once per route change, before and after consent alike, with
+//   the address reduced to its path and a short list of parameters that never hold what a visitor
+//   typed (the search text "q" is dropped), and /search's title (which holds the query) replaced.
+//   send_page_view is false, so gtag.js never sends its own with the full address. Nothing on
+//   /admin or /dev: gtag.js is not added there, and after a client navigation there Google's own
+//   opt-out flag (window["ga-disable-<id>"]) stops every hit.
+// - Withdrawing consent updates analytics_storage back to denied (cookieless pings again) and
+//   deletes the _ga cookies; so does a page without consent, for cookies left from before.
 
 /** Google's documented opt-out flag: while true, gtag.js sends nothing for that id. */
 export const gaDisableKey = (measurementId: string) => `ga-disable-${measurementId}`;
@@ -154,30 +160,58 @@ export function cookieDeletions(name: string, hostname: string): string[] {
   return [expire, ...domains.map((d) => `${expire}; Domain=${d}`)];
 }
 
-export type GtagState = "idle" | "on" | "paused" | "denied";
+export type GtagState = "idle" | "on" | "paused";
+
+/** Consent Mode v2 defaults, set before gtag.js loads: everything denied. */
+export const CONSENT_DEFAULTS = {
+  ad_storage: "denied",
+  ad_user_data: "denied",
+  ad_personalization: "denied",
+  analytics_storage: "denied",
+} as const;
+
+/** The config for the measurement id (the page's address and title are added per page). */
+export const GTAG_CONFIG = {
+  // Our code sends every page view itself, reduced (pageView): never gtag.js's own.
+  send_page_view: false,
+  anonymize_ip: true,
+  allow_google_signals: false,
+  allow_ad_personalization_signals: false,
+  // Host-only cookies for 2 years: written by gtag.js only while analytics_storage is granted.
+  cookie_domain: "none",
+  cookie_expires: GA_COOKIE_SECONDS,
+} as const;
 
 export interface GtagController {
   readonly state: GtagState;
+  /** Whether analytics_storage is granted (the visitor accepts statistics). */
+  readonly granted: boolean;
   /**
-   * The visitor accepted statistics and the page is measured: loads gtag.js once (Consent Mode
-   * defaults denied, then analytics granted), or resumes after pause() or revoke().
+   * The page is measured: loads gtag.js once (Consent Mode defaults all denied, then
+   * analytics_storage granted only when consent() said so), or resumes after pause().
    */
-  grant(page: AnalyticsPage): void;
-  /** A page that is not measured (/admin): nothing is sent until grant() again. */
+  start(page: AnalyticsPage): void;
+  /** A page that is not measured (/admin, /dev): nothing is sent until start() again. */
   pause(): void;
-  /** Consent withdrawn: denies analytics storage, stops sending and deletes the _ga cookies. */
-  revoke(): void;
-  /** Deletes any _ga cookies (a page without consent). */
+  /**
+   * The visitor's statistics choice. Before the load it only decides the first update; after it,
+   * a change updates analytics_storage. Not granted (no choice yet, refused or withdrawn) also
+   * deletes the _ga cookies.
+   */
+  consent(granted: boolean): void;
+  /** Deletes any _ga cookies. */
   clearCookies(): void;
   /**
-   * One page view for `route` (the path and query as the router sees them). Sent only while on,
-   * and once per route: the same route again sends nothing. Returns whether it was sent.
+   * One page view for `route` (the path and query as the router sees them), with or without
+   * consent. Sent only while on, and once per route: the same route again sends nothing. Returns
+   * whether it was sent.
    */
   pageView(route: string, page: AnalyticsPage): boolean;
 }
 
 export function createGtag(measurementId: string, env: GtagEnv): GtagController {
   let state: GtagState = "idle";
+  let granted = false;
   let lastRoute: string | null = null;
   let lastLocation: string | null = null;
   const win = env.win;
@@ -207,24 +241,12 @@ export function createGtag(measurementId: string, env: GtagEnv): GtagController 
       };
     }
     setDisabled(false);
-    gtag("consent", "default", {
-      ad_storage: "denied",
-      ad_user_data: "denied",
-      ad_personalization: "denied",
-      analytics_storage: "denied",
-    });
+    // Before anything else and before gtag.js is added: every consent type denied.
+    gtag("consent", "default", { ...CONSENT_DEFAULTS });
     gtag("set", "ads_data_redaction", true);
-    gtag("consent", "update", { analytics_storage: "granted" });
+    if (granted) gtag("consent", "update", { analytics_storage: "granted" });
     gtag("js", new Date());
-    gtag("config", measurementId, {
-      send_page_view: false,
-      anonymize_ip: true,
-      allow_google_signals: false,
-      allow_ad_personalization_signals: false,
-      cookie_domain: "none",
-      cookie_expires: GA_COOKIE_SECONDS,
-      ...page,
-    });
+    gtag("config", measurementId, { ...GTAG_CONFIG, ...page });
     env.appendScript(`${GTAG_SRC}?id=${encodeURIComponent(measurementId)}`);
   }
 
@@ -232,13 +254,13 @@ export function createGtag(measurementId: string, env: GtagEnv): GtagController 
     get state() {
       return state;
     },
-    grant(page) {
+    get granted() {
+      return granted;
+    },
+    start(page) {
       if (state === "on") return;
       if (state === "idle") load(page);
-      else {
-        if (state === "denied") gtag("consent", "update", { analytics_storage: "granted" });
-        setDisabled(false);
-      }
+      else setDisabled(false);
       state = "on";
     },
     pause() {
@@ -246,15 +268,13 @@ export function createGtag(measurementId: string, env: GtagEnv): GtagController 
       setDisabled(true);
       state = "paused";
     },
-    revoke() {
-      if (state === "on" || state === "paused") {
-        gtag("consent", "update", { analytics_storage: "denied" });
-        setDisabled(true);
-        state = "denied";
+    consent(next) {
+      if (state !== "idle" && next !== granted) {
+        gtag("consent", "update", { analytics_storage: next ? "granted" : "denied" });
       }
-      // A later consent on this page starts its page views over.
-      lastRoute = null;
-      clearCookies();
+      granted = next;
+      // After the update, so gtag.js has stopped writing them.
+      if (!next) clearCookies();
     },
     clearCookies,
     pageView(route, page) {
@@ -282,11 +302,27 @@ export function browserGtag(measurementId: string): GtagController {
   if (!controller) {
     controller = createGtag(measurementId, {
       win: window as unknown as Record<string, unknown>,
+      // gtag.js (about 150 KB of script) is added once the page has loaded and the browser is
+      // idle: in advanced mode it loads for every visitor, and added at once it doubled the home
+      // page's blocking time on a phone (Lighthouse 2026-10-03, TBT 60 → 255 ms). The commands
+      // given before it arrives (consent defaults, config, page views) wait in dataLayer and are
+      // sent when it runs, so nothing is lost.
       appendScript: (src) => {
-        const script = document.createElement("script");
-        script.async = true;
-        script.src = src;
-        document.head.appendChild(script);
+        const add = () => {
+          const script = document.createElement("script");
+          script.async = true;
+          script.src = src;
+          document.head.appendChild(script);
+        };
+        const whenIdle = () => {
+          // Safari before 18 has no requestIdleCallback (the DOM types say every browser does).
+          const idle = (window as { requestIdleCallback?: Window["requestIdleCallback"] })
+            .requestIdleCallback;
+          if (idle) idle.call(window, add, { timeout: 4000 });
+          else setTimeout(add, 1500);
+        };
+        if (document.readyState === "complete") whenIdle();
+        else window.addEventListener("load", whenIdle, { once: true });
       },
       readCookies: () => document.cookie,
       writeCookie: (cookie) => {

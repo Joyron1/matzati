@@ -1,12 +1,27 @@
-// /hot URL params <-> HotFilter. Pure, so the page, its links, its form and the tests agree on one
-// shape: invalid values are dropped rather than reported, like /searches (lib/recent/params.ts).
+// The hot list's URL params <-> HotFilter, for /products (the hub's "מבחר" list) and the old /hot
+// address it replaced. Pure, so the page, its links, its form and the tests agree on one shape:
+// invalid values are dropped rather than reported, like /searches (lib/recent/params.ts).
+// Category pages (/products/<slug>) have their own params (lib/catalog/params.ts).
+import {
+  catalogByFirstLevel,
+  catalogByKey,
+  categoryPath,
+  type CatalogCategory,
+} from "@/lib/catalog/categories";
 import { firstParam } from "@/lib/search-url";
 import { isHotCategoryId, type HotCategoryId } from "./categories";
 import { HOT_SORTS, PRICE_BAND_IDS, type HotSort, type HotView, type PriceBand } from "./select";
 
 type Param = string | string[] | undefined;
 
+/**
+ * The old address of the hot list (2026-09-28 to 2026-10-03), now a permanent redirect to
+ * /products (app/hot/route.ts, hotRedirectHref): old links, bookmarks and indexed pages keep
+ * working.
+ */
 export const HOT_PATH = "/hot";
+/** "כל המוצרים": the categories and the mixed hot list ("מבחר"). */
+export const PRODUCTS_PATH = "/products";
 /** Products per "הצגת עוד" step. Divides into 2, 3 and 4 grid columns. */
 export const HOT_PAGE_SIZE = 12;
 /** One fetched list holds at most 50 products (page_size), so 5 steps show all of it. */
@@ -14,7 +29,10 @@ export const HOT_MAX_PAGES = 5;
 export const DEFAULT_HOT_SORT: HotSort = "sales";
 
 export interface HotFilter extends HotView {
-  /** A category from HOT_CATEGORY_IDS; undefined for the whole list. */
+  /**
+   * A category from HOT_CATEGORY_IDS (an old /hot?cat= link, redirected to its category page);
+   * undefined for the mix.
+   */
   category?: HotCategoryId;
   /** 1..HOT_MAX_PAGES; page n shows the first n * HOT_PAGE_SIZE products. */
   page: number;
@@ -51,12 +69,15 @@ export function parseHotParams(params: Record<string, Param>): HotFilter {
 }
 
 /**
- * Link to /hot for a filter, params in a fixed order; defaults (the whole list, sales order,
- * page 1, unset toggles) are left out of the URL.
+ * The view params of a hot list link (price, sort, toggles, page), in a fixed order; defaults
+ * (sales order, page 1, unset toggles) are left out. `maxPage` caps the page (the hub's
+ * HOT_MAX_PAGES, a category page's own cap).
  */
-export function hotHref(filter: Partial<HotFilter>): string {
+export function hotViewParams(
+  filter: Partial<HotView & { page: number }>,
+  maxPage: number = HOT_MAX_PAGES,
+): URLSearchParams {
   const params = new URLSearchParams();
-  if (filter.category && isHotCategoryId(filter.category)) params.set("cat", filter.category);
   if (filter.price && parsePrice(filter.price)) params.set("price", filter.price);
   if (filter.sort && filter.sort !== DEFAULT_HOT_SORT && parseSort(filter.sort) === filter.sort) {
     params.set("sort", filter.sort);
@@ -65,32 +86,77 @@ export function hotHref(filter: Partial<HotFilter>): string {
   if (filter.withVideo) params.set("video", "1");
   const page = filter.page;
   if (page !== undefined && Number.isInteger(page) && page > 1) {
-    params.set("page", String(Math.min(page, HOT_MAX_PAGES)));
+    params.set("page", String(Math.min(page, maxPage)));
   }
-  const query = params.toString();
-  return query ? `${HOT_PATH}?${query}` : HOT_PATH;
-}
-
-/** The canonical URL of a /hot view: the category only. Filters, sort and page are views of it. */
-export function hotCanonicalPath(category?: HotCategoryId): string {
-  return hotHref({ category });
+  return params;
 }
 
 /**
- * /p link of a product card on /hot. from=hot (with the category) gives /p a way back to the list
- * (hotBackHref); the filters, sort and page are left to the browser's back button.
+ * Link to the hub's mixed list ("מבחר" on /products) for a filter; defaults are left out of the
+ * URL. A category has its own page (categoryHref in lib/catalog/params.ts), so `category` is not
+ * read here.
  */
-export function hotProductHref(productId: string, category?: HotCategoryId): string {
+export function hotHref(filter: Partial<HotFilter>): string {
+  const query = hotViewParams(filter).toString();
+  return query ? `${PRODUCTS_PATH}?${query}` : PRODUCTS_PATH;
+}
+
+/** The canonical URL of a hot list: its category page, or /products for the mix. */
+export function hotCanonicalPath(category?: HotCategoryId): string {
+  const entry = category ? catalogByFirstLevel(category) : null;
+  return entry ? categoryPath(entry) : PRODUCTS_PATH;
+}
+
+/**
+ * Where an old /hot address goes (permanent redirect, app/hot/route.ts): /hot?cat=<id> to that
+ * category's page, anything else to /products, with the price, sort, toggles and page, which mean
+ * the same there. An unknown cat is dropped, as /hot dropped it.
+ */
+export function hotRedirectHref(params: Record<string, Param>): string {
+  const filter = parseHotParams(params);
+  const entry = filter.category ? catalogByFirstLevel(filter.category) : null;
+  if (!entry) return hotHref(filter);
+  // A category page shows more products per list than /hot did, so the page always fits.
+  const query = hotViewParams(filter).toString();
+  return query ? `${categoryPath(entry)}?${query}` : categoryPath(entry);
+}
+
+/**
+ * /p link of a hot product card. from=hot with the catalog category's key (`cat`, the first-level
+ * id for a whole list, the second-level id for a slice: the format /hot's links had) gives /p a
+ * way back to the list (hotBack); the filters, sort and page are left to the browser's back button.
+ */
+export function hotProductHref(productId: string, categoryKey?: string): string {
   const params = new URLSearchParams({ from: "hot" });
-  if (category && isHotCategoryId(category)) params.set("cat", category);
+  if (categoryKey && catalogByKey(categoryKey)) params.set("cat", categoryKey);
   return `/p/${encodeURIComponent(productId)}?${params}`;
 }
 
-/** Where /p's back link goes for a product opened from /hot (from=hot), or null. */
-export function hotBackHref(params: Record<string, Param>): string | null {
+/** /p's way back to the hot list a product was opened from. */
+export interface HotBack {
+  href: string;
+  label: string;
+  /** The catalog category of the list, or null for the mix ("מבחר"). */
+  category: CatalogCategory | null;
+}
+
+/**
+ * Where /p's back link goes for a product opened from a hot list (from=hot), or null: the category
+ * page named by `cat` (a catalog key; old /hot links name a first-level id, which is the key of
+ * its whole-list category), else /products.
+ */
+export function hotBack(params: Record<string, Param>): HotBack | null {
   const from = Object.hasOwn(params, "from") ? firstParam(params.from) : "";
   if (from !== "hot") return null;
-  return hotCanonicalPath(parseHotParams(params).category);
+  const category = catalogByKey(Object.hasOwn(params, "cat") ? firstParam(params.cat) : "");
+  return category
+    ? { href: categoryPath(category), label: `חזרה ל${category.nameHe}`, category }
+    : { href: PRODUCTS_PATH, label: "חזרה לכל המוצרים", category: null };
+}
+
+/** Where /p's back link goes for a product opened from a hot list (from=hot), or null. */
+export function hotBackHref(params: Record<string, Param>): string | null {
+  return hotBack(params)?.href ?? null;
 }
 
 /** True when a filter narrows the list (price, code, video); the sort does not. */

@@ -312,6 +312,8 @@ interface SharedRunInput {
   arrival?: SearchArrival;
   /** A signed-in admin asked (requestIsOwner): the row is logged with owner true. */
   owner: boolean;
+  /** The category the search is limited to (SearchInput.category), already validated. */
+  category?: string;
 }
 
 /**
@@ -336,11 +338,13 @@ function sharedRun(
 ): { stages: SearchStages; searchUid: string } {
   const { q, without, sort } = input;
   // The shop cap mode too: a run ranked under the mode before a switch is never shared after it.
+  // And the category: a search limited to one never joins the unrestricted run, or the other way.
   const key = JSON.stringify([
     normalizeQuery(q),
     [...without].sort(),
     sort ?? null,
     deps.shopCap ?? null,
+    ...(input.category ? [input.category] : []),
   ]);
   const running = inFlight.get(key);
   if (running) {
@@ -424,6 +428,8 @@ export async function startSearchForRequest(
     sort?: SortPreference;
     typed?: boolean;
     arrival?: SearchArrival;
+    /** A first-level category from parseSearchCategory (lib/search-url.ts), or undefined. */
+    category?: string;
   },
   headers: Headers,
 ): Promise<Staged<SearchStream>> {
@@ -451,6 +457,7 @@ export async function startSearchForRequest(
         typed: input.typed ?? input.arrival === undefined,
         ...(input.arrival ? { arrival: input.arrival } : {}),
         owner: await requestIsOwner(),
+        ...(input.category ? { category: input.category } : {}),
       },
       deps,
     );
@@ -508,7 +515,7 @@ const NO_FETCH: typeof fetch = () => Promise.reject(new CacheMissError("results"
  * pipeline change could never make a crawler spend money.
  */
 export async function cachedSearchForBot(
-  input: { q: string; without?: string[]; sort?: SortPreference },
+  input: { q: string; without?: string[]; sort?: SortPreference; category?: string },
   headers: Headers,
 ): Promise<LoggedSearchResponse | null> {
   const q = input.q.trim();
@@ -529,7 +536,14 @@ export async function cachedSearchForBot(
       shopCap: await shopCapMode(),
     };
     const stages = startSearch(
-      { q, without: input.without ?? [], sort: input.sort, cacheOnly: true, bot: true },
+      {
+        q,
+        without: input.without ?? [],
+        sort: input.sort,
+        cacheOnly: true,
+        bot: true,
+        ...(input.category ? { category: input.category } : {}),
+      },
       deps,
     );
     keepAlive(stages.outcome);

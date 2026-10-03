@@ -57,8 +57,9 @@ function focusMain() {
  * when there is no valid choice, so a returning visitor never sees it flash. The settings dialog
  * opens from the banner or from anywhere through openConsentSettings() (the footer button).
  * `analyticsInUse`: Google Analytics is configured (the root layout reads the admin setting). The
- * banner and the dialog then say statistics are available with consent, and the notice version
- * changes (consentNotice), so a choice made before it does not count.
+ * banner and the dialog then say Google Analytics measures without cookies and sets its cookies
+ * only with consent, and the notice version changes (consentNotice), so a choice made under
+ * another notice does not count.
  */
 export function ConsentManager({ analyticsInUse = false }: { analyticsInUse?: boolean }) {
   const notice = consentNotice(analyticsInUse);

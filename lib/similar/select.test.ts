@@ -167,7 +167,7 @@ describe("similarFromHot", () => {
   it("keeps the list's order, leaves out the current product and keeps from=hot and the category", () => {
     const out = similarFromHot(list, {
       currentId: list[0].productId,
-      category: "7",
+      categoryKey: "7",
       categoryHe: "מחשבים",
       fetchedAt: CREATED_AT,
       stored: allStored(list),
@@ -189,7 +189,7 @@ describe("similarFromHot", () => {
     const withLoanWord = { ...hot(20), title: "בובת פלוש 30 ס״מ" };
     const out = similarFromHot([withLoanWord], {
       currentId: "x",
-      category: "7",
+      categoryKey: "7",
       categoryHe: null,
       fetchedAt: CREATED_AT,
       stored: allStored([withLoanWord]),
@@ -201,7 +201,7 @@ describe("similarFromHot", () => {
     const stored = allStored([list[3]]);
     const args = {
       currentId: "x",
-      category: "7" as const,
+      categoryKey: "7",
       categoryHe: null,
       fetchedAt: CREATED_AT,
     };

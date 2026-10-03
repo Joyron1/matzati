@@ -51,6 +51,12 @@ export interface ProductQuery {
   minPriceIls?: number;
   maxPriceIls?: number;
   language?: Language;
+  /**
+   * Limit the search to these AliExpress category ids, comma-separated (category_ids in the
+   * product.query docs; UNVERIFIED for this app: confirm with one real call that it narrows the
+   * results, docs/aliexpress-api.md). Omitted, no limit; an empty value is not sent.
+   */
+  categoryIds?: string;
 }
 
 /** Exact params the search pipeline sends; shared with the check script so fixtures match. */
@@ -65,6 +71,7 @@ export function productQueryParams(
     sort: q.sort ?? "LAST_VOLUME_DESC",
     min_sale_price: toMinorUnits(q.minPriceIls),
     max_sale_price: toMinorUnits(q.maxPriceIls),
+    ...(q.categoryIds ? { category_ids: q.categoryIds } : {}),
     target_currency: CURRENCY,
     target_language: q.language ?? "EN",
     ship_to_country: SHIP_TO,

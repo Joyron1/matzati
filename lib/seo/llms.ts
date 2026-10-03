@@ -7,8 +7,8 @@
 import { BRAND } from "@/lib/config/brand";
 import { AFFILIATE_SECTION_ID, LEGAL, LEGAL_PAGE_NAMES, LEGAL_PATHS } from "@/lib/config/legal";
 import { absoluteUrl, RESULTS_FIRST_VIEW } from "@/lib/config/site";
-import { hotCategories } from "@/lib/hot/categories";
-import { HOT_PATH, hotHref } from "@/lib/hot/params";
+import { CATALOG, categoryPath } from "@/lib/catalog/categories";
+import { PRODUCTS_PATH } from "@/lib/hot/params";
 import { FILTERS } from "@/lib/ranking/config";
 import { seoPath } from "./slug";
 
@@ -59,11 +59,11 @@ export function buildLlmsTxt(input: LlmsInput): string {
     "",
     link("Home (עמוד הבית)", "/", "the search box, hot products, recent searches and FAQ"),
     link(
-      "Hot products (מוצרים חמים)",
-      HOT_PATH,
-      "AliExpress's hot list per category, only products that passed the same filters",
+      "All products (כל המוצרים)",
+      PRODUCTS_PATH,
+      "AliExpress's hot list by category, only products that passed the same filters",
     ),
-    ...hotCategories().map((c) => link(`מוצרים חמים: ${c.labelHe}`, hotHref({ category: c.id }))),
+    ...CATALOG.map((c) => link(`כל המוצרים: ${c.nameHe}`, categoryPath(c))),
     ...(input.hasCoupons
       ? [link("Coupons (קופונים)", "/coupons", "coupon codes valid now, by their own terms")]
       : []),

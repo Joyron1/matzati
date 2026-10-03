@@ -38,6 +38,14 @@ export interface SearchFilters {
   min_price_ils?: number;
   max_price_ils?: number;
   sort_preference: SortPreference;
+  /**
+   * A first-level AliExpress category the search is limited to (/search?cat=, the search box of a
+   * /products category page; owner request 2026-10-03). Set by code from a validated id
+   * (parseSearchCategory in lib/search-url.ts), never by the parse, and never stored in the parse
+   * cache: the same query parses the same with or without it. Sent to product.query as
+   * category_ids and part of the results cache key when set.
+   */
+  category_id?: string;
 }
 
 /** Parse output: the filters plus labels and hints that do not change results. */

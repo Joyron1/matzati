@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { CATALOG, categoryPath } from "@/lib/catalog/categories";
 import { LEGAL } from "@/lib/config/legal";
 import { RESULTS_FIRST_VIEW } from "@/lib/config/site";
 import { FILTERS } from "@/lib/ranking/config";
@@ -63,7 +64,13 @@ describe("buildLlmsTxt", () => {
     expect(urls.length).toBeGreaterThan(10);
     for (const url of urls) expect(url.startsWith(`${ORIGIN}/`) || url === ORIGIN).toBe(true);
     expect(text).toContain(`[אוזניות לריצה מומלצות](${ORIGIN}/s/earbuds-for-running)`);
-    expect(text).toContain(`(${ORIGIN}/hot?cat=44)`);
+    expect(text).toContain(`[All products (כל המוצרים)](${ORIGIN}/products)`);
+    // Every category page, percent-encoded like the sitemap.
+    for (const c of CATALOG) {
+      expect(text).toContain(`[כל המוצרים: ${c.nameHe}](${ORIGIN}${categoryPath(c)})`);
+    }
+    expect(text).toContain(`(${ORIGIN}/products/${encodeURIComponent("תכשיטים")})`);
+    expect(text).not.toContain("/hot");
     expect(text).toContain(`(${ORIGIN}/coupons)`);
     expect(text).not.toContain("/sales)");
   });

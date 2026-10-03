@@ -202,6 +202,13 @@ export interface SearchInput {
   cacheOnly?: boolean;
   /** A crawler asked: logged with origin "bot", never listed and left out of the stats. */
   bot?: boolean;
+  /**
+   * A first-level category the search is limited to (/search?cat=, already validated against the
+   * catalog by parseSearchCategory). The parse is the query's own (cached and stored without it);
+   * the filters get it as category_id, so product.query is sent category_ids and the results are
+   * cached under their own key (canonicalFilters). Logged in search_log.parsed with the filters.
+   */
+  category?: string;
 }
 
 /**
@@ -439,6 +446,8 @@ export async function fetchAndRank(
         minPriceIls: parsed.min_price_ils,
         maxPriceIls: parsed.max_price_ils,
         sort: FETCH_SORT,
+        // A search limited to a category (/search?cat=): every call, every keyword step.
+        ...(parsed.category_id ? { categoryIds: parsed.category_id } : {}),
       }));
     } catch (err) {
       if (!calls.length || !(err instanceof AliExpressError)) throw err;
@@ -1075,6 +1084,8 @@ async function search(
     parsed = res.parsed;
     await deps.store.putParse(qk, normalizeQuery(q), parsed, now());
   }
+  // Limited to a category: from here on the filters carry it (never the stored parse above).
+  if (input.category) parsed = { ...parsed, category_id: input.category };
   const filters: ParsedQuery = {
     ...applyOverrides(parsed, without),
     ...(input.sort ? { sort_preference: input.sort } : {}),
@@ -1458,8 +1469,9 @@ async function finish(
       ? quietly("saveProducts", () => deps.store.saveProducts(titledRows, newTitles, titledAt))
       : null,
     // A parse whose own filters found nothing is kept as long as that empty result set (48 h), not
-    // 14 days: the next search after that parses again. Chips removed are the visitor's choice.
-    fresh && !ranked.length && !ctx.without.length
+    // 14 days: the next search after that parses again. Chips removed are the visitor's choice, and
+    // so is a category (and the stored parse must never hold one).
+    fresh && !ranked.length && !ctx.without.length && !ctx.parsed.category_id
       ? quietly("putParse", () =>
           deps.store.putParse(
             ctx.qk,

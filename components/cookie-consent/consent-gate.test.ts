@@ -53,8 +53,9 @@ describe("the banner's text", () => {
     expect(banner(false)).not.toContain("Google Analytics");
   });
 
-  it("says statistics (Google Analytics) run only with consent while it is configured", () => {
-    expect(banner(true)).toContain("עוגיות סטטיסטיקה (Google Analytics) יופעלו רק אם תאשרו");
+  it("says Google Analytics counts without cookies and sets its cookies only with consent", () => {
+    expect(banner(true)).toContain("Google Analytics סופר ביקורים בלי עוגיות ובלי מזהה קבוע");
+    expect(banner(true)).toContain("את עוגיות הסטטיסטיקה שלו נשמור רק אם תאשרו");
     expect(banner(true)).not.toContain("סטטיסטיקה ושיווק לא בשימוש");
   });
 });

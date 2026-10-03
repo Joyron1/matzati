@@ -10,7 +10,8 @@
 // /dev/preview/footer (the footer and its newsletter form, which stores nothing here) and
 // /dev/preview/admin-newsletter (the /admin/newsletter view) from ./footer-previews.tsx, and
 // /dev/preview/seo-page (an SEO landing page with a made-up snapshot of 50 products,
-// ./seo-previews.tsx).
+// ./seo-previews.tsx), and /dev/preview/products-category (a /products category page with a made-up
+// list, ./products-previews.tsx).
 // A 404 in production, noindex, disallowed in robots.txt and never
 // listed in the sitemap. Nothing here reads the database, AliExpress or an LLM.
 import type { Metadata } from "next";
@@ -26,7 +27,7 @@ import type { AliPromoCode } from "@/lib/aliexpress/promo-code";
 import type { AliSkuDetails } from "@/lib/aliexpress/schemas";
 import type { ApiCodeProduct } from "@/lib/coupons/api-codes";
 import type { Coupon, PublicCoupons } from "@/lib/coupons/types";
-import { hotProductHref } from "@/lib/hot/params";
+import { hotBack, hotProductHref } from "@/lib/hot/params";
 import type { ProductPageData } from "@/lib/search/server";
 import {
   searchProductHref,
@@ -41,6 +42,7 @@ import { RecentStripPreview } from "./home-previews";
 import { PreviewSettingsForm } from "./preview-controls";
 import { PreviewCommunityForm, PreviewGoogleForm } from "./settings-previews";
 import { isSearchScreen, SearchPreview } from "./search-previews";
+import { CategoryPreview } from "./products-previews";
 import { SeoPagePreview } from "./seo-previews";
 
 export const metadata: Metadata = {
@@ -61,6 +63,7 @@ const SCREENS = [
   "footer",
   "admin-newsletter",
   "seo-page",
+  "products-category",
 ] as const;
 type Screen = (typeof SCREENS)[number];
 
@@ -543,6 +546,17 @@ export default async function PreviewPage({
     );
   }
 
+  if (screen === "products-category") {
+    // A /products category page with a made-up list (./products-previews.tsx).
+    return (
+      <CategoryPreview
+        params={await searchParams}
+        now={now}
+        note={(text) => <FakeDataNote>{text}</FakeDataNote>}
+      />
+    );
+  }
+
   if (screen === "seo-page") {
     // An SEO landing page with a made-up snapshot of 50 products (./seo-previews.tsx).
     return (
@@ -621,11 +635,13 @@ export default async function PreviewPage({
     };
     return (
       <>
-        <FakeDataNote>כמו דף מוצר שנפתח מהמוצרים החמים, עם השם של אלי אקספרס בעברית.</FakeDataNote>
+        <FakeDataNote>
+          כמו דף מוצר שנפתח מקטגוריה של כל המוצרים, עם השם של אלי אקספרס בעברית.
+        </FakeDataNote>
         <ProductView
           data={data}
           q=""
-          hotBack="/hot?cat=7"
+          hotBack={hotBack({ from: "hot", cat: "7" })}
           now={now}
           similar={<SimilarProducts data={similar} className="mt-12" />}
         />

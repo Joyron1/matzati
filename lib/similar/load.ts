@@ -1,7 +1,13 @@
 // Reads for /p's similar products (./select.ts). Reads only: never an LLM call, an AliExpress call
 // or a database write. When anything it needs is not already cached, the section is left out.
 import "server-only";
-import { hotCategoryLabel, isHotCategoryId, type HotCategoryId } from "@/lib/hot/categories";
+import {
+  catalogByFirstLevel,
+  catalogFetchId,
+  type CatalogCategory,
+} from "@/lib/catalog/categories";
+import { mergeCategoryPages } from "@/lib/catalog/list";
+import { hotListKey } from "@/lib/hot/categories";
 import { cachedHotPool } from "@/lib/hot/queries";
 import { SHOP_CAP_MODES } from "@/lib/ranking/config";
 import { applyOverrides } from "@/lib/search/chips";
@@ -24,8 +30,11 @@ export interface SimilarRequest {
   /** A sort or removed chips of that search, when the link says so (not sent today). */
   sort?: SortPreference;
   without?: string[];
-  /** Opened from /hot (from=hot): the list's category, when the link names one. */
-  hot: { category: HotCategoryId | undefined } | null;
+  /**
+   * Opened from a hot list (from=hot): the catalog category the link names (null for the mix, or a
+   * link without one).
+   */
+  hot: { category: CatalogCategory | null } | null;
 }
 
 /**
@@ -74,18 +83,20 @@ async function fromSearch(req: SimilarRequest): Promise<SimilarProducts | null> 
 
 async function fromHot(req: SimilarRequest): Promise<SimilarProducts | null> {
   // Without a category (the mix, "מבחר") the list of the product's own category, when it has one.
-  const own = req.categoryId !== null && isHotCategoryId(req.categoryId) ? req.categoryId : null;
+  const own = req.categoryId !== null ? catalogByFirstLevel(req.categoryId) : null;
   const category = req.hot?.category ?? own;
   if (!category) return null;
-  const pool = await cachedHotPool(category);
-  if (!pool) return null;
-  const others = pool.products.map((p) => p.productId).filter((id) => id !== req.productId);
+  // Page 1 of its list, a slice filtered to its second-level category (as its page shows it).
+  const pool = await cachedHotPool(hotListKey(catalogFetchId(category), 1));
+  const list = pool ? mergeCategoryPages(category, [pool]) : null;
+  if (!pool || !list) return null;
+  const others = list.products.map((p) => p.productId).filter((id) => id !== req.productId);
   const stored = await new SupabaseStore(serviceClient()).storedTitles(others);
   if (!stored) return null;
-  return similarFromHot(pool.products, {
+  return similarFromHot(list.products, {
     currentId: req.productId,
-    category,
-    categoryHe: hotCategoryLabel(category),
+    categoryKey: category.key,
+    categoryHe: category.nameHe,
     fetchedAt: pool.fetchedAt,
     stored,
   });
