@@ -5,6 +5,7 @@ import type { AliPromoCode } from "@/lib/aliexpress/promo-code";
 import { parseProductPage, type AliProduct } from "@/lib/aliexpress/schemas";
 import { FILTERS } from "@/lib/ranking/config";
 import {
+  CAROUSEL_MAX_PER_SUBCATEGORY,
   MIX_PER_CATEGORY,
   PER_SHOP,
   PER_SUBCATEGORY,
@@ -12,7 +13,9 @@ import {
   interleaveHotProducts,
   mixHotProducts,
   passingFilters,
+  randomCarouselProducts,
   selectHotProducts,
+  shuffled,
   toHotProduct,
   viewHotProducts,
   type HotProduct,
@@ -151,6 +154,105 @@ describe("interleaveHotProducts", () => {
       perGroup.set(g, (perGroup.get(g) ?? 0) + 1);
     }
     expect(Math.max(...perGroup.values())).toBeLessThanOrEqual(PER_SUBCATEGORY);
+  });
+});
+
+/** A seeded random source (mulberry32), so a test's pick is repeatable. */
+function seeded(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4_294_967_296;
+  };
+}
+
+describe("shuffled", () => {
+  it("keeps every item once, leaves its input alone and follows the random source", () => {
+    const items = Array.from({ length: 30 }, (_, i) => i);
+    const a = shuffled(items, seeded(1));
+    expect([...a].sort((x, y) => x - y)).toEqual(items);
+    expect(items[0]).toBe(0);
+    expect(shuffled(items, seeded(1))).toEqual(a);
+    expect(shuffled(items, seeded(2))).not.toEqual(a);
+    // A source at its upper bound still stays in range.
+    expect(shuffled(items, () => 0.9999999999).sort((x, y) => x - y)).toEqual(items);
+  });
+});
+
+describe("randomCarouselProducts", () => {
+  const hot = (id: string, sub: string | null, first = "44"): HotProduct => ({
+    ...toHotProduct(product({ productId: id })),
+    categoryId: first,
+    subcategoryId: sub,
+  });
+  /** The probe's four lists, as the cache holds them (selected, then FILTERS again). */
+  const probeLists = () =>
+    ["cat44-HE", "cat44-HE.page2", "all-HE", "cat44-EN"].map((name) =>
+      passingFilters(selectHotProducts(fixture(name)).map(toHotProduct)),
+    );
+  const perGroup = (ps: HotProduct[]) => {
+    const counts = new Map<string, number>();
+    for (const p of ps) {
+      const g = p.subcategoryId ?? p.categoryId ?? "";
+      counts.set(g, (counts.get(g) ?? 0) + 1);
+    }
+    return counts;
+  };
+
+  it("picks 50 different products from the probe's lists, each passing FILTERS, within the cap", () => {
+    const lists = probeLists();
+    const picked = randomCarouselProducts(lists, 50, seeded(7));
+    expect(picked).toHaveLength(50);
+    expect(new Set(ids(picked)).size).toBe(50);
+    const pool = new Set(lists.flat());
+    expect(picked.every((p) => pool.has(p))).toBe(true);
+    expect(passingFilters(picked)).toEqual(picked);
+    expect(Math.max(...perGroup(picked).values())).toBeLessThanOrEqual(
+      CAROUSEL_MAX_PER_SUBCATEGORY,
+    );
+  });
+
+  it("gives another set and order for another random source, the same for the same one", () => {
+    const lists = probeLists();
+    const a = ids(randomCarouselProducts(lists, 50, seeded(1)));
+    const b = ids(randomCarouselProducts(lists, 50, seeded(2)));
+    expect(b).not.toEqual(a);
+    expect(new Set(b)).not.toEqual(new Set(a));
+    expect(ids(randomCarouselProducts(lists, 50, seeded(1)))).toEqual(a);
+  });
+
+  it("raises the cap only as far as it needs to", () => {
+    // 3 kinds of 10 products: 2 each gives 6, 3 each gives 9.
+    const list = ["x", "y", "z"].flatMap((g) =>
+      Array.from({ length: 10 }, (_, i) => hot(`${g}${i}`, g)),
+    );
+    const nine = randomCarouselProducts([list], 9, seeded(3));
+    expect(nine).toHaveLength(9);
+    expect([...perGroup(nine).values()]).toEqual([3, 3, 3]);
+    const six = randomCarouselProducts([list], 6, seeded(3));
+    expect([...perGroup(six).values()]).toEqual([2, 2, 2]);
+  });
+
+  it("gives every product the highest cap allows when the lists hold too few", () => {
+    const list = [
+      ...Array.from({ length: 10 }, (_, i) => hot(`x${i}`, "x")),
+      hot("y0", "y"),
+      hot("n0", null, "15"),
+    ];
+    const picked = randomCarouselProducts([list, [list[0]]], 50, seeded(4));
+    expect(picked).toHaveLength(CAROUSEL_MAX_PER_SUBCATEGORY + 2);
+    expect(perGroup(picked).get("x")).toBe(CAROUSEL_MAX_PER_SUBCATEGORY);
+    expect(randomCarouselProducts([], 50, seeded(4))).toEqual([]);
+  });
+
+  it("takes the lists in turn, so neighbours come from different lists", () => {
+    const a = Array.from({ length: 5 }, (_, i) => hot(`a${i}`, `a${i}`));
+    const b = Array.from({ length: 5 }, (_, i) => hot(`b${i}`, `b${i}`, "15"));
+    const picked = ids(randomCarouselProducts([a, b], 10, seeded(5)));
+    for (let i = 1; i < picked.length; i++) expect(picked[i][0]).not.toBe(picked[i - 1][0]);
   });
 });
 

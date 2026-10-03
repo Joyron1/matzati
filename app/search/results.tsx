@@ -17,6 +17,7 @@ import { BlockerHint, BlockerList, chipBlockers } from "@/components/filter-bloc
 import { FilterChips } from "@/components/filter-chips";
 import { LinkPending } from "@/components/pending-navigation";
 import { ExtraResultCards, ResultCards } from "@/components/result-cards";
+import { fewResultsTitle, SearchHelpBox } from "@/components/search-help";
 import { ResultsAnnouncer } from "@/components/search-wait/results-announcer";
 import type { RankedSignal, UnderstoodSignal } from "@/components/search-wait/signals";
 import { ShareLink } from "@/components/share-link";
@@ -24,12 +25,13 @@ import { ShowMore } from "@/components/show-more";
 import { SortBar } from "@/components/sort-bar";
 import { StateCard } from "@/components/state-card";
 import { btnMd, btnPrimary, btnSecondary } from "@/components/styles";
-import { FIRST_MORE_PAGE } from "@/lib/config/site";
+import { FIRST_MORE_PAGE, RESULTS_FIRST_VIEW } from "@/lib/config/site";
 import { APPROX_PRICE_NOTE } from "@/lib/copy";
 import { formatCount, formatDateTime, formatWait } from "@/lib/format";
 import { FILTERS } from "@/lib/ranking/config";
 import { searchHref } from "@/lib/search-url";
 import { staleFetchedAt } from "@/lib/search/freshness";
+import { needsHelp, searchHelp } from "@/lib/search/help-tips";
 import { MAX_QUERY_LENGTH } from "@/lib/search/pipeline";
 import type {
   LoggedSearchResponse,
@@ -189,6 +191,20 @@ function Results({
             </Link>
           )
         )}
+        <SearchHelpBox
+          // Without what the card already offers: the blockers' list, or the price button.
+          help={searchHelp(
+            response.chips,
+            response.blockers,
+            blockers.length > 0 ? ["blocker"] : priceChips.length > 0 ? ["price"] : [],
+          )}
+          heading="עוד כמה רעיונות"
+          headingLevel={3}
+          className="mt-2"
+          q={q}
+          sort={sort}
+          without={without}
+        />
       </StateCard>
     );
   }
@@ -250,8 +266,20 @@ function Results({
       {extra && <ExtraResultCards key={`extra-${response.filters_key}`} results={extra} q={q} />}
 
       <div className="flex flex-col items-center gap-4 pt-2">
-        {blockers.length > 0 && (
-          <BlockerHint blocker={blockers[0]} q={q} sort={sort} without={without} />
+        {/* Fewer than a full first view and nothing more: how many, and what to try (the blockers
+            first, with their counts). Under the results, so it never pushes them down. */}
+        {needsHelp(firstView.length, response.passed_count, RESULTS_FIRST_VIEW, moreAvailable) ? (
+          <SearchHelpBox
+            help={searchHelp(response.chips, response.blockers)}
+            heading={fewResultsTitle(response.passed_count)}
+            q={q}
+            sort={sort}
+            without={without}
+          />
+        ) : (
+          blockers.length > 0 && (
+            <BlockerHint blocker={blockers[0]} q={q} sort={sort} without={without} />
+          )
         )}
         {moreAvailable && response.filters_key && (
           <ShowMore

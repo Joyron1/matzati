@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { connection } from "next/server";
+import { after, connection } from "next/server";
 import { ChevronLeft, Flame } from "lucide-react";
 import type { ReactNode } from "react";
 import { HOT_FILTER_NOTE, HOT_TITLES_NOTE } from "@/lib/hot/copy";
 import { HOT_PATH } from "@/lib/hot/params";
-import { hotCarouselProducts } from "@/lib/hot/queries";
+import { hotCarouselProducts, warmCarouselLists } from "@/lib/hot/queries";
 import {
   HOT_HEADER_ROW,
   HOT_ITEM,
@@ -82,15 +82,19 @@ function Notes({ ghost = false }: { ghost?: boolean }) {
 }
 
 /**
- * Home page "מוצרים חמים": best sellers (30 days) from AliExpress's hot lists of a few categories,
- * each passed our filters, in one swipeable row (lib/hot). Renders nothing when there is nothing
- * to show, so it never leaves an empty heading. Brings its own width and gutters; the page sets
- * the gap above it.
+ * Home page "מוצרים חמים": up to 50 products picked at random on every visit from AliExpress's hot
+ * lists of a few categories, each passed our filters, in one swipeable row (lib/hot,
+ * hotCarouselProducts). Renders nothing when there is nothing to show, so it never leaves an empty
+ * heading. Brings its own width and gutters; the page sets the gap above it.
  */
 export async function HotProductsCarousel() {
-  // Per visit, never at build time: a build must not call AliExpress.
+  // Per visit, never at build time: a build must not call AliExpress. The random pick is made per
+  // request, so any copy of the HTML (a crawler's, a cached one) is a valid page.
   await connection();
   const products = await hotCarouselProducts();
+  // The other hot categories' lists join the pick once this instance holds them; they are loaded
+  // after the response, so no visitor waits for them (warmCarouselLists).
+  after(() => warmCarouselLists());
   if (products.length === 0) return null;
   const now = new Date();
   return (

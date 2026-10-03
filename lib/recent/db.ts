@@ -4,7 +4,8 @@
 // The SQL functions (supabase/migrations/20260927210000_recent_searches.sql) already keep only
 // listable, not hidden rows, and only production ones (search_log.env, recent_search_cards in
 // 20260928140000_search_telemetry.sql: dev and preview searches share the database but are never
-// listed); every row is checked again here, and a row that fails a check (an unexpected parse
+// listed; since 20261003120000_every_search_listed.sql also 'legacy', the production rows logged
+// before the env column existed); every row is checked again here, and a row that fails a check (an unexpected parse
 // shape, a query isListableQuery rejects) is skipped, never shown half-built.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";

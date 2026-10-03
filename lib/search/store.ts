@@ -21,8 +21,9 @@ export type SearchSource = "search" | "preview" | "more";
 /**
  * How the search was asked for (search_log.origin, logOrigin in ./pipeline.ts): typed by the
  * visitor, one of our example queries or recent-search cards, a chip removal or a sort change on
- * the results page, "עוד N אפשרויות", an SEO landing page (preview), or a landing from an ad or
- * campaign link (utm_source / gclid on the URL).
+ * the results page, "עוד N אפשרויות", an SEO landing page (preview), a landing from an ad or
+ * campaign link (utm_source / gclid on the URL), or a crawler served from the cache only (bot,
+ * lib/guard/bots.ts: never listed, left out of the stats; 20261003120000_every_search_listed.sql).
  */
 export const SEARCH_ORIGINS = [
   "typed",
@@ -33,6 +34,7 @@ export const SEARCH_ORIGINS = [
   "more",
   "preview",
   "ad",
+  "bot",
 ] as const;
 export type SearchOriginKind = (typeof SEARCH_ORIGINS)[number];
 
@@ -79,9 +81,9 @@ export interface SearchLogEntry {
   /** First-level AliExpress category of the first product shown; null when none was shown. */
   categoryId: string | null;
   /**
-   * May appear on the public recent-searches page (/searches): a query the visitor typed, with no
-   * chips removed and no sort override, that showed results and passes lib/recent/privacy.ts. See
-   * isListableSearch in ./pipeline.ts.
+   * May appear on the public recent-searches page (/searches): a visitor search (any origin but
+   * bot) that showed results and whose query passes lib/recent/privacy.ts. See isListableSearch in
+   * ./pipeline.ts.
    */
   listable: boolean;
   origin: SearchOriginKind;
@@ -105,7 +107,7 @@ export interface SearchLogEntry {
   shared: boolean;
   /**
    * Made while a signed-in admin (the owner) browsed: logged and never counted in the stats
-   * (search_log.owner); a typed one is still listed on /searches (isListableSearch). Absent means
+   * (search_log.owner); still listed on /searches like anyone's (isListableSearch). Absent means
    * false.
    */
   owner?: boolean;

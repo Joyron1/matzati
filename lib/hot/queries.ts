@@ -10,7 +10,7 @@ import { STALE_RESULTS_HOURS } from "@/lib/config/site";
 import { aliexpressConfig } from "@/lib/env";
 import { SupabaseStore } from "@/lib/search/supabase-store";
 import { serviceClient } from "@/lib/supabase/server";
-import { MIX_CATEGORY_IDS, type HotCategoryId } from "./categories";
+import { HOT_CATEGORY_IDS, MIX_CATEGORY_IDS, type HotCategoryId } from "./categories";
 import { parseStoredLinkRows, type StoredLinkRow } from "./links";
 import {
   HOT_LIST_TTL_MS,
@@ -20,7 +20,12 @@ import {
   type HotPool,
   type HotPoolFailure,
 } from "./loader";
-import { interleaveHotProducts, passingFilters, type HotProduct } from "./select";
+import {
+  passingFilters,
+  randomCarouselProducts,
+  type HotProduct,
+  type RandomSource,
+} from "./select";
 
 /** Cache tag of every hot list; revalidateTag(HOT_TAG) makes the next view fetch them again. */
 export const HOT_TAG = "hot-products";
@@ -31,8 +36,24 @@ const REVALIDATE_SECONDS = HOT_LIST_TTL_MS / 1_000;
  * holds at once and a lowered one adds products with the next fetch.
  */
 const HOT_VERSION = 1;
-/** Products in the home carousel. */
-export const CAROUSEL_SIZE = 16;
+/**
+ * Products in the home carousel (owner request 2026-10-03, was 16), picked at random on every view
+ * (randomCarouselProducts): fewer only when the lists hold fewer.
+ */
+export const CAROUSEL_SIZE = 50;
+/**
+ * The hot categories the carousel adds to the mix, each only while this instance already holds a
+ * list of it (from /hot, or from the warm-up after an earlier home view): the carousel never waits
+ * for one of them (warmCarouselLists).
+ */
+export const CAROUSEL_EXTRA_CATEGORY_IDS: readonly HotCategoryId[] = HOT_CATEGORY_IDS.filter(
+  (id) => !(MIX_CATEGORY_IDS as readonly string[]).includes(id),
+);
+/**
+ * Lists warmCarouselLists loads after one home view: each a cache read, or (cold) a list call and a
+ * hot links call, spaced. Small, so a cold start spreads its calls over several views.
+ */
+export const CAROUSEL_WARM_PER_VIEW = 2;
 /**
  * The carousel shows no date, so it leaves out a list checked longer ago than /search waits before
  * it shows one (a list older than 12 hours is refreshed on the same view; this covers a refresh
@@ -155,17 +176,57 @@ export async function loadHotMix(): Promise<HotMixResult> {
 }
 
 /**
- * The home carousel: the mixed categories' best sellers in turn, from lists checked in the last
- * CAROUSEL_MAX_AGE_MS; [] when there is nothing.
+ * The lists of CAROUSEL_EXTRA_CATEGORY_IDS this instance already served, with the current FILTERS:
+ * never a cache read or an AliExpress call.
  */
-export async function hotCarouselProducts(now = new Date()): Promise<HotProduct[]> {
+function servedExtraPools(): HotPool[] {
+  return CAROUSEL_EXTRA_CATEGORY_IDS.flatMap((id) => {
+    const last = served.get(id);
+    const res = last ? shown(last) : null;
+    return res?.ok ? [res.pool] : [];
+  });
+}
+
+/**
+ * The home carousel: CAROUSEL_SIZE products picked at random from the MIX_CATEGORY_IDS lists (loaded
+ * as /hot's "מבחר" loads them) and the extra categories' lists this instance already holds, only
+ * from lists checked in the last CAROUSEL_MAX_AGE_MS; [] when there is nothing. Every product passed
+ * FILTERS (`shown`); `random` decides the pick and the order (Math.random per view).
+ */
+export async function hotCarouselProducts(
+  now = new Date(),
+  random: RandomSource = Math.random,
+): Promise<HotProduct[]> {
   const mix = await loadHotMix();
-  if (!mix.ok) return [];
-  const recent = mix.pools.filter(
+  const pools = [...(mix.ok ? mix.pools : []), ...servedExtraPools()];
+  const recent = pools.filter(
     (pool) => now.getTime() - Date.parse(pool.fetchedAt) <= CAROUSEL_MAX_AGE_MS,
   );
-  return interleaveHotProducts(
+  return randomCarouselProducts(
     recent.map((pool) => pool.products),
     CAROUSEL_SIZE,
+    random,
   );
+}
+
+/**
+ * After a home view (the carousel calls it in after()): loads up to CAROUSEL_WARM_PER_VIEW of the
+ * extra categories' lists this instance lacks or holds older than HOT_LIST_TTL_MS (missing first,
+ * then the oldest), skipping a list whose loader waits after a failure. Each is loadHotPool: the
+ * shared cache when it has the list (no call), otherwise one list call and one hot links call,
+ * spaced and backed off by the loader. Only ids from HOT_CATEGORY_IDS. Never throws; returns the
+ * categories it loaded.
+ */
+export async function warmCarouselLists(now = Date.now()): Promise<HotCategoryId[]> {
+  const age = (id: HotCategoryId) => {
+    const last = served.get(id);
+    return last ? now - Date.parse(last.fetchedAt) : Number.POSITIVE_INFINITY;
+  };
+  const due = CAROUSEL_EXTRA_CATEGORY_IDS.filter(
+    (id) => age(id) >= HOT_LIST_TTL_MS && !loader.isWaiting(id),
+  )
+    .sort((a, b) => Number(age(b) > age(a)) - Number(age(b) < age(a)))
+    .slice(0, CAROUSEL_WARM_PER_VIEW);
+  for (const id of due) await loadHotPool(id);
+  return due;
 }

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronDown, CloudOff, History, RotateCcw, SearchX, ShieldCheck } from "lucide-react";
 import { FocusHashTarget } from "@/components/focus-hash-target";
+import { MySearches } from "@/components/my-searches";
 import { RecentSearchCard } from "@/components/recent-search-card";
 import { RecentSearchesFilters } from "@/components/recent-searches-filters";
 import { StateCard } from "@/components/state-card";
@@ -73,6 +74,9 @@ export default async function RecentSearchesPage({ searchParams }: PageProps<"/s
           או קישור, לא מופיע כאן.
         </p>
       </div>
+
+      {/* This browser's own searches (localStorage, components/my-searches.tsx), above everyone's. */}
+      <MySearches variant="page" />
 
       {!list ? (
         <StateCard Icon={CloudOff} title="לא הצלחנו לטעון את החיפושים האחרונים">

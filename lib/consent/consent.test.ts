@@ -23,6 +23,7 @@ import {
   STORAGE_INVENTORY,
   storageInventory,
 } from "./categories";
+import { MY_SEARCHES_KEY, MY_SEARCHES_MAX } from "@/lib/recent/mine";
 
 const NOW = Date.UTC(2026, 8, 28, 12);
 const DAY = 86_400_000;
@@ -227,6 +228,16 @@ describe("what the notice says", () => {
 
   it("lists the consent cookie itself", () => {
     expect(STORAGE_INVENTORY.map((item) => item.name)).toContain(CONSENT_COOKIE);
+  });
+
+  it("lists the visitor's own searches as necessary storage that stays in the browser", () => {
+    const item = STORAGE_INVENTORY.find((i) => i.name === MY_SEARCHES_KEY);
+    expect(item).toMatchObject({ kind: "localStorage", category: "necessary" });
+    expect(item?.provider).toBeUndefined();
+    expect(item?.purpose).toContain(String(MY_SEARCHES_MAX));
+    expect(CONSENT_CATEGORIES.find((c) => c.id === "necessary")?.description).toContain(
+      "החיפושים האחרונים שלכם",
+    );
   });
 
   it("lists Google Analytics's cookies as statistics from Google, for 2 years", () => {

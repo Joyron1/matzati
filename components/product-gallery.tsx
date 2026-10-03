@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Play } from "lucide-react";
 import { scrollFocusedItemIntoView } from "./focus-scroll-list";
 import { ProductImage } from "./product-image";
-import { ProductVideo, VIDEO_LABEL } from "./product-video";
+import { autoplayVideo, mayAutoplayVideo, ProductVideo, VIDEO_LABEL } from "./product-video";
 
 const MAX_IMAGES = 8;
 
@@ -20,13 +20,24 @@ export interface GalleryVideo {
   poster: string | undefined;
 }
 
-type Item = { kind: "video"; video: GalleryVideo } | { kind: "image"; src: string; n: number };
+export type GalleryItem =
+  { kind: "video"; video: GalleryVideo } | { kind: "image"; src: string; n: number };
+
+/** The gallery's items in order: the video first when the product has one, then the photos. */
+export function galleryItems(images: string[], video: GalleryVideo | null): GalleryItem[] {
+  return [
+    ...(video ? [{ kind: "video" as const, video }] : []),
+    ...images.slice(0, MAX_IMAGES).map((src, i) => ({ kind: "image" as const, src, n: i + 1 })),
+  ];
+}
 
 /**
  * Main slot and thumbnail buttons. With a video it is the first item and the one shown first, with
- * the product photo as its poster and the native controls (no autoplay; nothing loads before play).
- * Every thumbnail is a button: Tab reaches it, Enter or Space shows it, aria-pressed says which one
- * is shown. Leaving the video (another thumbnail) removes it, which stops it.
+ * the product photo as its poster and the native controls. Once mounted it starts by itself, muted
+ * and looping (owner request 2026-10-03), unless the visitor prefers reduced motion or saves data
+ * (mayAutoplayVideo): then it waits for play, and nothing loads before that. Every thumbnail is a
+ * button: Tab reaches it, Enter or Space shows it, aria-pressed says which one is shown. Leaving
+ * the video (another thumbnail) removes it, which stops it; coming back to it starts it again.
  */
 export function ProductGallery({
   images,
@@ -39,17 +50,27 @@ export function ProductGallery({
 }) {
   const shown = images.slice(0, MAX_IMAGES);
   const count = shown.length;
-  const items: Item[] = [
-    ...(video ? [{ kind: "video" as const, video }] : []),
-    ...shown.map((src, i) => ({ kind: "image" as const, src, n: i + 1 })),
-  ];
+  const items = galleryItems(images, video);
   const [index, setIndex] = useState(0);
   const current = items[Math.min(index, items.length - 1)] ?? null;
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const showingVideo = current?.kind === "video";
+
+  // After mount only, so the server HTML (poster, controls, no autoplay) never differs.
+  useEffect(() => {
+    const el = videoRef.current;
+    if (showingVideo && el && mayAutoplayVideo(window)) autoplayVideo(el);
+  }, [showingVideo]);
 
   return (
     <div className="space-y-2">
       {current?.kind === "video" ? (
-        <ProductVideo src={current.video.src} poster={current.video.poster} className={MAIN} />
+        <ProductVideo
+          ref={videoRef}
+          src={current.video.src}
+          poster={current.video.poster}
+          className={MAIN}
+        />
       ) : (
         <ProductImage
           src={current?.src}

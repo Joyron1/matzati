@@ -74,8 +74,8 @@ function Tile({ search }: { search: RecentSearch }) {
   const photo = search.images.find((image) => isAllowedImage(image.src));
   return (
     <Link
-      // from=recent: the visitor did not type it, so this run is never listed again (it would put
-      // the tile back on top with every click).
+      // from=recent: logged as search_log.origin "recent". Listed like every search with results
+      // (owner decision 2026-10-03), so a click puts this query's tile back on top.
       href={searchHref({ q: search.query, from: "recent" })}
       // Crawlers may follow this page, and an expired search costs a new run; the target is
       // noindex anyway. No prefetch: a grid of tiles would fire a request per tile.

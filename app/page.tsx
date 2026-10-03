@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { ListChecks, MessageSquareText, Sparkles, SlidersHorizontal } from "lucide-react";
 import { HomeFaq } from "@/components/home-faq";
+import { MySearches } from "@/components/my-searches";
 import {
   HotProductsCarousel,
   HotProductsCarouselPlaceholder,
@@ -132,6 +133,7 @@ export default function HomePage() {
 
           <div className="mt-6 sm:mt-8">
             <SearchComposer />
+            <MySearches variant="home" />
           </div>
         </div>
       </section>

@@ -100,7 +100,7 @@ export function SearchTipsAnswer() {
         ))}
       </ol>
       <Link
-        // Not typed by the visitor, so never listed on /searches.
+        // from=example: logged as search_log.origin "example" (listed like any search, 2026-10-03).
         href={searchHref({ q: FULL_EXAMPLE, from: "example" })}
         // Crawlers may follow this page, and an expired search costs a new run; the target is
         // noindex anyway (same as the hot-search tiles).
@@ -141,7 +141,7 @@ export function SearchIdeas() {
         {IDEAS.map(({ Icon, q }) => (
           <li key={q} className="max-w-full">
             <Link
-              // Not typed by the visitor, so never listed on /searches.
+              // from=example: logged as search_log.origin "example" (listed like any search, 2026-10-03).
               href={searchHref({ q, from: "example" })}
               // Crawlers may follow this page, and an expired search costs a new run; the target
               // is noindex anyway (same as the hot-search tiles).

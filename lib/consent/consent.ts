@@ -16,8 +16,12 @@ export const CONSENT_COOKIE = "matzati_consent";
  * example when an analytics or marketing tool is added, which also means updating
  * ./categories.ts and the /cookies page): a stored choice with any other version is ignored, so
  * every visitor is asked again.
+ *
+ * 2 (2026-10-03): the necessary category now also covers "החיפושים שלי" (matzati_my_searches,
+ * localStorage, lib/recent/mine.ts), and its description in the banner's settings says so. No
+ * optional category changed, but what a category covers did, which is this rule.
  */
-export const CONSENT_VERSION = 1;
+export const CONSENT_VERSION = 2;
 
 /**
  * Added to CONSENT_VERSION while Google Analytics is configured (/admin/settings, "חיבור לגוגל"):

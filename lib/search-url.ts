@@ -9,7 +9,9 @@ const MAX_REMOVED = 10;
 
 /**
  * Where a /search link came from when the visitor did not type the query: a recent-search card
- * or one of our example queries. Such a search is logged as usual but never listed on /searches.
+ * (everyone's on /searches and the home strip, or the visitor's own "החיפושים שלי" chips) or one
+ * of our example queries. Logged as search_log.origin; listed on /searches like any search with
+ * results (owner decision 2026-10-03).
  */
 export type SearchFrom = "recent" | "example";
 const FROMS: readonly SearchFrom[] = ["recent", "example"];
@@ -40,8 +42,8 @@ export function parseFrom(value: Param): SearchFrom | undefined {
 
 /**
  * How a visitor reached a /search URL whose query they did not type: one of our links (SearchFrom)
- * or an ad or campaign link. Logged as search_log.origin; such a search is never listed on
- * /searches.
+ * or an ad or campaign link. Logged as search_log.origin (a crawler's "bot" origin is set by the
+ * server from the user agent, never from the URL).
  */
 export type SearchArrival = SearchFrom | "ad";
 

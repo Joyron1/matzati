@@ -22,7 +22,7 @@ export const CONSENT_CATEGORIES: readonly ConsentCategoryInfo[] = [
     id: "necessary",
     label: "הכרחיות",
     description:
-      "שומרות את הבחירה שלכם בהגדרות האלה ואת ערכת הצבעים, אם בחרתם בה. בלעדיהן האתר לא יעבוד כמו שצריך.",
+      "שומרות את הבחירה שלכם בהגדרות האלה, את ערכת הצבעים אם בחרתם בה, ואת החיפושים האחרונים שלכם, רק בדפדפן שלכם. בלעדיהן האתר לא יעבוד כמו שצריך.",
     inUse: true,
   },
   {
@@ -72,8 +72,10 @@ export interface StorageItem {
 /**
  * Everything the site stores in the visitor's browser without Google Analytics (storageInventory
  * adds its cookies while it is configured). Apart from it, the site sets no analytics or
- * marketing cookies and loads no third-party scripts. Pages of AliExpress (after a buy link, or
- * the product video, which loads from AliExpress only when played) are under AliExpress's policy.
+ * marketing cookies and loads no third-party scripts. Pages of AliExpress (after a buy link) and
+ * the product video (loaded from AliExpress's video host when a product page with a video opens,
+ * where it plays muted unless the visitor asked for reduced motion or to save data) are under
+ * AliExpress's policy.
  */
 export const STORAGE_INVENTORY: readonly StorageItem[] = [
   {
@@ -93,6 +95,17 @@ export const STORAGE_INVENTORY: readonly StorageItem[] = [
     purpose: "זוכר את ערכת הצבעים שבחרתם.",
     duration: "עד שתמחקו את נתוני האתר בדפדפן",
     source: "components/theme-provider.tsx (next-themes)",
+  },
+  {
+    // lib/recent/mine.ts: {q, at} per search, newest first, at most MY_SEARCHES_MAX (12).
+    name: "matzati_my_searches",
+    kind: "localStorage",
+    category: "necessary",
+    who: "מי שחיפש באתר",
+    purpose:
+      "זוכר את 12 החיפושים האחרונים שלכם (הטקסט והשעה), כדי להציג לכם אותם תחת ״החיפושים שלי״ בעמוד הבית ובעמוד החיפושים האחרונים. נשמר רק בדפדפן שלכם: הוא לא נשלח אלינו ולא לאף אחד אחר, ואחרים לא רואים אותו. אפשר להסיר חיפוש בכפתור ה־× שלו, או את כולם בכפתור ״ניקוי״.",
+    duration: "עד שתנקו אותו בכפתור ״ניקוי״ או תמחקו את נתוני האתר בדפדפן",
+    source: "lib/recent/mine.ts, components/my-searches.tsx",
   },
   {
     name: "sb-…-auth-token",

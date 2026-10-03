@@ -45,6 +45,32 @@ describe("ResultCards", () => {
     expect(out).toContain("מקום 3 בדירוג");
   });
 
+  it("makes every whole card open its product page, the buy button and its note above that", () => {
+    const results = [1, 2, 3].map(result);
+    const out = html(results);
+    // One card-wide link per card (the title's, its ::after covering the card), to /p with the query.
+    const cardLinks = [...out.matchAll(/<a [^>]*data-card-link[^>]*>/g)].map((m) => m[0]);
+    expect(cardLinks).toHaveLength(results.length);
+    for (const [i, r] of results.entries()) {
+      expect(cardLinks[i]).toContain(`href="/p/${r.product_id}?q=`);
+      expect(cardLinks[i]).toContain("after:absolute after:inset-0");
+    }
+    // Each card is the cover's containing block and rings when its card link has focus.
+    expect(
+      out.match(/<article class="[^"]*relative isolate[^"]*has-\[\[data-card-link\]/g),
+    ).toHaveLength(results.length);
+    // The buy buttons (to /go, a new tab) and their affiliate notes stand above the cover.
+    const buys = [...out.matchAll(/<a [^>]*href="\/go\/[^>]*>/g)].map((m) => m[0]);
+    expect(buys).toHaveLength(results.length);
+    for (const b of buys) expect(b).toMatch(/class="[^"]*relative z-10/);
+    const notes = [...out.matchAll(/<a [^>]*href="\/terms#affiliate"[^>]*>/g)].map((m) => m[0]);
+    expect(notes).toHaveLength(results.length);
+    for (const n of notes) expect(n).toMatch(/class="[^"]*relative z-10/);
+    // No link inside a link.
+    expect(out).not.toMatch(/<a [^>]*>(?:(?!<\/a>).)*<a /);
+    expect(out.match(/>למידע נוסף</g)).toHaveLength(results.length);
+  });
+
   it("keeps up to two compact cards in one column beside the featured card", () => {
     const out = html([1, 2, 3].map(result));
     expect(out).toContain("lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]");
@@ -95,7 +121,12 @@ describe("ExtraResultCards (places 6-10 of the first view)", () => {
       expect(out).toContain(`href="/p/${r.product_id}?q=`);
     }
     expect(out.match(/>קישור שותפים</g)).toHaveLength(extra.length);
-    expect(out.match(/>לפרטים</g)).toHaveLength(extra.length);
+    expect(out.match(/>למידע נוסף</g)).toHaveLength(extra.length);
+    expect(out).not.toContain("לפרטים");
+    // The whole card opens the product page (its title link's cover), without prefetch.
+    const cardLinks = [...out.matchAll(/<a [^>]*data-card-link[^>]*>/g)].map((m) => m[0]);
+    expect(cardLinks).toHaveLength(extra.length);
+    for (const l of cardLinks) expect(l).toContain("after:absolute after:inset-0");
     expect(out).not.toContain("למה בחרנו:");
     expect(out).toContain("משוב חיובי");
     // Two in a row on phones, more on wider screens; a list of cards.

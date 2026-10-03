@@ -54,6 +54,7 @@ import {
 } from "@/lib/search-url";
 import type { SortPreference } from "./filters";
 import {
+  CacheMissError,
   isListableSearch,
   loadMore,
   logOrigin,
@@ -485,6 +486,74 @@ export async function searchForRequest(
   if (!started.ok) return started;
   const final = await started.value.final;
   return final.ok ? { ok: true, response: final.value } : final;
+}
+
+/** An LLM that is never called: a crawler's search is cache-only (CacheMissError first). */
+const NO_LLM: LlmProvider = {
+  name: "anthropic",
+  model: "none",
+  generateStructured: () => Promise.reject(new CacheMissError("parse")),
+};
+
+/** No network for a crawler's AliExpress client: cache-only, and this makes sure of it. */
+const NO_FETCH: typeof fetch = () => Promise.reject(new CacheMissError("results"));
+
+/**
+ * A crawler's /search or POST /api/search (isBotUserAgent in lib/guard/bots.ts; owner request
+ * 2026-10-03): never paid work. Only a cached parse and a cached result set for exactly these
+ * filters whose first view is complete (SearchInput.cacheOnly); its row is logged with origin
+ * "bot", never listed and left out of the stats. Null when nothing is cached (no row is written),
+ * over the per-IP limit, or on any failure: the caller then shows the page for crawlers. The
+ * deps can call neither the LLM nor AliExpress (NO_LLM, NO_FETCH, a budget that refuses), so a
+ * pipeline change could never make a crawler spend money.
+ */
+export async function cachedSearchForBot(
+  input: { q: string; without?: string[]; sort?: SortPreference },
+  headers: Headers,
+): Promise<LoggedSearchResponse | null> {
+  const q = input.q.trim();
+  if (!q || q.length > MAX_QUERY_LENGTH) return null;
+  try {
+    const env = guardEnv();
+    if (!env.ipHashSalt) return null;
+    const db = serviceClient();
+    // The per-IP limits stay for crawlers too: every request costs database reads.
+    const rate = await checkSearchRate(db, hashIp(clientIp(headers), env.ipHashSalt), new Date());
+    if (!rate.ok) return null;
+    const deps: SearchDeps = {
+      llm: NO_LLM,
+      ali: new AliExpressClient(aliexpressConfig(), { fetch: NO_FETCH }),
+      store: new SupabaseStore(db),
+      beforeLlmWork: () => Promise.reject(new CacheMissError("parse")),
+      failureOf: failureCode,
+      shopCap: await shopCapMode(),
+    };
+    const stages = startSearch(
+      { q, without: input.without ?? [], sort: input.sort, cacheOnly: true, bot: true },
+      deps,
+    );
+    keepAlive(stages.outcome);
+    return tagged(await stages.final, stages.searchUid);
+  } catch (err) {
+    if (!(err instanceof CacheMissError)) logError("bot-search", err);
+    return null;
+  }
+}
+
+/** A finished response as the stages the results page reads (a crawler's cached search). */
+export function settledStream(response: LoggedSearchResponse): SearchStream {
+  const ok = <T>(value: T) => Promise.resolve({ ok: true as const, value });
+  return {
+    understood: ok({
+      query: response.query,
+      chips: response.chips,
+      sort: response.sort,
+      ...(response.not_filtered ? { not_filtered: response.not_filtered } : {}),
+      waitedMs: 0,
+    }),
+    products: ok({ response, pending: false }),
+    final: ok(response),
+  };
 }
 
 export type MoreResult =

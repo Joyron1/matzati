@@ -28,7 +28,7 @@ export interface LegalDetails {
 export const LEGAL: LegalDetails = {
   operatorName: "ג׳וי רון",
   operatorBusinessId: "",
-  contactEmail: "",
+  contactEmail: "matzatiisrael@gmail.com",
   accessibilityCoordinatorName: "ג׳וי רון",
   accessibilityCoordinatorPhone: "050-5796203",
   accessibilityCoordinatorEmail: "",
@@ -83,9 +83,9 @@ export const AFFILIATE_SECTION_ID = "affiliate";
  */
 export const LEGAL_UPDATED_AT: Record<LegalPage, string> = {
   terms: "2026-09-30",
-  privacy: "2026-09-29",
-  cookies: "2026-09-29",
-  accessibility: "2026-09-28",
+  privacy: "2026-10-03",
+  cookies: "2026-10-03",
+  accessibility: "2026-10-03",
 };
 
 /** The last accessibility check of the site (YYYY-MM-DD). Update it after every check. */

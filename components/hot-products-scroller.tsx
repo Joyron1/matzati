@@ -19,8 +19,14 @@ import { HOT_HEADER_ROW, HOT_NAV_BUTTONS, HOT_ROW } from "./hot-carousel-layout"
 const NAV_BUTTON =
   "grid size-11 place-items-center rounded-full border border-line bg-surface text-ink hover:border-accent hover:text-accent-ink aria-disabled:cursor-not-allowed aria-disabled:opacity-40 aria-disabled:hover:border-line aria-disabled:hover:text-ink";
 
-/** While nobody uses it, the row moves on by one visible page this often. */
-export const AUTO_ADVANCE_MS = 5_000;
+/** While nobody uses it, the row moves on by one visible page this often (2026-10-03, was 5 s). */
+export const AUTO_ADVANCE_MS = 3_000;
+/**
+ * After someone hovers, touches, scrolls, swipes, focuses it or uses its buttons, the row waits this
+ * long before it moves again: longer than AUTO_ADVANCE_MS, so a card someone just reached stays to
+ * be read.
+ */
+export const RESUME_AFTER_MS = 5_000;
 
 /** How long a smooth scroll may take before the row counts as settled (no scrollend event). */
 const SETTLE_MS = 1_200;
@@ -83,11 +89,11 @@ function firstVisibleItem(list: HTMLElement): HTMLElement | null {
  * first card of the row (which would scroll the row back to its start). `children` are the <li>
  * items.
  *
- * Auto-advance (owner request 2026-09-28): while nobody uses it, the row does what the next button
- * does every AUTO_ADVANCE_MS: one visible page on, and after the last page back to the first. It
- * stops while the pointer is over it, a finger is on it, a keyboard focus is inside it, and when it
- * is scrolled, swiped or its buttons are used, and goes on AUTO_ADVANCE_MS after the last of these
- * ends. The pause button stops it until it is pressed again (WCAG 2.2.2). It never moves under
+ * Auto-advance (owner request 2026-09-28; every 3 s since 2026-10-03): while nobody uses it, the row
+ * does what the next button does every AUTO_ADVANCE_MS: one visible page on, and after the last page
+ * back to the first. It stops while the pointer is over it, a finger is on it, a keyboard focus is
+ * inside it, and when it is scrolled, swiped or its buttons are used, and goes on RESUME_AFTER_MS
+ * after the last of these ends. The pause button stops it until it is pressed again (WCAG 2.2.2). It never moves under
  * reduced motion (no pause button then), while off screen or in a hidden tab; it never moves focus,
  * never scrolls the page and announces nothing.
  */
@@ -157,9 +163,10 @@ export function HotProductsScroller({
     const canRun = () =>
       !paused && visible && !document.hidden && !h.hover && !h.focus && !h.finger;
 
-    function restart() {
+    /** The next move in `delay`: RESUME_AFTER_MS after an interaction, else AUTO_ADVANCE_MS. */
+    function restart(delay = RESUME_AFTER_MS) {
       window.clearTimeout(timer);
-      if (canRun()) timer = window.setTimeout(advance, AUTO_ADVANCE_MS);
+      if (canRun()) timer = window.setTimeout(advance, delay);
     }
     restartRef.current = restart;
 
@@ -174,7 +181,7 @@ export function HotProductsScroller({
       scrollOnePage(row, 1);
       window.clearTimeout(settle);
       settle = window.setTimeout(settled, SETTLE_MS);
-      restart();
+      restart(AUTO_ADVANCE_MS);
     }
 
     const hold = (key: keyof typeof h, on: boolean) => {
@@ -198,7 +205,7 @@ export function HotProductsScroller({
     const onScroll = () => {
       if (!selfScroll.current) restart();
     };
-    const onVisibility = () => restart();
+    const onVisibility = () => restart(AUTO_ADVANCE_MS);
 
     root.addEventListener("pointerenter", onEnter);
     root.addEventListener("pointerleave", onLeave);
@@ -216,7 +223,7 @@ export function HotProductsScroller({
     const observer = new IntersectionObserver(
       ([entry]) => {
         visible = entry.isIntersecting;
-        restart();
+        restart(AUTO_ADVANCE_MS);
       },
       { threshold: 0.5 },
     );

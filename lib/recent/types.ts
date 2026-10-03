@@ -1,6 +1,6 @@
 // Public "חיפושים אחרונים" page (/searches): one card per normalized query, built from search_log
-// rows of queries visitors typed (source "search", not from one of our links, no chips removed, no
-// sort override) that found products and passed the privacy check in lib/recent/privacy.ts.
+// rows of visitor searches (source "search", any origin but a crawler's; owner decision 2026-10-03)
+// that found products and passed the privacy check in lib/recent/privacy.ts.
 // Hidden by an admin = never shown.
 import type { FilterChip } from "@/lib/types";
 

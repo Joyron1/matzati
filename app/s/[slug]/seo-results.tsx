@@ -10,10 +10,18 @@ import { Search, Trophy } from "lucide-react";
 import { BuyButton } from "@/components/buy-button";
 import { TitleText } from "@/components/card-lines";
 import { Price } from "@/components/price";
-import { CompactProductCard } from "@/components/product-cards";
+import { CompactProductCard, DETAILS_LABEL } from "@/components/product-cards";
 import { ProductImage } from "@/components/product-image";
 import { GroupReveal } from "@/components/seo-group-reveal";
-import { btnLg, btnMd, btnSecondary, featured } from "@/components/styles";
+import {
+  aboveCardLink,
+  btnLg,
+  btnMd,
+  btnSecondary,
+  cardLink,
+  featured,
+  linkCard,
+} from "@/components/styles";
 import { TrustMetrics } from "@/components/trust-metrics";
 import { RESULTS_PER_PAGE } from "@/lib/config/site";
 import { APPROX_PRICE_NOTE } from "@/lib/copy";
@@ -94,7 +102,9 @@ function ReadOnlyChips({ chips }: { chips: FilterChip[] }) {
 function FeaturedCard({ product, q }: { product: ResultProduct; q: string }) {
   const href = productHref(product.product_id, q);
   return (
-    <article className={`${featured} flex flex-col gap-5 p-4 sm:p-6 xl:col-span-3 xl:row-span-2`}>
+    <article
+      className={`${featured} ${linkCard} flex flex-col gap-5 p-4 sm:p-6 xl:col-span-3 xl:row-span-2`}
+    >
       <div className="relative xl:flex xl:min-h-0 xl:flex-1 xl:flex-col">
         <ProductImage
           src={product.image_urls[0]}
@@ -112,7 +122,7 @@ function FeaturedCard({ product, q }: { product: ResultProduct; q: string }) {
 
       <div className="space-y-3">
         <h3 className="text-xl leading-snug font-bold sm:text-2xl">
-          <Link href={href} className="block hover:text-accent-ink">
+          <Link href={href} data-card-link className={`block hover:text-accent-ink ${cardLink}`}>
             <TitleText title={product.title_he} />
           </Link>
         </h3>
@@ -130,9 +140,9 @@ function FeaturedCard({ product, q }: { product: ResultProduct; q: string }) {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
-        <BuyButton productId={product.product_id} src={SEO_SRC} position={1} />
-        <Link href={href} className={`${btnSecondary} ${btnLg}`}>
-          לפרטים
+        <BuyButton productId={product.product_id} src={SEO_SRC} position={1} raised />
+        <Link href={href} className={`${btnSecondary} ${btnLg} ${aboveCardLink}`}>
+          {DETAILS_LABEL}
         </Link>
       </div>
     </article>

@@ -2,7 +2,7 @@ import { ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { AFFILIATE_NOTE, BUY_LABEL } from "@/lib/copy";
 import { goHref } from "@/lib/search-url";
-import { btnLg, btnMd, btnPrimary, btnSm } from "./styles";
+import { aboveCardLink, btnLg, btnMd, btnPrimary, btnSm } from "./styles";
 
 interface BuyButtonProps {
   productId: string;
@@ -14,6 +14,8 @@ interface BuyButtonProps {
   position?: number;
   /** "sm": a narrow card (two in a row on a phone): the short label "לקנייה". */
   size?: "lg" | "md" | "sm";
+  /** On a card the whole of which links to its product page: the button and note stand above it. */
+  raised?: boolean;
   className?: string;
 }
 
@@ -46,15 +48,17 @@ export function BuyButton({
   searchUid,
   position,
   size = "lg",
+  raised = false,
   className = "",
 }: BuyButtonProps) {
+  const above = raised ? ` ${aboveCardLink}` : "";
   return (
     <div className={`flex flex-col ${className}`}>
       <a
         href={goHref(productId, src, { searchUid, position })}
         target="_blank"
         rel="sponsored nofollow noopener"
-        className={`${btnPrimary} ${SIZE_CLASS[size]} w-full`}
+        className={`${btnPrimary} ${SIZE_CLASS[size]} w-full${above}`}
       >
         {size === "sm" ? (
           // A narrow card (two in a row on a phone, five on desktop): the full label wrapped to two
@@ -69,7 +73,7 @@ export function BuyButton({
         <ExternalLink aria-hidden className="size-[18px] shrink-0" />
         <span className="sr-only">(נפתח בכרטיסייה חדשה)</span>
       </a>
-      <AffiliateNoteLink className="self-center" />
+      <AffiliateNoteLink className={`self-center${above}`} />
     </div>
   );
 }

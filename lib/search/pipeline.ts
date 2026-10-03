@@ -181,17 +181,38 @@ export interface SearchInput {
   source?: Exclude<SearchSource, "more">;
   /**
    * The visitor typed the query. Defaults to true unless `arrival` is set. False when it came from
-   * one of our own links (a recent-search card, an example query) or an ad: logged as usual, never
-   * listed on /searches.
+   * one of our own links (a recent-search card, an example query) or an ad. Logged as the origin
+   * only: since 2026-10-03 every search with results may be listed on /searches, however it
+   * started (isListableSearch).
    */
   typed?: boolean;
   /** How the visitor reached this URL when they did not type the query (search_log.origin). */
   arrival?: SearchArrival;
   /**
-   * A signed-in admin (the owner) asked: logged with owner true, so the stats leave it out. A
-   * typed one is still listed on /searches (isListableSearch).
+   * A signed-in admin (the owner) asked: logged with owner true, so the stats leave it out. Still
+   * listed on /searches like anyone's (isListableSearch).
    */
   owner?: boolean;
+  /**
+   * No paid work at all (a crawler, lib/guard/bots.ts): only a cached parse and a cached result
+   * set for exactly these filters whose first view has every line and title written. Anything
+   * else ends the search with CacheMissError before any LLM or AliExpress call, and no row is
+   * logged for it.
+   */
+  cacheOnly?: boolean;
+  /** A crawler asked: logged with origin "bot", never listed and left out of the stats. */
+  bot?: boolean;
+}
+
+/**
+ * A cacheOnly search found nothing it could serve for free. Not a SearchError: the request is
+ * answered with a page for crawlers, never with a failure, and no search_log row is written.
+ */
+export class CacheMissError extends Error {
+  constructor(readonly step: "parse" | "results" | "lines") {
+    super(`nothing cached to serve without paid work (${step})`);
+    this.name = "CacheMissError";
+  }
 }
 
 /** An LLM call recorded by the pipeline; K narrows the jobs one entry point can make. */
@@ -640,6 +661,8 @@ export interface SearchOrigin {
   arrival?: SearchArrival;
   /** A signed-in admin asked (SearchInput.owner). */
   owner?: boolean;
+  /** A crawler asked (SearchInput.bot). */
+  bot?: boolean;
 }
 
 function searchOrigin(input: SearchInput): SearchOrigin {
@@ -650,15 +673,18 @@ function searchOrigin(input: SearchInput): SearchOrigin {
     typed: input.typed ?? input.arrival === undefined,
     ...(input.arrival ? { arrival: input.arrival } : {}),
     ...(input.owner ? { owner: true } : {}),
+    ...(input.bot ? { bot: true } : {}),
   };
 }
 
 /**
- * search_log.origin. "more" and "preview" by their source; a visitor's search by where they came
- * from (an ad, a recent-search card, an example), else by what they changed on the results page
- * (a removed chip before a sort change: the chip link keeps the sort), else "typed".
+ * search_log.origin. A crawler's request is "bot" whatever it asked; "more" and "preview" by their
+ * source; a visitor's search by where they came from (an ad, a recent-search card, an example),
+ * else by what they changed on the results page (a removed chip before a sort change: the chip
+ * link keeps the sort), else "typed".
  */
 export function logOrigin(origin: SearchOrigin): SearchOriginKind {
+  if (origin.bot) return "bot";
   if (origin.source !== "search") return origin.source;
   if (origin.arrival) return origin.arrival;
   if (origin.without.length) return "chip";
@@ -777,21 +803,22 @@ async function logFailure(
 }
 
 /**
- * Whether a search may appear on the public recent-searches page (/searches): only a query a
- * visitor typed (source "search", not from one of our links, no chips removed, no sort override,
- * so the card's link rebuilds exactly these filters) that showed results, and only when the query
- * passes the privacy check (no phone or ID numbers, emails, links or handles). The owner's own
- * typed searches are real searches and are listed too (owner decision 2026-09-29); owner only
- * keeps a row out of the stats.
+ * Whether a search may appear on the public recent-searches page (/searches) and the home strip:
+ * every visitor search (source "search") that showed results, however it started (owner decision
+ * 2026-10-03: typed, an example, a recent-search card, a removed chip, a sort change or an ad
+ * landing), when the query passes the privacy check (no phone or ID numbers, emails, links or
+ * handles; lib/recent/privacy.ts, unchanged). Never: "עוד N" pages, SEO refresh runs (preview), a
+ * crawler's request (bot), a search with no results (nothing to show) and a failed one (never
+ * reaches here), and a search not made on the site's pages: not typed and with no arrival, which
+ * only the WhatsApp bot sends (lib/whatsapp/bot.ts, typed: false; its privacy section,
+ * app/privacy/whatsapp.tsx, promises its searches are never listed). The card links to the query
+ * itself (from=recent). The owner's own searches are listed too (owner decision 2026-09-29); owner
+ * only keeps a row out of the stats.
  */
 export function isListableSearch(q: string, origin: SearchOrigin, resultsCount: number): boolean {
+  const onSite = origin.typed || origin.arrival !== undefined;
   return (
-    origin.source === "search" &&
-    origin.typed &&
-    origin.without.length === 0 &&
-    origin.sort === undefined &&
-    resultsCount > 0 &&
-    isListableQuery(q)
+    origin.source === "search" && onSite && !origin.bot && resultsCount > 0 && isListableQuery(q)
   );
 }
 
@@ -810,6 +837,8 @@ interface SearchRun {
   chargeOnce: () => Promise<void>;
   /** deps.shopCap or the default: the mode this search ranks under and keys its results by. */
   shopCap: ShopCapMode;
+  /** SearchInput.cacheOnly: serve a complete cached first view or throw CacheMissError. */
+  cacheOnly: boolean;
 }
 
 function searchLogEntry(
@@ -961,12 +990,15 @@ async function runStages(
     sleep: deps.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms))),
     chargeOnce: () => (charge ??= Promise.resolve().then(() => deps.beforeLlmWork?.())),
     shopCap: deps.shopCap ?? DEFAULT_SHOP_CAP_MODE,
+    cacheOnly: input.cacheOnly === true,
   };
   try {
     return await search(q, input, state, stages);
   } catch (err) {
     // The page shows the failure at once; its row is written after.
     failStages(stages, err);
+    // A crawler's search that found nothing cached did no work: no row (search_log stays clean).
+    if (err instanceof CacheMissError) throw err;
     await logFailure(deps.store, deps.failureOf, err, (f) => failedLogEntry(q, state, f));
     throw err;
   } finally {
@@ -1027,6 +1059,7 @@ async function search(
   if (parsed) {
     meta.cache = "parse";
   } else {
+    if (state.cacheOnly) throw new CacheMissError("parse");
     await state.chargeOnce();
     const res = await timed(run, meta, "parse_ms", async () => {
       try {
@@ -1058,6 +1091,9 @@ async function search(
     meta.cache = "results";
     plan = hitPlan(hit, fk, filters);
   } else {
+    // A view ranked from a pool may need explain calls, and a fetch always costs: a crawler gets
+    // an exact hit or nothing.
+    if (state.cacheOnly) throw new CacheMissError("results");
     plan = await derivedPlan(parsed, without, filters, fk, state);
     if (plan) {
       meta.cache = "results";
@@ -1317,6 +1353,11 @@ async function finish(
   // Places 6-10: titles known without a call (a line's, or the titles call's of any view), and
   // the ones the titles call writes now, beside the explain call.
   const { known, untitled } = secondOf(order, plan);
+  // A crawler is served a hit only when nothing is left to write (no explain or titles call),
+  // before anything is saved.
+  if (state.cacheOnly && (!plan.hit || missing.length || untitled.length)) {
+    throw new CacheMissError("lines");
+  }
   const firstView = order.slice(0, RESULTS_FIRST_VIEW);
 
   // The rows the cards' /go links read, saved before the cards show, in one batch: every product a

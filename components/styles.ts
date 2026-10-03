@@ -22,3 +22,17 @@ export const btnSm = "min-h-11 whitespace-normal! px-3 py-2 text-sm leading-snug
 
 export const card = "rounded-card border border-line bg-surface";
 export const featured = "rounded-composer border border-line bg-surface shadow-soft";
+
+/**
+ * A product card the whole of which opens its product page (owner request 2026-10-03), the
+ * "stretched link" pattern: one real link (`cardLink`, on the title) whose ::after covers the card
+ * (`linkCard` makes the card its containing block and, with `isolate`, keeps the raised controls'
+ * z-index inside it). The buy button and its "קישור שותפים" note stand above the cover
+ * (`aboveCardLink`), so they keep their own targets; no nested links, no click handler. The focus
+ * ring of the card link goes around the card (data-card-link, so a focused buy button rings only
+ * itself), and hovering the card darkens its border and gives it the soft shadow.
+ */
+export const linkCard =
+  "relative isolate transition-[border-color,box-shadow] duration-200 hover:border-muted hover:shadow-soft motion-reduce:transition-none has-[[data-card-link]:focus-visible]:outline-3 has-[[data-card-link]:focus-visible]:outline-offset-2 has-[[data-card-link]:focus-visible]:outline-accent";
+export const cardLink = "after:absolute after:inset-0 focus-visible:outline-none";
+export const aboveCardLink = "relative z-10";

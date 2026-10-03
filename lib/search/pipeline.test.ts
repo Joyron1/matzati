@@ -1,7 +1,12 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { AliExpressClient } from "@/lib/aliexpress/client";
-import { RESULTS_FIRST_VIEW, RESULTS_KEPT, RESULTS_PER_PAGE } from "@/lib/config/site";
+import {
+  FIRST_MORE_PAGE,
+  RESULTS_FIRST_VIEW,
+  RESULTS_KEPT,
+  RESULTS_PER_PAGE,
+} from "@/lib/config/site";
 import { EXPLAIN_SYSTEM } from "@/lib/llm/explain";
 import { TITLES_SYSTEM } from "@/lib/llm/titles";
 import { agePhrases, type ParsedQueryRaw } from "@/lib/llm/parse";
@@ -9,6 +14,7 @@ import type { LlmProvider, StructuredRequest } from "@/lib/llm/provider";
 import type { z } from "zod";
 import { queryKey } from "./cache-key";
 import {
+  CacheMissError,
   diagOf,
   emptyParseCreatedAt,
   FETCH_BUDGET_MS,
@@ -60,6 +66,9 @@ class FakeLlm implements LlmProvider {
   failing = new Set<"parse" | "explain" | "titles">();
   /** The why_he of the i-th product of an explain batch. */
   why: (i: number) => string = (i) => WHYS[i % WHYS.length];
+  /** The title_he every explain call writes, and every titles call (places 6-10). */
+  explainTitle = "כבל טעינה מהיר";
+  titlesTitle = "כבל USB לטעינה";
   constructor(private parse: ParsedQueryRaw | null = PARSE) {}
   async generateStructured<T extends z.ZodType>(req: StructuredRequest<T>) {
     const usage = { inputTokens: 900, outputTokens: 100, cacheReadTokens: 0, cacheWriteTokens: 0 };
@@ -70,7 +79,7 @@ class FakeLlm implements LlmProvider {
     if (kind === "titles") {
       this.calls.push("titles");
       const { products } = JSON.parse(req.user) as { products: { id: string }[] };
-      const items = products.map((p) => ({ id: p.id, title_he: "כבל USB לטעינה" }));
+      const items = products.map((p) => ({ id: p.id, title_he: this.titlesTitle }));
       return { data: { items } as z.infer<T>, usage, model: this.model };
     }
     if (kind === "explain") {
@@ -78,7 +87,7 @@ class FakeLlm implements LlmProvider {
       const { products } = JSON.parse(req.user) as { products: { id: string }[] };
       const items = products.map((p, i) => ({
         id: p.id,
-        title_he: "כבל טעינה מהיר",
+        title_he: this.explainTitle,
         why_he: this.why(i),
       }));
       return { data: { items } as z.infer<T>, usage, model: this.model };
@@ -143,6 +152,37 @@ describe("runSearch", () => {
     expect(again.response.extra_results).toEqual(fresh.response.extra_results);
     expect(llm.calls).toEqual(["parse", "explain", "titles"]);
     expect(fresh.response.more_after_first_view).toBe(entry.products.length > RESULTS_FIRST_VIEW);
+  });
+
+  it("never hides a product for its title: refused Hebrew titles show AliExpress's, same products", async () => {
+    // Owner rule (2026-10-03): a product that passed the filters always shows; a Hebrew title the
+    // checks refuse (here an ungrounded number) only falls back to the English title.
+    const parse = { ...PARSE, max_price_ils: null };
+    const good = setup(parse);
+    const accepted = await runSearch({ q: "כבל USB" }, good.deps);
+    const acceptedMore = await loadMore(accepted.response.filters_key!, FIRST_MORE_PAGE, good.deps);
+
+    const bad = setup(parse);
+    bad.llm.explainTitle = "כבל טעינה 7777";
+    bad.llm.titlesTitle = "כבל לטעינה 7777";
+    const refused = await runSearch({ q: "כבל USB" }, bad.deps);
+    const ids = (r: { product_id: string }[] | undefined) => (r ?? []).map((p) => p.product_id);
+    const firstView = (s: typeof refused) => [
+      ...s.response.results,
+      ...(s.response.extra_results ?? []),
+    ];
+    expect(ids(firstView(refused))).toEqual(ids(firstView(accepted)));
+    expect(firstView(refused)).toHaveLength(RESULTS_FIRST_VIEW);
+    for (const r of firstView(refused)) expect(r.title_he).toBe(r.title_en);
+    expect(refused.response.passed_count).toBe(accepted.response.passed_count);
+    expect(refused.response.more_after_first_view).toBe(accepted.response.more_after_first_view);
+    expect(refused.meta.explainRejected.length).toBeGreaterThan(0);
+
+    // "עוד": the same products again, with AliExpress's titles.
+    const refusedMore = await loadMore(refused.response.filters_key!, FIRST_MORE_PAGE, bad.deps);
+    expect(ids(refusedMore?.results)).toEqual(ids(acceptedMore?.results));
+    expect(refusedMore?.results.length).toBeGreaterThan(0);
+    for (const r of refusedMore!.results) expect(r.title_he).toBe(r.title_en);
   });
 
   it("shows AliExpress's titles in places 6-10 when the titles call fails, and keeps the set an hour", async () => {
@@ -420,31 +460,24 @@ describe("search_log (stats)", () => {
     const phone = await runSearch({ q: `${Q} 050-1234567` }, deps);
     const preview = await runSearch({ q: Q, source: "preview" }, deps);
     const sorted = await runSearch({ q: Q, sort: "cheapest" }, deps);
-    const card = await runSearch({ q: Q, typed: false }, deps);
+    const card = await runSearch({ q: Q, arrival: "recent" }, deps);
 
     const top = fresh.response.results[0].category_id;
     expect(top).toEqual(expect.any(String));
     expect(fresh.log).toMatchObject({ categoryId: top, listable: true });
     expect(cached.log).toMatchObject({ categoryId: top, listable: true });
-    // A chip removal, a query with a phone number, an example preview, a sort change and a
-    // click on a recent-search card are never listed.
+    // Every visitor search with results is listed, however it started (owner decision
+    // 2026-10-03): a chip removal, a sort change and a click on a recent-search card too. Never a
+    // query with a phone number or an SEO page run (preview).
     expect(refined.log).toMatchObject({
       categoryId: refined.response.results[0].category_id,
-      listable: false,
+      listable: true,
     });
     expect(phone.log.listable).toBe(false);
     expect(preview.log.listable).toBe(false);
-    expect(sorted.log).toMatchObject({ source: "search", listable: false });
-    expect(card.log).toMatchObject({ source: "search", categoryId: top, listable: false });
-    expect(store.logs.map((l) => l.listable)).toEqual([
-      true,
-      true,
-      false,
-      false,
-      false,
-      false,
-      false,
-    ]);
+    expect(sorted.log).toMatchObject({ source: "search", listable: true });
+    expect(card.log).toMatchObject({ source: "search", categoryId: top, listable: true });
+    expect(store.logs.map((l) => l.listable)).toEqual([true, true, true, false, false, true, true]);
   });
 
   it("never lists a zero-result search", async () => {
@@ -642,18 +675,89 @@ describe("loadMore stats", () => {
 describe("isListableSearch", () => {
   const typed = { source: "search", without: [], typed: true } as const;
   const q = "מנורת לילה לילדים";
-  it("lists only a typed search with results and a query without personal details", () => {
+  it("lists a visitor search with results and a query without personal details", () => {
     expect(isListableSearch(q, typed, 3)).toBe(true);
-    expect(isListableSearch(q, { ...typed, without: ["max"] }, 3)).toBe(false);
     expect(isListableSearch(q, typed, 0)).toBe(false);
     expect(isListableSearch(q, { ...typed, source: "preview" }, 3)).toBe(false);
     expect(isListableSearch(q, { ...typed, source: "more" }, 3)).toBe(false);
     expect(isListableSearch("מנורה, לשלוח ל-dana@example.com", typed, 3)).toBe(false);
+    expect(isListableSearch("מנורה 0501234567", typed, 3)).toBe(false);
+    expect(isListableSearch("מנורה מ-shop.co.il", typed, 3)).toBe(false);
   });
-  it("never lists a sort change or a query from one of our own links", () => {
-    expect(isListableSearch(q, { ...typed, sort: "cheapest" }, 3)).toBe(false);
-    expect(isListableSearch(q, { ...typed, sort: "best_value" }, 3)).toBe(false);
+  it("lists every way a search started (owner decision 2026-10-03), never a crawler's", () => {
+    expect(isListableSearch(q, { ...typed, without: ["max"] }, 3)).toBe(true);
+    expect(isListableSearch(q, { ...typed, sort: "cheapest" }, 3)).toBe(true);
+    for (const arrival of ["example", "recent", "ad"] as const) {
+      expect(isListableSearch(q, { ...typed, typed: false, arrival }, 3)).toBe(true);
+    }
+    expect(isListableSearch(q, { ...typed, owner: true }, 3)).toBe(true);
+    expect(isListableSearch(q, { ...typed, bot: true }, 3)).toBe(false);
+    // Not typed and from none of our pages: the WhatsApp bot, whose privacy text says never.
     expect(isListableSearch(q, { ...typed, typed: false }, 3)).toBe(false);
+  });
+});
+
+describe("cacheOnly (a crawler's search, lib/guard/bots.ts)", () => {
+  const Q = "כבל USB עד 40 ש״ח";
+  const bot = { cacheOnly: true, bot: true } as const;
+
+  it("never calls the LLM or AliExpress and logs nothing when nothing is cached", async () => {
+    const { deps, llm, store, fetchMock } = setup();
+    await expect(runSearch({ q: Q, ...bot }, deps)).rejects.toMatchObject({
+      name: "CacheMissError",
+      step: "parse",
+    });
+    expect(llm.calls).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(store.logs).toEqual([]);
+    expect(store.results.size).toBe(0);
+  });
+
+  it("does not rank a view from a pool or fetch for a parse that is cached alone", async () => {
+    const { deps, llm, store, fetchMock } = setup();
+    await runSearch({ q: Q }, deps);
+    const calls = [...llm.calls];
+    const fetches = fetchMock.mock.calls.length;
+    const logs = store.logs.length;
+    // Another sort: a view of the checked pool, whose lines may need an explain call.
+    const err = await runSearch({ q: Q, sort: "cheapest", ...bot }, deps).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(CacheMissError);
+    expect(err).toMatchObject({ step: "results" });
+    expect(llm.calls).toEqual(calls);
+    expect(fetchMock.mock.calls.length).toBe(fetches);
+    expect(store.logs.length).toBe(logs);
+  });
+
+  it("serves a complete cached result set for free, logged as a bot that is never listed", async () => {
+    const { deps, llm, store, fetchMock } = setup();
+    const visitor = await runSearch({ q: Q }, deps);
+    const calls = [...llm.calls];
+    const fetches = fetchMock.mock.calls.length;
+    const { response, log, meta } = await runSearch({ q: Q, ...bot }, deps);
+    expect(llm.calls).toEqual(calls);
+    expect(fetchMock.mock.calls.length).toBe(fetches);
+    expect(meta.llmUsage).toEqual([]);
+    expect(response.results.map((r) => r.product_id)).toEqual(
+      visitor.response.results.map((r) => r.product_id),
+    );
+    expect(response.cached).toBe(true);
+    expect(log).toMatchObject({ origin: "bot", listable: false, cache: "results", aliCalls: 0 });
+    expect(store.logs.at(-1)).toEqual(log);
+  });
+
+  it("refuses a cached result set whose first view still needs a line or a title", async () => {
+    const { deps, llm, store, fetchMock } = setup();
+    const visitor = await runSearch({ q: Q }, deps);
+    const key = visitor.response.filters_key!;
+    const entry = store.results.get(key)!;
+    store.results.set(key, { ...entry, titles: {}, pool: undefined });
+    const calls = [...llm.calls];
+    const fetches = fetchMock.mock.calls.length;
+    const logs = store.logs.length;
+    await expect(runSearch({ q: Q, ...bot }, deps)).rejects.toMatchObject({ step: "lines" });
+    expect(llm.calls).toEqual(calls);
+    expect(fetchMock.mock.calls.length).toBe(fetches);
+    expect(store.logs.length).toBe(logs);
   });
 });
 
@@ -715,11 +819,11 @@ describe("search_log telemetry (origin, timings, calls, uid, failures)", () => {
     await runSearch({ q: Q, source: "preview" }, deps);
     expect(store.logs.map((l) => [l.origin, l.listable])).toEqual([
       ["typed", true],
-      ["example", false],
-      ["recent", false],
-      ["ad", false],
-      ["chip", false],
-      ["sort", false],
+      ["example", true],
+      ["recent", true],
+      ["ad", true],
+      ["chip", true],
+      ["sort", true],
       ["preview", false],
     ]);
     expect(store.logs[0]).toMatchObject({ without: [], sortOverride: null });
@@ -1103,16 +1207,16 @@ describe("affiliate links (plan item 7)", () => {
 });
 
 describe("search_log owner and diag (plan item 10)", () => {
-  it("logs the owner's search with owner true and lists a typed one like anyone's", async () => {
+  it("logs the owner's search with owner true and lists it like anyone's", async () => {
     // Owner decision 2026-09-29: owner keeps the row out of the stats only.
     const { deps, store } = setup();
     await runSearch({ q: Q, owner: true }, deps);
     expect(store.logs[0]).toMatchObject({ owner: true, listable: true });
     await runSearch({ q: Q }, deps);
     expect(store.logs[1]).toMatchObject({ owner: false, listable: true });
-    // Not typed (one of our links): never listed, owner or not.
+    // One of our links: listed too since 2026-10-03, owner or not.
     await runSearch({ q: Q, owner: true, arrival: "recent" }, deps);
-    expect(store.logs[2]).toMatchObject({ owner: true, listable: false });
+    expect(store.logs[2]).toMatchObject({ owner: true, listable: true, origin: "recent" });
   });
 
   it("records how a fresh search went, and nothing for a full cache hit", async () => {

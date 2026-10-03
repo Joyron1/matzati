@@ -217,23 +217,35 @@ describe("searchForRequest: shared runs", () => {
       query: "כבל example com",
       listable: true,
     });
-    // A search with a chip removed is never listed, whichever request ran it.
+    // A chip removed changes nothing since 2026-10-03: listed when its own query passes.
     expect(await join("כבל example com", false, "כבל example com", ["max"])).toMatchObject({
-      listable: false,
+      listable: true,
     });
     expect(m.runSearch).toHaveBeenCalledTimes(3);
   });
 
-  it("never lists a joiner that came from one of our links, and passes typed to the run", async () => {
+  it("lists a joiner that came from one of our links too, and passes typed to the run", async () => {
     const q = "מנורת לילה לחדר ילדים";
+    const release = deferredRun(outcome(q, "search"));
+    const first = searchForRequest({ q }, new Headers());
+    const second = searchForRequest({ q, arrival: "recent" }, new Headers());
+    await vi.waitFor(() => expect(m.runSearch).toHaveBeenCalledTimes(1));
+    release();
+    await Promise.all([first, second]);
+    expect(m.runSearch.mock.calls[0][0]).toMatchObject({ q, typed: true });
+    expect(m.logSearch).toHaveBeenCalledTimes(1);
+    // Every search with results is listed, however it started (owner decision 2026-10-03).
+    expect(m.logSearch.mock.calls[0][0]).toMatchObject({ query: q, listable: true });
+  });
+
+  it("never lists a joiner the WhatsApp bot sent (not typed, no arrival)", async () => {
+    const q = "מנורת לילה לחדר שינה";
     const release = deferredRun(outcome(q, "search"));
     const first = searchForRequest({ q }, new Headers());
     const second = searchForRequest({ q, typed: false }, new Headers());
     await vi.waitFor(() => expect(m.runSearch).toHaveBeenCalledTimes(1));
     release();
     await Promise.all([first, second]);
-    expect(m.runSearch.mock.calls[0][0]).toMatchObject({ q, typed: true });
-    expect(m.logSearch).toHaveBeenCalledTimes(1);
     expect(m.logSearch.mock.calls[0][0]).toMatchObject({ query: q, listable: false });
   });
 
@@ -331,7 +343,7 @@ describe("searchForRequest: search uid and origin", () => {
     expect(m.runSearch.mock.calls[0][0]).toMatchObject({ q, typed: false, arrival: "ad" });
     expect(m.logSearch.mock.calls[0][0]).toMatchObject({
       origin: "recent",
-      listable: false,
+      listable: true,
       shared: true,
     });
   });

@@ -6,7 +6,9 @@
 //   near-duplicate check (dedupeListings) cannot run: it tokenizes [a-z0-9] only. Duplicates are
 //   dropped by product id, and one shop may fill at most PER_SHOP places instead
 // - a mix of several categories' lists (home carousel) keeps at most PER_SUBCATEGORY products
-//   per second-level category, so one kind of product cannot fill it
+//   per second-level category, so one kind of product cannot fill it; the carousel's random pick
+//   of CAROUSEL_SIZE raises that cap one at a time, only as far as it must, up to
+//   CAROUSEL_MAX_PER_SUBCATEGORY (randomCarouselProducts)
 import type { AliPromoCode } from "@/lib/aliexpress/promo-code";
 import { isPromoCodeCurrent } from "@/lib/aliexpress/promo-code";
 import type { AliProduct } from "@/lib/aliexpress/schemas";
@@ -35,8 +37,15 @@ export interface HotProduct {
 
 /** One shop may fill at most this many places in a list. */
 export const PER_SHOP = 2;
-/** The carousel keeps at most this many products per second-level category. */
+/** A mix keeps at most this many products per second-level category (interleaveHotProducts). */
 export const PER_SUBCATEGORY = 2;
+/**
+ * The home carousel's random pick may raise PER_SUBCATEGORY up to this, and only when a lower cap
+ * leaves it short of its size: 6 of 50 is 12%, so at least 9 kinds of product. A first-level
+ * category's hot list spans only 5 or 6 second-level ones (the probe of 2026-09-28: category 44's
+ * 39 passers in 6, 12 of them in one), so 2 each gives about 11 per list, too few for 50 from 4.
+ */
+export const CAROUSEL_MAX_PER_SUBCATEGORY = 6;
 /** /hot without a category shows this many of each mixed category's best sellers. */
 export const MIX_PER_CATEGORY = 12;
 
@@ -116,11 +125,15 @@ export function selectHotProducts(products: AliProduct[]): AliProduct[] {
 }
 
 /**
- * The home carousel: the categories' lists (each by 30-day sales) taken in turn, one product at a
- * time, skipping a product whose second-level category already has PER_SUBCATEGORY places, until
- * `limit`. A product in two lists is shown once.
+ * The categories' lists taken in turn, one product at a time in each list's order, skipping a
+ * product whose second-level category already has `perGroup` places, until `limit`. A product in
+ * two lists is shown once.
  */
-export function interleaveHotProducts(lists: HotProduct[][], limit: number): HotProduct[] {
+export function interleaveHotProducts(
+  lists: HotProduct[][],
+  limit: number,
+  perGroup: number = PER_SUBCATEGORY,
+): HotProduct[] {
   const seen = new Set<string>();
   const groups = new Map<string, number>();
   const next = lists.map(() => 0);
@@ -132,7 +145,7 @@ export function interleaveHotProducts(lists: HotProduct[][], limit: number): Hot
       while (next[i] < lists[i].length) {
         const p = lists[i][next[i]++];
         const group = p.subcategoryId ?? p.categoryId;
-        if (seen.has(p.productId) || !under(groups, group, PER_SUBCATEGORY)) continue;
+        if (seen.has(p.productId) || !under(groups, group, perGroup)) continue;
         seen.add(p.productId);
         bump(groups, group);
         out.push(p);
@@ -142,6 +155,45 @@ export function interleaveHotProducts(lists: HotProduct[][], limit: number): Hot
     }
   }
   return out;
+}
+
+/** A number in [0, 1), like Math.random; tests pass a seeded one. */
+export type RandomSource = () => number;
+
+/** A shuffled copy of `items` (Fisher-Yates), every order equally likely for a fair source. */
+export function shuffled<T>(items: readonly T[], random: RandomSource): T[] {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.min(i, Math.floor(random() * (i + 1)));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+/**
+ * The home carousel (owner request 2026-10-03: at least 50, picked anew on every visit): each list
+ * shuffled and the lists in a shuffled order, then taken in turn as interleaveHotProducts does, so
+ * neighbouring cards come from different categories. The cap per second-level category starts at
+ * PER_SUBCATEGORY and is raised one at a time only while the row stays short of `limit`, up to
+ * `maxPerGroup`; with too few products for `limit`, every product the highest cap allows. Every
+ * product comes from `lists` unchanged (the caller passes lists that pass FILTERS).
+ */
+export function randomCarouselProducts(
+  lists: HotProduct[][],
+  limit: number,
+  random: RandomSource,
+  maxPerGroup: number = CAROUSEL_MAX_PER_SUBCATEGORY,
+): HotProduct[] {
+  const order = shuffled(
+    lists.map((list) => shuffled(list, random)),
+    random,
+  );
+  let picked: HotProduct[] = [];
+  for (let cap = PER_SUBCATEGORY; cap <= Math.max(PER_SUBCATEGORY, maxPerGroup); cap++) {
+    picked = interleaveHotProducts(order, limit, cap);
+    if (picked.length >= limit) break;
+  }
+  return picked;
 }
 
 /** /hot without a category: the first MIX_PER_CATEGORY of each list, once each. */

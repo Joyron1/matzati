@@ -1,6 +1,7 @@
-// lib/hot/queries wiring: the carousel mixes the MIX_CATEGORY_IDS lists, products are saved with
-// no Hebrew titles of ours, and failures are returned (never thrown) and logged once. The cache,
-// Supabase and the gateway are faked; nothing here reaches AliExpress or Supabase.
+// lib/hot/queries wiring: the carousel picks at random from the MIX_CATEGORY_IDS lists (and the
+// other hot lists once warmed after a view), products are saved with no Hebrew titles of ours, and
+// failures are returned (never thrown) and logged once. The cache, Supabase and the gateway are
+// faked; nothing here reaches AliExpress or Supabase.
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -92,6 +93,20 @@ const linkAnswer = (sources: string[]) =>
     },
   });
 
+const ids = (ps: { productId: string }[]) => ps.map((p) => p.productId);
+
+/** A seeded random source (mulberry32), so a pick is repeatable. */
+function seeded(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4_294_967_296;
+  };
+}
+
 let fetchMock: ReturnType<typeof vi.fn<typeof fetch>>;
 let errors: ReturnType<typeof vi.spyOn>;
 
@@ -132,7 +147,7 @@ afterEach(() => {
 });
 
 describe("hotCarouselProducts", () => {
-  it("mixes the MIX_CATEGORY_IDS lists, CAROUSEL_SIZE products, and saves them untitled", async () => {
+  it("picks CAROUSEL_SIZE products from the MIX_CATEGORY_IDS lists, and saves them untitled", async () => {
     const { MIX_CATEGORY_IDS } = await import("./categories");
     const [first, second, third, fourth] = MIX_CATEGORY_IDS;
     gateway({
@@ -203,6 +218,130 @@ describe("hotCarouselProducts", () => {
     expect(calls(LINK_METHOD)).toBe(0);
     expect(errors).toHaveBeenCalledTimes(MIX_CATEGORY_IDS.length);
     expect(save).not.toHaveBeenCalled();
+  });
+
+  it("picks anew for each random source, every product passing FILTERS within the cap", async () => {
+    const { MIX_CATEGORY_IDS } = await import("./categories");
+    const [first, second, third, fourth] = MIX_CATEGORY_IDS;
+    gateway({
+      [first]: fixture("cat44-HE"),
+      [second]: fixture("all-HE"),
+      [third]: fixture("cat44-HE.page2"),
+      [fourth]: fixture("cat44-EN"),
+    });
+    const { FILTERS } = await import("@/lib/ranking/config");
+    const { CAROUSEL_MAX_PER_SUBCATEGORY } = await import("./select");
+    const { CAROUSEL_SIZE, hotCarouselProducts } = await import("./queries");
+    const now = new Date(clock.now);
+    const a = await hotCarouselProducts(now, seeded(1));
+    const b = await hotCarouselProducts(now, seeded(2));
+    // The lists were fetched once; the second view only picks again.
+    expect(calls()).toBe(MIX_CATEGORY_IDS.length);
+    expect(a.length).toBeGreaterThanOrEqual(CAROUSEL_SIZE);
+    expect(b.length).toBeGreaterThanOrEqual(CAROUSEL_SIZE);
+    expect(ids(b)).not.toEqual(ids(a));
+    expect(new Set(ids(b))).not.toEqual(new Set(ids(a)));
+    for (const p of [...a, ...b]) {
+      expect(p.positiveFeedbackPct).toBeGreaterThanOrEqual(FILTERS.minPositiveFeedbackPct);
+      expect(p.unitsSold).toBeGreaterThanOrEqual(FILTERS.minUnitsSold);
+    }
+    for (const list of [a, b]) {
+      const groups = new Map<string, number>();
+      for (const p of list) {
+        const g = p.subcategoryId ?? p.categoryId ?? "";
+        groups.set(g, (groups.get(g) ?? 0) + 1);
+      }
+      expect(Math.max(...groups.values())).toBeLessThanOrEqual(CAROUSEL_MAX_PER_SUBCATEGORY);
+    }
+  });
+
+  it("shows all it can when the lists hold fewer than CAROUSEL_SIZE", async () => {
+    const { MIX_CATEGORY_IDS } = await import("./categories");
+    gateway({ [MIX_CATEGORY_IDS[0]]: fixture("cat44-HE") });
+    const { randomCarouselProducts } = await import("./select");
+    const { CAROUSEL_SIZE, hotCarouselProducts, loadHotPool } = await import("./queries");
+    const products = await hotCarouselProducts(new Date(clock.now), seeded(3));
+    const pool = await loadHotPool(MIX_CATEGORY_IDS[0]);
+    const most = randomCarouselProducts([pool.ok ? pool.pool.products : []], 1_000, seeded(3));
+    expect(products.length).toBeLessThan(CAROUSEL_SIZE);
+    expect(products).toHaveLength(most.length);
+  });
+});
+
+describe("warmCarouselLists (after a home view)", () => {
+  /** Every hot category answers with a list: the mix with one fixture, the others with another. */
+  async function allLists() {
+    const { HOT_CATEGORY_IDS, MIX_CATEGORY_IDS } = await import("./categories");
+    const mix = new Set<string>(MIX_CATEGORY_IDS);
+    gateway(
+      Object.fromEntries(
+        HOT_CATEGORY_IDS.map((id) => [id, fixture(mix.has(id) ? "cat44-HE" : "all-HE")]),
+      ),
+    );
+  }
+
+  it("never makes the view wait: the extra lists join the pick only once warmed", async () => {
+    await allLists();
+    const { HOT_CATEGORY_IDS, MIX_CATEGORY_IDS } = await import("./categories");
+    const q = await import("./queries");
+    const view = () => q.hotCarouselProducts(new Date(clock.now), seeded(9));
+    const before = await view();
+    // The view itself fetched the mix only.
+    expect(calls()).toBe(MIX_CATEGORY_IDS.length);
+    const sent = () =>
+      fetchMock.mock.calls
+        .filter(([, init]) => methodOf(init) !== LINK_METHOD)
+        .map(([, init]) => new URLSearchParams(String(init?.body)).get("category_ids"));
+
+    const warmed = await q.warmCarouselLists(clock.now);
+    expect(warmed).toHaveLength(q.CAROUSEL_WARM_PER_VIEW);
+    expect(warmed.every((id) => q.CAROUSEL_EXTRA_CATEGORY_IDS.includes(id))).toBe(true);
+    // A cold list costs its list call and its hot links call.
+    expect(calls()).toBe(MIX_CATEGORY_IDS.length + q.CAROUSEL_WARM_PER_VIEW);
+    expect(calls(LINK_METHOD)).toBe(MIX_CATEGORY_IDS.length + q.CAROUSEL_WARM_PER_VIEW);
+
+    // The next view picks from the warmed lists too, with no call.
+    const callsBefore = fetchMock.mock.calls.length;
+    const after = await view();
+    expect(fetchMock).toHaveBeenCalledTimes(callsBefore);
+    expect(after.length).toBeGreaterThan(before.length);
+
+    // Each later view warms the next ones, until every hot category is held; then none.
+    while ((await q.warmCarouselLists(clock.now)).length) {
+      /* warming */
+    }
+    expect(new Set(sent())).toEqual(new Set(HOT_CATEGORY_IDS));
+    expect(sent()).toHaveLength(HOT_CATEGORY_IDS.length);
+    expect(await q.warmCarouselLists(clock.now)).toEqual([]);
+  });
+
+  it("skips a list that failed until its retry time", async () => {
+    const { MIX_CATEGORY_IDS } = await import("./categories");
+    // Only the mix answers: every extra list fails (a lasting failure waits HOT_LIST_TTL_MS).
+    gateway(Object.fromEntries(MIX_CATEGORY_IDS.map((id) => [id, fixture("cat44-HE")])));
+    const q = await import("./queries");
+    await q.hotCarouselProducts(new Date(clock.now));
+    const first = await q.warmCarouselLists(clock.now);
+    expect(first).toHaveLength(q.CAROUSEL_WARM_PER_VIEW);
+    const listCalls = calls();
+    const second = await q.warmCarouselLists(clock.now);
+    expect(second.some((id) => first.includes(id))).toBe(false);
+    expect(calls()).toBe(listCalls + second.length);
+    // The carousel still shows the mix.
+    expect((await q.hotCarouselProducts(new Date(clock.now))).length).toBeGreaterThan(0);
+  });
+
+  it("warms a held list again once it is older than HOT_LIST_TTL_MS, the oldest first", async () => {
+    await allLists();
+    const { HOT_LIST_TTL_MS } = await import("./loader");
+    const q = await import("./queries");
+    const first = await q.warmCarouselLists(clock.now);
+    clock.now += 60_000;
+    while ((await q.warmCarouselLists(clock.now)).length) {
+      /* warming the rest, a minute later */
+    }
+    clock.now += HOT_LIST_TTL_MS - 60_000;
+    expect(await q.warmCarouselLists(clock.now)).toEqual(first);
   });
 });
 

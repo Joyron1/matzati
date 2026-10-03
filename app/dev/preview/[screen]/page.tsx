@@ -445,7 +445,9 @@ function productData(now: Date): ProductPageData {
       }),
     ],
     apiCoupon: promo(now, { code: "AJO7RM0ITRX2" }),
-    // Never loaded: preload="none", and nothing here presses play.
+    // A made-up address: the gallery starts the video after mount (unless reduced motion or
+    // Save-Data), so the browser asks AliExpress's video host for it once, gets an error, and the
+    // poster stays.
     videoUrl: "https://video.aliexpress-media.com/preview/made-up.mp4",
     skuDetails,
   };

@@ -74,6 +74,7 @@ const ORIGIN_LABELS: Record<SearchOriginKind, string> = {
   more: MORE_BUTTON,
   preview: "עמוד SEO",
   ad: "מודעה או קמפיין",
+  bot: "סורק (מהמטמון בלבד)",
 };
 
 /** search_log.origin in Hebrew; null is the total row. */
