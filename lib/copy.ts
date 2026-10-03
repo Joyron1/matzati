@@ -20,7 +20,10 @@ export const BUY_LABEL = "לקנייה באלי אקספרס";
  * Next to every sale date the owner entered (CLAUDE.md §1): the dates are ours to keep up to date,
  * not an AliExpress feed. On /sales, the home countdown, the holiday cards on /deals and in .ics.
  */
-export const SALE_DATES_NOTE = "תאריכים לפי הודעת אלי אקספרס. אנחנו מעדכנים אותם ידנית.";
+// Before AliExpress announces a sale, its dates are the ones of earlier years (2026-10-04: 11.11
+// and Black Friday entered from the usual dates); a sale's own text says when they are expected.
+export const SALE_DATES_NOTE =
+  "תאריכים לפי אלי אקספרס ולפי המועדים של השנים הקודמות. אנחנו מעדכנים אותם ידנית.";
 
 /**
  * Under the code the owner added to a big sale (deals.coupon_code of a holiday), on /sales and

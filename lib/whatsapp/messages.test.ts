@@ -249,7 +249,7 @@ describe("texts", () => {
     const t = saleText(sale, new Date("2026-10-30T10:00:00Z"));
     expect(t).toContain("מבצע 11.11");
     expect(t).toContain("מתחיל ב־");
-    expect(t).toContain("תאריכים לפי הודעת אלי אקספרס");
+    expect(t).toContain("תאריכים לפי אלי אקספרס ולפי המועדים של השנים הקודמות");
     expect(saleText(sale, new Date("2026-11-11T10:00:00Z"))).toContain("רץ עכשיו");
     expect(saleText(null, new Date())).toContain("/sales");
   });
