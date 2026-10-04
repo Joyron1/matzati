@@ -163,6 +163,22 @@ describe("product synonym groups", () => {
     ).toBe(false);
   });
 
+  it("reads 'Case For iPhone 17' as an iPhone 17 case: a model number in the for-words", () => {
+    // Real titles of the SEO page "כיסוי לאייפון 17" (2026-10-04).
+    const cases = {
+      keywords_en: "iphone 17 case",
+      product_terms: ["iphone 17 case", "iphone 17 cover"],
+    };
+    for (const title of [
+      "Magnetic Original Clear Case For iPhone 17 16 15 14 Plus 13 12 Mini 11 Pro Max 16E 17E Funda",
+      "Luxury Shockproof Case For iPhone 17 Pro Max Protective Cover Magnetic Car Holder",
+    ]) {
+      expect([title, isRequestedProduct(title, cases)]).toEqual([title, true]);
+    }
+    // A case for another model stays out.
+    expect(isRequestedProduct("Clear Case For iPhone 15 Pro Max", cases)).toBe(false);
+  });
+
   it("matches a travel pillow for a neck pillow, not a U-shaped body pillow", () => {
     const neck = { keywords_en: "neck pillow", product_terms: ["neck pillow"] };
     expect(isRequestedProduct("Inflatable Travel Pillow Push Pump", neck)).toBe(true);

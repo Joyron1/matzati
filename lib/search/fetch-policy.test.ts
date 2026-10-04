@@ -308,6 +308,14 @@ describe("nextFetch", () => {
     });
   });
 
+  it("tries another phrasing before page 2 when every product of page 1 was of another type", () => {
+    // Live SEO page "מזוודה לילדים" (2026-10-04): "kids suitcase" brought stickers "for suitcase".
+    const p1 = times(50, () => offType());
+    expect(after([call(P, 1, p1)])).toEqual({
+      step: { keywords: "leakproof sports bottle", pageNo: 1 },
+    });
+  });
+
   it("stops when no step is left", () => {
     const only: ParsedQuery = {
       ...BOTTLE,

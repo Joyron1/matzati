@@ -318,7 +318,9 @@ export function termPhrasings(
     const core = variant.slice(split);
     const mark = close ? { close: true as const } : {};
     phrasings.push({ core, loose, ...mark });
-    if (core.length >= 2 && !core.some(hasDigit)) {
+    // "Case For iPhone 17 16 15" says "iphone 17 case": a number in the "for" words is a model
+    // (live SEO page "כיסוי לאייפון 17", 2026-10-04: 205 cases turned away), never in the noun.
+    if (core.length >= 2 && !hasDigit(core[core.length - 1])) {
       phrasings.push({ core: core.slice(-1), loose, forWords: core.slice(0, -1), ...mark });
     }
   }

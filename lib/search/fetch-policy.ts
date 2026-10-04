@@ -326,7 +326,12 @@ export function nextFetch(
   const r = rejectionCounts([...s.pool], s.filters);
   const trustLimited = r.feedback + r.volume > r.type + r.requirement;
   const page = nextPrimaryPage(s, primary, passed, primaryPages, fillTo);
-  if (page && !trustLimited) return { step: page };
+  // Page 2 of keywords whose products were all of another type brings more of the same: another phrasing
+  // first (live SEO page "מזוודה לילדים", 2026-10-04: five pages of "kids suitcase" were stickers
+  // "for suitcase", and "kids luggage" was never tried).
+  // A requirement that blocks keeps page 2: REQUIREMENT_STOP_CHECKED needs its 100 products.
+  const typeBlockedAll = passed === 0 && r.type > r.requirement;
+  if (page && !trustLimited && !typeBlockedAll) return { step: page };
   const tried = new Set(s.calls.map((c) => wordSet(c.keywords)));
   for (const kind of trustLimited ? TRUST_ORDER : RELEVANCE_ORDER) {
     const step = steps.find((k) => k.kind === kind && !tried.has(wordSet(k.keywords)));
