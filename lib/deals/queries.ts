@@ -20,6 +20,7 @@ import {
   updateDeal,
   updatePublished,
 } from "./db";
+import type { BarSale } from "./sale-bar";
 import { validateDealInput, type FieldErrors } from "./schema";
 
 export { DealNotFoundError, DealsDbError, isDealId } from "./db";
@@ -115,6 +116,31 @@ export const hasPublishedDeals = unstable_cache(
     }
   },
   ["has-published-deals"],
+  { revalidate: 300, tags: [DEALS_TAG] },
+);
+
+/**
+ * The sales the top bar may show (components/sale-bar.tsx): /sales' list, cut to what the bar
+ * needs, and when it was read (the bar's clock until the browser takes over). Cached like
+ * hasPublishedDeals; failures read as no sales, so the bar never breaks a page.
+ */
+export const saleBarSales = unstable_cache(
+  async (): Promise<{ checkedAt: number; sales: BarSale[] }> => {
+    const now = new Date();
+    try {
+      const sales = (await salesCalendar(now))
+        .slice(0, 5)
+        .flatMap((d) =>
+          d.starts_at === null
+            ? []
+            : [{ id: d.id, title: d.title, starts_at: d.starts_at, ends_at: d.ends_at }],
+        );
+      return { checkedAt: now.getTime(), sales };
+    } catch {
+      return { checkedAt: now.getTime(), sales: [] };
+    }
+  },
+  ["sale-bar-sales"],
   { revalidate: 300, tags: [DEALS_TAG] },
 );
 

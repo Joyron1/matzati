@@ -25,6 +25,9 @@ export const BUY_LABEL = "לקנייה באלי אקספרס";
 export const SALE_DATES_NOTE =
   "תאריכים לפי אלי אקספרס ולפי המועדים של השנים הקודמות. אנחנו מעדכנים אותם ידנית.";
 
+/** SALE_DATES_NOTE short enough for the top sale bar (components/sale-bar.tsx). */
+export const SALE_DATES_SHORT = "תאריכים לפי אלי אקספרס והשנים הקודמות";
+
 /**
  * Under the code the owner added to a big sale (deals.coupon_code of a holiday), on /sales and
  * /deals: ours, labelled "לפי תנאי הקופון", and sale codes often run out.

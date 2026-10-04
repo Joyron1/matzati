@@ -22,6 +22,13 @@
   --invert-bg: #0f1b2d;
   --invert-ink: #f3f6fb;
   --shadow: 0 18px 40px -22px rgba(15, 27, 45, 0.35);
+  /* The top sale bar (components/sale-bar.tsx): deep navy into cobalt in both themes. */
+  --promo-from: #0f1b2d;
+  --promo-to: #1e3bb8;
+  --promo-ink: #f3f6fb;
+  --promo-muted: #c3cde0;
+  --promo-cell: rgba(255, 255, 255, 0.1);
+  --promo-line: rgba(255, 255, 255, 0.16);
 }
 
 [data-theme="dark"] {
@@ -42,6 +49,12 @@
   --invert-bg: #e8edf6;
   --invert-ink: #0b1120;
   --shadow: 0 0 0 1px #26324d;
+  --promo-from: #131b2e;
+  --promo-to: #1f2b55;
+  --promo-ink: #e8edf6;
+  --promo-muted: #b3c0d9;
+  --promo-cell: rgba(255, 255, 255, 0.08);
+  --promo-line: #26324d;
 }
 
 @theme inline {
@@ -60,6 +73,10 @@
   --color-on-gold: var(--on-gold);
   --color-invert-bg: var(--invert-bg);
   --color-invert-ink: var(--invert-ink);
+  --color-promo-ink: var(--promo-ink);
+  --color-promo-muted: var(--promo-muted);
+  --color-promo-cell: var(--promo-cell);
+  --color-promo-line: var(--promo-line);
 
   --shadow-soft: var(--shadow);
 

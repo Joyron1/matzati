@@ -4,11 +4,13 @@ import { GoogleAnalytics } from "@/components/analytics/google-analytics";
 import { VercelAnalytics } from "@/components/analytics/vercel-analytics";
 import { ConsentManager } from "@/components/cookie-consent/consent-manager";
 import { InPageLink } from "@/components/in-page-link";
+import { SaleBar } from "@/components/sale-bar";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { ThemeProvider } from "@/components/theme-provider";
 import { BRAND } from "@/lib/config/brand";
 import { siteUrl } from "@/lib/config/site";
+import { saleBarSales } from "@/lib/deals/queries";
 import { OG_BASE } from "@/lib/seo/page-meta";
 import { publicSettings } from "@/lib/settings/queries";
 import "./globals.css";
@@ -55,7 +57,7 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const { measurementId } = await publicSettings();
+  const [{ measurementId }, saleBar] = await Promise.all([publicSettings(), saleBarSales()]);
   return (
     <html
       lang="he"
@@ -84,6 +86,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           >
             דלגו לתוכן
           </InPageLink>
+          {/* A big sale running or starting soon, above the header (hidden on /admin and /dev). */}
+          <SaleBar sales={saleBar.sales} checkedAt={saleBar.checkedAt} />
           <SiteHeader />
           {/* The skip link's target: a landmark, not a control, so no focus ring around it. */}
           <main id="main" className="flex-1 focus:outline-none">
