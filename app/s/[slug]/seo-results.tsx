@@ -5,6 +5,7 @@
 // ("מקומות 6–10"), so a line's "מבין החמישה" is visibly about its own row. Below xl, place 1 on top
 // and the rest a list of row cards. Every group is in the server HTML; GroupReveal shows one more
 // each time the visitor reaches the bottom. Also rendered by the dev preview (/dev/preview/seo-page).
+import { LESS_PROVEN_LABEL, LESS_PROVEN_NOTE } from "@/components/card-badges";
 import Link from "next/link";
 import { Search, Trophy } from "lucide-react";
 import { BuyButton } from "@/components/buy-button";
@@ -233,7 +234,7 @@ export function SeoResultsView({
   const hasPriceFilter = chips.some((c) => c.kind === "max_price" || c.kind === "min_price");
 
   return (
-    <section aria-label="המוצרים שעברו את הסינון" className="space-y-6">
+    <section aria-label="המוצרים" className="space-y-6">
       <div className="max-w-3xl space-y-4">
         <ReadOnlyChips chips={chips} />
         <div className="space-y-1">
@@ -246,7 +247,7 @@ export function SeoResultsView({
           <p className="text-sm text-muted">
             {/* Same rule as /search: when the second trust tier filled in, one pair of numbers
                 would be false for some cards, so the line names the criteria instead. */}
-            {shown.some((p) => p.passed_tier === "fill") ? (
+            {shown.some((p) => p.passed_tier === "fill" || p.passed_tier === "loose") ? (
               <>
                 הסינון: משוב חיובי ומספר מכירות ב־30 הימים האחרונים לפי{" "}
                 <Link
@@ -279,6 +280,12 @@ export function SeoResultsView({
             )}
             {shown.some((p) => p.price_is_approx) && <> {APPROX_PRICE_NOTE}</>}
           </p>
+          {/* Exact first, as /search (owner decision 2026-10-04): a less proven card is labelled. */}
+          {shown.some((p) => p.passed_tier === "loose") && (
+            <p className="text-sm text-muted">
+              ״{LESS_PROVEN_LABEL}״: {LESS_PROVEN_NOTE}
+            </p>
+          )}
         </div>
       </div>
 

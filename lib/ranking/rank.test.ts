@@ -1396,7 +1396,7 @@ describe("exact first (a visitor's search)", () => {
     expect(ids(ranked)).toEqual(["fs"]);
   });
 
-  it("keeps an SEO refresh to the vetted tiers, exact and close alike", () => {
+  it("rankWithFill without exactFirst keeps to the vetted tiers, exact and close alike", () => {
     const { ranked, looseIds } = rankWithFill([statue, funkoLoose, funkoStandard], pop, 5, "none");
     expect(ids(ranked).sort()).toEqual(["fs", "st"]);
     expect(looseIds).toEqual([]);

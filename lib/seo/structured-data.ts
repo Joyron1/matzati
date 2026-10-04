@@ -23,7 +23,7 @@ export function truncateAtWord(text: string, max: number): string {
 export function seoDescription(page: Pick<SeoPage, "title_he" | "intro_he">): string {
   if (page.intro_he?.trim()) return truncateAtWord(page.intro_he, DESCRIPTION_MAX);
   return truncateAtWord(
-    `${page.title_he}: מוצרים מאלי אקספרס שעברו סינון לפי משוב של קונים ומספר מכירות. ${BRAND.name} מראה רק את מה שעבר.`,
+    `${page.title_he}: מוצרים מאלי אקספרס מסודרים לפי משוב של קונים ומספר מכירות. ${BRAND.name} מראה קודם את מה שעבר את הסינון ומסמן מוצר פחות מוכח.`,
     DESCRIPTION_MAX,
   );
 }

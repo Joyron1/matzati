@@ -475,12 +475,12 @@ export async function fetchAndRank(
   }
   const pool = [...seen.values()];
   meta.rejected = rejectionCounts(pool, parsed);
-  // A visitor's search ranks exact first (rankForSearch: the vetted tiers, then the less proven
-  // LOOSE_TIER, then close matches). An SEO refresh (limits) keeps the vetted tiers only: FILTERS,
-  // topped up to one page from FILL_TIER. The shop cap's first page is RESULTS_PER_PAGE either way.
+  // Exact first (rankForSearch: the vetted tiers, then the less proven LOOSE_TIER, then close
+  // matches), for a visitor's search and an SEO refresh alike (owner decision 2026-10-04: the weak
+  // landing pages fill up the same way). The shop cap's first page is RESULTS_PER_PAGE.
   const fillTo = limits?.fillTo ?? FILL_UP_TO;
   const final = rankWithFill(pool, parsed, fillTo, deps.shopCap, RESULTS_PER_PAGE, {
-    exactFirst: !limits,
+    exactFirst: true,
   });
   // passed counts every distinct product that met the vetted tiers, not just the ones we keep: a
   // less proven product (LOOSE_TIER) is shown, labelled, but never counted as passed.

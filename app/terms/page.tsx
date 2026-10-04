@@ -92,7 +92,7 @@ export default function TermsPage() {
 
       {/* CLAUDE.md §1 (honest data), §5.3, §6 (filters, explain post-checks), §7 (/p, /hot).
           The thresholds: FILTERS, FILL_TIER and LOOSE_TIER (lib/ranking/config.ts; a search ranks
-          exact first, rankForSearch in lib/ranking/rank.ts; SEO pages rankWithFill, vetted only); hot lists pass FILTERS only (lib/hot/). /p shows any saved product
+          exact first, rankForSearch in lib/ranking/rank.ts; SEO refreshes too); hot lists pass FILTERS only (lib/hot/). /p shows any saved product
           with its checks against FILTERS (app/p/[productId]/product-view.tsx), including products
           the admin imported for a deal or coupon (lib/deals/import-product.ts,
           lib/coupons/product-import.ts: no trust filter). */}
@@ -114,8 +114,8 @@ export default function TermsPage() {
             % ומעלה ולפחות {FILL_TIER.minUnitsSold} מכירות. אחריהם מוצרים שמתאימים בדיוק לחיפוש אבל
             פחות מוכחים, עם {LOOSE_TIER.minPositiveFeedbackPct}% משוב חיובי ומעלה ולפחות{" "}
             {LOOSE_TIER.minUnitsSold} מכירות, ומסומנים ״פחות מוכח״. בסוף מוצרים קרובים למה שחיפשתם
-            שעברו את הסינון. ברשימת המוצרים החמים ובעמודי החיפושים הפופולריים מוצגים רק מוצרים שעברו
-            את הסינון.
+            שעברו את הסינון. כך גם בעמודי החיפושים הפופולריים. ברשימת המוצרים החמים מוצגים רק מוצרים
+            שעברו את הסינון.
           </li>
           <li>
             בעמוד של מוצר מוצגים הנתונים העדכניים שבדקנו, וכתוב אם המוצר עדיין עומד בספים שלנו.
