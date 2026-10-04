@@ -47,4 +47,17 @@ export const PRODUCT_KINDS: readonly (readonly [string, string])[] = [
   ["car phone holder", "wireless car charger"],
   ["drawer organizer", "cutlery tray"],
   ["drawer organizer", "utensil tray"],
+  // A "pop" of a character is any figure of it (owner decision 2026-10-04): on AliExpress few Funko
+  // listings pass the trust bar (live "Naruto pop": 1 of 23), while other figures of the same
+  // character do. The character itself is a requirement, so other anime still fail.
+  ["pop figure", "action figure"],
+  ["pop figure", "anime figure"],
+  ["pop figure", "figurine"],
+  // Collectible figures sold in mystery boxes ("POP MART Naruto ... Blind Box ... Anime Figure")
+  // name the box early and the figure past the opening the type gate reads.
+  ["pop figure", "blind box"],
+  ["funko pop", "action figure"],
+  ["funko pop", "anime figure"],
+  ["funko pop", "figurine"],
+  ["funko pop", "blind box"],
 ];

@@ -148,7 +148,8 @@ function preferenceNumberWords(parsed: ParsedQuery): Set<string> {
  * What a keyword step is: the parse's own keywords, those without audience and praise words and
  * without the number a preference names ("general": "sonic birthday balloons" after "sonic 3rd
  * birthday balloons"), also without the requirement words ("reduced"), a product phrase with the main
- * requirement ("term"), or the broader category hint ("category").
+ * requirement ("term"), or the broader category hint with the main requirement ("category"; the
+ * bare hint is then "reduced", and "category" when it has no room for the requirement).
  */
 export type KeywordKind = "primary" | "general" | "reduced" | "term" | "category";
 
@@ -204,8 +205,20 @@ export function keywordSteps(parsed: ParsedQuery): KeywordStep[] {
       words(main).length + termWords.size <= MAX_STEP_WORDS;
     add(withReq ? `${main} ${t}` : t, "term");
   }
+  // The category with the main requirement first ("naruto collectible figures"): without it a
+  // named character or brand is left to chance, and "collectible figures" brought figures of
+  // every other anime (live "Naruto pop", 2026-10-04). The bare hint then drops the requirement
+  // words, so it is a "reduced" step, tried after the other one.
   const hint = parsed.category_hint?.trim();
-  if (hint && hint.split(/\s+/).length >= 2) add(hint, "category");
+  if (hint && hint.split(/\s+/).length >= 2) {
+    const hintWords = new Set(words(hint));
+    const withMain =
+      main &&
+      !words(main).every((w) => hintWords.has(w)) &&
+      words(main).length + hintWords.size <= MAX_STEP_WORDS;
+    if (withMain) add(`${main} ${hint}`, "category");
+    add(hint, withMain ? "reduced" : "category");
+  }
   return steps;
 }
 
@@ -276,8 +289,12 @@ function nextPrimaryPage(
   return { keywords: primary, pageNo: last.pageNo + 1 };
 }
 
-const TRUST_ORDER: readonly KeywordKind[] = ["general", "reduced", "term", "category"];
-const RELEVANCE_ORDER: readonly KeywordKind[] = ["term", "general", "reduced", "category"];
+// Steps that keep the requirement words come before "reduced", which drops them: a product found
+// without them passes only when its title happens to state the requirement anyway, which a
+// feature ("leakproof") often does and a named character ("naruto") seldom does (live "Naruto
+// pop", 2026-10-04: "pop figure" and "collectible figures" spent 2 of 4 calls on other anime).
+const TRUST_ORDER: readonly KeywordKind[] = ["general", "term", "category", "reduced"];
+const RELEVANCE_ORDER: readonly KeywordKind[] = ["term", "general", "category", "reduced"];
 
 /**
  * The next call of a search, or why it stops (see the file header). The first call is page 1 of

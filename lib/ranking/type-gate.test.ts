@@ -139,6 +139,30 @@ describe("product synonym groups", () => {
     ).toBe(true);
   });
 
+  it("matches any figure of the character for a pop figure, one way only", () => {
+    // Real titles of the live "Naruto pop" search (2026-10-04; owner decision: figures of the
+    // character are wanted when few Funko listings pass the trust bar).
+    const pop = { keywords_en: "naruto pop figure", product_terms: ["pop figure", "funko pop"] };
+    for (const title of [
+      "Funko Pop Naruto Kurama Sasuke Wakaki Boruto SIX PATH KAKASHI Vinyl Figures Keychain Toys",
+      "POP MART Naruto Shippuden Childhood Series Trendy Mystery Box Anime Action Figure Blind Random Box Toys",
+      "POP MART GONG Naruto Shippuden Akatsuki Arc Series Trendy Blind Random Box Toys Mystery Box",
+      "Genuine Naruto Blind Box Mini Bean Figurines Hatake Kakashi Anime Figures Naruto Keycaps",
+    ]) {
+      expect([title, isRequestedProduct(title, pop)]).toEqual([title, true]);
+    }
+    // Other products of the character stay out, and a figure search does not take a pop only.
+    expect(isRequestedProduct("Naruto Akatsuki Hoodie Men Women Anime Sweatshirt", pop)).toBe(
+      false,
+    );
+    expect(
+      isRequestedProduct("Funko Pop Naruto Uchiha Madara #722 Vinyl", {
+        keywords_en: "anime figure",
+        product_terms: ["anime figure"],
+      }),
+    ).toBe(false);
+  });
+
   it("matches a travel pillow for a neck pillow, not a U-shaped body pillow", () => {
     const neck = { keywords_en: "neck pillow", product_terms: ["neck pillow"] };
     expect(isRequestedProduct("Inflatable Travel Pillow Push Pump", neck)).toBe(true);

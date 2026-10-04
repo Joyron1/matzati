@@ -97,7 +97,9 @@ describe("keywordSteps", () => {
       { keywords: "night light", kind: "reduced" },
       // "motion sensor night light" is already the general step; this one has 5 words with it.
       { keywords: "kids night light", kind: "term" },
-      { keywords: "children lighting", kind: "category" },
+      // The hint with the main requirement is 4 words: it fits, and the bare hint drops it.
+      { keywords: "motion sensor children lighting", kind: "category" },
+      { keywords: "children lighting", kind: "reduced" },
     ]);
     expect(keywordLadder(night)).toEqual(keywordSteps(night).map((s) => s.keywords));
   });
@@ -114,6 +116,7 @@ describe("keywordSteps", () => {
       "leak proof kids water bottle",
       "kids water bottle",
       "leak proof bottle",
+      "leak proof kids drinkware",
       "kids drinkware",
     ]);
     const shoes: ParsedQuery = {
@@ -124,6 +127,35 @@ describe("keywordSteps", () => {
       category_hint: undefined,
     };
     expect(keywordLadder(shoes)).toEqual(["women running shoes", "running shoes"]);
+  });
+
+  it("keeps a named character in the category step and drops it only in the reduced steps", () => {
+    // Live "Naruto pop", 2026-10-04: "pop figure" and "collectible figures" brought other anime.
+    const naruto: ParsedQuery = {
+      keywords_en: "naruto pop figure",
+      product_terms: ["pop figure", "funko pop"],
+      requirements: [{ en: "naruto", alt: ["naruto shippuden"], he: "נארוטו" }],
+      sort_preference: "best_value",
+      product_he: "פופ נארוטו",
+      category_hint: "collectible figures",
+    };
+    expect(keywordSteps(naruto)).toEqual([
+      { keywords: "naruto pop figure", kind: "primary" },
+      { keywords: "pop figure", kind: "reduced" },
+      { keywords: "naruto funko pop", kind: "term" },
+      { keywords: "naruto collectible figures", kind: "category" },
+      { keywords: "collectible figures", kind: "reduced" },
+    ]);
+    // Trust limited the first page: the steps that keep "naruto" come first.
+    const lowTrust = times(50, () =>
+      product({ title: `Naruto Funko Pop Figure ${word(serial)}`, positiveFeedbackPct: 80 }),
+    );
+    const first = call("naruto pop figure", 1, lowTrust);
+    expect(after([first], naruto)).toEqual({ step: { keywords: "naruto funko pop", pageNo: 1 } });
+    const second = call("naruto funko pop", 1, lowTrust);
+    expect(after([first, second], naruto)).toEqual({
+      step: { keywords: "naruto collectible figures", pageNo: 1 },
+    });
   });
 
   it("drops praise words and never repeats a set of words", () => {
@@ -197,9 +229,10 @@ describe("nextFetch", () => {
     ];
     expect(after([call(P, 1, low)])).toEqual(noMore);
     const fillable = [...times(2, () => good()), ...times(47, () => offType({ unitsSold: fill }))];
-    // Off-type items at FILL_TIER's sales are volume rejections (trust): broader keywords first.
+    // Off-type items at FILL_TIER's sales are volume rejections (trust): broader keywords first,
+    // those that keep the requirement before those that drop it.
     expect(after([call(P, 1, fillable)])).toEqual({
-      step: { keywords: "water bottle", pageNo: 1 },
+      step: { keywords: "leakproof sports bottle", pageNo: 1 },
     });
     // With the first view passing, the bar is FILTERS' 100 sales.
     const view = [
@@ -230,24 +263,36 @@ describe("nextFetch", () => {
 
   it("goes to broader keywords first when trust limited the results, page 2 last", () => {
     const p1 = [good(), ...times(49, () => lowFeedback())];
-    expect(after([call(P, 1, p1)])).toEqual({ step: { keywords: "water bottle", pageNo: 1 } });
-    const l1 = call(
-      "water bottle",
-      1,
-      times(50, () => lowFeedback()),
-    );
-    // Still trust: the other broader steps, and page 2 only when none is left.
-    const two = after([call(P, 1, p1), l1]);
-    expect(two).toEqual({ step: { keywords: "leakproof sports bottle", pageNo: 1 } });
+    const low = (keywords: string) =>
+      call(
+        keywords,
+        1,
+        times(50, () => lowFeedback()),
+      );
+    // The steps that keep the requirement first, then those without it.
+    expect(after([call(P, 1, p1)])).toEqual({
+      step: { keywords: "leakproof sports bottle", pageNo: 1 },
+    });
+    const l1 = low("leakproof sports bottle");
+    expect(after([call(P, 1, p1), l1])).toEqual({
+      step: { keywords: "leakproof drink bottles", pageNo: 1 },
+    });
+    const l2 = low("leakproof drink bottles");
+    expect(after([call(P, 1, p1), l1, l2])).toEqual({
+      step: { keywords: "water bottle", pageNo: 1 },
+    });
+    // Page 2 only when no step is left.
     const noHint = { ...BOTTLE, product_terms: ["water bottle"], category_hint: undefined };
-    expect(after([call(P, 1, p1), l1], noHint)).toEqual({ step: { keywords: P, pageNo: 2 } });
+    expect(after([call(P, 1, p1), low("water bottle")], noHint)).toEqual({
+      step: { keywords: P, pageNo: 2 },
+    });
   });
 
   it("does not repeat keywords already fetched, whatever their word order", () => {
     const p1 = [good(), ...times(20, () => offType())];
     const tried = call("sports bottle leakproof", 1, [offType()]);
     expect(after([call(P, 1, p1, 21), tried])).toEqual({
-      step: { keywords: "water bottle", pageNo: 1 },
+      step: { keywords: "leakproof drink bottles", pageNo: 1 },
     });
   });
 

@@ -1,0 +1,1847 @@
+{
+  "format": 1,
+  "name": "pop-before",
+  "generatedBy": "scripts/eval-offline.ts",
+  "rankingVersion": 10,
+  "snapshots": {
+    "count": 32,
+    "ids": ["car-holder","cheapest-cable","gift-cook","ho-gift-garden","ho-neck-pillow","ho-powerbank","ho-slippers","ho-speaker","home-drawer","home-nightlight","kids-bottle","kids-toy","pair-a","pair-a2","pair-b2","price-range-bag","price-watch","slang-mouse","tech-charger","typo-earbuds","ex-1","ex-2","ex-3","ex-4","ex-5","ex-6","ex-7","ex-8","ex-9","live-drawer-organizer","live-sonic-doll","live-soundbar"]
+  },
+  "labels": {
+    "files": ["fixtures/snapshots/labels/car-holder.json","fixtures/snapshots/labels/cheapest-cable.json","fixtures/snapshots/labels/ex-1.json","fixtures/snapshots/labels/ex-2.json","fixtures/snapshots/labels/ex-3.json","fixtures/snapshots/labels/ex-4.json","fixtures/snapshots/labels/ex-5.json","fixtures/snapshots/labels/ex-6.json","fixtures/snapshots/labels/ex-7.json","fixtures/snapshots/labels/ex-8.json","fixtures/snapshots/labels/ex-9.json","fixtures/snapshots/labels/gift-cook.json","fixtures/snapshots/labels/ho-gift-garden.json","fixtures/snapshots/labels/ho-neck-pillow.json","fixtures/snapshots/labels/ho-powerbank.json","fixtures/snapshots/labels/ho-slippers.json","fixtures/snapshots/labels/ho-speaker.json","fixtures/snapshots/labels/home-drawer.json","fixtures/snapshots/labels/home-nightlight.json","fixtures/snapshots/labels/kids-bottle.json","fixtures/snapshots/labels/kids-toy.json","fixtures/snapshots/labels/live-drawer-organizer.json","fixtures/snapshots/labels/live-sonic-doll.json","fixtures/snapshots/labels/live-soundbar.json","fixtures/snapshots/labels/pair-a.json","fixtures/snapshots/labels/pair-a2.json","fixtures/snapshots/labels/pair-b2.json","fixtures/snapshots/labels/price-range-bag.json","fixtures/snapshots/labels/price-watch.json","fixtures/snapshots/labels/slang-mouse.json","fixtures/snapshots/labels/tech-charger.json","fixtures/snapshots/labels/typo-earbuds.json"],
+    "queries": 32,
+    "entries": 3419
+  },
+  "runs": [
+    {
+      "variant": {
+        "name": "current",
+        "policy": "current",
+        "policyDescription": "the live pipeline (lib/search/fetch-policy.ts): until 15 pass or 4 calls; p2 while it can pass the trust bar; broader keywords by what blocked; stops on a requirement none mentions",
+        "rank": "pipeline",
+        "sort": null,
+        "without": [],
+        "adjustedParse": false,
+        "shopCap": "none",
+        "pageSize": 5
+      },
+      "summary": {
+        "queries": 32,
+        "copies": 4,
+        "incomplete": ["gift-cook","ho-gift-garden","home-nightlight","kids-toy","pair-a","price-watch","tech-charger","ex-1","ex-2","ex-5","ex-7","live-sonic-doll","live-soundbar"],
+        "errors": [],
+        "aliCalls": 48,
+        "checked": 2362,
+        "passed": 520,
+        "noResults": [],
+        "underOnePage": ["tech-charger","live-sonic-doll"],
+        "exactlyOnePage": [],
+        "twoPagesOrMore": 26,
+        "firstView": {
+          "shown": 293,
+          "under": ["ho-gift-garden","home-nightlight","tech-charger","ex-5","live-sonic-doll","live-soundbar"],
+          "good": 261,
+          "labelled": 293,
+          "wrong": 7
+        },
+        "moreAvailable": 30,
+        "sameShopTop3": ["car-holder","cheapest-cable","gift-cook","ho-gift-garden","ho-neck-pillow","ho-powerbank","ho-slippers","ho-speaker","home-drawer","kids-toy","pair-a","pair-a2","pair-b2","price-range-bag","price-watch","slang-mouse","typo-earbuds","ex-1","ex-2","ex-3","ex-4","ex-6","ex-7","ex-8","ex-9","live-drawer-organizer","live-sonic-doll","live-soundbar"],
+        "sameShop3Plus": ["car-holder","cheapest-cable","gift-cook","ho-neck-pillow","ho-powerbank","ho-slippers","ho-speaker","home-drawer","kids-toy","pair-a2","pair-b2","price-range-bag","price-watch","slang-mouse","typo-earbuds","ex-2","ex-3","ex-4","ex-6","ex-7","ex-8","ex-9","live-drawer-organizer","live-soundbar"],
+        "meanBudgetShare": 0.35,
+        "shops": {
+          "queries": 28,
+          "cards": 136,
+          "topShop": {
+            "id": "1103573332",
+            "leads": 20,
+            "cards": 98
+          },
+          "shared": {
+            "leads": 20,
+            "cards": 98
+          }
+        },
+        "labels": {
+          "queries": 32,
+          "leadCorrect": 31,
+          "leadLabelled": 32,
+          "cardsGood": 144,
+          "cardsLabelled": 156,
+          "cardsShown": 156,
+          "wrongTop3": 1,
+          "typeFalseNegatives": 280,
+          "typeFalseNegativesBlocking": 227,
+          "falsePositives": 35,
+          "unlabelledTop6": 0,
+          "unknownIds": 0
+        }
+      },
+      "queries": [
+        {
+          "id": "car-holder",
+          "group": "eval",
+          "query": "מחזיק טלפון לרכב עם טעינה אלחוטית",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 140,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 50,
+          "passed": 15,
+          "fill": 0,
+          "shown": 5,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005007097351039","label":"exact","tier":"standard","shop":"1103573332","price":29.49,"feedbackPct":98,"unitsSold":2347,"shared":true,"title":"Essager Magnetic Wireless Charger Car Phone Holder 15W RGB Seven Color Light Fast Charging Mount Stand For IPhone15 14 13Android"},
+            {"id":"1005011718120542","label":"exact","tier":"standard","shop":"1103573332","price":16.04,"feedbackPct":98,"unitsSold":1944,"shared":true,"title":"Magnetic Wireless Car Charger Air Vent Clip Phone Holder For Magsafe iPhone 17 16 15 14 13 12 Pro Max Fast Car Charging Stand"},
+            {"id":"1005006861015027","label":"exact","tier":"standard","shop":"1103573332","price":31.42,"feedbackPct":98,"unitsSold":3149,"shared":true,"title":"Magnetic Car Wireless Charger Stand Magnet Car Mount Fast Charging Station Phone Holder Bracket For Macsfae iPhone 15 14 13 12"},
+            {"id":"1005006678136283","label":"exact","tier":"standard","shop":"1103573332","price":24.4,"feedbackPct":98,"unitsSold":1870,"shared":true,"title":"Magnetic Car Wireless Charger RGB For iPhone12 13 14 15 16 17 Pro Max Macsafe Car Phone Holder Stand Mount Fast Charging Station"},
+            {"id":"1005012263000564","label":"exact","tier":"standard","shop":"1103573332","price":21.75,"feedbackPct":98,"unitsSold":4911,"shared":true,"title":"30W Fast Charging Magnetic Car Wireless Charger, LED Light Phone Mount Holder for iPhone 12, 13, 14, 15，16，17， Pro Max"}
+          ],
+          "next3": [
+            {"id":"1005005544072940","label":"exact","tier":"standard","shop":"2343184","price":76.8,"feedbackPct":97.1,"unitsSold":2484,"title":"Baseus Magnetic Wireless Charger Car Phone Holder 15W Fast Charging Wireless Car Charger Holder For iPhone 16 15 14 13 Car Mount"},
+            {"id":"1005010487359429","label":"exact","tier":"standard","shop":"1103573332","price":13.89,"feedbackPct":98,"unitsSold":5115,"shared":true,"title":"Magnetic Car Wireless Charger Mount 15W Fast Charging For iPhone 12 13 14 15 16 Samsung Qi Phone 360 Rotation Vent Clip No Cable"},
+            {"id":"1005012221744624","label":"exact","tier":"standard","shop":"1103573332","price":91.82,"feedbackPct":98,"unitsSold":1671,"shared":true,"title":"Toocki Qi2.2 25W Wireless Charger Magnetic Car Phone Holder TEC Cooling for iPhone 17 16 15 Samsung S26 S25 for Magsafe Charger"},
+            {"id":"1005011942686816","label":"exact","tier":"standard","shop":"1103573332","price":22.01,"feedbackPct":98,"unitsSold":2061,"shared":true,"title":"30W Car Charger, Auto-Lock Wireless Fast Charging Phone Mount, Secure Car Charging Dock for iPhone 12 13 14 15 16 17 Xiaomi"},
+            {"id":"1005009889116002","label":"exact","tier":"standard","shop":"301635","price":101.15,"feedbackPct":96.6,"unitsSold":3436,"title":"UGREEN Qi2.2 25W 15W Magnetic Car Phone Holder Wireless Charger Stand For iPhone 17 16 Pro Max Charging Magnetic Car Charger"}
+          ],
+          "sameShopTop3": 5,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 11,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 7,
+            "requirement": 6
+          },
+          "labels": {
+            "count": 115,
+            "leadCorrect": true,
+            "cardsGood": 5,
+            "cardsLabelled": 5,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005008660246574","1005008458283071","1005008932603515","1005008666261754"],
+            "typeFalseNegativesBlocking": ["1005008660246574","1005008458283071","1005008932603515","1005008666261754"],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "cheapest-cable",
+          "group": "eval",
+          "query": "הכי זול: כבל USB-C לאייפון 15",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 140,
+          "error": null,
+          "sort": "cheapest",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 50,
+          "passed": 22,
+          "fill": 0,
+          "shown": 5,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005006997190677","label":"exact","tier":"standard","shop":"1103573332","price":4.35,"feedbackPct":98,"unitsSold":12439,"shared":true,"title":"100W C to C USB C to USB C PD Cable for iPhone 15 Pro Max iPad 10 MacBook Huawei Xiaomi Type C to Type C PD Fast Charging Cable"},
+            {"id":"1005006967329774","label":"exact","tier":"standard","shop":"1103573332","price":4.64,"feedbackPct":98,"unitsSold":10401,"shared":true,"title":"Toocki 6A USB Cable Type C 66W Fast Charging For Huawei P40 P30 Type C Cable For iPhone 15 Pro Max Xiaomi Samsung S24 Data Cord"},
+            {"id":"1005007129679040","label":"exact","tier":"standard","shop":"1103573332","price":4.83,"feedbackPct":98,"unitsSold":19313,"shared":true,"title":"PD 60W USB C to USB Type C Cable Fast Charge Data Cable For Iphone 15 15Pro Huawei Samsung Xiaomi Data Line Black White 1M 2M 3M"},
+            {"id":"1005013255385720","label":"weak","tier":"standard","shop":"1103573332","price":4.85,"feedbackPct":98,"unitsSold":11685,"shared":true,"title":"USB Type C to Type C Charging Cable with Short Extension, Keychain Design, Suitable for iPhone 15, 16, Samsung, and Xiao mi"},
+            {"id":"1005007010293617","label":"exact","tier":"standard","shop":"1103573332","price":4.92,"feedbackPct":98,"unitsSold":24711,"shared":true,"title":"60W USB C Cable For iPhone 16 15 Plus Pro Max Xiaomi Type C Cable PD Fast Charger Cord Type-C Cable Phone Cable Accessories"}
+          ],
+          "next3": [
+            {"id":"1005006212088373","label":"exact","tier":"standard","shop":"1103268049","price":4.98,"feedbackPct":95.8,"unitsSold":21772,"title":"USB-C to Type C Color Cable For Apple iPhone 15 PD 60W Fast Charging For Huawei Xiaomi Samsung Type C Weaving Cable Accessories"},
+            {"id":"1005011759391869","label":"exact","tier":"standard","shop":"1104633993","price":5.23,"feedbackPct":95.2,"unitsSold":17839,"title":"60W PD Nylon Braided USB-C to USB C Fast Charger Cable For iPhone 17 16 15 /Pro Max Compatibility Samsung Type C Fast Charging"},
+            {"id":"1005006967360757","label":"reasonable","tier":"standard","shop":"1103573332","price":5.44,"feedbackPct":98,"unitsSold":20576,"shared":true,"title":"Toocki USB Type C Cable Fast Charging USB C Charger Cord For iPhone 15 14 13 12 11 Huawei P40 P30 Realme Oppo Oneplus Power Bank"},
+            {"id":"1005006966435258","label":"exact","tier":"standard","shop":"1103573332","price":5.51,"feedbackPct":98.2,"unitsSold":25923,"shared":true,"title":"Toocki 100W Type C to USB C Cable PD 3.0 Quick Charge 4.0 Fast Charging Type C to Type C for iPhone 15 Macbook Samsung Xiaomi"},
+            {"id":"1005008909080009","label":"exact","tier":"standard","shop":"1103573332","price":5.93,"feedbackPct":98,"unitsSold":18498,"shared":true,"title":"LAIHONEN 1PC USB C Cable 1M 2M 3M 10FT USB C Data Transfer 60W PD Fast Charging Cable for iPhone 15 15Plus 15Pro Max"}
+          ],
+          "sameShopTop3": 5,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 1,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 6,
+            "requirement": 5
+          },
+          "labels": {
+            "count": 128,
+            "leadCorrect": true,
+            "cardsGood": 4,
+            "cardsLabelled": 5,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005012613871856","1005007728418448","1005006995911581","1005008765247136","1005011824542632","1005013266358108"],
+            "typeFalseNegativesBlocking": ["1005012613871856","1005007728418448","1005006995911581","1005008765247136","1005011824542632"],
+            "falsePositives": ["1005006967384811"],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "gift-cook",
+          "group": "eval",
+          "query": "מתנה לאבא שאוהב לבשל עד 200 ש״ח",
+          "sameQueryAs": null,
+          "parseVersion": 5,
+          "snapshotPool": 149,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1","primary-p2"],
+            "calls": 2,
+            "missing": "cooking utensils (p1)"
+          },
+          "checked": 100,
+          "passed": 10,
+          "fill": 0,
+          "shown": 5,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005012743006539","label":"reasonable","tier":"standard","shop":"1103573332","price":36.26,"feedbackPct":98,"unitsSold":602,"shared":true,"title":"5-piece kitchen tool set, including a small chopping knife, scissors, fruit knife, peeler, and knife block, suitable for househo"},
+            {"id":"1005007169766992","label":"weak","tier":"standard","shop":"1103573332","price":11.69,"feedbackPct":98,"unitsSold":1079,"shared":true,"title":"1/3PCS Nylon Kitchen Utensils Set Kitchen Cooking Tools  Slotted Turner Solid Spoon Fork Children Spade Fork Spoon Dinnerware"},
+            {"id":"1005006997354157","label":"exact","tier":"standard","shop":"1103573332","price":53.24,"feedbackPct":98,"unitsSold":766,"shared":true,"title":"12Pcs Kitchen Utensil Set Silicone Spatula Set Wooden Handle Cooking Tools Kit with Holder Heat-Resistant Cookware for Kitchen"},
+            {"id":"1005008248012879","label":"weak","tier":"standard","shop":"1103573332","price":12.1,"feedbackPct":98,"unitsSold":3693,"shared":true,"title":"HILIFE Practical 60 Minutes Kitchen Timer Cooking Tools White Square Mechanical Timer Countdown Alarm Reminder"},
+            {"id":"1005008248140308","label":"reasonable","tier":"standard","shop":"1103573332","price":24.8,"feedbackPct":98,"unitsSold":712,"shared":true,"title":"6 Pieces Bamboo Spoon Spatula Kitchen Utensil Wooden Cooking Tool Mixing Set"}
+          ],
+          "next3": [
+            {"id":"1005007663259910","label":"weak","tier":"standard","shop":"1102425791","price":5.8,"feedbackPct":95.1,"unitsSold":1451,"title":"Measuring Cup And  Spoon 5/10PCS Household Kitchen Tool Set, Can Be Used To Store Cooking"},
+            {"id":"1005007170813797","label":"wrong","tier":"standard","shop":"1103573332","price":18.82,"feedbackPct":98,"unitsSold":2915,"shared":true,"title":"Real Cooking Toddler Children Cooking Set Early Learning Kitchen Tools Safety Knives Without Hands Fruit Supplementary Food Set"},
+            {"id":"1005010530057499","label":"weak","tier":"standard","shop":"1103573332","price":9.45,"feedbackPct":98,"unitsSold":603,"shared":true,"title":"1 Set DIY Sushi Press Mold Rice Ball Home Kitchen Food Utensils for Kitchen Kit Convenient Japan Bento Accessories Sushi Tools"},
+            {"id":"1005007611485410","label":"weak","tier":"standard","shop":"1103856072","price":8.4,"feedbackPct":95.1,"unitsSold":782,"title":"Sandwich Cutting and Sealing Machine, biscuit Plastic Cutting Machine, Household Kitchen Tools, baking Molds, Creative Cutting"},
+            {"id":"1005012705511099","label":"wrong","tier":"standard","shop":"1104393123","price":23.17,"feedbackPct":94.4,"unitsSold":679,"title":"22Pcs Stainless Steel Caulking Nozzle Tool Set Silicone Sealant Finishing Tools For Kitchen Bathroom Sink Joint Sealing Work"}
+          ],
+          "sameShopTop3": 5,
+          "budgetShare": 0.14,
+          "rejected": {
+            "feedback": 13,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 75,
+            "requirement": 0
+          },
+          "labels": {
+            "count": 130,
+            "leadCorrect": true,
+            "cardsGood": 3,
+            "cardsLabelled": 5,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005013262555028","1005008077524666","1005009916287051","1005007811194179","1005007635090428","1005008660310361","1005011717779648","1005009751349013","1005007016051853","1005009054990325","1005008239033716","1005006994560658","1005006904728187"],
+            "typeFalseNegativesBlocking": ["1005013262555028","1005008077524666","1005009916287051","1005007811194179","1005007635090428","1005008660310361","1005011717779648","1005009751349013","1005007016051853","1005009054990325","1005008239033716","1005006994560658","1005006904728187"],
+            "falsePositives": ["1005007170813797","1005012705511099"],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "ho-gift-garden",
+          "group": "eval",
+          "query": "מתנה לסבתא שאוהבת לגנן עד 120 ש״ח",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 120,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1","primary-p2"],
+            "calls": 2,
+            "missing": "garden tool (p1)"
+          },
+          "checked": 98,
+          "passed": 8,
+          "fill": 0,
+          "shown": 5,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005006993936964","label":"exact","tier":"standard","shop":"1103573332","price":14.19,"feedbackPct":98,"unitsSold":4537,"shared":true,"title":"Garden Hoe Agricultural Supplies Weeds Tool Gardening Tools Utensils Hand Herbicide Weed Teacher Farming Farm Accessories"},
+            {"id":"1005012304293432","label":"reasonable","tier":"standard","shop":"1103573332","price":10.92,"feedbackPct":98,"unitsSold":1450,"shared":true,"title":"2/4pcs Flower potted automatic watering irrigation device drip Plant Waterer gardening tool ceramic drip irrigation device"},
+            {"id":"1005009146805974","label":"wrong","tier":"standard","shop":"1104671141","price":15.97,"feedbackPct":93,"unitsSold":8652,"title":"Garden Tools Brass Water Faucet 1/2\" Outside & Inside Easy Turn On/Off Lever Handle Watering Supply Taps Ball Valve"},
+            {"id":"1005008896594643","label":"reasonable","tier":"standard","shop":"1104408613","price":17.97,"feedbackPct":95.4,"unitsSold":9244,"title":"Stainless Steel Gap Weeding Tool, L-Shaped Multi-Purpose Garden Hand Tool, Used for Clearing Weeds in Yards, Terraces, and Lanes"},
+            {"id":"1005007805886355","label":"exact","tier":"standard","shop":"1104091271","price":16.69,"feedbackPct":90.8,"unitsSold":1563,"title":"Soil Humidometer Home Gardening Measuring Tool Soil Moisture Meter Hygrometer Probe Watering Test"}
+          ],
+          "next3": [
+            {"id":"1005009400661849","label":"reasonable","tier":"standard","shop":"1102983068","price":15.21,"feedbackPct":94.3,"unitsSold":1906,"title":"1pc 13.5inch L-shaped Stainless Steel Gap Weeding Tool Garden Hand Tool, For Clearing Weeds On Yard, Patio, Driveway"},
+            {"id":"1005004845048064","label":"weak","tier":"standard","shop":"1103816097","price":10.28,"feedbackPct":90.6,"unitsSold":3280,"title":"Farm Garden Picking DeviceGarden Tools Deep Basket Fruit Picker Head Convenient Fruit Catcher Apple Peach Picking"},
+            {"id":"1005005773713258","label":"wrong","tier":"standard","shop":"1102774864","price":6.31,"feedbackPct":90,"unitsSold":1551,"title":"20CM/30CM Home Medical Garden Kitchen BBQ Tool Long Barbecue  Food Tong Stainless Steel Straight  Tweezer Toothed Tweezer"}
+          ],
+          "sameShopTop3": 2,
+          "budgetShare": 0.13,
+          "rejected": {
+            "feedback": 11,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 79,
+            "requirement": 0
+          },
+          "labels": {
+            "count": 107,
+            "leadCorrect": true,
+            "cardsGood": 4,
+            "cardsLabelled": 5,
+            "wrongTop3": 1,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005010044206112","1005005209533452","1005006863883159","1005007245622338","1005008144722917","1005008554582601","1005010333651659","1005009508968051","1005010050281663","1005010487361367","1005012993863717","1005008144990131","1005009050302387","1005008932431667","1005012061755643","1005009916252124","1005009045274447","1005007751488876","1005010590949626","1005009259824987","1005009414674397","1005012053713030","1005009398833927","1005008679023167","1005009054768697","1005010096193814","1005007818146963","1005012011135488","1005012172803442"],
+            "typeFalseNegativesBlocking": ["1005010044206112","1005005209533452","1005006863883159","1005007245622338","1005008144722917","1005008554582601","1005010333651659","1005009508968051","1005010050281663","1005010487361367","1005012993863717","1005008144990131","1005009050302387","1005008932431667","1005012061755643","1005009916252124","1005009045274447","1005007751488876","1005010590949626","1005009259824987","1005009414674397","1005012053713030","1005009398833927","1005008679023167","1005009054768697","1005010096193814","1005007818146963","1005012011135488","1005012172803442"],
+            "falsePositives": ["1005009146805974","1005005773713258"],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "ho-neck-pillow",
+          "group": "eval",
+          "query": "כרית לצוואר לטיסות ארוכות",
+          "sameQueryAs": null,
+          "parseVersion": 5,
+          "snapshotPool": 148,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 50,
+          "passed": 26,
+          "fill": 0,
+          "shown": 5,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005009582344612","label":"reasonable","tier":"standard","shop":"1103573332","price":16.8,"feedbackPct":98,"unitsSold":3042,"shared":true,"title":"Travel Neck Pillow with Fillable Clothing U-Shaped Pillowcase, Extra Storage Bag, Velvet Neck Pillow Cover for Airplane Travel"},
+            {"id":"1005009460591122","label":"exact","tier":"standard","shop":"1103573332","price":14.38,"feedbackPct":98,"unitsSold":1207,"shared":true,"title":"Travel Neck Pillow, Portable Travel Essentials, Lightweight Versatile Luggage Carry On Travel Accessories"},
+            {"id":"1005010044180525","label":"exact","tier":"standard","shop":"1103573332","price":32.37,"feedbackPct":98,"unitsSold":3374,"shared":true,"title":"U Shaped Memory Foam Neck Pillows Soft Travel Pillow Massage Neck Pillow Sleeping Airplane Pillow Cervical Healthcare Bedding"},
+            {"id":"1005009278055870","label":"exact","tier":"standard","shop":"1103573332","price":13.19,"feedbackPct":98,"unitsSold":1167,"shared":true,"title":"2Pcs/Pack Inflatable U-Shaped Pillow, Portable Folding Neck Pillow for Travel, Suitable for Travel"},
+            {"id":"1005007856890940","label":"exact","tier":"standard","shop":"1103573332","price":9.94,"feedbackPct":98,"unitsSold":2993,"shared":true,"title":"Portable Press‑to‑Inflate U‑Shape Inflatable Neck Pillow Soft Air Support Travel Pillow Comfort Sleeping Cushion for Flight Car"}
+          ],
+          "next3": [
+            {"id":"1005006760465481","label":"exact","tier":"standard","shop":"1103452008","price":31.85,"feedbackPct":94.9,"unitsSold":13530,"title":"Travel Neck Pillow Memory Foam U-shaped Pillow Snail Style Travel Neck Support Portable Adjustable Soft Noon Break Sleep Pillows"},
+            {"id":"1005013265994410","label":"reasonable","tier":"standard","shop":"1103573332","price":20.28,"feedbackPct":98,"unitsSold":2962,"shared":true,"title":"Portable Sponge Nap Pillow Macaron Color Soft Neck Pillow Multifunction Cervical Support Travel Sleeping Pillow Office"},
+            {"id":"1005008933007006","label":"weak","tier":"standard","shop":"1103573332","price":13.75,"feedbackPct":98,"unitsSold":9679,"shared":true,"title":"BISINNA Camping Inflatable Pillow Portable Ultralight Travel Hiking Air Sleeping Pillow for Neck and Lumbar Support"},
+            {"id":"1005007306810222","label":"exact","tier":"standard","shop":"1103573332","price":18.83,"feedbackPct":98,"unitsSold":1397,"shared":true,"title":"Simple Plush U-shaped Pillow Driving Travel Neck Pillow Nap Pillow Comfortable to Relieve Fatigue"},
+            {"id":"1005010530275186","label":"reasonable","tier":"standard","shop":"1103573332","price":126.53,"feedbackPct":98,"unitsSold":3081,"shared":true,"title":"U-Shape Cervical Neck Massage Pillow Portable Heat Vibration for Travel Office Pain Relief Soft Comfortable Cushion"}
+          ],
+          "sameShopTop3": 5,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 2,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 16,
+            "requirement": 0
+          },
+          "labels": {
+            "count": 139,
+            "leadCorrect": true,
+            "cardsGood": 5,
+            "cardsLabelled": 5,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005007170752899","1005008660187724","1005005266708630","1005006997487038"],
+            "typeFalseNegativesBlocking": ["1005007170752899","1005008660187724","1005005266708630","1005006997487038"],
+            "falsePositives": ["1005007204690243","1005013255627262","1005005896396093"],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "ho-powerbank",
+          "group": "eval",
+          "query": "סוללת גיבוי קטנה לטלפון 10000 מיליאמפר",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 120,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 48,
+          "passed": 31,
+          "fill": 0,
+          "shown": 5,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005010425880598","label":"exact","tier":"standard","shop":"2343184","price":85.93,"feedbackPct":98.9,"unitsSold":3256,"title":"Baseus 10000mAh Power Bank 22.5W Built-In Dual USB-C Cable Thinner Fast Charging for iPhone 17 Pro Max Samsung S25 Xiaomi Poco"},
+            {"id":"1005010606760672","label":"exact","tier":"standard","shop":"1035473","price":92.38,"feedbackPct":97.5,"unitsSold":7443,"title":"Vention 10000mAh Mini Power Bank 22.5w Portable Charger Built-in USB C Cable PD 3.0 Fast Charging for iPhone 17 18 Samsung S26"},
+            {"id":"1005007956125217","label":"reasonable","tier":"standard","shop":"301635","price":155.84,"feedbackPct":98.2,"unitsSold":2580,"title":"UGREEN 55W Power Bank 10000mAh Type C Cable Portable Fast Charging PowerBank for Redmi Note Xiaomi Mi 14 13 12 Portable Battery"},
+            {"id":"1005005704794297","label":"exact","tier":"standard","shop":"301635","price":138.72,"feedbackPct":97.7,"unitsSold":3154,"title":"UGREEN Mini 33W 10000mAh Power Bank Built-in Type-C Cable PD 30W Charger Compatible for Xiaomi 33W External Battery"},
+            {"id":"1005006134380779","label":"exact","tier":"standard","shop":"301635","price":112.19,"feedbackPct":96.2,"unitsSold":4449,"title":"UGREEN PD20W Power Bank Magnetic 10000mAh Portable Wireless Fast Charging PowerBank for Magsafe for iPhone 17 15 Pro Max 16 Pro"}
+          ],
+          "next3": [
+            {"id":"1005006287670753","label":"exact","tier":"standard","shop":"301635","price":177.16,"feedbackPct":97.5,"unitsSold":1930,"title":"UGREEN Qi2.2 25W Power Bank Fast Charge 10000mAh Magflow PowerBank External Battery for iPhone 17 Pro Max for MagSafe 30W"},
+            {"id":"1005008058965763","label":"exact","tier":"standard","shop":"1035473","price":101.46,"feedbackPct":96.8,"unitsSold":2064,"title":"Vention CCC 10000mAh 35W Power Bank Fast Charge Portable Mini 3C PowerBank for iPhone 18 Xiaomi External Spare Battery Charger"},
+            {"id":"1005010354323473","label":"exact","tier":"standard","shop":"2343184","price":116.49,"feedbackPct":96.1,"unitsSold":5632,"title":"【CCC】Baseus 10000mAh Magnetic Power Bank PD 27W, 5000mAh Magnetic Power Bank PD 20W Card-Sized Powerbank For iPhone 17 Samsung"},
+            {"id":"1005010775263810","label":"exact","tier":"standard","shop":"1035473","price":114.21,"feedbackPct":95.6,"unitsSold":3456,"title":"Vention 10000mAh Mini Power Bank 22.5W Fast Charging for iPhone 18 17 Magnetic Wireless Charger for Apple Watch Series 12 11"},
+            {"id":"1005007977968607","label":"exact","tier":"standard","shop":"1102213737","price":57.78,"feedbackPct":96.6,"unitsSold":1434,"title":"Rocoren 10000mAh Magnetic PowerBank Fast Charging 5000mAh Power Bank Portable Wireless Charger Battery For iPhone 18 17 Pro Max"}
+          ],
+          "sameShopTop3": 3,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 2,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 7,
+            "requirement": 4
+          },
+          "labels": {
+            "count": 114,
+            "leadCorrect": true,
+            "cardsGood": 5,
+            "cardsLabelled": 5,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005009127238944"],
+            "typeFalseNegativesBlocking": ["1005009127238944"],
+            "falsePositives": ["1005011768370783"],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "ho-slippers",
+          "group": "eval",
+          "query": "נעלי בית חמות לחורף",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 120,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 50,
+          "passed": 32,
+          "fill": 0,
+          "shown": 5,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005008660379272","label":"exact","tier":"standard","shop":"1103573332","price":19.95,"feedbackPct":98,"unitsSold":3902,"shared":true,"title":"Winter Warm Slippers Men House Non Slip Soft Shoes Comfortable Flat Heel Home Indoor Bedroom Plush Slippers Bedroom Female shoes"},
+            {"id":"1005012061454873","label":"exact","tier":"standard","shop":"1103573332","price":36.81,"feedbackPct":98,"unitsSold":988,"shared":true,"title":"Winter Men Felt Platform  House Slippers Ultra Warm Cushion   Cozy Living Non-Slip TPR Outdoor Indoor House"},
+            {"id":"1005010089205246","label":"exact","tier":"standard","shop":"1103573332","price":40.3,"feedbackPct":98,"unitsSold":252,"shared":true,"title":"Pmoiste Soft House Boots Slippers Women Comfortable Warm TPR Wedge Memory Foam Designer Home Shoes Winter Indoor High-quality"},
+            {"id":"1005003022006610","label":"exact","tier":"standard","shop":"911932418","price":13.32,"feedbackPct":100,"unitsSold":247,"title":"Fluffy Female Slipper Women Home Winter Plush Thick Non slip Grip Soft Cute Funny Indoor House Heart Love Shoes hairy warm Fuzzy"},
+            {"id":"1005010376373599","label":"exact","tier":"standard","shop":"1103573332","price":29.55,"feedbackPct":98,"unitsSold":903,"shared":true,"title":"Women Fluffy Slippers for Autumn Winter Indoor EVA Thick Sole Anti-Slip Warm Unisex House Shoes"}
+          ],
+          "next3": [
+            {"id":"1005008077708243","label":"exact","tier":"standard","shop":"1103573332","price":26.93,"feedbackPct":98,"unitsSold":1277,"shared":true,"title":"Women's Plush Slippers Winter Warm House Shoes Fashion Thick EVA Sole for Indoor Outdoor Use Cozy Non-Slip Couple Home Footwear"},
+            {"id":"1005010487474040","label":"exact","tier":"standard","shop":"1103573332","price":33.7,"feedbackPct":98,"unitsSold":963,"shared":true,"title":"Chainsaw Home Slipper Womens Winter Warm Fuzzy Furry cartoon Plush Grip Sole Indoor Female Fluffy funny cute House Shoes Ladies"},
+            {"id":"1005010285515416","label":"exact","tier":"standard","shop":"1103573332","price":19.93,"feedbackPct":98,"unitsSold":1339,"shared":true,"title":"Women's Winter Warm Cute Cartoon Slippers Closed Toe Non Slip Furry House Shoes Men Indoor Bedroom Thick Sole Plush Slippers"},
+            {"id":"1005010759399818","label":"exact","tier":"standard","shop":"1103573332","price":34.73,"feedbackPct":98,"unitsSold":1454,"shared":true,"title":"Hot Winter Women Slippers Plush Interior Anti Slip Thick Sole Fashion Embroidered Warm House Shoes for Ladies"},
+            {"id":"1005007857170359","label":"exact","tier":"standard","shop":"1103573332","price":18.5,"feedbackPct":98,"unitsSold":321,"shared":true,"title":"Winter Warm Fur Slippers for Women Cute bow House Non Slip Soft Shoes Comfort Flat Heel Home Indoor Bedroom Plush Slippers"}
+          ],
+          "sameShopTop3": 4,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 4,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 3,
+            "requirement": 0
+          },
+          "labels": {
+            "count": 105,
+            "leadCorrect": true,
+            "cardsGood": 5,
+            "cardsLabelled": 5,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005009913484266","1005010285425685","1005009735143072","1005010187496358","1005010439455075","1005009889141626"],
+            "typeFalseNegativesBlocking": ["1005009913484266","1005010285425685","1005009735143072","1005010187496358","1005010439455075","1005009889141626"],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "ho-speaker",
+          "group": "eval",
+          "query": "רמקול בלוטוס עמיד למים לים בין 50 ל־150 שקל",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 117,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1","primary-p2"],
+            "calls": 2,
+            "missing": null
+          },
+          "checked": 96,
+          "passed": 23,
+          "fill": 0,
+          "shown": 5,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005007357456579","label":"exact","tier":"standard","shop":"1104002136","price":122.19,"feedbackPct":96.7,"unitsSold":7145,"title":"Ortizan Bluetooth Speakers 40W Enhanced Bass Portable Outdoor Wireless Speaker 30Hrs IP7 Waterproof Shower Speaker Bluetooth 5.3"},
+            {"id":"1005007038567261","label":"exact","tier":"standard","shop":"1103573332","price":89.06,"feedbackPct":98,"unitsSold":4138,"shared":true,"title":"ZEALOT-S32PRO Powerful Bluetooth Speaker, Bass Wireless, LED Light, Outdoor Speakers, Subwoofer, Waterproof Sound Box Support"},
+            {"id":"1005010376374580","label":"exact","tier":"standard","shop":"1103573332","price":78.86,"feedbackPct":98,"unitsSold":2054,"shared":true,"title":"Tribit PocketGo Portable Bluetooth Speaker IP68 Waterproof BT6.0 Built-in Mic TWS APP EQ for Outdoor Pool Party Camping Travel"},
+            {"id":"1005007805661281","label":"exact","tier":"standard","shop":"1103573332","price":115.82,"feedbackPct":98,"unitsSold":1191,"shared":true,"title":"MLOVE P3 Outdoor Bluetooth Speaker, 40W Output Power Bluetooth 5.3 Speaker ,Stereo Sound IPX7 Waterproof,Micro SD Card,RGB Light"},
+            {"id":"1005010228881343","label":"exact","tier":"standard","shop":"1103573332","price":124.6,"feedbackPct":98,"unitsSold":1965,"shared":true,"title":"Ortizan X8 Pro Waterproof Bluetooth Speaker Portable Powerful Sound Box Bass Boost Dual Pairing True Wireless Speaker TF/AUX in"}
+          ],
+          "next3": [
+            {"id":"1005006677917937","label":"exact","tier":"standard","shop":"1103573332","price":64.34,"feedbackPct":98,"unitsSold":473,"shared":true,"title":"TG116c Bluetooth Speaker TWS Wireless Powerful Box Portable Outdoor Speakers Waterproof Subwoofer 3D Stereo Sound HandsFree Call"},
+            {"id":"1005009981036191","label":"reasonable","tier":"standard","shop":"1103207162","price":56.1,"feedbackPct":97.1,"unitsSold":1148,"title":"Wearable Bluetooth Speaker IPX7 Waterproof Portable Speakers Outdoor Sport Clip-On Microphone Speaker Calls/Music Mini Sound Box"},
+            {"id":"1005006678175362","label":"exact","tier":"standard","shop":"1103573332","price":139.57,"feedbackPct":98,"unitsSold":1012,"shared":true,"title":"Tribit XSound Go Portable Bluetooth Speaker IPX7 Waterproof Better Bass 24-Hour Playtime For Party Camping Speakers Type-C AUX"},
+            {"id":"1005006860718636","label":"exact","tier":"standard","shop":"1103573332","price":123.08,"feedbackPct":98,"unitsSold":359,"shared":true,"title":"mifa A10+ Portable bluetooth speaker 360° Stereo Sound 20W  IPX7 waterproof wireless bluetooth 5.0 speaker 24-Hour Play time"},
+            {"id":"1005012438678277","label":"exact","tier":"standard","shop":"1103573332","price":122.22,"feedbackPct":99.7,"unitsSold":142,"shared":true,"title":"MLOVE Portable Bluetooth Speaker – Powerful Dual Sound, Colorful RGB Lighting, Fully Waterproof (IPX7), TWS Enabled"}
+          ],
+          "sameShopTop3": 4,
+          "budgetShare": 0.71,
+          "rejected": {
+            "feedback": 10,
+            "volume": 3,
+            "currency": 0,
+            "price": 2,
+            "type": 32,
+            "requirement": 4
+          },
+          "labels": {
+            "count": 101,
+            "leadCorrect": true,
+            "cardsGood": 5,
+            "cardsLabelled": 5,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005005741315902","1005010427729730"],
+            "typeFalseNegativesBlocking": ["1005005741315902","1005010427729730"],
+            "falsePositives": ["1005011587179693","1005007573673406","1005009993283473"],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "home-drawer",
+          "group": "eval",
+          "query": "מארגן מגירות למטבח",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 149,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 49,
+          "passed": 21,
+          "fill": 0,
+          "shown": 5,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005007170336837","label":"reasonable","tier":"standard","shop":"1103573332","price":44.07,"feedbackPct":98,"unitsSold":3050,"shared":true,"title":"Expandable Kitchen Cabinet Drawer Organizer Rack, Multi‑Purpose Storage Shelf for Pots, Pans, Pot Lids, Cutting Boards Cookware"},
+            {"id":"1005008429982440","label":"reasonable","tier":"standard","shop":"1103573332","price":39.14,"feedbackPct":98,"unitsSold":1227,"shared":true,"title":"4 Layers Kitchen Spice Drawer Organizer Adjustable Spice Rack for Spice Jars Seasoning Bottles Cabinet Pantry Kitchen Organizer"},
+            {"id":"1005007938130472","label":"reasonable","tier":"standard","shop":"1103573332","price":13.03,"feedbackPct":98,"unitsSold":685,"shared":true,"title":"4/2 Layer Spice Drawer Organizer Adjustable Acrylic Spice Jars Rack Tray Expandable Seasoning Organizer Cabinet Kitchen Shelves"},
+            {"id":"1005013004164872","label":"exact","tier":"standard","shop":"1105326216","price":16.93,"feedbackPct":100,"unitsSold":344,"title":"UpgradedAdjustable Plastic Cutlery Drawer Organizer Divided Storage Tray Space Saving Holder for Kitchen Knives Spoons Tableware"},
+            {"id":"1005012370665602","label":"exact","tier":"standard","shop":"1103573332","price":75.56,"feedbackPct":98,"unitsSold":431,"shared":true,"title":"Silverware Organizer Expandable Kitchen Drawer Organizer Adjustable Utensil Organizer Cutlery Drawer Organizer for Forks Knives"}
+          ],
+          "next3": [
+            {"id":"1005010323499090","label":"reasonable","tier":"standard","shop":"1103877006","price":82.81,"feedbackPct":96.5,"unitsSold":1683,"title":"6/8/10/12-Pack Adjustable Drawer Organizers, Clear Expandable Dresser Organizers for Storing Clothes Kitchen Utensils"},
+            {"id":"1005010621821117","label":"exact","tier":"standard","shop":"1105008143","price":16.65,"feedbackPct":95.7,"unitsSold":1100,"title":"1Pc Expandable Kitchen Drawer Organizer - Adjustable Retractable Cutlery Storage Box with Dividers for Utensils,Drawer Organizer"},
+            {"id":"1005008300383489","label":"weak","tier":"standard","shop":"1103877006","price":26.26,"feedbackPct":97.1,"unitsSold":362,"title":"1/2/4/6/8 Pack Drawer Dividers for Clothes, 11.6''-19.6'' Adjustable Drawer Organizers 3.35'' High Expandable Separators"},
+            {"id":"1005012012243188","label":"exact","tier":"standard","shop":"1105439027","price":21.68,"feedbackPct":94.1,"unitsSold":727,"title":"Adjustable Silverware Drawer Organizer, Flatware Utensil Tray for Kitchen Drawer, Cutlery Storage Holder for Spoons Forks Knives"},
+            {"id":"1005009960331365","label":"exact","tier":"standard","shop":"1103573332","price":70.04,"feedbackPct":98,"unitsSold":335,"shared":true,"title":"Cutlery Tray For Kitchen Drawer Spoons Forks Knives Cutlery Holder Expandable Drawer Organizer Versatile Adjustable Organizer"}
+          ],
+          "sameShopTop3": 4,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 6,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 20,
+            "requirement": 0
+          },
+          "labels": {
+            "count": 128,
+            "leadCorrect": true,
+            "cardsGood": 5,
+            "cardsLabelled": 5,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005006860725584","1005005622568983","1005007513992717","1005007060348934","1005008145028011","1005011759776623","1005011807896561","1005008258287112","1005010035014505","1005010016876517"],
+            "typeFalseNegativesBlocking": ["1005006860725584","1005005622568983","1005007513992717","1005007060348934","1005008145028011","1005011759776623","1005011807896561","1005008258287112","1005010035014505","1005010016876517"],
+            "falsePositives": ["1005010492645121","1005010483885296"],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "home-nightlight",
+          "group": "eval",
+          "query": "מנורת לילה לחדר ילדים עם חיישן תנועה",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 147,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": "motion sensor night light (p1)"
+          },
+          "checked": 50,
+          "passed": 6,
+          "fill": 3,
+          "shown": 5,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005008557420018","label":"exact","tier":"standard","shop":"1103317922","price":14.55,"feedbackPct":98.6,"unitsSold":115,"title":"Motion Sensor Led Night Light EU US Plug Infrared Smart Sensor Wall Lamp Bedroom Toilet Hallway Kitchen Kid Nightlight 220V 110V"},
+            {"id":"1005008640620418","label":"exact","tier":"standard","shop":"1102696938","price":12.7,"feedbackPct":97,"unitsSold":111,"title":"LED Cloud Smart Motion Sensor Night Lights Room DecorEU/US Plug in for Kids Bedroom Stair Hallway Study Bedhead Night Lamps"},
+            {"id":"1005006011826341","label":"exact","tier":"standard","shop":"912699044","price":23.17,"feedbackPct":90.8,"unitsSold":159,"title":"EU US UK Plug in LED Motion Sensor Night Lights for Kids Bedroom Auto Dusk to Dawn Sensor Dimmable Wireless Cabinet Lamp Decor"},
+            {"id":"1005012345756868","label":"exact","tier":"fill","shop":"1105408773","price":11.42,"feedbackPct":97.5,"unitsSold":74,"title":"LED Night Lights Plug into Wall Night Lamp Motion Sensor Auto-On/Off Nightlight for Kids Room Bedroom Bathroom Hallway Kitchen"},
+            {"id":"1005007183959244","label":"exact","tier":"fill","shop":"1103471022","price":14.69,"feedbackPct":96.6,"unitsSold":94,"title":"LED Night Light With Motion Sensor EU US Plug Lamps Wall Night Lamp Dimmable Bedroom Toilet Hallway Kitchen Kids Night Lights"}
+          ],
+          "next3": [
+            {"id":"1005010487315538","label":"exact","tier":"fill","shop":"1103573332","price":62.92,"feedbackPct":98,"unitsSold":61,"title":"Sensky 3 In 1 EU US PLug in Smart LED Night Light With Motion Sensor Rechargeable Flashlight For Kid Baby Room Emergency"}
+          ],
+          "sameShopTop3": 1,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 23,
+            "volume": 24,
+            "currency": 0,
+            "price": 0,
+            "type": 0,
+            "requirement": 0
+          },
+          "labels": {
+            "count": 41,
+            "leadCorrect": true,
+            "cardsGood": 5,
+            "cardsLabelled": 5,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": [],
+            "typeFalseNegativesBlocking": [],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "kids-bottle",
+          "group": "eval",
+          "query": "בקבוק מים לגן שלא נוזל",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 133,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 49,
+          "passed": 19,
+          "fill": 0,
+          "shown": 5,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005010758572162","label":"exact","tier":"standard","shop":"1103841451","price":16.93,"feedbackPct":97.5,"unitsSold":463,"title":"650ml Cute Kids Water Bottle With Straw Free BPA Leakproof Outdoor Portable Children's Cups School Water Bottle for Children"},
+            {"id":"1005008145022027","label":"exact","tier":"standard","shop":"1103573332","price":10.4,"feedbackPct":98,"unitsSold":1945,"shared":true,"title":"600ml Dinosaur Water Bottle For Kids Water Sippy Cup With Silicone Straw Leakproof Plastic Water Bottles Summer Kids Water Cup"},
+            {"id":"1005012633078775","label":"reasonable","tier":"standard","shop":"1105444857","price":21.19,"feedbackPct":100,"unitsSold":118,"title":"750ml Football Pattern Kids Water Bottle Leak Proof Flip Lid Portable Sports Drink Cup For Boys Outdoor Sport"},
+            {"id":"1005010188950414","label":"exact","tier":"standard","shop":"1104723182","price":16.97,"feedbackPct":95.5,"unitsSold":392,"title":"550ml Kids Cartoon Animal Water Bottle with Safety Lock Portable Leak-proof Straw Cup for Outdoor Camping Travel"},
+            {"id":"1005007028619805","label":"exact","tier":"standard","shop":"1103638325","price":16.71,"feedbackPct":98.4,"unitsSold":918,"title":"600ml Cartoon Animal Water Bottle Portable Safety Lock Cute Straw Cup Kids Leak-proof Drinking Jug For Outdoor Camping Travel"}
+          ],
+          "next3": [
+            {"id":"1005007306561916","label":"exact","tier":"standard","shop":"1103573332","price":17.78,"feedbackPct":98,"unitsSold":1192,"shared":true,"title":"Hot 500ml Cute Water Bottle with Straw Portable Plastic Pop-Up Cover Water Cup for School Kids Leak-Proof Cute Drinking Bottle"},
+            {"id":"1005009351104423","label":"exact","tier":"standard","shop":"1103573332","price":14.86,"feedbackPct":98,"unitsSold":1020,"shared":true,"title":"480ML Kids Cartoon Sippy Cup LeakProof Straw Water Bottle Handheld Portable Drinking Vessel for Outdoor Sports Children DailyUse"},
+            {"id":"1005012126603762","label":"reasonable","tier":"standard","shop":"1103638325","price":25.71,"feedbackPct":98.4,"unitsSold":153,"title":"24.63oz/700ml Cartoon Water Bottle LeakProof Tumbler with Bouncing Lid Cute Household Plastic Water Cup for Outdoor Sport School"},
+            {"id":"1005008713356676","label":"reasonable","tier":"standard","shop":"911603923","price":17.01,"feedbackPct":95.4,"unitsSold":221,"title":"400ml Cute Strawberry Bear Water Bottle 400ml Frosted Drinking Bottles Portable Leakproof Transparent Cup Girls Kids Adult"},
+            {"id":"1005012053925287","label":"reasonable","tier":"standard","shop":"1102626205","price":17.64,"feedbackPct":96.7,"unitsSold":104,"title":"Super Cute Cartoon Pattern Water Bottle - Premium Texture, Reusable, Scratch-Proof, Fade-Resistant, Leakproof Large-Capacity Cup"}
+          ],
+          "sameShopTop3": 1,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 6,
+            "volume": 1,
+            "currency": 0,
+            "price": 0,
+            "type": 7,
+            "requirement": 6
+          },
+          "labels": {
+            "count": 109,
+            "leadCorrect": true,
+            "cardsGood": 5,
+            "cardsLabelled": 5,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005009485042004","1005009940569393","1005005791921398","1005013110928815","1005010099761435","1005012439959413","1005005680557224","1005009877602973","1005011960845616","1005011556737084"],
+            "typeFalseNegativesBlocking": ["1005009485042004","1005009940569393","1005005791921398","1005013110928815","1005010099761435","1005012439959413","1005005680557224","1005009877602973","1005011960845616","1005011556737084"],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "kids-toy",
+          "group": "eval",
+          "query": "צעצוע לילד בן 3 שמלמד צבעים",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 146,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1","primary-p2"],
+            "calls": 2,
+            "missing": "color sorting toy (p1)"
+          },
+          "checked": 99,
+          "passed": 11,
+          "fill": 0,
+          "shown": 5,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005011654056078","label":"exact","tier":"standard","shop":"1103573332","price":14.09,"feedbackPct":98,"unitsSold":952,"shared":true,"title":"Color Sorting Sensory Toys Fine Motor Skills Game For Toddlers Color Matching Toys Preschool Learn Activities Educational toy ﻿"},
+            {"id":"1005007169631687","label":"exact","tier":"standard","shop":"1103573332","price":21.63,"feedbackPct":98,"unitsSold":2151,"shared":true,"title":"6/12PCS Color Shape Matching Toys Simulated Egg with Storage Box Geometric Sorting Game Early Learning Educational Toy for Kids"},
+            {"id":"1005007822675175","label":"exact","tier":"standard","shop":"1103573332","price":22.86,"feedbackPct":98,"unitsSold":734,"shared":true,"title":"Wooden Matching Toys Montessori Color Matching Sorting Stick Balance Toy Fine Motor Skills Math Learning Educational Toys Kids"},
+            {"id":"1005007096712990","label":"reasonable","tier":"standard","shop":"1103573332","price":13.68,"feedbackPct":98,"unitsSold":1303,"shared":true,"title":"Colorful Wooden Roller Coaster Educational Circle Toy For Preschool Learning Bead Maze Toy Perfect Gift For Young Children"},
+            {"id":"1005010383637441","label":"exact","tier":"standard","shop":"1104997465","price":20.19,"feedbackPct":96.8,"unitsSold":1678,"title":"6/12pcs Color and Shape Matching Toys, Simulated Egg Shapes with Storage Box - Geometric Shape & Color Learning Toy Set for Kids"}
+          ],
+          "next3": [
+            {"id":"1005007010556247","label":"reasonable","tier":"standard","shop":"1103573332","price":21.05,"feedbackPct":98,"unitsSold":692,"shared":true,"title":"Montessori Baby Toys 18 Months Sensory Development Learning Educational Toys Colorful Blocks Sorting Game For Babies Infant"},
+            {"id":"1005006860832582","label":"reasonable","tier":"standard","shop":"1103573332","price":27.15,"feedbackPct":98,"unitsSold":670,"shared":true,"title":"Baby Montessori Toys For Toddler Toys Educational Colorful Shape Toy Pull Carrot Set Counting Discouvery Toys For Kids Learning"},
+            {"id":"1005010332241945","label":"weak","tier":"standard","shop":"1103573332","price":22.04,"feedbackPct":98,"unitsSold":285,"shared":true,"title":"78 PCS Magnetic Letters Numbers Alphabet, Colorful Plastic Educational Toy, Learning Spelling Counting for Kids, Chiristmas Gift"},
+            {"id":"1005008742347693","label":"exact","tier":"standard","shop":"1104633920","price":35.39,"feedbackPct":94.3,"unitsSold":958,"title":"Wooden Color Shape Sorting Toys Drawer Box Busy Board Matching Game Fine Motor Sensory Toys Montessori Learning For Baby Gifts"},
+            {"id":"1005005828364305","label":"weak","tier":"standard","shop":"1102765168","price":9.77,"feedbackPct":91,"unitsSold":306,"title":"100Pcs Montessori Learning Education Math Toys Learning Resources Color Plastic Coin Bingo Chip Children Kids Classroom Supplies"}
+          ],
+          "sameShopTop3": 4,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 8,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 74,
+            "requirement": 0
+          },
+          "labels": {
+            "count": 134,
+            "leadCorrect": true,
+            "cardsGood": 5,
+            "cardsLabelled": 5,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005009274837279","1005008248123260","1005009234671417","1005006673366985","1005005240277616","1005007938087552","1005010439233904","1005008446126377","1005007038475217","1005005529435589","1005006966395499","1005007904972361","1005007171110287","1005007636079710","1005007588330042"],
+            "typeFalseNegativesBlocking": ["1005009274837279","1005008248123260","1005009234671417","1005006673366985","1005005240277616","1005007938087552","1005010439233904","1005008446126377","1005007038475217","1005005529435589","1005006966395499","1005007904972361","1005007171110287","1005007636079710","1005007588330042"],
+            "falsePositives": ["1005009582625056","1005008097934329","1005006996242795","1005009785507061","1005007491933245"],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "pair-a",
+          "group": "eval",
+          "query": "אוזניות לריצה, עמידות למים, עד 100 ש״ח",
+          "sameQueryAs": null,
+          "parseVersion": 5,
+          "snapshotPool": 148,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1","ladder-1"],
+            "calls": 2,
+            "missing": "waterproof sports earbuds (p1)"
+          },
+          "checked": 98,
+          "passed": 10,
+          "fill": 3,
+          "shown": 5,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005013100925225","label":"exact","tier":"standard","shop":"1103573332","price":7.76,"feedbackPct":98,"unitsSold":244,"shared":true,"title":"Wireless Bluetooth 4.2 Earphone Sports Running Headset Waterproof Earbuds Music Magnetic Headphone With HD Mic For Xiaomi Huawei"},
+            {"id":"1005007792521675","label":"exact","tier":"standard","shop":"1103573332","price":9.79,"feedbackPct":98,"unitsSold":346,"shared":true,"title":"K58 Wireless Headphones Bluetooth Neckband Magnetic Earphones Sport Running Earbuds Waterproof Bluetooth 5.0 Headset With Mic"},
+            {"id":"1005007623121003","label":"exact","tier":"standard","shop":"1103314218","price":62.44,"feedbackPct":97.3,"unitsSold":130,"title":"Sport Wireless Headphone TWS Wireless Earphones Bluetooth 5.3 Earbuds with ENC Noise Cancellation Mic IP7 Waterproof for Running"},
+            {"id":"1005012245998962","label":"exact","tier":"standard","shop":"912628034","price":13.72,"feedbackPct":96,"unitsSold":349,"title":"Lenovo Bluetooth 5.4 Bone Conduction Headphones Wireless Sports Earbuds IPX8 Waterproof with Mic for Swimming Running Fitness"},
+            {"id":"1005006257950849","label":"exact","tier":"standard","shop":"911425250","price":34.89,"feedbackPct":93.8,"unitsSold":449,"title":"HOCO EW60 Bluetooth 5.0 Earbuds Wireless Hi-Res Audio Touch Control Waterproof Sports Headset with Mic for Running"}
+          ],
+          "next3": [
+            {"id":"1005010802856880","label":"exact","tier":"standard","shop":"1103718102","price":30.9,"feedbackPct":94.4,"unitsSold":1238,"title":"Choice AOC Sports Headset Wireless Bluetooth 6.0 Earphones Waterproof LED Battery Display Gaming Low Latency Headphones LP75"},
+            {"id":"1005001814197354","label":"exact","tier":"standard","shop":"1986430","price":72.28,"feedbackPct":90.9,"unitsSold":283,"title":"Mpow Flame Solo Wireless Earphones TWS Bluetooth 5.4 Earbuds with ENC Noise Cancellation Mic IPX7 Waterproof for Running Sport"},
+            {"id":"1005012378032768","label":"exact","tier":"fill","shop":"1105444869","price":13.34,"feedbackPct":100,"unitsSold":44,"title":"TWS Magnetic Wireless Headphones Neckband Bluetooth 5.3 Earphone Headset Sports Running Waterproof Earbud Wireless with Mic"},
+            {"id":"1005008740074221","label":"exact","tier":"fill","shop":"1104550778","price":62.42,"feedbackPct":100,"unitsSold":31,"title":"Wireless Earphones Bluetooth 5.4 Earbuds TWS with ENC Noise Cancellation Mic IPX7 Waterproof for Running Sport Bluetooth Headset"},
+            {"id":"1005011610078881","label":"exact","tier":"fill","shop":"1104138096","price":23.68,"feedbackPct":97.6,"unitsSold":63,"title":"Bone Conduction Bluetooth Earbuds No-In-Ear Design For Running Sports Waterproof Over-Ear Style Long Battery Life Low Noise"}
+          ],
+          "sameShopTop3": 2,
+          "budgetShare": 0.26,
+          "rejected": {
+            "feedback": 27,
+            "volume": 19,
+            "currency": 0,
+            "price": 0,
+            "type": 30,
+            "requirement": 15
+          },
+          "labels": {
+            "count": 64,
+            "leadCorrect": true,
+            "cardsGood": 5,
+            "cardsLabelled": 5,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005012440801923","1005011675886288","1005012833511900","1005011674789869","1005012058590153","1005009580477059","1005009750303279","1005010657289378","1005010240614648","1005007961638171","1005009578274758","1005009826812698","1005009970168305","1005010535516482","1005009736102805","1005007678232042","1005011786797389","1005009926833649","1005011715254947","1005010710252547","1005009006022196","1005010443102720","1005008965197230"],
+            "typeFalseNegativesBlocking": ["1005012440801923","1005011675886288","1005011674789869","1005010240614648","1005007961638171","1005009970168305","1005009736102805","1005007678232042","1005009006022196"],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "pair-a2",
+          "group": "eval",
+          "query": "אוזניות ריצה עמידות במים עד 100 שקל",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 126,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1","primary-p2"],
+            "calls": 2,
+            "missing": null
+          },
+          "checked": 99,
+          "passed": 18,
+          "fill": 0,
+          "shown": 5,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005008500784169","label":"exact","tier":"standard","shop":"1103573332","price":18.76,"feedbackPct":98,"unitsSold":402,"shared":true,"title":"2024 Sports Neckband Wireless Running Universal Earphone Ear-hook Headphone Earplugs Super Stereo Headset Bluetooth Waterproof"},
+            {"id":"1005013100925225","label":"exact","tier":"standard","shop":"1103573332","price":7.76,"feedbackPct":98,"unitsSold":244,"shared":true,"title":"Wireless Bluetooth 4.2 Earphone Sports Running Headset Waterproof Earbuds Music Magnetic Headphone With HD Mic For Xiaomi Huawei"},
+            {"id":"1005007792521675","label":"exact","tier":"standard","shop":"1103573332","price":9.79,"feedbackPct":98,"unitsSold":346,"shared":true,"title":"K58 Wireless Headphones Bluetooth Neckband Magnetic Earphones Sport Running Earbuds Waterproof Bluetooth 5.0 Headset With Mic"},
+            {"id":"1005012308536449","label":"exact","tier":"standard","shop":"1103573332","price":91.46,"feedbackPct":98,"unitsSold":409,"shared":true,"title":"Lenovo S102 Bone Conduction Bluetooth V6.0 Earphones Wireless Sports Headphones Waterproof Sweatproof Running Cycling Neckband"},
+            {"id":"1005012561171707","label":"exact","tier":"standard","shop":"1103396380","price":29.95,"feedbackPct":95.9,"unitsSold":300,"title":"Lenovo X7 Wireless Earphone Bone Conduction Bluetooth Headphone Waterproof Hand-free With Mic For Running Sport Swimming"}
+          ],
+          "next3": [
+            {"id":"1005012245998962","label":"exact","tier":"standard","shop":"912628034","price":13.72,"feedbackPct":96,"unitsSold":349,"title":"Lenovo Bluetooth 5.4 Bone Conduction Headphones Wireless Sports Earbuds IPX8 Waterproof with Mic for Swimming Running Fitness"},
+            {"id":"1005008805916503","label":"exact","tier":"standard","shop":"1103457065","price":21.6,"feedbackPct":93.5,"unitsSold":9451,"title":"Bluetooth 5.4 Earphones IPX7 Waterproof 20Hrs Wireless Headphones with ENC Noise Cancelling Mic Deep Bass For Sports Workout Gym"},
+            {"id":"1005006257950849","label":"exact","tier":"standard","shop":"911425250","price":34.89,"feedbackPct":93.8,"unitsSold":449,"title":"HOCO EW60 Bluetooth 5.0 Earbuds Wireless Hi-Res Audio Touch Control Waterproof Sports Headset with Mic for Running"},
+            {"id":"1005008067032223","label":"reasonable","tier":"standard","shop":"1104030037","price":46.79,"feedbackPct":97.8,"unitsSold":1564,"title":"Choice Lenovo GM2 Pro Gaming Headset LED Digital Display Wireless Sport Earbuds HD Call Low Latency Headphones Waterproof"},
+            {"id":"1005012504699349","label":"exact","tier":"standard","shop":"1102799862","price":34.56,"feedbackPct":93.8,"unitsSold":232,"title":"G3 Bone Conduction Headphones Bluetooth Headphones Wireless Air Conduction Headphones Waterproof for Running and Sports"}
+          ],
+          "sameShopTop3": 4,
+          "budgetShare": 0.32,
+          "rejected": {
+            "feedback": 22,
+            "volume": 0,
+            "currency": 0,
+            "price": 1,
+            "type": 42,
+            "requirement": 15
+          },
+          "labels": {
+            "count": 93,
+            "leadCorrect": true,
+            "cardsGood": 5,
+            "cardsLabelled": 5,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005008527087685","1005008073993250","1005007961638171","1005008998758138","1005009651279076","1005009970168305","1005010404325994","1005009799479634","1005005953928507","1005010487367374","1005009706727798","1005009006022196","1005007861207830","1005010640923455","1005010106509688","1005012066498093","1005006658968177","1005007275303308","1005005071434469","1005008702903326","1005012505369409","1005009894399990","1005007884058329","1005011812880938","1005012742635202","1005007994343959","1005012058590153","1005012950652826","1005008893525854","1005007678232042","1005011786797389","1005009826812698"],
+            "typeFalseNegativesBlocking": ["1005008073993250","1005007961638171","1005009970168305","1005010404325994","1005009799479634","1005005953928507","1005010487367374","1005009706727798","1005009006022196","1005007861207830","1005010640923455","1005010106509688","1005006658968177","1005005071434469","1005012505369409","1005009894399990","1005007884058329","1005012742635202","1005007994343959","1005012950652826","1005007678232042"],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "pair-b2",
+          "group": "eval",
+          "query": "מעמד לפלאפון לאוטו עם טעינה אלחוטית",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 147,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 50,
+          "passed": 15,
+          "fill": 0,
+          "shown": 5,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005007097351039","label":"exact","tier":"standard","shop":"1103573332","price":29.49,"feedbackPct":98,"unitsSold":2347,"shared":true,"title":"Essager Magnetic Wireless Charger Car Phone Holder 15W RGB Seven Color Light Fast Charging Mount Stand For IPhone15 14 13Android"},
+            {"id":"1005011718120542","label":"exact","tier":"standard","shop":"1103573332","price":16.04,"feedbackPct":98,"unitsSold":1944,"shared":true,"title":"Magnetic Wireless Car Charger Air Vent Clip Phone Holder For Magsafe iPhone 17 16 15 14 13 12 Pro Max Fast Car Charging Stand"},
+            {"id":"1005006861015027","label":"exact","tier":"standard","shop":"1103573332","price":31.42,"feedbackPct":98,"unitsSold":3149,"shared":true,"title":"Magnetic Car Wireless Charger Stand Magnet Car Mount Fast Charging Station Phone Holder Bracket For Macsfae iPhone 15 14 13 12"},
+            {"id":"1005006678136283","label":"exact","tier":"standard","shop":"1103573332","price":24.4,"feedbackPct":98,"unitsSold":1870,"shared":true,"title":"Magnetic Car Wireless Charger RGB For iPhone12 13 14 15 16 17 Pro Max Macsafe Car Phone Holder Stand Mount Fast Charging Station"},
+            {"id":"1005012263000564","label":"exact","tier":"standard","shop":"1103573332","price":21.75,"feedbackPct":98,"unitsSold":4911,"shared":true,"title":"30W Fast Charging Magnetic Car Wireless Charger, LED Light Phone Mount Holder for iPhone 12, 13, 14, 15，16，17， Pro Max"}
+          ],
+          "next3": [
+            {"id":"1005005544072940","label":"exact","tier":"standard","shop":"2343184","price":76.8,"feedbackPct":97.1,"unitsSold":2484,"title":"Baseus Magnetic Wireless Charger Car Phone Holder 15W Fast Charging Wireless Car Charger Holder For iPhone 16 15 14 13 Car Mount"},
+            {"id":"1005010487359429","label":"exact","tier":"standard","shop":"1103573332","price":13.89,"feedbackPct":98,"unitsSold":5115,"shared":true,"title":"Magnetic Car Wireless Charger Mount 15W Fast Charging For iPhone 12 13 14 15 16 Samsung Qi Phone 360 Rotation Vent Clip No Cable"},
+            {"id":"1005012221744624","label":"exact","tier":"standard","shop":"1103573332","price":91.82,"feedbackPct":98,"unitsSold":1671,"shared":true,"title":"Toocki Qi2.2 25W Wireless Charger Magnetic Car Phone Holder TEC Cooling for iPhone 17 16 15 Samsung S26 S25 for Magsafe Charger"},
+            {"id":"1005011942686816","label":"exact","tier":"standard","shop":"1103573332","price":22.01,"feedbackPct":98,"unitsSold":2061,"shared":true,"title":"30W Car Charger, Auto-Lock Wireless Fast Charging Phone Mount, Secure Car Charging Dock for iPhone 12 13 14 15 16 17 Xiaomi"},
+            {"id":"1005009889116002","label":"exact","tier":"standard","shop":"301635","price":101.15,"feedbackPct":96.6,"unitsSold":3436,"title":"UGREEN Qi2.2 25W 15W Magnetic Car Phone Holder Wireless Charger Stand For iPhone 17 16 Pro Max Charging Magnetic Car Charger"}
+          ],
+          "sameShopTop3": 5,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 11,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 7,
+            "requirement": 6
+          },
+          "labels": {
+            "count": 119,
+            "leadCorrect": true,
+            "cardsGood": 5,
+            "cardsLabelled": 5,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005008660246574","1005008458283071","1005008932603515","1005008666261754"],
+            "typeFalseNegativesBlocking": ["1005008660246574","1005008458283071","1005008932603515","1005008666261754"],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "price-range-bag",
+          "group": "eval",
+          "query": "תיק גב לטיולים בין 80 ל־200 ש״ח עמיד למים",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 133,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 49,
+          "passed": 19,
+          "fill": 0,
+          "shown": 5,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005007805618542","label":"reasonable","tier":"standard","shop":"1103573332","price":105.15,"feedbackPct":98,"unitsSold":941,"shared":true,"title":"38L Tactical Backpack Style, Large Capacity Waterproof Outdoor Rucksack with MOLLE System, Hiking Camping Travel Bug Out Bag"},
+            {"id":"1005006860931684","label":"weak","tier":"standard","shop":"1103573332","price":143.76,"feedbackPct":98,"unitsSold":830,"shared":true,"title":"HK Expandable Travel Backpack Men Large Capacity Waterproof 15.6” Laptop Bag Hiking Rucksack Cycling Daypack Bag with USB Port"},
+            {"id":"1005007170232910","label":"weak","tier":"standard","shop":"1103573332","price":101.54,"feedbackPct":98,"unitsSold":2284,"shared":true,"title":"BANGE Lightweight 15.6 inch Laptop Backpack Waterproof USB Charge Port Multifunctional Travel Hiking School Bag Mochila for Men"},
+            {"id":"1005007402692778","label":"weak","tier":"standard","shop":"1102731477","price":143.71,"feedbackPct":97.4,"unitsSold":1978,"title":"BANGE Expandable Men's Backpack Waterproof 17.3 in Laptop Backpack Man Large Capacity Hiking Travel Bag Male Backpacks for Men"},
+            {"id":"1005009050889130","label":"reasonable","tier":"standard","shop":"1104821432","price":165.2,"feedbackPct":98.3,"unitsSold":307,"title":"45L Tactical Backpack Men Outdoor Waterproof Sports Travel Gym Hiking Bug Out Bag Military Camping Hunting Survival Rucksack"}
+          ],
+          "next3": [
+            {"id":"1005007635721959","label":"reasonable","tier":"standard","shop":"1103573332","price":116.48,"feedbackPct":98.8,"unitsSold":372,"shared":true,"title":"1WLarge Capacity Waterproof Tactical Backpack For Men, 3P Softback, Outdoor Bug Rucksack, Hiking, Camping, Hunting Bags, 50L"},
+            {"id":"1005010587792488","label":"exact","tier":"standard","shop":"1105273046","price":139.26,"feedbackPct":97,"unitsSold":417,"title":"Hiking Backpack, Waterproof Hiking Daypack with Rain Cover, Lightweight Travel Camping Backpack for Men Women"},
+            {"id":"1005010588468033","label":"exact","tier":"standard","shop":"1105273046","price":194.96,"feedbackPct":98.8,"unitsSold":247,"title":"55L Internal Frame Waterproof Hiking Camping Backpack with Rain Cover, Large Lightweight Travel Daypack Rucksack for Climbing"},
+            {"id":"1005012263040435","label":"exact","tier":"standard","shop":"1103573332","price":94.75,"feedbackPct":98,"unitsSold":316,"shared":true,"title":"Naturehike 2025 New Two Style Backpack Folding Portable Travel 18L Woman Bags Ultralight Waterproof Hiking Camping Man Backpacks"},
+            {"id":"1005010114682059","label":"reasonable","tier":"standard","shop":"1103573332","price":108.95,"feedbackPct":98,"unitsSold":307,"shared":true,"title":"45L Waterproof Fishing Hunting Backpack Outdoor Rucksacks Tactical Sports Camping Hiking Trekking Bags"}
+          ],
+          "sameShopTop3": 3,
+          "budgetShare": 0.66,
+          "rejected": {
+            "feedback": 1,
+            "volume": 0,
+            "currency": 0,
+            "price": 2,
+            "type": 16,
+            "requirement": 8
+          },
+          "labels": {
+            "count": 118,
+            "leadCorrect": true,
+            "cardsGood": 2,
+            "cardsLabelled": 5,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005005922339620","1005008115371474","1005007169715839"],
+            "typeFalseNegativesBlocking": ["1005005922339620","1005008115371474"],
+            "falsePositives": ["1005007456206334"],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "price-watch",
+          "group": "eval",
+          "query": "שעון חכם עם דופק בפחות מ־150 שקל",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 139,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1","primary-p2"],
+            "calls": 2,
+            "missing": "heart rate monitor smartwatch (p1)"
+          },
+          "checked": 99,
+          "passed": 12,
+          "fill": 0,
+          "shown": 5,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005008830601930","label":"exact","tier":"standard","shop":"1103573332","price":14.49,"feedbackPct":98,"unitsSold":6103,"shared":true,"title":"LAXASFIT Smartwatch Bluetooth Talk Smartwatch Message Alert Heart Rate Monitor Sports Watch for Android IOS Men Women"},
+            {"id":"1005006995151533","label":"exact","tier":"standard","shop":"1103573332","price":24.76,"feedbackPct":98,"unitsSold":1823,"shared":true,"title":"LAXASFIT H9 Smartwatch Dial to Answer Calls Calorie Tracking Heart Rate Blood Oxygen Monitoring Bluetooth Smart Watch"},
+            {"id":"1005006860956768","label":"exact","tier":"standard","shop":"1103573332","price":59.8,"feedbackPct":98,"unitsSold":2787,"shared":true,"title":"2026 New Classic Smart Watch Men Women ECG+PPG HD Screen Bluetooth Call GPS Tracker Heart Rate IP68 Waterproof Sports Smartwatch"},
+            {"id":"1005006997324750","label":"exact","tier":"standard","shop":"1103573332","price":39.25,"feedbackPct":98,"unitsSold":2856,"shared":true,"title":"LAXASFIT New Men's Smart Watch Bluetooth Talk 2.01 inch HD Screen LED Outdoor Flashlight Heart Rate Monitor Sports Smartwatch"},
+            {"id":"1005009460482765","label":"exact","tier":"standard","shop":"1103573332","price":40.21,"feedbackPct":98,"unitsSold":1800,"shared":true,"title":"2026 New Ultra-Slim Smart Watch Men 100+ Sports Modes Heart Rate Monitoring AI Voice Assistant Bluetooth Call Smartwatches"}
+          ],
+          "next3": [
+            {"id":"1005008406453115","label":"exact","tier":"standard","shop":"1103573332","price":52.41,"feedbackPct":98,"unitsSold":1733,"shared":true,"title":"New Watch 5 Sports Smart Watch Men Women 2.01\" AMOLED Screen Fitness Tracker Heart Rate ECG Waterproof GPS Track Call Smartwatch"},
+            {"id":"1005010088946565","label":"exact","tier":"standard","shop":"1103573332","price":72.1,"feedbackPct":98,"unitsSold":1445,"shared":true,"title":"2026 New NFC Bluetooth Call Smart Watch 8 mini GPS Navigation IP68 Waterproof Heart Rate Monitoring Smartwatch Men Women"},
+            {"id":"1005009384181339","label":"exact","tier":"standard","shop":"1103573332","price":11.3,"feedbackPct":98,"unitsSold":2486,"shared":true,"title":"New For OPPO Ultra Thin Smart Watch Men AMOLED HD Screen Always Show Time Heart Rate Bluetooth Call Sports Waterproof Smartwatch"},
+            {"id":"1005012438476927","label":"exact","tier":"standard","shop":"1103573332","price":22.64,"feedbackPct":98,"unitsSold":2568,"shared":true,"title":"2026 New Smart Watch Bluetooth Call Fitness Tracker Heart Rate Sleep Record Outdoor Sport Watch for Android/IOS Men Women HT30"},
+            {"id":"1005012814804552","label":"exact","tier":"standard","shop":"1103573332","price":42.02,"feedbackPct":98,"unitsSold":1365,"shared":true,"title":"LAXASFIT Smart Watch 1.46\" HD Gesture Answer SOS Bluetooth Call Heart Rate Monitor Fitness Tracker Sports Gift for Men Women"}
+          ],
+          "sameShopTop3": 5,
+          "budgetShare": 0.24,
+          "rejected": {
+            "feedback": 33,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 3,
+            "requirement": 50
+          },
+          "labels": {
+            "count": 94,
+            "leadCorrect": true,
+            "cardsGood": 5,
+            "cardsLabelled": 5,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005008144895479","1005012013986562","1005008908975458","1005010332447247","1005010541858471"],
+            "typeFalseNegativesBlocking": ["1005012013986562","1005008908975458","1005010332447247","1005010541858471"],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "slang-mouse",
+          "group": "eval",
+          "query": "משהו שווה לגיימינג, עכבר שקט שלא מרעיש",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 144,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 50,
+          "passed": 25,
+          "fill": 0,
+          "shown": 5,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005006904646242","label":"reasonable","tier":"standard","shop":"1103573332","price":11.38,"feedbackPct":98,"unitsSold":8681,"shared":true,"title":"Ergonomic Wireless Gaming Mouse RGB Backlight USB Compatible Rechargeable Silent Backlit Mouse for Laptop PC - Silent Gaming Mic"},
+            {"id":"1005006678237239","label":"reasonable","tier":"standard","shop":"1103573332","price":13.09,"feedbackPct":98,"unitsSold":8326,"shared":true,"title":"KEBIDUMEI Bluetooth 5.4 Mouse 2.4G Wireless Mouse Dual Mode RGB Backlit Gaming Mouse Rechargeable Silent Mice for PC Laptop"},
+            {"id":"1005008077489612","label":"reasonable","tier":"standard","shop":"1103573332","price":10.78,"feedbackPct":98,"unitsSold":4611,"shared":true,"title":"Bluetooth-compatible Mouse Wireless Mouse Silent Computer Mice Portable Working Gaming Mouse for Laptop iPad Air Pro Tablet PC"},
+            {"id":"1005010089242065","label":"reasonable","tier":"standard","shop":"1103573332","price":10.33,"feedbackPct":98,"unitsSold":2630,"shared":true,"title":"Bluetooth 5.2 Mouse 2.4G Wireless Mouse Rechargeable Dual Mode Gaming Mouse Silent Mouse 1600 DPI Mice For PC Laptop MacBook Pro"},
+            {"id":"1005008248170128","label":"reasonable","tier":"standard","shop":"1103573332","price":22.66,"feedbackPct":98,"unitsSold":1064,"shared":true,"title":"2.4G Wireless Mouse USB Bluetooth Mecha Gaming Mouse Rechargeable Silent Backlight Mice Ergonomic Office Mice Game Accessories"}
+          ],
+          "next3": [
+            {"id":"1005009916191936","label":"reasonable","tier":"standard","shop":"1103573332","price":25.71,"feedbackPct":98,"unitsSold":1557,"shared":true,"title":"INPHIC B2 USB Wired Mouse Silent Office Gaming Mouse for PC and Laptops"},
+            {"id":"1005010351630831","label":"reasonable","tier":"standard","shop":"1103415017","price":18.33,"feedbackPct":94.8,"unitsSold":3293,"title":"Bluetooth 5.4 Mouse Dual-Mode 2.4G Wireless Mouse 6 Buttons Gaming Mouse Office Silent Mice Rechargeable Mouse For PC Laptop"},
+            {"id":"1005010155190941","label":"reasonable","tier":"standard","shop":"1103573332","price":17.21,"feedbackPct":98,"unitsSold":4339,"shared":true,"title":"NexusClick Rechargeable Silent Wireless Mouse Bluetooth 5.4 & 2.4G,6 Keys Ergonomic Hand Rest Gaming Office Mice for PC Notebook"},
+            {"id":"1005011618146389","label":"reasonable","tier":"standard","shop":"1105139148","price":22.65,"feedbackPct":94.8,"unitsSold":1622,"title":"2.4G Wireless Mouse Dual-Mode Bluetooth Mouse 6Buttons Silent Gaming Mice Rechargeable E-Sports Mouse 1600DPI Office Mice For PC"},
+            {"id":"1005010706980178","label":"reasonable","tier":"standard","shop":"1103573332","price":14.14,"feedbackPct":98,"unitsSold":998,"shared":true,"title":"NexusClick Slim Wireless Mouse 2.4GHz Optical 1600DPI Silent Ergonomic Mice Portable USB Receiver For Computer Office Gaming"}
+          ],
+          "sameShopTop3": 5,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 6,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 0,
+            "requirement": 13
+          },
+          "labels": {
+            "count": 129,
+            "leadCorrect": true,
+            "cardsGood": 5,
+            "cardsLabelled": 5,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": [],
+            "typeFalseNegativesBlocking": [],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "tech-charger",
+          "group": "eval",
+          "query": "מטען מהיר 65W לטלפון ולמחשב נייד",
+          "sameQueryAs": null,
+          "parseVersion": 5,
+          "snapshotPool": 145,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1","primary-p2"],
+            "calls": 2,
+            "missing": "65w charger (p1)"
+          },
+          "checked": 100,
+          "passed": 2,
+          "fill": 0,
+          "shown": 2,
+          "moreAvailable": false,
+          "top3": [
+            {"id":"1005009205983512","label":"reasonable","tier":"standard","shop":"2343184","price":123.44,"feedbackPct":97.6,"unitsSold":3339,"title":"Baseus GaN Charger Universal Travel Adapter Built in 70W Retractable Cable 2AC 2 USB-A Type-C Fast Charging EU/UK/USA/AUS"},
+            {"id":"1005009880283488","label":"reasonable","tier":"standard","shop":"1102732226","price":26.08,"feedbackPct":90.3,"unitsSold":1794,"title":"Elough 65W USB Type C Phone Charger Universal Travel Adapter Retractable Fast Charging USB C Cable For iPhone 16 Samsung Laptop"}
+          ],
+          "next3": [],
+          "sameShopTop3": 1,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 15,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 10,
+            "requirement": 73
+          },
+          "labels": {
+            "count": 120,
+            "leadCorrect": true,
+            "cardsGood": 2,
+            "cardsLabelled": 2,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005006436990810"],
+            "typeFalseNegativesBlocking": [],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "typo-earbuds",
+          "group": "eval",
+          "query": "אוזניות בלוטות לריצה עמידות למיים",
+          "sameQueryAs": null,
+          "parseVersion": 4,
+          "snapshotPool": 135,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 49,
+          "passed": 17,
+          "fill": 0,
+          "shown": 5,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005012561171707","label":"exact","tier":"standard","shop":"1103396380","price":29.95,"feedbackPct":95.9,"unitsSold":300,"title":"Lenovo X7 Wireless Earphone Bone Conduction Bluetooth Headphone Waterproof Hand-free With Mic For Running Sport Swimming"},
+            {"id":"1005007792521675","label":"exact","tier":"standard","shop":"1103573332","price":9.79,"feedbackPct":98,"unitsSold":346,"shared":true,"title":"K58 Wireless Headphones Bluetooth Neckband Magnetic Earphones Sport Running Earbuds Waterproof Bluetooth 5.0 Headset With Mic"},
+            {"id":"1005008500784169","label":"exact","tier":"standard","shop":"1103573332","price":18.76,"feedbackPct":98,"unitsSold":402,"shared":true,"title":"2024 Sports Neckband Wireless Running Universal Earphone Ear-hook Headphone Earplugs Super Stereo Headset Bluetooth Waterproof"},
+            {"id":"1005013100925225","label":"exact","tier":"standard","shop":"1103573332","price":7.76,"feedbackPct":98,"unitsSold":244,"shared":true,"title":"Wireless Bluetooth 4.2 Earphone Sports Running Headset Waterproof Earbuds Music Magnetic Headphone With HD Mic For Xiaomi Huawei"},
+            {"id":"1005007678232042","label":"reasonable","tier":"standard","shop":"1102341828","price":82.62,"feedbackPct":96.3,"unitsSold":1883,"title":"Original GDLYL HD65 TWS Bluetooth V5.4 Headphones Wireless LED Digital Display Earphones Noise Reduction Waterproof Headset New"}
+          ],
+          "next3": [
+            {"id":"1005012504699349","label":"exact","tier":"standard","shop":"1102799862","price":34.56,"feedbackPct":93.8,"unitsSold":232,"title":"G3 Bone Conduction Headphones Bluetooth Headphones Wireless Air Conduction Headphones Waterproof for Running and Sports"},
+            {"id":"1005012308536449","label":"exact","tier":"standard","shop":"1103573332","price":91.46,"feedbackPct":98,"unitsSold":409,"shared":true,"title":"Lenovo S102 Bone Conduction Bluetooth V6.0 Earphones Wireless Sports Headphones Waterproof Sweatproof Running Cycling Neckband"},
+            {"id":"1005012245998962","label":"exact","tier":"standard","shop":"912628034","price":13.72,"feedbackPct":96,"unitsSold":349,"title":"Lenovo Bluetooth 5.4 Bone Conduction Headphones Wireless Sports Earbuds IPX8 Waterproof with Mic for Swimming Running Fitness"},
+            {"id":"1005006111979422","label":"exact","tier":"standard","shop":"1102531446","price":59.26,"feedbackPct":93.2,"unitsSold":698,"title":"Wireless Earbuds Sport Bluetooth 5.3 Headphones with Noise Cancelling Mic 75H HiFi Stereo Over Ear Bud LED Display USB-C IPX6"},
+            {"id":"1005006257950849","label":"exact","tier":"standard","shop":"911425250","price":34.89,"feedbackPct":93.8,"unitsSold":449,"title":"HOCO EW60 Bluetooth 5.0 Earbuds Wireless Hi-Res Audio Touch Control Waterproof Sports Headset with Mic for Running"}
+          ],
+          "sameShopTop3": 3,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 11,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 9,
+            "requirement": 11
+          },
+          "labels": {
+            "count": 98,
+            "leadCorrect": true,
+            "cardsGood": 5,
+            "cardsLabelled": 5,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005010676941545","1005009680752545","1005012505369409","1005009970168305","1005009799479634","1005010487367374","1005009706727798","1005012058590153","1005012950652826","1005012440801923","1005010578692405","1005012029167812","1005007278922497","1005011786797389","1005009926833649","1005010724623265","1005010037084184"],
+            "typeFalseNegativesBlocking": ["1005010676941545","1005009680752545","1005012505369409","1005009970168305","1005009799479634","1005010487367374","1005009706727798","1005012950652826","1005012440801923","1005012029167812","1005007278922497"],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "ex-1",
+          "group": "example",
+          "query": "אוזניות לריצה, עמידות למים, עד 100 ש״ח",
+          "sameQueryAs": "pair-a",
+          "parseVersion": 5,
+          "snapshotPool": 148,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1","ladder-1"],
+            "calls": 2,
+            "missing": "waterproof sports earbuds (p1)"
+          },
+          "checked": 98,
+          "passed": 10,
+          "fill": 3,
+          "shown": 5,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005013100925225","label":"exact","tier":"standard","shop":"1103573332","price":7.76,"feedbackPct":98,"unitsSold":244,"shared":true,"title":"Wireless Bluetooth 4.2 Earphone Sports Running Headset Waterproof Earbuds Music Magnetic Headphone With HD Mic For Xiaomi Huawei"},
+            {"id":"1005007792521675","label":"exact","tier":"standard","shop":"1103573332","price":9.79,"feedbackPct":98,"unitsSold":346,"shared":true,"title":"K58 Wireless Headphones Bluetooth Neckband Magnetic Earphones Sport Running Earbuds Waterproof Bluetooth 5.0 Headset With Mic"},
+            {"id":"1005007623121003","label":"exact","tier":"standard","shop":"1103314218","price":62.44,"feedbackPct":97.3,"unitsSold":130,"title":"Sport Wireless Headphone TWS Wireless Earphones Bluetooth 5.3 Earbuds with ENC Noise Cancellation Mic IP7 Waterproof for Running"},
+            {"id":"1005012245998962","label":"exact","tier":"standard","shop":"912628034","price":13.72,"feedbackPct":96,"unitsSold":349,"title":"Lenovo Bluetooth 5.4 Bone Conduction Headphones Wireless Sports Earbuds IPX8 Waterproof with Mic for Swimming Running Fitness"},
+            {"id":"1005006257950849","label":"exact","tier":"standard","shop":"911425250","price":34.89,"feedbackPct":93.8,"unitsSold":449,"title":"HOCO EW60 Bluetooth 5.0 Earbuds Wireless Hi-Res Audio Touch Control Waterproof Sports Headset with Mic for Running"}
+          ],
+          "next3": [
+            {"id":"1005010802856880","label":"exact","tier":"standard","shop":"1103718102","price":30.9,"feedbackPct":94.4,"unitsSold":1238,"title":"Choice AOC Sports Headset Wireless Bluetooth 6.0 Earphones Waterproof LED Battery Display Gaming Low Latency Headphones LP75"},
+            {"id":"1005001814197354","label":"exact","tier":"standard","shop":"1986430","price":72.28,"feedbackPct":90.9,"unitsSold":283,"title":"Mpow Flame Solo Wireless Earphones TWS Bluetooth 5.4 Earbuds with ENC Noise Cancellation Mic IPX7 Waterproof for Running Sport"},
+            {"id":"1005012378032768","label":"exact","tier":"fill","shop":"1105444869","price":13.34,"feedbackPct":100,"unitsSold":44,"title":"TWS Magnetic Wireless Headphones Neckband Bluetooth 5.3 Earphone Headset Sports Running Waterproof Earbud Wireless with Mic"},
+            {"id":"1005008740074221","label":"exact","tier":"fill","shop":"1104550778","price":62.42,"feedbackPct":100,"unitsSold":31,"title":"Wireless Earphones Bluetooth 5.4 Earbuds TWS with ENC Noise Cancellation Mic IPX7 Waterproof for Running Sport Bluetooth Headset"},
+            {"id":"1005011610078881","label":"exact","tier":"fill","shop":"1104138096","price":23.68,"feedbackPct":97.6,"unitsSold":63,"title":"Bone Conduction Bluetooth Earbuds No-In-Ear Design For Running Sports Waterproof Over-Ear Style Long Battery Life Low Noise"}
+          ],
+          "sameShopTop3": 2,
+          "budgetShare": 0.26,
+          "rejected": {
+            "feedback": 27,
+            "volume": 19,
+            "currency": 0,
+            "price": 0,
+            "type": 30,
+            "requirement": 15
+          },
+          "labels": {
+            "count": 64,
+            "leadCorrect": true,
+            "cardsGood": 5,
+            "cardsLabelled": 5,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005012440801923","1005011675886288","1005012833511900","1005011674789869","1005012058590153","1005009580477059","1005009750303279","1005010657289378","1005010240614648","1005007961638171","1005009578274758","1005009826812698","1005009970168305","1005010535516482","1005009736102805","1005007678232042","1005011786797389","1005009926833649","1005011715254947","1005010710252547","1005009006022196","1005010443102720","1005008965197230"],
+            "typeFalseNegativesBlocking": ["1005012440801923","1005011675886288","1005011674789869","1005010240614648","1005007961638171","1005009970168305","1005009736102805","1005007678232042","1005009006022196"],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "ex-2",
+          "group": "example",
+          "query": "מתנה לאבא שאוהב לבשל עד 200 ש״ח",
+          "sameQueryAs": "gift-cook",
+          "parseVersion": 5,
+          "snapshotPool": 149,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1","primary-p2"],
+            "calls": 2,
+            "missing": "cooking utensils (p1)"
+          },
+          "checked": 100,
+          "passed": 10,
+          "fill": 0,
+          "shown": 5,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005012743006539","label":"reasonable","tier":"standard","shop":"1103573332","price":36.26,"feedbackPct":98,"unitsSold":602,"shared":true,"title":"5-piece kitchen tool set, including a small chopping knife, scissors, fruit knife, peeler, and knife block, suitable for househo"},
+            {"id":"1005007169766992","label":"weak","tier":"standard","shop":"1103573332","price":11.69,"feedbackPct":98,"unitsSold":1079,"shared":true,"title":"1/3PCS Nylon Kitchen Utensils Set Kitchen Cooking Tools  Slotted Turner Solid Spoon Fork Children Spade Fork Spoon Dinnerware"},
+            {"id":"1005006997354157","label":"exact","tier":"standard","shop":"1103573332","price":53.24,"feedbackPct":98,"unitsSold":766,"shared":true,"title":"12Pcs Kitchen Utensil Set Silicone Spatula Set Wooden Handle Cooking Tools Kit with Holder Heat-Resistant Cookware for Kitchen"},
+            {"id":"1005008248012879","label":"weak","tier":"standard","shop":"1103573332","price":12.1,"feedbackPct":98,"unitsSold":3693,"shared":true,"title":"HILIFE Practical 60 Minutes Kitchen Timer Cooking Tools White Square Mechanical Timer Countdown Alarm Reminder"},
+            {"id":"1005008248140308","label":"reasonable","tier":"standard","shop":"1103573332","price":24.8,"feedbackPct":98,"unitsSold":712,"shared":true,"title":"6 Pieces Bamboo Spoon Spatula Kitchen Utensil Wooden Cooking Tool Mixing Set"}
+          ],
+          "next3": [
+            {"id":"1005007663259910","label":"weak","tier":"standard","shop":"1102425791","price":5.8,"feedbackPct":95.1,"unitsSold":1451,"title":"Measuring Cup And  Spoon 5/10PCS Household Kitchen Tool Set, Can Be Used To Store Cooking"},
+            {"id":"1005007170813797","label":"wrong","tier":"standard","shop":"1103573332","price":18.82,"feedbackPct":98,"unitsSold":2915,"shared":true,"title":"Real Cooking Toddler Children Cooking Set Early Learning Kitchen Tools Safety Knives Without Hands Fruit Supplementary Food Set"},
+            {"id":"1005010530057499","label":"weak","tier":"standard","shop":"1103573332","price":9.45,"feedbackPct":98,"unitsSold":603,"shared":true,"title":"1 Set DIY Sushi Press Mold Rice Ball Home Kitchen Food Utensils for Kitchen Kit Convenient Japan Bento Accessories Sushi Tools"},
+            {"id":"1005007611485410","label":"weak","tier":"standard","shop":"1103856072","price":8.4,"feedbackPct":95.1,"unitsSold":782,"title":"Sandwich Cutting and Sealing Machine, biscuit Plastic Cutting Machine, Household Kitchen Tools, baking Molds, Creative Cutting"},
+            {"id":"1005012705511099","label":"wrong","tier":"standard","shop":"1104393123","price":23.17,"feedbackPct":94.4,"unitsSold":679,"title":"22Pcs Stainless Steel Caulking Nozzle Tool Set Silicone Sealant Finishing Tools For Kitchen Bathroom Sink Joint Sealing Work"}
+          ],
+          "sameShopTop3": 5,
+          "budgetShare": 0.14,
+          "rejected": {
+            "feedback": 13,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 75,
+            "requirement": 0
+          },
+          "labels": {
+            "count": 130,
+            "leadCorrect": true,
+            "cardsGood": 3,
+            "cardsLabelled": 5,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005013262555028","1005008077524666","1005009916287051","1005007811194179","1005007635090428","1005008660310361","1005011717779648","1005009751349013","1005007016051853","1005009054990325","1005008239033716","1005006994560658","1005006904728187"],
+            "typeFalseNegativesBlocking": ["1005013262555028","1005008077524666","1005009916287051","1005007811194179","1005007635090428","1005008660310361","1005011717779648","1005009751349013","1005007016051853","1005009054990325","1005008239033716","1005006994560658","1005006904728187"],
+            "falsePositives": ["1005007170813797","1005012705511099"],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "ex-3",
+          "group": "example",
+          "query": "מארגנים למגירות במטבח",
+          "sameQueryAs": null,
+          "parseVersion": 5,
+          "snapshotPool": 148,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 49,
+          "passed": 21,
+          "fill": 0,
+          "shown": 5,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005007170336837","label":"reasonable","tier":"standard","shop":"1103573332","price":44.07,"feedbackPct":98,"unitsSold":3050,"shared":true,"title":"Expandable Kitchen Cabinet Drawer Organizer Rack, Multi‑Purpose Storage Shelf for Pots, Pans, Pot Lids, Cutting Boards Cookware"},
+            {"id":"1005008429982440","label":"reasonable","tier":"standard","shop":"1103573332","price":39.14,"feedbackPct":98,"unitsSold":1227,"shared":true,"title":"4 Layers Kitchen Spice Drawer Organizer Adjustable Spice Rack for Spice Jars Seasoning Bottles Cabinet Pantry Kitchen Organizer"},
+            {"id":"1005007938130472","label":"reasonable","tier":"standard","shop":"1103573332","price":13.03,"feedbackPct":98,"unitsSold":685,"shared":true,"title":"4/2 Layer Spice Drawer Organizer Adjustable Acrylic Spice Jars Rack Tray Expandable Seasoning Organizer Cabinet Kitchen Shelves"},
+            {"id":"1005013004164872","label":"exact","tier":"standard","shop":"1105326216","price":16.93,"feedbackPct":100,"unitsSold":344,"title":"UpgradedAdjustable Plastic Cutlery Drawer Organizer Divided Storage Tray Space Saving Holder for Kitchen Knives Spoons Tableware"},
+            {"id":"1005012370665602","label":"exact","tier":"standard","shop":"1103573332","price":75.56,"feedbackPct":98,"unitsSold":431,"shared":true,"title":"Silverware Organizer Expandable Kitchen Drawer Organizer Adjustable Utensil Organizer Cutlery Drawer Organizer for Forks Knives"}
+          ],
+          "next3": [
+            {"id":"1005010323499090","label":"reasonable","tier":"standard","shop":"1103877006","price":82.81,"feedbackPct":96.5,"unitsSold":1683,"title":"6/8/10/12-Pack Adjustable Drawer Organizers, Clear Expandable Dresser Organizers for Storing Clothes Kitchen Utensils"},
+            {"id":"1005010621821117","label":"exact","tier":"standard","shop":"1105008143","price":16.65,"feedbackPct":95.7,"unitsSold":1100,"title":"1Pc Expandable Kitchen Drawer Organizer - Adjustable Retractable Cutlery Storage Box with Dividers for Utensils,Drawer Organizer"},
+            {"id":"1005008300383489","label":"weak","tier":"standard","shop":"1103877006","price":26.26,"feedbackPct":97.1,"unitsSold":362,"title":"1/2/4/6/8 Pack Drawer Dividers for Clothes, 11.6''-19.6'' Adjustable Drawer Organizers 3.35'' High Expandable Separators"},
+            {"id":"1005012012243188","label":"exact","tier":"standard","shop":"1105439027","price":21.68,"feedbackPct":94.1,"unitsSold":727,"title":"Adjustable Silverware Drawer Organizer, Flatware Utensil Tray for Kitchen Drawer, Cutlery Storage Holder for Spoons Forks Knives"},
+            {"id":"1005009960331365","label":"exact","tier":"standard","shop":"1103573332","price":70.04,"feedbackPct":98,"unitsSold":335,"shared":true,"title":"Cutlery Tray For Kitchen Drawer Spoons Forks Knives Cutlery Holder Expandable Drawer Organizer Versatile Adjustable Organizer"}
+          ],
+          "sameShopTop3": 4,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 6,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 20,
+            "requirement": 0
+          },
+          "labels": {
+            "count": 127,
+            "leadCorrect": true,
+            "cardsGood": 5,
+            "cardsLabelled": 5,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005006860725584","1005005622568983","1005007513992717","1005007060348934","1005008145028011","1005011759776623","1005011807896561","1005008258287112","1005010035014505","1005010016876517"],
+            "typeFalseNegativesBlocking": ["1005006860725584","1005005622568983","1005007513992717","1005007060348934","1005008145028011","1005011759776623","1005011807896561","1005008258287112","1005010035014505","1005010016876517"],
+            "falsePositives": ["1005010492645121","1005010483885296"],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "ex-4",
+          "group": "example",
+          "query": "מחזיק טלפון לרכב עם טעינה אלחוטית",
+          "sameQueryAs": "car-holder",
+          "parseVersion": 4,
+          "snapshotPool": 140,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 50,
+          "passed": 15,
+          "fill": 0,
+          "shown": 5,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005007097351039","label":"exact","tier":"standard","shop":"1103573332","price":29.49,"feedbackPct":98,"unitsSold":2347,"shared":true,"title":"Essager Magnetic Wireless Charger Car Phone Holder 15W RGB Seven Color Light Fast Charging Mount Stand For IPhone15 14 13Android"},
+            {"id":"1005011718120542","label":"exact","tier":"standard","shop":"1103573332","price":16.04,"feedbackPct":98,"unitsSold":1944,"shared":true,"title":"Magnetic Wireless Car Charger Air Vent Clip Phone Holder For Magsafe iPhone 17 16 15 14 13 12 Pro Max Fast Car Charging Stand"},
+            {"id":"1005006861015027","label":"exact","tier":"standard","shop":"1103573332","price":31.42,"feedbackPct":98,"unitsSold":3149,"shared":true,"title":"Magnetic Car Wireless Charger Stand Magnet Car Mount Fast Charging Station Phone Holder Bracket For Macsfae iPhone 15 14 13 12"},
+            {"id":"1005006678136283","label":"exact","tier":"standard","shop":"1103573332","price":24.4,"feedbackPct":98,"unitsSold":1870,"shared":true,"title":"Magnetic Car Wireless Charger RGB For iPhone12 13 14 15 16 17 Pro Max Macsafe Car Phone Holder Stand Mount Fast Charging Station"},
+            {"id":"1005012263000564","label":"exact","tier":"standard","shop":"1103573332","price":21.75,"feedbackPct":98,"unitsSold":4911,"shared":true,"title":"30W Fast Charging Magnetic Car Wireless Charger, LED Light Phone Mount Holder for iPhone 12, 13, 14, 15，16，17， Pro Max"}
+          ],
+          "next3": [
+            {"id":"1005005544072940","label":"exact","tier":"standard","shop":"2343184","price":76.8,"feedbackPct":97.1,"unitsSold":2484,"title":"Baseus Magnetic Wireless Charger Car Phone Holder 15W Fast Charging Wireless Car Charger Holder For iPhone 16 15 14 13 Car Mount"},
+            {"id":"1005010487359429","label":"exact","tier":"standard","shop":"1103573332","price":13.89,"feedbackPct":98,"unitsSold":5115,"shared":true,"title":"Magnetic Car Wireless Charger Mount 15W Fast Charging For iPhone 12 13 14 15 16 Samsung Qi Phone 360 Rotation Vent Clip No Cable"},
+            {"id":"1005012221744624","label":"exact","tier":"standard","shop":"1103573332","price":91.82,"feedbackPct":98,"unitsSold":1671,"shared":true,"title":"Toocki Qi2.2 25W Wireless Charger Magnetic Car Phone Holder TEC Cooling for iPhone 17 16 15 Samsung S26 S25 for Magsafe Charger"},
+            {"id":"1005011942686816","label":"exact","tier":"standard","shop":"1103573332","price":22.01,"feedbackPct":98,"unitsSold":2061,"shared":true,"title":"30W Car Charger, Auto-Lock Wireless Fast Charging Phone Mount, Secure Car Charging Dock for iPhone 12 13 14 15 16 17 Xiaomi"},
+            {"id":"1005009889116002","label":"exact","tier":"standard","shop":"301635","price":101.15,"feedbackPct":96.6,"unitsSold":3436,"title":"UGREEN Qi2.2 25W 15W Magnetic Car Phone Holder Wireless Charger Stand For iPhone 17 16 Pro Max Charging Magnetic Car Charger"}
+          ],
+          "sameShopTop3": 5,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 11,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 7,
+            "requirement": 6
+          },
+          "labels": {
+            "count": 115,
+            "leadCorrect": true,
+            "cardsGood": 5,
+            "cardsLabelled": 5,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005008660246574","1005008458283071","1005008932603515","1005008666261754"],
+            "typeFalseNegativesBlocking": ["1005008660246574","1005008458283071","1005008932603515","1005008666261754"],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "ex-5",
+          "group": "example",
+          "query": "מנורת לילה לחדר ילדים עם חיישן תנועה",
+          "sameQueryAs": "home-nightlight",
+          "parseVersion": 4,
+          "snapshotPool": 147,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": "motion sensor night light (p1)"
+          },
+          "checked": 50,
+          "passed": 6,
+          "fill": 3,
+          "shown": 5,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005008557420018","label":"exact","tier":"standard","shop":"1103317922","price":14.55,"feedbackPct":98.6,"unitsSold":115,"title":"Motion Sensor Led Night Light EU US Plug Infrared Smart Sensor Wall Lamp Bedroom Toilet Hallway Kitchen Kid Nightlight 220V 110V"},
+            {"id":"1005008640620418","label":"exact","tier":"standard","shop":"1102696938","price":12.7,"feedbackPct":97,"unitsSold":111,"title":"LED Cloud Smart Motion Sensor Night Lights Room DecorEU/US Plug in for Kids Bedroom Stair Hallway Study Bedhead Night Lamps"},
+            {"id":"1005006011826341","label":"exact","tier":"standard","shop":"912699044","price":23.17,"feedbackPct":90.8,"unitsSold":159,"title":"EU US UK Plug in LED Motion Sensor Night Lights for Kids Bedroom Auto Dusk to Dawn Sensor Dimmable Wireless Cabinet Lamp Decor"},
+            {"id":"1005012345756868","label":"exact","tier":"fill","shop":"1105408773","price":11.42,"feedbackPct":97.5,"unitsSold":74,"title":"LED Night Lights Plug into Wall Night Lamp Motion Sensor Auto-On/Off Nightlight for Kids Room Bedroom Bathroom Hallway Kitchen"},
+            {"id":"1005007183959244","label":"exact","tier":"fill","shop":"1103471022","price":14.69,"feedbackPct":96.6,"unitsSold":94,"title":"LED Night Light With Motion Sensor EU US Plug Lamps Wall Night Lamp Dimmable Bedroom Toilet Hallway Kitchen Kids Night Lights"}
+          ],
+          "next3": [
+            {"id":"1005010487315538","label":"exact","tier":"fill","shop":"1103573332","price":62.92,"feedbackPct":98,"unitsSold":61,"title":"Sensky 3 In 1 EU US PLug in Smart LED Night Light With Motion Sensor Rechargeable Flashlight For Kid Baby Room Emergency"}
+          ],
+          "sameShopTop3": 1,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 23,
+            "volume": 24,
+            "currency": 0,
+            "price": 0,
+            "type": 0,
+            "requirement": 0
+          },
+          "labels": {
+            "count": 41,
+            "leadCorrect": true,
+            "cardsGood": 5,
+            "cardsLabelled": 5,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": [],
+            "typeFalseNegativesBlocking": [],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "ex-6",
+          "group": "example",
+          "query": "רמקול בלוטות׳ עמיד למים בין 50 ל־150 ש״ח",
+          "sameQueryAs": null,
+          "parseVersion": 5,
+          "snapshotPool": 117,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1","primary-p2"],
+            "calls": 2,
+            "missing": null
+          },
+          "checked": 96,
+          "passed": 23,
+          "fill": 0,
+          "shown": 5,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005007357456579","label":"exact","tier":"standard","shop":"1104002136","price":122.19,"feedbackPct":96.7,"unitsSold":7145,"title":"Ortizan Bluetooth Speakers 40W Enhanced Bass Portable Outdoor Wireless Speaker 30Hrs IP7 Waterproof Shower Speaker Bluetooth 5.3"},
+            {"id":"1005007038567261","label":"exact","tier":"standard","shop":"1103573332","price":89.06,"feedbackPct":98,"unitsSold":4138,"shared":true,"title":"ZEALOT-S32PRO Powerful Bluetooth Speaker, Bass Wireless, LED Light, Outdoor Speakers, Subwoofer, Waterproof Sound Box Support"},
+            {"id":"1005010376374580","label":"exact","tier":"standard","shop":"1103573332","price":78.86,"feedbackPct":98,"unitsSold":2054,"shared":true,"title":"Tribit PocketGo Portable Bluetooth Speaker IP68 Waterproof BT6.0 Built-in Mic TWS APP EQ for Outdoor Pool Party Camping Travel"},
+            {"id":"1005007805661281","label":"exact","tier":"standard","shop":"1103573332","price":115.82,"feedbackPct":98,"unitsSold":1191,"shared":true,"title":"MLOVE P3 Outdoor Bluetooth Speaker, 40W Output Power Bluetooth 5.3 Speaker ,Stereo Sound IPX7 Waterproof,Micro SD Card,RGB Light"},
+            {"id":"1005010228881343","label":"exact","tier":"standard","shop":"1103573332","price":124.6,"feedbackPct":98,"unitsSold":1965,"shared":true,"title":"Ortizan X8 Pro Waterproof Bluetooth Speaker Portable Powerful Sound Box Bass Boost Dual Pairing True Wireless Speaker TF/AUX in"}
+          ],
+          "next3": [
+            {"id":"1005006677917937","label":"exact","tier":"standard","shop":"1103573332","price":64.34,"feedbackPct":98,"unitsSold":473,"shared":true,"title":"TG116c Bluetooth Speaker TWS Wireless Powerful Box Portable Outdoor Speakers Waterproof Subwoofer 3D Stereo Sound HandsFree Call"},
+            {"id":"1005009981036191","label":"reasonable","tier":"standard","shop":"1103207162","price":56.1,"feedbackPct":97.1,"unitsSold":1148,"title":"Wearable Bluetooth Speaker IPX7 Waterproof Portable Speakers Outdoor Sport Clip-On Microphone Speaker Calls/Music Mini Sound Box"},
+            {"id":"1005006678175362","label":"exact","tier":"standard","shop":"1103573332","price":139.57,"feedbackPct":98,"unitsSold":1012,"shared":true,"title":"Tribit XSound Go Portable Bluetooth Speaker IPX7 Waterproof Better Bass 24-Hour Playtime For Party Camping Speakers Type-C AUX"},
+            {"id":"1005006860718636","label":"exact","tier":"standard","shop":"1103573332","price":123.08,"feedbackPct":98,"unitsSold":359,"shared":true,"title":"mifa A10+ Portable bluetooth speaker 360° Stereo Sound 20W  IPX7 waterproof wireless bluetooth 5.0 speaker 24-Hour Play time"},
+            {"id":"1005012438678277","label":"exact","tier":"standard","shop":"1103573332","price":122.22,"feedbackPct":99.7,"unitsSold":142,"shared":true,"title":"MLOVE Portable Bluetooth Speaker – Powerful Dual Sound, Colorful RGB Lighting, Fully Waterproof (IPX7), TWS Enabled"}
+          ],
+          "sameShopTop3": 4,
+          "budgetShare": 0.71,
+          "rejected": {
+            "feedback": 10,
+            "volume": 3,
+            "currency": 0,
+            "price": 2,
+            "type": 32,
+            "requirement": 4
+          },
+          "labels": {
+            "count": 101,
+            "leadCorrect": true,
+            "cardsGood": 5,
+            "cardsLabelled": 5,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005005741315902","1005010427729730"],
+            "typeFalseNegativesBlocking": ["1005005741315902","1005010427729730"],
+            "falsePositives": ["1005007573673406"],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "ex-7",
+          "group": "example",
+          "query": "שעון חכם עם מד דופק עד 150 ש״ח",
+          "sameQueryAs": null,
+          "parseVersion": 5,
+          "snapshotPool": 135,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1","primary-p2"],
+            "calls": 2,
+            "missing": "smart watch (p1)"
+          },
+          "checked": 99,
+          "passed": 12,
+          "fill": 0,
+          "shown": 5,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005008830601930","label":"exact","tier":"standard","shop":"1103573332","price":14.49,"feedbackPct":98,"unitsSold":6103,"shared":true,"title":"LAXASFIT Smartwatch Bluetooth Talk Smartwatch Message Alert Heart Rate Monitor Sports Watch for Android IOS Men Women"},
+            {"id":"1005006995151533","label":"exact","tier":"standard","shop":"1103573332","price":24.76,"feedbackPct":98,"unitsSold":1823,"shared":true,"title":"LAXASFIT H9 Smartwatch Dial to Answer Calls Calorie Tracking Heart Rate Blood Oxygen Monitoring Bluetooth Smart Watch"},
+            {"id":"1005006860956768","label":"exact","tier":"standard","shop":"1103573332","price":59.8,"feedbackPct":98,"unitsSold":2787,"shared":true,"title":"2026 New Classic Smart Watch Men Women ECG+PPG HD Screen Bluetooth Call GPS Tracker Heart Rate IP68 Waterproof Sports Smartwatch"},
+            {"id":"1005006997324750","label":"exact","tier":"standard","shop":"1103573332","price":39.25,"feedbackPct":98,"unitsSold":2856,"shared":true,"title":"LAXASFIT New Men's Smart Watch Bluetooth Talk 2.01 inch HD Screen LED Outdoor Flashlight Heart Rate Monitor Sports Smartwatch"},
+            {"id":"1005009460482765","label":"exact","tier":"standard","shop":"1103573332","price":40.21,"feedbackPct":98,"unitsSold":1800,"shared":true,"title":"2026 New Ultra-Slim Smart Watch Men 100+ Sports Modes Heart Rate Monitoring AI Voice Assistant Bluetooth Call Smartwatches"}
+          ],
+          "next3": [
+            {"id":"1005008406453115","label":"exact","tier":"standard","shop":"1103573332","price":52.41,"feedbackPct":98,"unitsSold":1733,"shared":true,"title":"New Watch 5 Sports Smart Watch Men Women 2.01\" AMOLED Screen Fitness Tracker Heart Rate ECG Waterproof GPS Track Call Smartwatch"},
+            {"id":"1005010088946565","label":"exact","tier":"standard","shop":"1103573332","price":72.1,"feedbackPct":98,"unitsSold":1445,"shared":true,"title":"2026 New NFC Bluetooth Call Smart Watch 8 mini GPS Navigation IP68 Waterproof Heart Rate Monitoring Smartwatch Men Women"},
+            {"id":"1005009384181339","label":"exact","tier":"standard","shop":"1103573332","price":11.3,"feedbackPct":98,"unitsSold":2486,"shared":true,"title":"New For OPPO Ultra Thin Smart Watch Men AMOLED HD Screen Always Show Time Heart Rate Bluetooth Call Sports Waterproof Smartwatch"},
+            {"id":"1005012438476927","label":"exact","tier":"standard","shop":"1103573332","price":22.64,"feedbackPct":98,"unitsSold":2568,"shared":true,"title":"2026 New Smart Watch Bluetooth Call Fitness Tracker Heart Rate Sleep Record Outdoor Sport Watch for Android/IOS Men Women HT30"},
+            {"id":"1005012814804552","label":"exact","tier":"standard","shop":"1103573332","price":42.02,"feedbackPct":98,"unitsSold":1365,"shared":true,"title":"LAXASFIT Smart Watch 1.46\" HD Gesture Answer SOS Bluetooth Call Heart Rate Monitor Fitness Tracker Sports Gift for Men Women"}
+          ],
+          "sameShopTop3": 5,
+          "budgetShare": 0.24,
+          "rejected": {
+            "feedback": 33,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 3,
+            "requirement": 50
+          },
+          "labels": {
+            "count": 79,
+            "leadCorrect": true,
+            "cardsGood": 5,
+            "cardsLabelled": 5,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005008144895479"],
+            "typeFalseNegativesBlocking": [],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "ex-8",
+          "group": "example",
+          "query": "תיק גב עמיד למים לטיולים",
+          "sameQueryAs": null,
+          "parseVersion": 5,
+          "snapshotPool": 126,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1","primary-p2"],
+            "calls": 2,
+            "missing": null
+          },
+          "checked": 100,
+          "passed": 24,
+          "fill": 0,
+          "shown": 5,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005013092462383","label":"reasonable","tier":"standard","shop":"1103573332","price":15.1,"feedbackPct":98,"unitsSold":18334,"shared":true,"title":"Backpack Multifunctional Outdoor Folding Backpack Lightweight Waterproof Nylon Fabric Sports Bag for Camping Hiking Travel"},
+            {"id":"1005009916206776","label":"weak","tier":"standard","shop":"1103573332","price":19.93,"feedbackPct":98,"unitsSold":2063,"shared":true,"title":"Sport Basketball Backpack Travel Outdoor Waterproof Swimming Fitness Travel Sports Bag Basketball Pouch Hiking Climbing Backpack"},
+            {"id":"1005013266358009","label":"weak","tier":"standard","shop":"1103573332","price":38.56,"feedbackPct":98.3,"unitsSold":4744,"shared":true,"title":"Tactical Assault Pack Sling Backpack Waterproof EDC Rucksack Bag for Outdoor Hiking Camping Hunting Trekking Travelling"},
+            {"id":"1005007857181136","label":"reasonable","tier":"standard","shop":"1103573332","price":53.43,"feedbackPct":98,"unitsSold":1256,"shared":true,"title":"10L 20L Travel Outdoor Backpack Mini Small Waterproof Camping Hiking Fishing Hunting Bag Climbing Women Men Rucksack Daypack"},
+            {"id":"1005007009976927","label":"reasonable","tier":"standard","shop":"1103573332","price":36.09,"feedbackPct":98,"unitsSold":695,"shared":true,"title":"Lightweight Foldable Backpack Men Women Waterproof Packable Backpack Outdoor Travel Hiking Cycling Daypack Camping Shoulders Bag"}
+          ],
+          "next3": [
+            {"id":"1005010089139525","label":"reasonable","tier":"standard","shop":"1103573332","price":64.67,"feedbackPct":98,"unitsSold":761,"shared":true,"title":"Hiking Backpack, Waterproof and Wear-resistant Lightweight Backpack Packable, Outdoor Travel Camping Daypack for Men and Women"},
+            {"id":"1005008144995091","label":"exact","tier":"standard","shop":"1103573332","price":34.42,"feedbackPct":98,"unitsSold":644,"shared":true,"title":"Homefish 40L Lightweight Hiking Backpack Waterproof Mountaineering Rucksack for Men Travel Climbing Sport Bag"},
+            {"id":"1005006995360170","label":"exact","tier":"standard","shop":"1103573332","price":35.31,"feedbackPct":98,"unitsSold":504,"shared":true,"title":"Homefish 40L Waterproof Hiking Backpack Large Capacity Outdoor Rucksack Trekking Camping Travel Bag for Men Women"},
+            {"id":"1005006904740089","label":"reasonable","tier":"standard","shop":"1103573332","price":9.8,"feedbackPct":98,"unitsSold":498,"shared":true,"title":"Outdoor Neutral Waterproof Foldable Backpack Large Capacity Portable Camping Hiking Day Bag Runing Ultra Light Folding Bag"},
+            {"id":"1005011653685970","label":"reasonable","tier":"standard","shop":"1103573332","price":74.96,"feedbackPct":98,"unitsSold":508,"shared":true,"title":"BISINNA 22L Hiking Backpack Portable Ultralight Waterproof Nylon Bag Men Women Folding Sports Pack for Camping Travel Climbing"}
+          ],
+          "sameShopTop3": 5,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 10,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 56,
+            "requirement": 3
+          },
+          "labels": {
+            "count": 116,
+            "leadCorrect": true,
+            "cardsGood": 3,
+            "cardsLabelled": 5,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005013266296245","1005008146433077","1005006997632307","1005007170412764","1005008224329613","1005006678223064","1005008112477409","1005006966132945","1005008234493648","1005005651412698","1005006996432383"],
+            "typeFalseNegativesBlocking": ["1005013266296245","1005008146433077","1005006997632307","1005007170412764","1005008224329613","1005006678223064","1005008112477409","1005006966132945"],
+            "falsePositives": ["1005006727708320","1005007170315788"],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "ex-9",
+          "group": "example",
+          "query": "כרית צוואר לטיסות ארוכות",
+          "sameQueryAs": null,
+          "parseVersion": 5,
+          "snapshotPool": 148,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1"],
+            "calls": 1,
+            "missing": null
+          },
+          "checked": 50,
+          "passed": 26,
+          "fill": 0,
+          "shown": 5,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005009582344612","label":"reasonable","tier":"standard","shop":"1103573332","price":16.8,"feedbackPct":98,"unitsSold":3042,"shared":true,"title":"Travel Neck Pillow with Fillable Clothing U-Shaped Pillowcase, Extra Storage Bag, Velvet Neck Pillow Cover for Airplane Travel"},
+            {"id":"1005009460591122","label":"exact","tier":"standard","shop":"1103573332","price":14.38,"feedbackPct":98,"unitsSold":1207,"shared":true,"title":"Travel Neck Pillow, Portable Travel Essentials, Lightweight Versatile Luggage Carry On Travel Accessories"},
+            {"id":"1005010044180525","label":"exact","tier":"standard","shop":"1103573332","price":32.37,"feedbackPct":98,"unitsSold":3374,"shared":true,"title":"U Shaped Memory Foam Neck Pillows Soft Travel Pillow Massage Neck Pillow Sleeping Airplane Pillow Cervical Healthcare Bedding"},
+            {"id":"1005009278055870","label":"exact","tier":"standard","shop":"1103573332","price":13.19,"feedbackPct":98,"unitsSold":1167,"shared":true,"title":"2Pcs/Pack Inflatable U-Shaped Pillow, Portable Folding Neck Pillow for Travel, Suitable for Travel"},
+            {"id":"1005007856890940","label":"exact","tier":"standard","shop":"1103573332","price":9.94,"feedbackPct":98,"unitsSold":2993,"shared":true,"title":"Portable Press‑to‑Inflate U‑Shape Inflatable Neck Pillow Soft Air Support Travel Pillow Comfort Sleeping Cushion for Flight Car"}
+          ],
+          "next3": [
+            {"id":"1005006760465481","label":"exact","tier":"standard","shop":"1103452008","price":31.85,"feedbackPct":94.9,"unitsSold":13530,"title":"Travel Neck Pillow Memory Foam U-shaped Pillow Snail Style Travel Neck Support Portable Adjustable Soft Noon Break Sleep Pillows"},
+            {"id":"1005013265994410","label":"reasonable","tier":"standard","shop":"1103573332","price":20.28,"feedbackPct":98,"unitsSold":2962,"shared":true,"title":"Portable Sponge Nap Pillow Macaron Color Soft Neck Pillow Multifunction Cervical Support Travel Sleeping Pillow Office"},
+            {"id":"1005008933007006","label":"weak","tier":"standard","shop":"1103573332","price":13.75,"feedbackPct":98,"unitsSold":9679,"shared":true,"title":"BISINNA Camping Inflatable Pillow Portable Ultralight Travel Hiking Air Sleeping Pillow for Neck and Lumbar Support"},
+            {"id":"1005007306810222","label":"exact","tier":"standard","shop":"1103573332","price":18.83,"feedbackPct":98,"unitsSold":1397,"shared":true,"title":"Simple Plush U-shaped Pillow Driving Travel Neck Pillow Nap Pillow Comfortable to Relieve Fatigue"},
+            {"id":"1005010530275186","label":"reasonable","tier":"standard","shop":"1103573332","price":126.53,"feedbackPct":98,"unitsSold":3081,"shared":true,"title":"U-Shape Cervical Neck Massage Pillow Portable Heat Vibration for Travel Office Pain Relief Soft Comfortable Cushion"}
+          ],
+          "sameShopTop3": 5,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 2,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 16,
+            "requirement": 0
+          },
+          "labels": {
+            "count": 139,
+            "leadCorrect": true,
+            "cardsGood": 5,
+            "cardsLabelled": 5,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005007170752899","1005008660187724","1005005266708630","1005006997487038"],
+            "typeFalseNegativesBlocking": ["1005007170752899","1005008660187724","1005005266708630","1005006997487038"],
+            "falsePositives": ["1005007204690243","1005013255627262","1005005896396093"],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "live-drawer-organizer",
+          "group": "live",
+          "query": "מארגן למגירות, עד 100 ש״ח",
+          "sameQueryAs": null,
+          "parseVersion": 5,
+          "snapshotPool": 147,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1","primary-p2"],
+            "calls": 2,
+            "missing": null
+          },
+          "checked": 99,
+          "passed": 20,
+          "fill": 0,
+          "shown": 5,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005007170336837","label":"reasonable","tier":"standard","shop":"1103573332","price":44.07,"feedbackPct":98,"unitsSold":3050,"shared":true,"title":"Expandable Kitchen Cabinet Drawer Organizer Rack, Multi‑Purpose Storage Shelf for Pots, Pans, Pot Lids, Cutting Boards Cookware"},
+            {"id":"1005006995257180","label":"reasonable","tier":"standard","shop":"1103573332","price":11.23,"feedbackPct":98,"unitsSold":11268,"shared":true,"title":"Thicken Clothes Organizer Pants Sweater Storage Cabinets Drawers Organizer Jeans Storage Box Wardrobe Clothes Storage Organizers"},
+            {"id":"1005009116393616","label":"exact","tier":"standard","shop":"1103573332","price":47.54,"feedbackPct":98,"unitsSold":1266,"shared":true,"title":"HTMCK 7pc Desk Drawer Organizers Set Plastic Bathroom Storage Makeup Organizer Clear Transparent Storage Box Drawer Organizer"},
+            {"id":"1005010653319714","label":"exact","tier":"standard","shop":"1103573332","price":76.86,"feedbackPct":98,"unitsSold":3844,"shared":true,"title":"1pc Silverware Drawer Organizer Adjustable Flatware Tableware Organizer Expandable Plastic Utensil Tray for Spoons Forks Knives"},
+            {"id":"1005008290033959","label":"exact","tier":"standard","shop":"1104433135","price":19.13,"feedbackPct":95.7,"unitsSold":2772,"title":"Cabinet Underwear Organizer Drawer Clothes Organizer Boxes Closet Organizer for Underwear Bra Socks Underpants Storage Organizer"}
+          ],
+          "next3": [
+            {"id":"1005010323499090","label":"exact","tier":"standard","shop":"1103877006","price":82.81,"feedbackPct":96.5,"unitsSold":1683,"title":"6/8/10/12-Pack Adjustable Drawer Organizers, Clear Expandable Dresser Organizers for Storing Clothes Kitchen Utensils"},
+            {"id":"1005010621821117","label":"exact","tier":"standard","shop":"1105008143","price":16.65,"feedbackPct":95.7,"unitsSold":1100,"title":"1Pc Expandable Kitchen Drawer Organizer - Adjustable Retractable Cutlery Storage Box with Dividers for Utensils,Drawer Organizer"},
+            {"id":"1005007792141996","label":"reasonable","tier":"standard","shop":"1103573332","price":21.77,"feedbackPct":98,"unitsSold":1034,"shared":true,"title":"Transparent Makeup Brush Organizer, Makeup Storage Tray, Bathroom Drawer Makeup Organizer, 3 Slot Acrylic Makeup Brush Organizer"},
+            {"id":"1005008660123810","label":"exact","tier":"standard","shop":"1103573332","price":16.35,"feedbackPct":98,"unitsSold":969,"shared":true,"title":"Adjustable Plastic Space separation tool Desk and Drawer Organizer Dividers PP Material Storage System for Office Dorm Home"},
+            {"id":"1005008554568611","label":"wrong","tier":"standard","shop":"1103573332","price":17.11,"feedbackPct":98,"unitsSold":5312,"shared":true,"title":"3-Tier Plastic Cosmetic Storage Box Organizer with Drawers Multifunctional Countertop Storage for Jewelry Office Supplies"}
+          ],
+          "sameShopTop3": 4,
+          "budgetShare": 0.4,
+          "rejected": {
+            "feedback": 20,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 55,
+            "requirement": 0
+          },
+          "labels": {
+            "count": 117,
+            "leadCorrect": true,
+            "cardsGood": 5,
+            "cardsLabelled": 5,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005007170932465","1005006860725584","1005006782990459","1005009773498302","1005006174381760","1005007705527057","1005007345021980","1005007513992717","1005007037546152","1005006727805035","1005007170777869","1005006982718799","1005011839708234","1005013255433191","1005007857210079","1005004780769776","1005007501510278","1005009916255172","1005009685253527","1005007060348934","1005005871110819","1005009962171825","1005012258141020"],
+            "typeFalseNegativesBlocking": ["1005007170932465","1005006860725584","1005006782990459","1005009773498302","1005006174381760","1005007705527057","1005007345021980","1005007513992717","1005007037546152","1005006727805035","1005007170777869","1005006982718799","1005011839708234","1005013255433191","1005007857210079","1005004780769776","1005007501510278","1005009916255172","1005009685253527","1005007060348934","1005005871110819","1005009962171825","1005012258141020"],
+            "falsePositives": ["1005008554568611","1005011942122518","1005007032908429","1005005633256751","1005009279251941"],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "live-sonic-doll",
+          "group": "live",
+          "query": "בובת סוניק לילד",
+          "sameQueryAs": null,
+          "parseVersion": 5,
+          "snapshotPool": 131,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1","primary-p2"],
+            "calls": 2,
+            "missing": "sonic plush (p1)"
+          },
+          "checked": 88,
+          "passed": 4,
+          "fill": 4,
+          "shown": 4,
+          "moreAvailable": false,
+          "top3": [
+            {"id":"1005013192916106","label":"exact","tier":"fill","shop":"1104809075","price":25.43,"feedbackPct":100,"unitsSold":78,"title":"30cm-High Quality Sonic Plush Toys Knuckles Tails Amy Rose Plush Doll Cute Soft Stuffed Plush Doll Birthday Gifts~"},
+            {"id":"1005012737850036","label":"exact","tier":"fill","shop":"1105240516","price":36.58,"feedbackPct":100,"unitsSold":97,"title":"33cm Sonic Plush High Quality The Hedgehog Shadow Plush Toys New Cartoon Hedgehog Sonic Ultra Mouse Shadow Super SONY Kids Gifts"},
+            {"id":"1005012867684572","label":"exact","tier":"fill","shop":"1105112677","price":36.49,"feedbackPct":100,"unitsSold":70,"title":"Quality Sonic Plush Toy Hedgehog Knuckles Tails Cute Cartoon Soft Stuffed Doll Birthday Gift for Children"},
+            {"id":"1005012734147872","label":"exact","tier":"fill","shop":"1105240516","price":33.72,"feedbackPct":100,"unitsSold":53,"title":"Hot Selling Cartoon Sonic Doll Cute Anime Toy Anime Games Hedgehog Mouse SchattTal Siffer Peripheral Plush Toy Kids Gifts"}
+          ],
+          "next3": [],
+          "sameShopTop3": 2,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 32,
+            "volume": 29,
+            "currency": 0,
+            "price": 0,
+            "type": 27,
+            "requirement": 0
+          },
+          "labels": {
+            "count": 77,
+            "leadCorrect": true,
+            "cardsGood": 4,
+            "cardsLabelled": 4,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005013090369715","1005012861365389"],
+            "typeFalseNegativesBlocking": ["1005013090369715","1005012861365389"],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        },
+        {
+          "id": "live-soundbar",
+          "group": "live",
+          "query": "סאונד בר",
+          "sameQueryAs": null,
+          "parseVersion": 5,
+          "snapshotPool": 148,
+          "error": null,
+          "sort": "best_value",
+          "fetch": {
+            "steps": ["primary-p1","primary-p2"],
+            "calls": 2,
+            "missing": "sound bar (p1)"
+          },
+          "checked": 100,
+          "passed": 7,
+          "fill": 0,
+          "shown": 5,
+          "moreAvailable": true,
+          "top3": [
+            {"id":"1005007096840816","label":"weak","tier":"standard","shop":"1103573332","price":16.22,"feedbackPct":98,"unitsSold":5880,"shared":true,"title":"Portable Wireless Soundbar 500mAh Battery Bluetooth 5.0 Outdoor Indoor Sport HIFI Customized High-Quality Speakers Soundbar"},
+            {"id":"1005010285581153","label":"exact","tier":"standard","shop":"1103573332","price":31.44,"feedbackPct":98,"unitsSold":2295,"shared":true,"title":"Bluetooth 5.3 HiFi Stereo Speaker Wireless Soundbar Subwoofer with Breathing Light Portable Home Theater Audio"},
+            {"id":"1005008077574550","label":"exact","tier":"standard","shop":"1103573332","price":41.77,"feedbackPct":98,"unitsSold":734,"shared":true,"title":"Wired Wireless Bluetooth Speaker Sound Box Bar Soundbar Computer PC TV Laptop Desktop Music Portable Caixa De Som Audio System"},
+            {"id":"1005009916267045","label":"reasonable","tier":"standard","shop":"1103573332","price":100.1,"feedbackPct":98,"unitsSold":4732,"shared":true,"title":"Lenovo C02 Wooden USB Speaker 360° Stereo Soundbar Rich Bass Desktop Speaker For PC Laptop Gaming 2026 New Speaker"},
+            {"id":"1005009874292196","label":"reasonable","tier":"standard","shop":"1103573332","price":52.81,"feedbackPct":98,"unitsSold":752,"shared":true,"title":"New Long Strip USB Wired & Bluetooth Dual Speaker Wooden Mini Soundbar for PC  Laptop & Desktop, Mid-Bass Speaker"}
+          ],
+          "next3": [
+            {"id":"1005005235672872","label":"weak","tier":"standard","shop":"1102724226","price":40.44,"feedbackPct":92.7,"unitsSold":742,"title":"Speaker TG506 Portable Mini Wireless Soundbar Bluetooth 5.0 Outdoor Indoor HIFI Loudspeaker Support TF Card FM Radio Waterproof"},
+            {"id":"1005008909030186","label":"reasonable","tier":"standard","shop":"1103573332","price":36.12,"feedbackPct":98,"unitsSold":2509,"shared":true,"title":"4D Bluetooth Computer Sound Bar Stereo Sound Subwoofer Loudspeaker With Mic For Macbook Laptop Notebook PC Music Player"}
+          ],
+          "sameShopTop3": 5,
+          "budgetShare": null,
+          "rejected": {
+            "feedback": 19,
+            "volume": 0,
+            "currency": 0,
+            "price": 0,
+            "type": 73,
+            "requirement": 0
+          },
+          "labels": {
+            "count": 127,
+            "leadCorrect": false,
+            "cardsGood": 4,
+            "cardsLabelled": 5,
+            "wrongTop3": 0,
+            "unlabelledTop6": [],
+            "typeFalseNegatives": ["1005009645842055","1005006994697284"],
+            "typeFalseNegativesBlocking": ["1005009645842055","1005006994697284"],
+            "falsePositives": [],
+            "unknownIds": []
+          }
+        }
+      ]
+    }
+  ],
+  "comparisons": []
+}

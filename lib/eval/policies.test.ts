@@ -14,13 +14,17 @@ import type { SnapshotCall } from "./snapshot";
 
 const PRIMARY = "leakproof water bottle";
 const L1 = "water bottle";
-const L2 = "drink bottles";
+// keywordLadder(BOTTLE): the primary keywords, "water bottle" (without the requirement), the
+// category with the requirement, the bare category.
+const L2 = "leakproof drink bottles";
+const L3 = "drink bottles";
 
 const p1 = (products: ReturnType<typeof good>[], o: Partial<SnapshotCall> = {}) =>
   call("primary-p1", PRIMARY, 1, products, o);
 const p2 = (products = times(50, () => offType())) => call("primary-p2", PRIMARY, 2, products);
 const l1 = (products = times(50, () => offType())) => call("ladder-1", L1, 1, products);
 const l2 = (products = times(50, () => offType())) => call("ladder-2", L2, 1, products);
+const l3 = (products = times(50, () => offType())) => call("ladder-3", L3, 1, products);
 
 const steps = (policy: FetchPolicy, calls: SnapshotCall[]) => {
   const r = replayFetch(snapshot(calls), BOTTLE, policy);
@@ -34,7 +38,7 @@ const steps = (policy: FetchPolicy, calls: SnapshotCall[]) => {
 describe("R5_POLICY (fetchAndRank before item 5)", () => {
   it("takes page 2 after a full page 1 limited by relevance, then the ladder while under 3 pass", () => {
     const page1 = [...times(2, () => good()), ...times(48, () => offType())];
-    expect(steps(R5_POLICY, [p1(page1), p2(), l1(), l2()])).toMatchObject({
+    expect(steps(R5_POLICY, [p1(page1), p2(), l1(), l3()])).toMatchObject({
       steps: ["primary-p1", "primary-p2", "ladder-1"],
       missing: null,
     });
@@ -42,28 +46,28 @@ describe("R5_POLICY (fetchAndRank before item 5)", () => {
 
   it("skips page 2 when page 1 held 49 items, however many records exist", () => {
     const page1 = [...times(2, () => good()), ...times(47, () => offType())];
-    expect(steps(R5_POLICY, [p1(page1), p2(), l1(), l2()]).steps).toEqual([
+    expect(steps(R5_POLICY, [p1(page1), p2(), l1(), l3()]).steps).toEqual([
       "primary-p1",
       "ladder-1",
-      "ladder-2",
+      "ladder-3",
     ]);
   });
 
   it("skips page 2 when trust, not relevance, rejected most", () => {
     const page1 = [good(), ...times(49, () => lowFeedback())];
-    expect(steps(R5_POLICY, [p1(page1), p2(), l1(), l2()]).steps).toEqual([
+    expect(steps(R5_POLICY, [p1(page1), p2(), l1(), l3()]).steps).toEqual([
       "primary-p1",
       "ladder-1",
-      "ladder-2",
+      "ladder-3",
     ]);
   });
 
   it("skips page 2 when AliExpress has no more records", () => {
     const page1 = [...times(2, () => good()), ...times(48, () => offType())];
-    expect(steps(R5_POLICY, [p1(page1, { totalRecords: 50 }), p2(), l1(), l2()]).steps).toEqual([
+    expect(steps(R5_POLICY, [p1(page1, { totalRecords: 50 }), p2(), l1(), l3()]).steps).toEqual([
       "primary-p1",
       "ladder-1",
-      "ladder-2",
+      "ladder-3",
     ]);
   });
 
@@ -100,8 +104,8 @@ describe("CURRENT_POLICY (nextFetch in lib/search/fetch-policy.ts)", () => {
     expect(steps(CURRENT_POLICY, [p1(page1), p2(), l1(), l2()]).steps).toEqual([
       "primary-p1",
       "primary-p2",
-      "ladder-1",
       "ladder-2",
+      "ladder-1",
     ]);
   });
 
@@ -115,14 +119,14 @@ describe("CURRENT_POLICY (nextFetch in lib/search/fetch-policy.ts)", () => {
     ];
     expect(steps(CURRENT_POLICY, [p1(page1), p2(), l1(), l2()]).steps).toEqual([
       "primary-p1",
-      "ladder-1",
       "ladder-2",
+      "ladder-1",
     ]);
   });
 
   it("goes to broader keywords first when trust rejected most", () => {
     const page1 = [good(), ...times(49, () => lowFeedback())];
-    expect(steps(CURRENT_POLICY, [p1(page1), p2(), l1(), l2()]).steps[1]).toBe("ladder-1");
+    expect(steps(CURRENT_POLICY, [p1(page1), p2(), l1(), l2()]).steps[1]).toBe("ladder-2");
   });
 
   it("stops after 100 checked when a requirement blocks every otherwise passing product", () => {

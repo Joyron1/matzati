@@ -776,6 +776,7 @@ describe("keywordLadder", () => {
       "kids water bottle leak proof durable",
       "water bottle leak proof",
       "water bottle",
+      "leak proof drinkware bottles",
       "drinkware bottles",
     ]);
   });

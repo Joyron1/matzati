@@ -215,5 +215,7 @@ export const DEDUP = {
  * 10: 10 results on the first view and 20 kept (RESULTS_FIRST_VIEW, RESULTS_KEPT), FILL_TIER 93%
  * and 20 sales topping up to 10 (FILL_UP_TO), and a preference the title states moves a product up
  * (WEIGHTS.preference; whole phrases such as "3rd birthday", ./relevance.ts).
+ * 11: a pop figure is any figure of the character (PRODUCT_KINDS in ./synonyms.ts), and the
+ * keyword steps keep the requirement words before dropping them (lib/search/fetch-policy.ts).
  */
-export const RANKING_VERSION = 10;
+export const RANKING_VERSION = 11;
