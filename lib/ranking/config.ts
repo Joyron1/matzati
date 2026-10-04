@@ -26,6 +26,18 @@ export const FILL_TIER: TrustThresholds = {
 };
 
 /**
+ * "Less proven" (owner decision 2026-10-04: accuracy over trust; a shopper who looks for a Funko
+ * POP of Naruto wants that, not a well-sold statue). A visitor's search shows the exact products
+ * that meet only this bar after the vetted ones (FILTERS, then FILL_TIER), each card labelled
+ * "פחות מוכח" with its own numbers; close matches (ProductMatch.close) never use it. SEO pages and
+ * the hot lists keep the vetted tiers only.
+ */
+export const LOOSE_TIER: TrustThresholds = {
+  minPositiveFeedbackPct: 80,
+  minUnitsSold: 5,
+};
+
+/**
  * How many results FILL_TIER tops a search up to: the first view (RESULTS_FIRST_VIEW, 10; owner
  * decision 2026-09-30, it was one page of 5). An SEO page's refresh keeps its own one page
  * (lib/search/seo-run.ts), so its stored results are ranked as before.
@@ -215,7 +227,10 @@ export const DEDUP = {
  * 10: 10 results on the first view and 20 kept (RESULTS_FIRST_VIEW, RESULTS_KEPT), FILL_TIER 93%
  * and 20 sales topping up to 10 (FILL_UP_TO), and a preference the title states moves a product up
  * (WEIGHTS.preference; whole phrases such as "3rd birthday", ./relevance.ts).
+ * 12: exact first (owner decision 2026-10-04): a search shows the exact products that meet
+ * FILTERS, then FILL_TIER, then LOOSE_TIER ("פחות מוכח"), then the close matches that meet
+ * FILTERS or FILL_TIER; 50 kept (RESULTS_KEPT).
  * 11: a pop figure is any figure of the character (PRODUCT_KINDS in ./synonyms.ts), and the
  * keyword steps keep the requirement words before dropping them (lib/search/fetch-policy.ts).
  */
-export const RANKING_VERSION = 11;
+export const RANKING_VERSION = 12;

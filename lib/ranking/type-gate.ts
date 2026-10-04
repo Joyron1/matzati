@@ -4,7 +4,7 @@ import type { ParsedQuery, SearchFilters } from "@/lib/search/filters";
 import { CATEGORY_LABELS, TYPE_GATE } from "./config";
 import { connectorFit } from "./connectors";
 import { phraseSpans, requirementPhrases, stem, tokenize, type Span } from "./match";
-import { PRODUCT_KINDS, PRODUCT_SYNONYM_GROUPS } from "./synonyms";
+import { CLOSE_PRODUCT_KINDS, PRODUCT_KINDS, PRODUCT_SYNONYM_GROUPS } from "./synonyms";
 
 /**
  * Nouns that make a listing an accessory for the product rather than the product itself, before
@@ -209,6 +209,8 @@ export interface TermPhrasing {
   core: string[];
   loose: string[];
   forWords?: string[];
+  /** From a CLOSE_PRODUCT_KINDS substitution: near the product, not the product itself. */
+  close?: true;
 }
 
 let synonymTokens: string[][][] | undefined;
@@ -224,20 +226,31 @@ function indexOfWords(words: readonly string[], part: readonly string[]): number
 }
 
 let kindTokens: (readonly [string[], string[]])[] | undefined;
+let closeKindTokens: (readonly [string[], string[]])[] | undefined;
+
+/** A phrasing of a term and whether it came from a close kind (CLOSE_PRODUCT_KINDS). */
+interface Variant {
+  words: string[];
+  close: boolean;
+}
 
 /**
  * The phrase plus each PRODUCT_SYNONYM_GROUPS substitution ("sports earbud" → "sports earphone")
- * and each one-way PRODUCT_KINDS one ("drawer organizer" → "cutlery tray").
+ * each one-way PRODUCT_KINDS one ("drawer organizer" → "cutlery tray") and each close one
+ * (CLOSE_PRODUCT_KINDS, marked close: "pop figure" → "action figure").
  */
-function withSynonyms(core: string[]): string[][] {
+function withSynonyms(core: string[]): Variant[] {
   synonymTokens ??= PRODUCT_SYNONYM_GROUPS.map((g) => g.map((m) => tokenize(m)));
   kindTokens ??= PRODUCT_KINDS.map(([from, to]) => [tokenize(from), tokenize(to)] as const);
-  const out = [core];
-  const add = (at: number, member: readonly string[], other: readonly string[]) => {
+  closeKindTokens ??= CLOSE_PRODUCT_KINDS.map(
+    ([from, to]) => [tokenize(from), tokenize(to)] as const,
+  );
+  const out: Variant[] = [{ words: core, close: false }];
+  const add = (at: number, member: readonly string[], other: readonly string[], close = false) => {
     const next = [...core.slice(0, at), ...other, ...core.slice(at + member.length)];
     // "house slipper" with "house shoe" for "slipper" is "house shoe", not "house house shoe".
     const variant = next.filter((w, i) => w !== next[i - 1]);
-    if (!out.some((v) => sameWords(v, variant))) out.push(variant);
+    if (!out.some((v) => sameWords(v.words, variant))) out.push({ words: variant, close });
   };
   for (const group of synonymTokens) {
     for (const member of group) {
@@ -249,6 +262,10 @@ function withSynonyms(core: string[]): string[][] {
   for (const [from, to] of kindTokens) {
     const at = indexOfWords(core, from);
     if (at >= 0) add(at, from, to);
+  }
+  for (const [from, to] of closeKindTokens) {
+    const at = indexOfWords(core, from);
+    if (at >= 0) add(at, from, to, true);
   }
   return out;
 }
@@ -295,13 +312,14 @@ export function termPhrasings(
     );
   for (let phrase = restated(); phrase; phrase = restated()) words = words.slice(phrase.length);
   const phrasings: TermPhrasing[] = [];
-  for (const variant of withSynonyms(words)) {
+  for (const { words: variant, close } of withSynonyms(words)) {
     const split = variant.length >= 3 && !variant.slice(-2).some(hasDigit) ? variant.length - 2 : 0;
     const loose = variant.slice(0, split);
     const core = variant.slice(split);
-    phrasings.push({ core, loose });
+    const mark = close ? { close: true as const } : {};
+    phrasings.push({ core, loose, ...mark });
     if (core.length >= 2 && !core.some(hasDigit)) {
-      phrasings.push({ core: core.slice(-1), loose, forWords: core.slice(0, -1) });
+      phrasings.push({ core: core.slice(-1), loose, forWords: core.slice(0, -1), ...mark });
     }
   }
   return phrasings;
@@ -347,6 +365,11 @@ export interface ProductMatch {
    * for "drawer organizer").
    */
   primary: boolean;
+  /**
+   * Named only through a close kind (CLOSE_PRODUCT_KINDS: an anime figure for a pop figure): near
+   * the product, not the product itself. The search ranking shows it after every exact match.
+   */
+  close: boolean;
 }
 
 const splitWords = (phrase: string) => phrase.split(" ");
@@ -377,7 +400,9 @@ function saysForAfter(words: string[], end: number, forWords: string[]): boolean
  * "Charging Cable", "light" match "Lighter" and "mount" match "Mounting Tape".
  */
 export function productMatch(title: string, f: GateFilters): ProductMatch | null {
-  if (!f.product_terms.length) return { position: 0, forOtherObject: false, primary: true };
+  if (!f.product_terms.length) {
+    return { position: 0, forOtherObject: false, primary: true, close: false };
+  }
   if (connectorFit(title, f) === "wrong") return null;
   const words = tokenize(title);
   const searched = searchedWords(f);
@@ -413,7 +438,7 @@ export function productMatch(title: string, f: GateFilters): ProductMatch | null
   const matched = phrasings.flatMap(({ ph, primary }) =>
     phraseSpans(opening, ph.core.join(" "), splitWords, TYPE_GATE.maxGap)
       .filter((s) => looseWordsNear(opening, ph.loose, s) && isProductSpan(s, ph))
-      .map((span) => ({ span, primary })),
+      .map((span) => ({ span, primary, close: ph.close === true })),
   );
   const spans = matched.map((m) => m.span);
   if (!spans.length) return null;
@@ -452,6 +477,7 @@ export function productMatch(title: string, f: GateFilters): ProductMatch | null
       words.slice(0, first).some(isObject) ||
       words.some((w, i) => w === "for" && isObject(words[i + 1] ?? "")),
     primary: matched.some((m) => m.primary),
+    close: matched.every((m) => m.close),
   };
 }
 

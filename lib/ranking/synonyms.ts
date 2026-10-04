@@ -47,9 +47,14 @@ export const PRODUCT_KINDS: readonly (readonly [string, string])[] = [
   ["car phone holder", "wireless car charger"],
   ["drawer organizer", "cutlery tray"],
   ["drawer organizer", "utensil tray"],
-  // A "pop" of a character is any figure of it (owner decision 2026-10-04): on AliExpress few Funko
-  // listings pass the trust bar (live "Naruto pop": 1 of 23), while other figures of the same
-  // character do. The character itself is a requirement, so other anime still fail.
+];
+
+// One-way close matches: like PRODUCT_KINDS, but the second is near the product, not the product
+// itself, so a title matched only this way is a "close" match (ProductMatch.close): it is shown
+// after every exact match, the less proven ones included (owner decisions 2026-10-04: "the style
+// matters"; for "Naruto pop", Funko POPs first, then other Naruto figures). The character or
+// brand is a requirement, so figures of another one still fail.
+export const CLOSE_PRODUCT_KINDS: readonly (readonly [string, string])[] = [
   ["pop figure", "action figure"],
   ["pop figure", "anime figure"],
   ["pop figure", "figurine"],

@@ -369,11 +369,12 @@ describe("moreForRequest: search uid", () => {
     const res = await moreForRequest("f".repeat(64), 1, new Headers());
     expect(res).toEqual({
       ok: true,
-      results: [{ ...RESULT, search_uid: "more-uid" }],
+      // promo_code_valid: whether its AliExpress code is valid when the page is sent (none here).
+      results: [{ ...RESULT, search_uid: "more-uid", promo_code_valid: false }],
       more_available: false,
     });
     const deps = m.loadMore.mock.calls[0][2] as { failureOf: (err: unknown) => string | null };
     expect(deps.failureOf(new Error("boom"))).toBe("unavailable");
-    expect(m.loadMore.mock.calls[0][3]).toEqual({ owner: false });
+    expect(m.loadMore.mock.calls[0][3]).toEqual({ owner: false, cards: false });
   });
 });

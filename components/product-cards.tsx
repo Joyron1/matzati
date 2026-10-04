@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Trophy } from "lucide-react";
 import type { LoggedResult } from "@/lib/search-url";
 import { BuyButton } from "./buy-button";
+import { CardBadges } from "./card-badges";
 import { TitleText } from "./card-lines";
 import { Price } from "./price";
 import { ProductImage } from "./product-image";
@@ -84,6 +85,7 @@ export function FeaturedProductCard({ product, rank, q }: CardProps) {
 
           <div className="space-y-3">
             <Price product={product} size="lg" />
+            <CardBadges product={product} />
             <TrustMetrics product={product} />
           </div>
 
@@ -140,6 +142,7 @@ export function CompactProductCard({
             </Link>
           </h3>
           <Price product={product} size="sm" />
+          <CardBadges product={product} />
         </div>
       </div>
       <div className={tile ? "xl:min-h-[3.25rem]" : "contents"}>
@@ -177,7 +180,12 @@ export function CompactProductCard({
  * prefetch: a product page older than a day refreshes from AliExpress, and a row of cards would do
  * that for every card on screen.
  */
-export function StandardProductCard({ product, rank, q }: CardProps) {
+export function StandardProductCard({
+  product,
+  rank,
+  q,
+  src = "search_extra",
+}: CardProps & { src?: string }) {
   const href = productHref(product.product_id, q);
   return (
     <article className={`${card} ${linkCard} flex h-full flex-col overflow-hidden`}>
@@ -202,11 +210,12 @@ export function StandardProductCard({ product, rank, q }: CardProps) {
           </Link>
         </h3>
         <Price product={product} size="sm" />
+        <CardBadges product={product} />
         <TrustMetrics product={product} short />
         <div className="mt-auto grid gap-1 pt-1">
           <BuyButton
             productId={product.product_id}
-            src="search_extra"
+            src={src}
             searchUid={product.search_uid}
             position={rank}
             size="sm"

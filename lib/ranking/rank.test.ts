@@ -1204,8 +1204,12 @@ describe("trust tiers", () => {
     // FILL_TIER since 2026-09-30: 93% and 20 sales (was 95% and 30).
     expect(trustTierOf({ positiveFeedbackPct: 94, unitsSold: 67 })).toBe("fill");
     expect(trustTierOf({ positiveFeedbackPct: 93, unitsSold: 20 })).toBe("fill");
-    expect(trustTierOf({ positiveFeedbackPct: 92.9, unitsSold: 67 })).toBeNull();
-    expect(trustTierOf({ positiveFeedbackPct: 100, unitsSold: 19 })).toBeNull();
+    // LOOSE_TIER since 2026-10-04: 80% and 5 sales ("פחות מוכח").
+    expect(trustTierOf({ positiveFeedbackPct: 92.9, unitsSold: 67 })).toBe("loose");
+    expect(trustTierOf({ positiveFeedbackPct: 100, unitsSold: 19 })).toBe("loose");
+    expect(trustTierOf({ positiveFeedbackPct: 80, unitsSold: 5 })).toBe("loose");
+    expect(trustTierOf({ positiveFeedbackPct: 79.9, unitsSold: 5000 })).toBeNull();
+    expect(trustTierOf({ positiveFeedbackPct: 100, unitsSold: 4 })).toBeNull();
     expect(trustTierOf({ positiveFeedbackPct: null, unitsSold: 5000 })).toBeNull();
   });
 
@@ -1325,13 +1329,76 @@ describe("a preference the title states (the age of a birthday)", () => {
     expect(lift).toBeCloseTo(WEIGHTS.preference, 5);
   });
 
-  it("fills up to the first view (FILL_UP_TO) from the second tier", () => {
+  it("shows every second-tier product of a search, not only up to the first view", () => {
     const many = Array.from({ length: 12 }, (_, i) =>
       balloon(`f${i}`, `Sonic Birthday Balloons Set ${String.fromCharCode(65 + i)}`, 96, 30 + i),
     );
     const { ranked, fillIds } = rankForSearch(many, balloons, "none");
     expect(FILL_UP_TO).toBe(10);
-    expect(ranked).toHaveLength(FILL_UP_TO);
-    expect(fillIds).toHaveLength(FILL_UP_TO);
+    expect(ranked).toHaveLength(12);
+    expect(fillIds).toHaveLength(12);
+    // An SEO refresh (rankWithFill without exactFirst) still fills up to its target only.
+    expect(rankWithFill(many, balloons, FILL_UP_TO, "none").ranked).toHaveLength(FILL_UP_TO);
+  });
+});
+
+// Owner decisions 2026-10-04 ("Naruto pop"): the style the shopper asked for matters more than
+// trust. Exact products first (vetted, then less proven), then close matches that passed.
+describe("exact first (a visitor's search)", () => {
+  const pop = filters({
+    keywords_en: "naruto pop figure",
+    product_terms: ["pop figure", "funko pop"],
+    requirements: [req("naruto")],
+  });
+  const item = (id: string, title: string, fb: number, sold: number) =>
+    product({ productId: id, title, positiveFeedbackPct: fb, unitsSold: sold });
+  // Real titles and numbers of the live search.
+  const funkoStandard = item(
+    "fs",
+    "Funko Pop Naruto Kurama Sasuke Wakaki Boruto SIX PATH KAKASHI Vinyl Figures Keychain Toys",
+    92.4,
+    464,
+  );
+  const funkoLoose = item(
+    "fl",
+    "Funko POP Naruto Uchiha Madara #722 Shippuden Figure Doll",
+    95,
+    17,
+  );
+  const funkoLow = item(
+    "fx",
+    "Funko POP NARUTO ANBU ITACHI 1027# Special Edition Vinyl Doll",
+    60,
+    6,
+  );
+  const statue = item(
+    "st",
+    "23cm Naruto Anime Figure Uzumaki Naruto Uchiha Sasuke Action Model Pvc Statue",
+    98,
+    1285,
+  );
+  const otherAnime = item("oa", "Funko Pop Dragon Ball Z Goku 386# Vinyl Figure", 98, 500);
+
+  it("ranks the exact vetted, then the exact less proven, then the vetted close matches", () => {
+    const pool = [statue, funkoLoose, otherAnime, funkoStandard, funkoLow];
+    const { ranked, looseIds } = rankForSearch(pool, pop, "none");
+    expect(ids(ranked)).toEqual(["fs", "fl", "st"]);
+    expect(looseIds).toEqual(["fl"]);
+    expect(trustTierOf(funkoLoose)).toBe("loose");
+    // Under 80% feedback, and another character, never shown.
+    expect(ids(ranked)).not.toContain("fx");
+    expect(ids(ranked)).not.toContain("oa");
+  });
+
+  it("never shows a less proven close match", () => {
+    const looseStatue = item("ls", "Naruto Anime Figure Kakashi PVC Action Figure Model", 85, 10);
+    const { ranked } = rankForSearch([looseStatue, funkoStandard], pop, "none");
+    expect(ids(ranked)).toEqual(["fs"]);
+  });
+
+  it("keeps an SEO refresh to the vetted tiers, exact and close alike", () => {
+    const { ranked, looseIds } = rankWithFill([statue, funkoLoose, funkoStandard], pop, 5, "none");
+    expect(ids(ranked).sort()).toEqual(["fs", "st"]);
+    expect(looseIds).toEqual([]);
   });
 });

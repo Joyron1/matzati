@@ -22,6 +22,8 @@ import { ResultsAnnouncer } from "@/components/search-wait/results-announcer";
 import type { RankedSignal, UnderstoodSignal } from "@/components/search-wait/signals";
 import { ShareLink } from "@/components/share-link";
 import { ShowMore } from "@/components/show-more";
+import { withPromoValidity } from "@/lib/search/promo";
+import { LESS_PROVEN_LABEL, LESS_PROVEN_NOTE } from "@/components/card-badges";
 import { SortBar } from "@/components/sort-bar";
 import { StateCard } from "@/components/state-card";
 import { btnMd, btnPrimary, btnSecondary } from "@/components/styles";
@@ -215,10 +217,12 @@ function Results({
     );
   }
 
-  const shown = response.results;
+  // Whether each AliExpress promo code is valid now (the card's badge): the set may be days old.
+  const sentAt = new Date().getTime();
+  const shown = withPromoValidity(response.results, sentAt);
   // Places 6-10 (standard cards, no line). A response without them (mock data) keeps the old
   // "עוד N" from place 6.
-  const extra = response.extra_results;
+  const extra = response.extra_results && withPromoValidity(response.extra_results, sentAt);
   const firstView = [...shown, ...(extra ?? [])];
   const moreFromPage = extra ? FIRST_MORE_PAGE : 1;
   const moreAvailable = extra ? response.more_after_first_view === true : response.more_available;
@@ -237,7 +241,7 @@ function Results({
           <p className="text-sm text-muted">
             {/* When the second trust tier filled in, one pair of numbers would be false for some
                 cards, so the line names the criteria and links to the full rules instead. */}
-            {firstView.some((p) => p.passed_tier === "fill") ? (
+            {firstView.some((p) => p.passed_tier === "fill" || p.passed_tier === "loose") ? (
               <>
                 הסינון: משוב חיובי ומספר מכירות ב־30 הימים האחרונים לפי{" "}
                 <Link
@@ -257,6 +261,12 @@ function Results({
             {priceChips.length > 0 ? ", בתוך התקציב" : ""}.
             {firstView.some((p) => p.price_is_approx) && <> {APPROX_PRICE_NOTE}</>}
           </p>
+          {/* Exact first (owner decision 2026-10-04): a less proven product is shown, labelled. */}
+          {firstView.some((p) => p.passed_tier === "loose") && (
+            <p className="text-sm text-muted">
+              ״{LESS_PROVEN_LABEL}״: {LESS_PROVEN_NOTE}
+            </p>
+          )}
           {checkedAt && (
             <p className="text-sm text-muted">
               התוצאות והמחירים נבדקו ב־<time dateTime={checkedAt}>{formatDateTime(checkedAt)}</time>
@@ -294,6 +304,9 @@ function Results({
             filtersKey={response.filters_key}
             q={q}
             fromPage={moreFromPage}
+            // After a first view of 10: MORE_STEP standard cards at a time (owner decision
+            // 2026-10-04). A response without places 6-10 (mock data) keeps pages of 5.
+            cards={extra !== undefined}
           />
         )}
         <ShareLink text={`מצאתי תוצאות לחיפוש "${q}"`} label="שיתוף החיפוש בוואטסאפ" />

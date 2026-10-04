@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CATALOG, categoryPath } from "@/lib/catalog/categories";
 import { LEGAL } from "@/lib/config/legal";
-import { RESULTS_FIRST_VIEW } from "@/lib/config/site";
 import { FILTERS } from "@/lib/ranking/config";
 import { buildLlmsTxt, LLMS_EXAMPLE_QUERIES, searchUrl } from "./llms";
 
@@ -56,7 +55,7 @@ describe("buildLlmsTxt", () => {
     expect(text).toContain(`לפחות ${pct} משוב חיובי`);
     expect(text).toContain(`at least ${pct} positive buyer feedback`);
     expect(text).toContain(`at least ${FILTERS.minUnitsSold} sales in the last 30 days`);
-    expect(text).toContain(`up to ${RESULTS_FIRST_VIEW} AliExpress products`);
+    expect(text).toContain("first those that passed our filters");
   });
 
   it("links only absolute addresses on the official host", () => {

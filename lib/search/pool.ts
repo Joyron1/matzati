@@ -99,16 +99,16 @@ export function rankView(
   blockers: (pool: AliProduct[], filters: ParsedQuery, passed: number) => FilterBlocker[],
   shopCap: ShopCapMode,
 ): RankedView | null {
-  const { ranked } = rankForSearch(pool, spec.filters, shopCap);
-  if (spec.removesMore && ranked.length < RESULTS_PER_PAGE) return null;
+  const { ranked, looseIds } = rankForSearch(pool, spec.filters, shopCap);
+  // "Y עברו" and the blockers count the vetted tiers: a less proven product is shown, not passed.
+  const passed = ranked.length - looseIds.length;
+  if (spec.removesMore && passed < RESULTS_PER_PAGE) return null;
   const shown = ranked.slice(0, kept);
   return {
     view: {
       ids: shown.map((p) => p.productId),
-      passed: ranked.length,
-      ...(ranked.length < RESULTS_PER_PAGE
-        ? { blockers: blockers(pool, spec.filters, ranked.length) }
-        : {}),
+      passed,
+      ...(passed < RESULTS_PER_PAGE ? { blockers: blockers(pool, spec.filters, passed) } : {}),
     },
     products: shown,
   };

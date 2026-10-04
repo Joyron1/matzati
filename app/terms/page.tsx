@@ -13,7 +13,7 @@ import { AFFILIATE_SECTION_ID, LEGAL_PATHS } from "@/lib/config/legal";
 import { AFFILIATE_NOTE } from "@/lib/copy";
 import { SEARCHES_PER_DAY, SEARCHES_PER_HOUR } from "@/lib/guard/rate-limit";
 import { PRODUCTS_PATH } from "@/lib/hot/params";
-import { FILL_TIER, FILTERS } from "@/lib/ranking/config";
+import { FILL_TIER, FILTERS, LOOSE_TIER } from "@/lib/ranking/config";
 import { pageMetadata } from "@/lib/seo/page-meta";
 
 export const metadata: Metadata = {
@@ -91,8 +91,8 @@ export default function TermsPage() {
       </LegalSection>
 
       {/* CLAUDE.md §1 (honest data), §5.3, §6 (filters, explain post-checks), §7 (/p, /hot).
-          The thresholds: FILTERS and FILL_TIER (lib/ranking/config.ts, rankWithFill in
-          lib/ranking/rank.ts); hot lists pass FILTERS only (lib/hot/). /p shows any saved product
+          The thresholds: FILTERS, FILL_TIER and LOOSE_TIER (lib/ranking/config.ts; a search ranks
+          exact first, rankForSearch in lib/ranking/rank.ts; SEO pages rankWithFill, vetted only); hot lists pass FILTERS only (lib/hot/). /p shows any saved product
           with its checks against FILTERS (app/p/[productId]/product-view.tsx), including products
           the admin imported for a deal or coupon (lib/deals/import-product.ts,
           lib/coupons/product-import.ts: no trust filter). */}
@@ -108,12 +108,14 @@ export default function TermsPage() {
             שמוצג בקופה באלי אקספרס, לפני התשלום.
           </li>
           <li>
-            בתוצאות החיפוש אנחנו מציגים רק מוצרים עם {FILTERS.minPositiveFeedbackPct}% משוב חיובי
-            ומעלה ולפחות {FILTERS.minUnitsSold} מכירות ב־30 הימים האחרונים. כשאין מספיק כאלה,
-            משלימים ממוצרים עם {FILL_TIER.minPositiveFeedbackPct}% ומעלה ולפחות{" "}
-            {FILL_TIER.minUnitsSold} מכירות. בנוסף אנחנו בודקים ששם המוצר מתאים למה שחיפשתם. ברשימת
-            המוצרים החמים מוצגים רק מוצרים עם {FILTERS.minPositiveFeedbackPct}% ומעלה ולפחות{" "}
-            {FILTERS.minUnitsSold} מכירות.
+            בתוצאות החיפוש אנחנו מציגים רק מוצרים ששם המוצר שלהם מתאים למה שחיפשתם. קודם מוצרים
+            שעברו את הסינון: {FILTERS.minPositiveFeedbackPct}% משוב חיובי ומעלה ולפחות{" "}
+            {FILTERS.minUnitsSold} מכירות ב־30 הימים האחרונים, או {FILL_TIER.minPositiveFeedbackPct}
+            % ומעלה ולפחות {FILL_TIER.minUnitsSold} מכירות. אחריהם מוצרים שמתאימים בדיוק לחיפוש אבל
+            פחות מוכחים, עם {LOOSE_TIER.minPositiveFeedbackPct}% משוב חיובי ומעלה ולפחות{" "}
+            {LOOSE_TIER.minUnitsSold} מכירות, ומסומנים ״פחות מוכח״. בסוף מוצרים קרובים למה שחיפשתם
+            שעברו את הסינון. ברשימת המוצרים החמים ובעמודי החיפושים הפופולריים מוצגים רק מוצרים שעברו
+            את הסינון.
           </li>
           <li>
             בעמוד של מוצר מוצגים הנתונים העדכניים שבדקנו, וכתוב אם המוצר עדיין עומד בספים שלנו.

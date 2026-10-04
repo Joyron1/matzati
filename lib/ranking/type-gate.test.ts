@@ -466,6 +466,7 @@ describe("productMatch", () => {
       position: 0,
       forOtherObject: false,
       primary: true,
+      close: false,
     });
   });
 });

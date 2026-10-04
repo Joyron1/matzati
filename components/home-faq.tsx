@@ -6,7 +6,7 @@ import Link from "next/link";
 import { ChevronDown, ChevronLeft } from "lucide-react";
 import { Suspense, type ReactNode } from "react";
 import { hasPublishedCoupons } from "@/lib/coupons/queries";
-import { FILL_TIER, FILL_UP_TO, FILTERS } from "@/lib/ranking/config";
+import { FILL_TIER, FILTERS, LOOSE_TIER } from "@/lib/ranking/config";
 import { jsonLdScript } from "@/lib/seo/structured-data";
 import { SearchTipsAnswer, searchTipsText } from "./search-guide";
 import { card } from "./styles";
@@ -53,10 +53,11 @@ const FAQ: FaqItem[] = [
   {
     id: "faq-filters",
     question: "איך בוחרים את המוצרים?",
-    // Both tiers (lib/ranking/config.ts): the fill tier only tops up to the first view (FILL_UP_TO).
+    // The tiers (lib/ranking/config.ts) in the order a search shows them (rankForSearch, exact
+    // first: owner decision 2026-10-04).
     answer: [
-      `אנחנו מחפשים באלי אקספרס לפי מה שכתבתם ובודקים כל מוצר שחוזר. עובר רק מוצר עם ${TRUST}, מהסוג שביקשתם, בטווח המחיר ועם הדרישות שכתבתם. מוצר שחסרים לו הנתונים האלה לא עובר.`,
-      `כשאין מספיק מוצרים כאלה, משלימים עד ${FILL_UP_TO} תוצאות ממוצרים עם ${FILL_TIER.minPositiveFeedbackPct}% משוב חיובי ומעלה ולפחות ${FILL_TIER.minUnitsSold} מכירות. את מה שעבר מדרגים לפי המשוב, מספר המכירות וההתאמה למחיר ולמה שחיפשתם. כל המספרים מאלי אקספרס.`,
+      `אנחנו מחפשים באלי אקספרס לפי מה שכתבתם ובודקים כל מוצר שחוזר. מוצג רק מוצר מהסוג שביקשתם, בטווח המחיר ועם הדרישות שכתבתם. קודם מוצרים עם ${TRUST} (או ${FILL_TIER.minPositiveFeedbackPct}% ולפחות ${FILL_TIER.minUnitsSold} מכירות): אלה עברו את הסינון שלנו.`,
+      `אחריהם מוצרים שמתאימים בדיוק אבל פחות מוכחים, לפחות ${LOOSE_TIER.minPositiveFeedbackPct}% משוב חיובי ו־${LOOSE_TIER.minUnitsSold} מכירות, עם סימון ״פחות מוכח״, ובסוף מוצרים קרובים שעברו את הסינון. מוצר שחסרים לו הנתונים לא מוצג. כל המספרים מאלי אקספרס.`,
     ],
   },
   {

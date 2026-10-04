@@ -2,11 +2,11 @@
 // and where its content lives, in Markdown, for AI search engines and assistants (owner request
 // 2026-10-03: they should know the site and send people to it). Built from plain inputs so the
 // rules are unit-tested; the route gathers the inputs the way app/sitemap.ts does. Every number
-// comes from the config the site runs (FILTERS, RESULTS_FIRST_VIEW), every address is absolute on
+// comes from the config the site runs (FILTERS), every address is absolute on
 // SITE_HOST, and nothing here reads an environment value.
 import { BRAND } from "@/lib/config/brand";
 import { AFFILIATE_SECTION_ID, LEGAL, LEGAL_PAGE_NAMES, LEGAL_PATHS } from "@/lib/config/legal";
-import { absoluteUrl, RESULTS_FIRST_VIEW } from "@/lib/config/site";
+import { absoluteUrl } from "@/lib/config/site";
 import { CATALOG, categoryPath } from "@/lib/catalog/categories";
 import { PRODUCTS_PATH } from "@/lib/hot/params";
 import { FILTERS } from "@/lib/ranking/config";
@@ -49,9 +49,9 @@ export function buildLlmsTxt(input: LlmsInput): string {
   const lines: string[] = [
     `# ${BRAND.name} (${BRAND.nameLatin})`,
     "",
-    `> ${BRAND.name} הוא עוזר קניות בעברית לאלי אקספרס: כותבים בעברית מה צריכים, ומקבלים עד ${RESULTS_FIRST_VIEW} מוצרים מאלי אקספרס שעברו סינון: לפחות ${pct}% משוב חיובי מקונים ולפחות ${sold} מכירות ב־30 הימים האחרונים. כל המספרים מגיעים מאלי אקספרס. הקישורים לאלי אקספרס הם קישורי שותפים (גילוי נאות: ${affiliate}). אתר עצמאי, לא קשור לאלי אקספרס ולא מטעמה.`,
+    `> ${BRAND.name} הוא עוזר קניות בעברית לאלי אקספרס: כותבים בעברית מה צריכים, ומקבלים מאלי אקספרס את המוצרים שמתאימים בדיוק: קודם אלה שעברו סינון (לפחות ${pct}% משוב חיובי מקונים ולפחות ${sold} מכירות ב־30 הימים האחרונים), ואחריהם מוצרים מדויקים שפחות מוכחים, עם סימון. כל המספרים מגיעים מאלי אקספרס. הקישורים לאלי אקספרס הם קישורי שותפים (גילוי נאות: ${affiliate}). אתר עצמאי, לא קשור לאלי אקספרס ולא מטעמה.`,
     ">",
-    `> ${BRAND.nameLatin} is a Hebrew AI shopping assistant for AliExpress: people describe what they need in Hebrew and get up to ${RESULTS_FIRST_VIEW} AliExpress products that passed our filters: at least ${pct}% positive buyer feedback and at least ${sold} sales in the last 30 days, every number from AliExpress. Links to AliExpress are affiliate links (disclosure: ${affiliate}). Independent; not affiliated with or endorsed by AliExpress.`,
+    `> ${BRAND.nameLatin} is a Hebrew AI shopping assistant for AliExpress: people describe what they need in Hebrew and get the AliExpress products that match exactly: first those that passed our filters (at least ${pct}% positive buyer feedback and at least ${sold} sales in the last 30 days), then exact matches that are less proven, labelled as such; every number from AliExpress. Links to AliExpress are affiliate links (disclosure: ${affiliate}). Independent; not affiliated with or endorsed by AliExpress.`,
     "",
     "A language model only reads the Hebrew request and writes a short Hebrew line on why each product was picked; code searches AliExpress's affiliate API, filters and ranks. Commission never decides what is shown; it only breaks exact ties in the order. The site is in Hebrew, right to left, for shoppers in Israel; prices are shown in shekels.",
     "",

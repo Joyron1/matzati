@@ -63,7 +63,7 @@ describe("filtersKey", () => {
       rs: RESULTS_SHAPE,
     });
     // 10 on the first view (5 explained), 20 kept: the 5 / 15 sets of before have another key.
-    expect(RESULTS_SHAPE).toBe("10/5/20");
+    expect(RESULTS_SHAPE).toBe("10/5/50");
     expect(RANKING_VERSION).toBeGreaterThanOrEqual(10);
   });
 

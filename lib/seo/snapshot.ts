@@ -111,7 +111,7 @@ const resultSchema = z.object({
   discount_pct: z.number().nullable(),
   positive_feedback_pct: z.number().nullable(),
   units_sold: z.number().nonnegative().nullable(),
-  passed_tier: z.enum(["standard", "fill"]).nullable(),
+  passed_tier: z.enum(["standard", "fill", "loose"]).nullable(),
   shared_numbers: z.object({ feedback: z.boolean(), sales: z.boolean() }).optional(),
   // Only AliExpress's image CDN over https: next/image throws on any other host.
   image_urls: z.array(z.string()).transform((urls) => urls.filter(isAllowedImage)),

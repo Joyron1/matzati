@@ -15,7 +15,10 @@ export function ExtraResultCards({ results, q }: { results: LoggedResult[]; q: s
     <section aria-labelledby="first-view-extra" className="space-y-3">
       <div className="space-y-1">
         <h2 id="first-view-extra" className="text-lg font-bold">
-          עוד אפשרויות שעברו את הסינון
+          {/* A less proven card among them (LOOSE_TIER) did not pass the filter: no such claim. */}
+          {results.some((p) => p.passed_tier === "loose")
+            ? "עוד אפשרויות"
+            : "עוד אפשרויות שעברו את הסינון"}
         </h2>
         <p className="text-sm text-muted">
           {results.length > 1 ? (

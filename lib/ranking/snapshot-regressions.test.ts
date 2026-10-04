@@ -8,7 +8,13 @@ import { snapshotFiles } from "@/lib/eval/files";
 import { parseLabelFile, type Label } from "@/lib/eval/labels";
 import { distinctProducts, parseSnapshot, type Snapshot } from "@/lib/eval/snapshot";
 import { SHARED_NUMBERS, SHOP_CAP_MODES, type ShopCapMode } from "./config";
-import { findSharedNumbers, hasSharedNumbers, rankProducts, rankForSearch } from "./rank";
+import {
+  findSharedNumbers,
+  hasSharedNumbers,
+  rankForSearch,
+  rankProducts,
+  trustTierOf,
+} from "./rank";
 import { markIn } from "./shared-numbers";
 
 const DIR = "fixtures/snapshots";
@@ -69,8 +75,13 @@ describe.skipIf(!available)("recorded cases on their snapshot pools", () => {
     ).toBe(true);
     const list = shown(pool, snap, "max2");
     const page = list.slice(0, RESULTS_PER_PAGE);
-    const others = new Set(list.filter((p) => p.shop.id !== stone).map((p) => p.shop.id));
-    // Every other shop that passed is on the first page (here there is only one).
+    // Every other shop with a vetted product (FILTERS or FILL_TIER, not a less proven one shown
+    // after them) is on the first page (here there is only one).
+    const vetted = list.filter((p) => {
+      const tier = trustTierOf(p);
+      return tier === "standard" || tier === "fill";
+    });
+    const others = new Set(vetted.filter((p) => p.shop.id !== stone).map((p) => p.shop.id));
     expect(others.size).toBeGreaterThan(0);
     for (const shop of others) expect(page.map((p) => p.shop.id)).toContain(shop);
     for (const mode of SHOP_CAP_MODES) {

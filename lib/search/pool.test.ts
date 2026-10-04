@@ -7,7 +7,7 @@ import type { AliProduct } from "@/lib/aliexpress/schemas";
 import { RESULTS_KEPT, RESULTS_PER_PAGE } from "@/lib/config/site";
 import { loadSnapshots, SNAPSHOT_DIR } from "@/lib/eval/files";
 import { distinctProducts } from "@/lib/eval/snapshot";
-import { FILL_TIER, FILTERS, SHOP_CAP_MODES } from "@/lib/ranking/config";
+import { FILL_TIER, FILTERS, LOOSE_TIER, SHOP_CAP_MODES } from "@/lib/ranking/config";
 import { passesFilters, rankForSearch, rejectReason } from "@/lib/ranking/rank";
 import { filtersKey } from "./cache-key";
 import { applyOverrides, MAX_CHIP, MIN_CHIP, requirementChipId } from "./chips";
@@ -44,8 +44,11 @@ const requestFilters = (
   sort_preference: sort,
 });
 
-const passesAnyTier = (p: AliProduct, f: ParsedQuery) =>
-  passesFilters(p, f, FILTERS) || passesFilters(p, f, FILL_TIER);
+// LOOSE_TIER passes everything FILTERS and FILL_TIER pass: the lowest bar a shown product meets
+// (exact first, owner decision 2026-10-04).
+const passesAnyTier = (p: AliProduct, f: ParsedQuery) => passesFilters(p, f, LOOSE_TIER);
+const tierOf = (p: AliProduct, f: ParsedQuery) =>
+  passesFilters(p, f, FILTERS) ? FILTERS : passesFilters(p, f, FILL_TIER) ? FILL_TIER : LOOSE_TIER;
 
 describe("viewKeyOf and the chips a request removes", () => {
   const parsed: ParsedQuery = {
@@ -115,7 +118,8 @@ describe.skipIf(!present)("views of the real snapshot pools", () => {
           // Only a view that removes a requirement and leaves fewer than a page is not kept: that
           // request fetches again.
           expect(spec.removesMore).toBe(true);
-          const passed = rankForSearch(pool, spec.filters, mode).ranked.length;
+          const r = rankForSearch(pool, spec.filters, mode);
+          const passed = r.ranked.length - r.looseIds.length;
           expect(passed).toBeLessThan(RESULTS_PER_PAGE);
           continue;
         }
@@ -126,8 +130,7 @@ describe.skipIf(!present)("views of the real snapshot pools", () => {
           // A product the parse's own filters kept out came back only for a removed requirement:
           // under the trust tier it passes now, the requirement was all that kept it out.
           if (!passesAnyTier(p, parsed)) {
-            const tier = passesFilters(p, spec.filters, FILTERS) ? FILTERS : FILL_TIER;
-            expect(rejectReason(p, parsed, tier)).toBe("requirement");
+            expect(rejectReason(p, parsed, tierOf(p, spec.filters))).toBe("requirement");
           }
         }
       }

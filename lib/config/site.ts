@@ -17,11 +17,18 @@ export const RESULTS_FIRST_VIEW = 2 * RESULTS_PER_PAGE;
 export const FIRST_MORE_PAGE = RESULTS_FIRST_VIEW / RESULTS_PER_PAGE;
 
 /**
- * Ranked products a search keeps (the result set it caches): four pages (owner decision
- * 2026-09-30, was three). The first view shows 10, "עוד N אפשרויות" places 11-15 and 16-20, and a
- * fetch saves every one of them to `products` (/p's similar products read them).
+ * Ranked products a search keeps (the result set it caches): 50 (owner decision 2026-10-04, was
+ * 20). The first view shows 10, "עוד N אפשרויות" the rest MORE_STEP at a time, and a fetch saves
+ * every one of them to `products` (/p's similar products read them).
  */
-export const RESULTS_KEPT = 4 * RESULTS_PER_PAGE;
+export const RESULTS_KEPT = 10 * RESULTS_PER_PAGE;
+
+/**
+ * Cards per "עוד N אפשרויות" on /search after the first view (owner decision 2026-10-04): standard
+ * cards with a Hebrew title (the titles call) and no "why we picked it" line. The WhatsApp bot
+ * still pages by RESULTS_PER_PAGE with lines.
+ */
+export const MORE_STEP = 2 * RESULTS_PER_PAGE;
 
 /**
  * Products an SEO landing page (/s/[slug]) shows at most (owner decision 2026-09-29): every product

@@ -25,11 +25,14 @@ import { callKey, distinctProducts, type Snapshot } from "./snapshot";
 /** A policy that has not stopped after this many calls is broken. */
 const MAX_REPLAY_CALLS = 10;
 
-/** The ranking step: products in, the ordered passers and which of them came from FILL_TIER. */
+/**
+ * The ranking step: products in, the ordered results and which of them came from FILL_TIER and
+ * (a visitor's search, exact first) from LOOSE_TIER.
+ */
 export type RankFn = (
   pool: AliProduct[],
   filters: ParsedQuery,
-) => { ranked: AliProduct[]; fillIds: string[] };
+) => { ranked: AliProduct[]; fillIds: string[]; looseIds?: string[] };
 
 /**
  * What fetchAndRank does after fetching: standard passers, topped up to the first view (FILL_UP_TO) from FILL_TIER,
@@ -118,7 +121,7 @@ function fetchState(
     pool: [...pool],
     ranked: rankProducts(pool, filters).length,
     // The shop cap only reorders: the count is the same under every mode.
-    passed: rankForSearch(pool, filters, "none").ranked.length,
+    passed: vettedCount(rankForSearch(pool, filters, "none")),
     rejected: rejectionCounts(pool, filters),
     captured,
   };
@@ -173,10 +176,14 @@ export function replayFetch(
 export interface PipelineRanking {
   /** What the pipeline caches: the first RESULTS_KEPT ranked products. */
   kept: AliProduct[];
-  /** Every product that passed ("Y עברו", passed_count). */
+  /** Every product that passed the vetted tiers ("Y עברו", passed_count): never a LOOSE_TIER one. */
   passed: number;
   fillIds: string[];
+  looseIds: string[];
 }
+
+/** Results that met the vetted tiers: a less proven one (LOOSE_TIER) is shown, never passed. */
+const vettedCount = (r: ReturnType<RankFn>) => r.ranked.length - (r.looseIds?.length ?? 0);
 
 /**
  * The ranking part of fetchAndRank. ensureLinks is assumed to succeed: a product without a
@@ -190,8 +197,9 @@ export function rankLikePipeline(
   const final = rank(pool, filters);
   return {
     kept: final.ranked.slice(0, RESULTS_KEPT),
-    passed: final.ranked.length,
+    passed: vettedCount(final),
     fillIds: final.fillIds,
+    looseIds: final.looseIds ?? [],
   };
 }
 
@@ -199,7 +207,7 @@ export function rankLikePipeline(
 export interface ProductLine {
   id: string;
   label: Label | null;
-  tier: "standard" | "fill";
+  tier: "standard" | "fill" | "loose";
   shop: string | null;
   price: number;
   feedbackPct: number | null;
@@ -290,12 +298,13 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 function productLine(
   p: AliProduct,
   fillIds: ReadonlySet<string>,
+  looseIds: ReadonlySet<string>,
   labels: Map<string, LabelEntry> | null,
 ): ProductLine {
   return {
     id: p.productId,
     label: labels?.get(p.productId)?.label ?? null,
-    tier: fillIds.has(p.productId) ? "fill" : "standard",
+    tier: looseIds.has(p.productId) ? "loose" : fillIds.has(p.productId) ? "fill" : "standard",
     shop: p.shop.id,
     price: p.price,
     feedbackPct: p.positiveFeedbackPct,
@@ -399,7 +408,8 @@ export function evaluateQuery(snap: Snapshot, book: LabelBook, variant: Variant)
     variant.rank ?? pipelineRankFor(variant.shopCap ?? DEFAULT_SHOP_CAP_MODE),
   );
   const fillIds = new Set(ranking.fillIds);
-  const lines = ranking.kept.map((p) => productLine(p, fillIds, labels));
+  const looseIds = new Set(ranking.looseIds);
+  const lines = ranking.kept.map((p) => productLine(p, fillIds, looseIds, labels));
   const top3 = lines.slice(0, RESULTS_PER_PAGE);
   const shownProducts = ranking.kept.slice(0, RESULTS_PER_PAGE);
   const max = filters.max_price_ils;

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { AliExpressClient } from "@/lib/aliexpress/client";
 import {
   FIRST_MORE_PAGE,
+  MORE_STEP,
   RESULTS_FIRST_VIEW,
   RESULTS_KEPT,
   RESULTS_PER_PAGE,
@@ -289,6 +290,28 @@ describe("loadMore", () => {
     // The search saves fresh data (now) before its cards show, then the Hebrew titles under the
     // time it fetched them; the page from the 5-day-old cache keeps the cache's time.
     expect(store.savedAt).toEqual([null, t0.toISOString(), t0.toISOString()]);
+  });
+
+  it("gives /search the next MORE_STEP cards after the first view, titled once, without lines", async () => {
+    const { deps, llm } = setup({ ...PARSE, max_price_ils: null });
+    const { response } = await runSearch({ q: "כבל USB" }, deps);
+    expect(response.more_after_first_view).toBe(true);
+    const calls = llm.calls.length;
+    const more = await loadMore(response.filters_key!, 0, deps, { cards: true });
+    expect(more!.results.length).toBeGreaterThan(0);
+    expect(more!.results.length).toBeLessThanOrEqual(MORE_STEP);
+    // Places 11 on: after the first view, no product of it again.
+    const firstView = [...response.results, ...(response.extra_results ?? [])].map(
+      (r) => r.product_id,
+    );
+    expect(more!.results.some((r) => firstView.includes(r.product_id))).toBe(false);
+    expect(more!.results.every((r) => r.why_he === "")).toBe(true);
+    expect(more!.results.every((r) => r.title_he === llm.titlesTitle)).toBe(true);
+    expect(llm.calls.slice(calls)).toEqual(["titles"]);
+    // Again: from the cache, no call.
+    const again = await loadMore(response.filters_key!, 0, deps, { cards: true });
+    expect(again!.results).toEqual(more!.results);
+    expect(llm.calls.slice(calls)).toEqual(["titles"]);
   });
 });
 

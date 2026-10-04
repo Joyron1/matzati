@@ -10,7 +10,7 @@ import { EXPLAIN_SYSTEM } from "@/lib/llm/explain";
 import { TITLES_SYSTEM } from "@/lib/llm/titles";
 import type { ParsedQueryRaw } from "@/lib/llm/parse";
 import type { LlmProvider, StructuredRequest } from "@/lib/llm/provider";
-import { FILL_TIER, FILTERS } from "@/lib/ranking/config";
+import { LOOSE_TIER } from "@/lib/ranking/config";
 import { passesFilters } from "@/lib/ranking/rank";
 import type { ResultProduct, SearchResponse, SortPreference } from "@/lib/types";
 import { applyOverrides } from "./chips";
@@ -156,8 +156,9 @@ const viewFilters = (parse: ParsedQueryRaw, without: string[], sort?: SortPrefer
   return { ...applyOverrides(parsed, without), ...(sort ? { sort_preference: sort } : {}) };
 };
 
+// LOOSE_TIER is the lowest bar a shown product meets (exact first, owner decision 2026-10-04).
 const passesAnyTier = (p: Parameters<typeof passesFilters>[0], f: ParsedQuery) =>
-  passesFilters(p, f, FILTERS) || passesFilters(p, f, FILL_TIER);
+  passesFilters(p, f, LOOSE_TIER);
 
 describe("products before their lines (plan item 15)", () => {
   it("shows the ranked products with lines from the data while the explain call runs", async () => {

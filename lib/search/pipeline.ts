@@ -30,7 +30,7 @@ import {
   trustTierOf,
   type RejectReason,
 } from "@/lib/ranking/rank";
-import { RESULTS_FIRST_VIEW, RESULTS_KEPT, RESULTS_PER_PAGE } from "@/lib/config/site";
+import { MORE_STEP, RESULTS_FIRST_VIEW, RESULTS_KEPT, RESULTS_PER_PAGE } from "@/lib/config/site";
 import { DEFAULT_SHOP_CAP_MODE, FILL_UP_TO, type ShopCapMode } from "@/lib/ranking/config";
 import { isListableQuery } from "@/lib/recent/privacy";
 import { fixTransliterations } from "@/lib/transliterations";
@@ -385,6 +385,15 @@ export function toResultProduct(p: AliProduct, e: Explanation | undefined): Resu
     ...(shared ? { shared_numbers: shared } : {}),
     image_urls: p.imageUrls,
     category_id: p.category.firstId,
+    ...(p.promoCode
+      ? {
+          promo_code: {
+            code: p.promoCode.code,
+            starts_at: p.promoCode.startsAt,
+            ends_at: p.promoCode.endsAt,
+          },
+        }
+      : {}),
   };
 }
 
@@ -466,14 +475,18 @@ export async function fetchAndRank(
   }
   const pool = [...seen.values()];
   meta.rejected = rejectionCounts(pool, parsed);
-  // Too few met FILTERS: top up to the first view (FILL_UP_TO; an SEO refresh: one page) from the
-  // second trust tier (FILL_TIER). The shop cap's first page is RESULTS_PER_PAGE either way.
+  // A visitor's search ranks exact first (rankForSearch: the vetted tiers, then the less proven
+  // LOOSE_TIER, then close matches). An SEO refresh (limits) keeps the vetted tiers only: FILTERS,
+  // topped up to one page from FILL_TIER. The shop cap's first page is RESULTS_PER_PAGE either way.
   const fillTo = limits?.fillTo ?? FILL_UP_TO;
-  const final = rankWithFill(pool, parsed, fillTo, deps.shopCap, RESULTS_PER_PAGE);
-  // passed counts every distinct product that met the filters, not just the ones we keep.
+  const final = rankWithFill(pool, parsed, fillTo, deps.shopCap, RESULTS_PER_PAGE, {
+    exactFirst: !limits,
+  });
+  // passed counts every distinct product that met the vetted tiers, not just the ones we keep: a
+  // less proven product (LOOSE_TIER) is shown, labelled, but never counted as passed.
   return {
     ranked: final.ranked.slice(0, kept),
-    passed: final.ranked.length,
+    passed: final.ranked.length - final.looseIds.length,
     checked: pool.length,
     pool,
   };
@@ -1827,13 +1840,17 @@ export interface MoreOutcome {
   more_available: boolean;
   /** When the cached result set was fetched from AliExpress (ISO), as SearchResponse.fetched_at. */
   fetched_at: string;
-  meta: SearchMeta<"explain_more">;
+  meta: SearchMeta<"explain_more" | "titles">;
   /** The search_log row written for this page, or null for an empty page (nothing is logged). */
   log: SearchLogEntry | null;
 }
 
 /**
- * "עוד N אפשרויות": explains the next page of an existing cached result set. A page with results
+ * "עוד N אפשרויות": the next page of an existing cached result set. A page of RESULTS_PER_PAGE
+ * (`page` 0-based over the whole set; the WhatsApp bot) is explained; with `cards` (/search, owner
+ * decision 2026-10-04) page `page` is the MORE_STEP cards after the first view, each with a
+ * Hebrew title (one titles call for those without a known one; AliExpress's title when it
+ * fails, never saved) and no line. A page with results
  * writes a search_log row (source "more"; the request carries only the filters key, so the query
  * column holds the result set's Hebrew product label). Its explain call goes to llm_usage as
  * "explain_more". A page that fails after the result set was found writes a row too (failure set).
@@ -1845,13 +1862,13 @@ export async function loadMore(
     SearchDeps,
     "llm" | "store" | "now" | "beforeLlmWork" | "clockMs" | "newSearchUid" | "failureOf"
   >,
-  { owner = false }: { owner?: boolean } = {},
+  { owner = false, cards = false }: { owner?: boolean; cards?: boolean } = {},
 ): Promise<MoreOutcome | null> {
   const now = deps.now ?? (() => new Date());
   const run = startRun(deps);
   const cached = await deps.store.getResults(fk, now());
   if (!cached) return null;
-  const meta = newMeta<"explain_more">("results");
+  const meta = newMeta<"explain_more" | "titles">("results");
   const writeUsage = usageWriter(deps.store, meta);
   const origin: SearchOrigin = {
     source: "more",
@@ -1869,8 +1886,47 @@ export async function loadMore(
     listable: false, // never on /searches
   } as const;
   try {
-    const start = page * RESULTS_PER_PAGE;
-    const slice = cached.products.slice(start, start + RESULTS_PER_PAGE);
+    const size = cards ? MORE_STEP : RESULTS_PER_PAGE;
+    const start = cards ? RESULTS_FIRST_VIEW + page * MORE_STEP : page * RESULTS_PER_PAGE;
+    const slice = cached.products.slice(start, start + size);
+    if (cards) {
+      const known = (id: string) =>
+        cached.explanations[id]?.title_he ?? cached.titles?.[id] ?? null;
+      const untitled = slice.filter((p) => !known(p.productId));
+      if (untitled.length) {
+        await deps.beforeLlmWork?.();
+        const context = explainContextFrom(cached.filters);
+        let added: Record<string, string> = {};
+        try {
+          const res = await timed(run, meta, "titles_ms", () =>
+            titleProducts(
+              withLimits(deps.llm, LLM_STAGE_LIMITS.titles),
+              { product_he: context.product_he, requirements_he: context.requirements_he },
+              untitled.map((p) => ({ product_id: p.productId, title_en: p.title })),
+            ),
+          );
+          meta.llmUsage.push({ kind: "titles", usage: res.usage, model: res.model });
+          added = Object.fromEntries(
+            res.items.flatMap((i) => (i.title_he ? [[i.product_id, i.title_he]] : [])),
+          );
+        } catch (err) {
+          if (err instanceof SearchError) throw err;
+          console.error(`[search] more titles failed, AliExpress titles: ${errorText(err)}`);
+          meta.titlesFailed = true;
+        }
+        if (Object.keys(added).length) {
+          cached.titles = { ...cached.titles, ...added };
+          await deps.store.updateResults(fk, cached);
+        }
+        // As below: the rows carry the cached result set's time, and /go needs them.
+        await deps.store.saveProducts(untitled, added, new Date(cached.createdAt));
+      }
+      const results = slice.map((p) => {
+        const title = known(p.productId);
+        return toResultProduct(p, title ? { title_he: title, why_he: "" } : undefined);
+      });
+      return await finishMore(results, slice, start + size);
+    }
     const missing = slice.filter((p) => !cached.explanations[p.productId]);
     let fallback: Record<string, Explanation> = {};
     if (missing.length) {
@@ -1899,6 +1955,26 @@ export async function loadMore(
     const results = slice.map((p) =>
       toResultProduct(p, cached.explanations[p.productId] ?? fallback[p.productId]),
     );
+    return await finishMore(results, slice, start + size);
+  } catch (err) {
+    await logFailure(deps.store, deps.failureOf, err, (failure) => ({
+      ...row,
+      resultIds: [],
+      resultsCount: 0,
+      categoryId: null,
+      ...telemetry(origin, meta, run, failure),
+    }));
+    throw err;
+  } finally {
+    await writeUsage();
+  }
+
+  /** Logs the page and builds its outcome; `end` is the index after its last product. */
+  async function finishMore(
+    results: ResultProduct[],
+    slice: AliProduct[],
+    end: number,
+  ): Promise<MoreOutcome> {
     const log: SearchLogEntry | null = results.length
       ? {
           ...row,
@@ -1911,21 +1987,10 @@ export async function loadMore(
     await Promise.all([log && quietly("logSearch", () => deps.store.logSearch(log)), writeUsage()]);
     return {
       results,
-      more_available: cached.products.length > start + RESULTS_PER_PAGE,
-      fetched_at: cached.createdAt,
+      more_available: (cached as CachedResults).products.length > end,
+      fetched_at: (cached as CachedResults).createdAt,
       meta,
       log,
     };
-  } catch (err) {
-    await logFailure(deps.store, deps.failureOf, err, (failure) => ({
-      ...row,
-      resultIds: [],
-      resultsCount: 0,
-      categoryId: null,
-      ...telemetry(origin, meta, run, failure),
-    }));
-    throw err;
-  } finally {
-    await writeUsage();
   }
 }

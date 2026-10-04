@@ -2,10 +2,10 @@
 
 import { LoaderCircle, Plus, RotateCcw } from "lucide-react";
 import { useRef, useState } from "react";
-import { RESULTS_PER_PAGE } from "@/lib/config/site";
+import { MORE_STEP, RESULTS_FIRST_VIEW, RESULTS_PER_PAGE } from "@/lib/config/site";
 import { APPROX_PRICE_NOTE } from "@/lib/copy";
 import type { LoggedResult } from "@/lib/search-url";
-import { CompactProductCard } from "./product-cards";
+import { CompactProductCard, StandardProductCard } from "./product-cards";
 import { btnLg, btnMd, btnSecondary } from "./styles";
 
 type MoreError = "not_found" | "capacity" | "rate_limited" | "unavailable";
@@ -20,12 +20,16 @@ const ERROR_TEXT: Record<MoreError, string> = {
 // Each result carries the uid of the page's own search_log row (source "more"), for its /go link.
 type MoreResponse = { results: LoggedResult[]; more_available: boolean };
 
-async function fetchMore(filtersKey: string, page: number): Promise<MoreResponse | MoreError> {
+async function fetchMore(
+  filtersKey: string,
+  page: number,
+  cards: boolean,
+): Promise<MoreResponse | MoreError> {
   try {
     const res = await fetch("/api/search/more", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ filters_key: filtersKey, page }),
+      body: JSON.stringify({ filters_key: filtersKey, page, ...(cards ? { mode: "cards" } : {}) }),
     });
     const data: unknown = await res.json().catch(() => null);
     const body = (data ?? {}) as Partial<MoreResponse> & { error?: unknown };
@@ -45,16 +49,20 @@ async function fetchMore(filtersKey: string, page: number): Promise<MoreResponse
  * "עוד N אפשרויות" (RESULTS_PER_PAGE): loads the next ranked page of the cached result set and
  * focuses it. The results page shows only once its result set is cached, so it is there to read.
  * `fromPage` is the first page it loads (loadMore's 0-based index): FIRST_MORE_PAGE after a first
- * view of 10 (places 11-15), 1 for a response without places 6-10.
+ * view of 10 (places 11-15), 1 for a response without places 6-10. With `cards` (owner decision
+ * 2026-10-04) it loads MORE_STEP standard cards at a time after the first view, titled and without
+ * lines, and `fromPage` is ignored.
  */
 export function ShowMore({
   filtersKey,
   q,
   fromPage = 1,
+  cards = false,
 }: {
   filtersKey: string;
   q: string;
   fromPage?: number;
+  cards?: boolean;
 }) {
   const [pages, setPages] = useState<LoggedResult[][]>([]);
   const [loading, setLoading] = useState(false);
@@ -66,8 +74,8 @@ export function ShowMore({
     if (loading) return;
     setLoading(true);
     setError(null);
-    const page = fromPage + pages.length;
-    const result = await fetchMore(filtersKey, page);
+    const page = cards ? pages.length : fromPage + pages.length;
+    const result = await fetchMore(filtersKey, page, cards);
     setLoading(false);
     if (typeof result === "string") {
       setError(result);
@@ -80,7 +88,7 @@ export function ShowMore({
     if (!result.more_available || !result.results.length) setExhausted(true);
   }
 
-  const label = `עוד ${RESULTS_PER_PAGE} אפשרויות`;
+  const label = `עוד ${cards ? MORE_STEP : RESULTS_PER_PAGE} אפשרויות`;
   // The button already shows the loading text, so it is only announced, not repeated on screen.
   const status = loading
     ? { text: "טוענים עוד אפשרויות", visible: false }
@@ -93,7 +101,9 @@ export function ShowMore({
   return (
     <div className="w-full space-y-5">
       {pages.map((products, i) => {
-        const first = (fromPage + i) * RESULTS_PER_PAGE + 1;
+        const first = cards
+          ? RESULTS_FIRST_VIEW + i * MORE_STEP + 1
+          : (fromPage + i) * RESULTS_PER_PAGE + 1;
         const last = first + products.length - 1;
         return (
           <section
@@ -111,17 +121,28 @@ export function ShowMore({
             <h2 id={`more-${first}`} className="text-sm font-semibold text-muted">
               אפשרויות <bdi dir="ltr">{first}</bdi> עד <bdi dir="ltr">{last}</bdi>
             </h2>
-            <div className="grid gap-5 md:grid-cols-3">
-              {products.map((p, j) => (
-                <CompactProductCard
-                  key={p.product_id}
-                  product={p}
-                  rank={first + j}
-                  q={q}
-                  src="search_more"
-                />
-              ))}
-            </div>
+            {cards ? (
+              // As places 6-10 (ExtraResultCards): a list of standard cards.
+              <ul className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-5">
+                {products.map((p, j) => (
+                  <li key={p.product_id}>
+                    <StandardProductCard product={p} rank={first + j} q={q} src="search_more" />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="grid gap-5 md:grid-cols-3">
+                {products.map((p, j) => (
+                  <CompactProductCard
+                    key={p.product_id}
+                    product={p}
+                    rank={first + j}
+                    q={q}
+                    src="search_more"
+                  />
+                ))}
+              </div>
+            )}
             {products.some((p) => p.price_is_approx) && (
               <p className="text-sm text-muted">{APPROX_PRICE_NOTE}</p>
             )}

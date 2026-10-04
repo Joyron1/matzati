@@ -265,7 +265,7 @@ describe("WAIT_TIPS", () => {
       expect(all).toContain(`ו־${t.minUnitsSold} מכירות`);
     }
     expect(all).toContain(
-      `מציגים עד ${RESULTS_FIRST_VIEW} מוצרים, ול־${RESULTS_PER_PAGE} הראשונים`,
+      `מציגים קודם ${RESULTS_FIRST_VIEW} מוצרים, ול־${RESULTS_PER_PAGE} הראשונים`,
     );
   });
 });

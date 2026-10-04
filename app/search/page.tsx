@@ -5,7 +5,6 @@ import { PendingNavigation } from "@/components/pending-navigation";
 import { SearchComposer } from "@/components/search-composer";
 import { SearchView } from "@/components/search-view";
 import { BRAND } from "@/lib/config/brand";
-import { RESULTS_FIRST_VIEW } from "@/lib/config/site";
 import {
   firstParam,
   parseArrival,
@@ -36,7 +35,7 @@ export async function generateMetadata({ searchParams }: PageProps<"/search">): 
     ...pageMetadata({
       title: q ? `חיפוש: ${q}` : "חיפוש",
       description: q
-        ? `${RESULTS_FIRST_VIEW} מוצרים מאלי אקספרס שעברו סינון לפי משוב של קונים ומספר מכירות, לחיפוש ״${q}״.`
+        ? `מוצרים מאלי אקספרס לחיפוש ״${q}״, מסודרים לפי משוב של קונים ומספר מכירות.`
         : BRAND.description,
       path: q ? searchHref({ q }) : "/",
       canonical: false,

@@ -3,7 +3,7 @@
 import { existsSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { RESULTS_PER_PAGE } from "@/lib/config/site";
-import { FILL_TIER, FILTERS } from "@/lib/ranking/config";
+import { FILL_TIER, FILTERS, LOOSE_TIER } from "@/lib/ranking/config";
 import { passesFilters } from "@/lib/ranking/rank";
 import { loadLabels, loadSnapshots, SNAPSHOT_DIR } from "./files";
 import { ALL_CAPTURED, CURRENT_POLICY, untilPassing, type FetchPolicy } from "./policies";
@@ -48,11 +48,16 @@ describe.skipIf(!present)("offline evaluation of the real snapshots", () => {
         const filters = filtersFor(snap, { name: policy.name, policy })!;
         const products = new Map(distinctProducts(snap.calls).map((p) => [p.productId, p]));
         expect(q.shown).toBeLessThanOrEqual(RESULTS_PER_PAGE);
-        expect(q.passed).toBeGreaterThanOrEqual(q.shown);
+        // A less proven card (LOOSE_TIER) is shown but never counted as passed.
+        const looseShown = [...q.top3, ...q.next3]
+          .slice(0, q.shown)
+          .filter((l) => l.tier === "loose").length;
+        expect(q.passed + looseShown).toBeGreaterThanOrEqual(q.shown);
         expect(q.checked).toBeLessThanOrEqual(q.snapshotPool);
         expect(q.fetch.calls).toBeLessThanOrEqual(policy === ALL_CAPTURED ? 10 : 3);
         for (const line of [...q.top3, ...q.next3]) {
-          const tier = line.tier === "fill" ? FILL_TIER : FILTERS;
+          const tier =
+            line.tier === "loose" ? LOOSE_TIER : line.tier === "fill" ? FILL_TIER : FILTERS;
           expect(passesFilters(products.get(line.id)!, filters, tier)).toBe(true);
         }
       }

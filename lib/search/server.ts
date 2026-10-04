@@ -30,9 +30,16 @@ import {
   type AliProduct,
   type AliSkuDetails,
 } from "@/lib/aliexpress/schemas";
-import { LINK_MAX_AGE_DAYS, RESULTS_PER_PAGE, SKU_DETAILS_ENABLED } from "@/lib/config/site";
+import {
+  LINK_MAX_AGE_DAYS,
+  MORE_STEP,
+  RESULTS_FIRST_VIEW,
+  RESULTS_PER_PAGE,
+  SKU_DETAILS_ENABLED,
+} from "@/lib/config/site";
 import type { ShopCapMode } from "@/lib/ranking/config";
 import { shopCapMode } from "@/lib/settings/queries";
+import { withPromoValidity } from "./promo";
 import { couponsForProduct } from "@/lib/coupons/queries";
 import type { Coupon } from "@/lib/coupons/types";
 import { couponForProduct } from "@/lib/deals/queries";
@@ -114,6 +121,8 @@ const CLICK_SRC = /^[a-z0-9_-]{1,32}$/i;
 const PRODUCT_TTL_MS = 24 * 3_600_000;
 const LINK_MAX_AGE_MS = LINK_MAX_AGE_DAYS * 86_400_000;
 const LAST_PAGE = Math.ceil(RESULTS_KEPT / RESULTS_PER_PAGE) - 1;
+/** The last page of cards after the first view (loadMore with `cards`, 0-based). */
+const LAST_CARDS_PAGE = Math.ceil((RESULTS_KEPT - RESULTS_FIRST_VIEW) / MORE_STEP) - 1;
 /**
  * Gap between two AliExpress calls of one request. The app key's frequency ban (ApiCallLimit,
  * about a second) is shared by every caller, so back-to-back calls would cost a retry (CLAUDE.md
@@ -595,8 +604,10 @@ export async function moreForRequest(
   filtersKey: string,
   page: number,
   headers?: Headers,
+  { cards = false }: { cards?: boolean } = {},
 ): Promise<MoreResult> {
-  if (!FILTERS_KEY.test(filtersKey) || !Number.isInteger(page) || page < 1 || page > LAST_PAGE) {
+  const [first, last] = cards ? [0, LAST_CARDS_PAGE] : [1, LAST_PAGE];
+  if (!FILTERS_KEY.test(filtersKey) || !Number.isInteger(page) || page < first || page > last) {
     return { ok: false, error: "not_found" };
   }
   try {
@@ -621,14 +632,15 @@ export async function moreForRequest(
         // Like a refused search, a page refused by the per-IP limit is not logged.
         failureOf: (err) => (err instanceof RateLimitedError ? null : failureCode(err)),
       },
-      { owner: await requestIsOwner() },
+      { owner: await requestIsOwner(), cards },
     );
     if (!out) return { ok: false, error: "not_found" };
     // The page's own search_log row (source "more"): its cards' /go links carry that uid.
     const searchUid = out.log?.searchUid;
-    const results = searchUid
-      ? out.results.map((r) => ({ ...r, search_uid: searchUid }))
-      : out.results;
+    const results = withPromoValidity(
+      searchUid ? out.results.map((r) => ({ ...r, search_uid: searchUid })) : out.results,
+      Date.now(),
+    );
     return { ok: true, results, more_available: out.more_available };
   } catch (err) {
     if (err instanceof RateLimitedError) {

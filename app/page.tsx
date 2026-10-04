@@ -19,7 +19,7 @@ import { card } from "@/components/styles";
 import { BRAND } from "@/lib/config/brand";
 import { RESULTS_FIRST_VIEW, RESULTS_PER_PAGE } from "@/lib/config/site";
 import { nextSale } from "@/lib/deals/queries";
-import { FILL_TIER, FILL_UP_TO, FILTERS } from "@/lib/ranking/config";
+import { FILL_TIER, FILTERS } from "@/lib/ranking/config";
 import { popularSearches } from "@/lib/seo/queries";
 import { seoPath } from "@/lib/seo/slug";
 
@@ -32,14 +32,15 @@ const STEPS = [
   {
     Icon: SlidersHorizontal,
     title: "אנחנו מסננים",
-    // Both tiers (lib/ranking/config.ts): the fill tier only tops up to the first view (FILL_UP_TO).
-    body: `רק מוצרים עם ${FILTERS.minPositiveFeedbackPct}% משוב חיובי ומעלה ולפחות ${FILTERS.minUnitsSold} מכירות ב־30 הימים האחרונים. אם אין מספיק, משלימים עד ${FILL_UP_TO} תוצאות ממוצרים עם ${FILL_TIER.minPositiveFeedbackPct}% ומעלה ולפחות ${FILL_TIER.minUnitsSold} מכירות. כל המספרים מאלי אקספרס.`,
+    // The tiers (lib/ranking/config.ts) in the order a search shows them (rankForSearch, exact
+    // first: owner decision 2026-10-04).
+    body: `קודם מוצרים מהסוג שביקשתם עם ${FILTERS.minPositiveFeedbackPct}% משוב חיובי ומעלה ולפחות ${FILTERS.minUnitsSold} מכירות ב־30 הימים האחרונים (או ${FILL_TIER.minPositiveFeedbackPct}% ו־${FILL_TIER.minUnitsSold} מכירות). אחריהם מוצרים מדויקים שעדיין פחות מוכחים, עם סימון. כל המספרים מאלי אקספרס.`,
   },
   {
     Icon: ListChecks,
     title: `בוחרים מתוך ${RESULTS_FIRST_VIEW}`,
     // The explained page (RESULTS_PER_PAGE) and places 6-10 under it (RESULTS_FIRST_VIEW).
-    body: `ליד ${RESULTS_PER_PAGE} הראשונים כתוב למה בחרנו בהם, ומתחתם עוד ${RESULTS_FIRST_VIEW - RESULTS_PER_PAGE} שעברו את הסינון. אפשר להסיר סינון ולחפש שוב בלחיצה.`,
+    body: `ליד ${RESULTS_PER_PAGE} הראשונים כתוב למה בחרנו בהם, ומתחתם עוד ${RESULTS_FIRST_VIEW - RESULTS_PER_PAGE}, ואפשר לטעון עוד. אפשר להסיר סינון ולחפש שוב בלחיצה.`,
   },
 ];
 
@@ -122,13 +123,13 @@ export default function HomePage() {
           >
             <span className="block text-balance">כתבו מה אתם צריכים.</span>
             <span className="block text-balance text-accent">
-              קבלו {RESULTS_FIRST_VIEW} מוצרים שעברו סינון.
+              קבלו בדיוק את זה, מהאמינים ביותר.
             </span>
           </h1>
           {/* Not on phones: the H1 and "איך זה עובד" say it too. */}
           <p className="mx-auto mt-4 hidden max-w-xl text-lg leading-relaxed text-pretty text-muted sm:block">
-            אנחנו מסננים את מה שאלי אקספרס מחזירה לפי משוב של קונים ומספר מכירות, ומראים רק את מה
-            שעבר.
+            אנחנו בודקים את מה שאלי אקספרס מחזירה ומסדרים את מה שמתאים בדיוק לפי משוב של קונים ומספר
+            מכירות. מוצר פחות מוכח מסומן.
           </p>
 
           <div className="mt-6 sm:mt-8">

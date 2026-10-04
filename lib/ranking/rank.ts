@@ -8,6 +8,7 @@ import {
   FILL_TIER,
   FILL_UP_TO,
   FILTERS,
+  LOOSE_TIER,
   PRICE_FIT,
   SMALL_CAPACITY_FACTOR,
   WEIGHTS,
@@ -34,7 +35,7 @@ import {
   type RankedProduct,
   type SharedNumbers,
 } from "./shared-numbers";
-import { isRequestedProduct } from "./type-gate";
+import { isRequestedProduct, productMatch } from "./type-gate";
 
 export { dedupeListings, diversifyShops } from "./diversity";
 export { isRequestedProduct, productMatch } from "./type-gate";
@@ -249,6 +250,8 @@ interface Ranked {
   doubtfulFit: boolean;
   /** States the exact capacity asked for (or none was): before a bigger one. */
   exactCapacity: boolean;
+  /** Named only through a close kind (ProductMatch.close): after every exact match. */
+  close: boolean;
 }
 
 /**
@@ -305,6 +308,7 @@ function rankEntries(
     outlier: outliers.has(p.productId),
     doubtfulFit: connectorFit(p.title, filters) === "doubtful",
     exactCapacity: statesExactCapacity(p.title, specs),
+    close: productMatch(p.title, filters)?.close ?? false,
   }));
   entries.sort(byRank(filters.sort_preference));
   return dedupeBy(entries, (e) => e.p, searchedTokens(filters));
@@ -323,9 +327,9 @@ export function rankProducts(
   return rankEntries(products, filters, trust, findSharedNumbers(products)).map((e) => e.p);
 }
 
-export type TrustTier = "standard" | "fill";
+export type TrustTier = "standard" | "fill" | "loose";
 
-/** Which trust thresholds a product meets, standard first. Null when it meets neither. */
+/** Which trust thresholds a product meets, standard first. Null when it meets none. */
 export function trustTierOf(
   p: Pick<AliProduct, "positiveFeedbackPct" | "unitsSold">,
 ): TrustTier | null {
@@ -336,6 +340,7 @@ export function trustTierOf(
     p.unitsSold >= t.minUnitsSold;
   if (meets(FILTERS)) return "standard";
   if (meets(FILL_TIER)) return "fill";
+  if (meets(LOOSE_TIER)) return "loose";
   return null;
 }
 
@@ -356,8 +361,10 @@ export function rankWithFill(
   target: number,
   shopCap: ShopCapMode,
   pageSize: number = target,
-): { ranked: RankedProduct[]; fillIds: string[] } {
+  { exactFirst = false }: { exactFirst?: boolean } = {},
+): { ranked: RankedProduct[]; fillIds: string[]; looseIds: string[] } {
   const shared = findSharedNumbers(products);
+  if (exactFirst) return rankExactFirst(products, filters, shopCap, pageSize, shared);
   const standard = rankEntries(products, filters, FILTERS, shared);
   let merged = standard;
   let fillIds: string[] = [];
@@ -380,18 +387,66 @@ export function rankWithFill(
       shopCap,
     ),
     fillIds,
+    looseIds: [],
   };
 }
 
 /**
- * rankWithFill as a visitor's search ranks: topped up to FILL_UP_TO (the first view, 10) from
- * FILL_TIER, the shop cap over pages of RESULTS_PER_PAGE. The pipeline, the checked pool's views,
- * the fetch policy's "passed" count and the offline replay all rank with it.
+ * A visitor's search (owner decisions 2026-10-04: accuracy over trust, exact first): the exact
+ * products (ProductMatch.close false) that meet FILTERS, then FILL_TIER, then LOOSE_TIER ("פחות
+ * מוכח", looseIds), then the close matches that meet FILTERS or FILL_TIER (never LOOSE_TIER).
+ * Each block is ordered by the sort; "cheapest" orders the vetted exact products (FILTERS and
+ * FILL_TIER) together, as rankWithFill orders its standard and fill products, and the vetted close
+ * matches the same way. Duplicate listings are removed across blocks, the earlier block kept. The
+ * shop cap reorders the whole list as in rankWithFill.
+ */
+function rankExactFirst(
+  products: AliProduct[],
+  filters: SearchFilters,
+  shopCap: ShopCapMode,
+  pageSize: number,
+  shared: SharedNumbers,
+): { ranked: RankedProduct[]; fillIds: string[]; looseIds: string[] } {
+  const standard = rankEntries(products, filters, FILTERS, shared);
+  const fill = rankEntries(products, filters, FILL_TIER, shared);
+  const loose = rankEntries(products, filters, LOOSE_TIER, shared);
+  const exact = (e: Ranked) => !e.close;
+  const close = (e: Ranked) => e.close;
+  const byPrice = (block: Ranked[]) =>
+    filters.sort_preference === "cheapest" ? [...block].sort(byRank("cheapest")) : block;
+  const blocks = [
+    byPrice([...standard.filter(exact), ...fill.filter(exact)]),
+    loose.filter(exact),
+    byPrice([...standard.filter(close), ...fill.filter(close)]),
+  ];
+  // Once per product id (a FILTERS product is in all three tiers), then once per listing.
+  const seen = new Set<string>();
+  const once = blocks.flat().filter((e) => !seen.has(e.p.productId) && seen.add(e.p.productId));
+  const merged = dedupeBy(once, (e) => e.p, searchedTokens(filters));
+  const tierOf = new Map(merged.map((e) => [e.p.productId, trustTierOf(e.p)]));
+  return {
+    ranked: diversifyShops(
+      merged.map((e) => e.p),
+      pageSize,
+      shopCap,
+    ),
+    fillIds: merged.filter((e) => tierOf.get(e.p.productId) === "fill").map((e) => e.p.productId),
+    looseIds: merged.filter((e) => tierOf.get(e.p.productId) === "loose").map((e) => e.p.productId),
+  };
+}
+
+/**
+ * As a visitor's search ranks: exact first (rankExactFirst: the vetted tiers, then LOOSE_TIER, then
+ * the vetted close matches), the shop cap over pages of RESULTS_PER_PAGE. The pipeline, the checked
+ * pool's views and the offline replay rank with it; the fetch policy's "passed" count does not
+ * (passedCount in ./blockers counts the vetted tiers).
  */
 export function rankForSearch(
   products: AliProduct[],
   filters: SearchFilters,
   shopCap: ShopCapMode,
-): { ranked: RankedProduct[]; fillIds: string[] } {
-  return rankWithFill(products, filters, FILL_UP_TO, shopCap, RESULTS_PER_PAGE);
+): { ranked: RankedProduct[]; fillIds: string[]; looseIds: string[] } {
+  return rankWithFill(products, filters, FILL_UP_TO, shopCap, RESULTS_PER_PAGE, {
+    exactFirst: true,
+  });
 }

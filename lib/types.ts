@@ -34,8 +34,11 @@ export interface ResultProduct {
   positive_feedback_pct: number | null;
   /** From `lastest_volume`: sales in the last 30 days (AliExpress docs), not lifetime. */
   units_sold: number | null;
-  /** Trust thresholds the product meets (lib/ranking/config.ts); null when it meets neither. */
-  passed_tier: "standard" | "fill" | null;
+  /**
+   * Trust thresholds the product meets (lib/ranking/config.ts); null when it meets none. "loose"
+   * (LOOSE_TIER) is a less proven product a search shows after the vetted ones, labelled.
+   */
+  passed_tier: "standard" | "fill" | "loose" | null;
   /**
    * Its shop shows the same numbers on several listings of the checked pool
    * (lib/ranking/shared-numbers.ts), and which of this card's own numbers other listings of the
@@ -46,6 +49,14 @@ export interface ResultProduct {
   shared_numbers?: SharedNumbersMark;
   image_urls: string[];
   category_id: string | null;
+  /**
+   * The AliExpress promo code of the product (promo_code_info), for the card's "קוד הנחה" badge,
+   * shown only while valid by its own dates. Absent when the product has none, and on results
+   * cached before 2026-10-04.
+   */
+  promo_code?: { code: string; starts_at: string | null; ends_at: string | null };
+  /** promo_code is valid when the results were sent (withPromoValidity in lib/search/promo.ts). */
+  promo_code_valid?: boolean;
 }
 
 /**

@@ -171,14 +171,29 @@ describe("filtersFor", () => {
 });
 
 describe("rankLikePipeline", () => {
-  it("keeps at most RESULTS_KEPT (20) products and counts every passer", () => {
-    const many = times(22, () => null).map((_, i) =>
-      good({ positiveFeedbackPct: 99 - i * 0.2, unitsSold: 50_000 - i * 2_000 }),
+  it("keeps at most RESULTS_KEPT (50) products and counts every vetted passer", () => {
+    const many = times(52, () => null).map((_, i) =>
+      good({ positiveFeedbackPct: 99 - i * 0.1, unitsSold: 150_000 - i * 2_000 }),
     );
     const r = rankLikePipeline(many, BOTTLE);
     expect(r.kept).toHaveLength(RESULTS_KEPT);
-    expect(RESULTS_KEPT).toBe(20);
-    expect(r.passed).toBe(22);
+    expect(RESULTS_KEPT).toBe(50);
+    expect(r.passed).toBe(52);
+  });
+
+  it("shows a less proven product (LOOSE_TIER) after the vetted ones, never counted as passed", () => {
+    const vetted = times(3, () => good());
+    const loose = good({ positiveFeedbackPct: 85, unitsSold: 8 });
+    const r = rankLikePipeline([loose, ...vetted], BOTTLE);
+    expect(r.kept.at(-1)?.productId).toBe(loose.productId);
+    expect(
+      r.kept
+        .slice(0, 3)
+        .map((p) => p.productId)
+        .sort(),
+    ).toEqual(vetted.map((p) => p.productId).sort());
+    expect(r.looseIds).toEqual([loose.productId]);
+    expect(r.passed).toBe(3);
   });
 });
 

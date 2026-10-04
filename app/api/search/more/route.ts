@@ -1,4 +1,5 @@
-// POST /api/search/more: "עוד N אפשרויות" for a cached result set (explains the page on demand).
+// POST /api/search/more: "עוד N אפשרויות" for a cached result set: a page of 5 explained on demand
+// (the WhatsApp bot), or with mode "cards" (/search) the next 10 cards after the first view, titled.
 import { z } from "zod";
 import { moreForRequest } from "@/lib/search/server";
 
@@ -7,7 +8,8 @@ export const maxDuration = 60;
 
 const bodySchema = z.object({
   filters_key: z.string().regex(/^[0-9a-f]{64}$/),
-  page: z.number().int().min(1).max(50),
+  page: z.number().int().min(0).max(50),
+  mode: z.literal("cards").optional(),
 });
 
 const STATUS = { not_found: 404, capacity: 503, rate_limited: 429, unavailable: 503 } as const;
@@ -24,7 +26,9 @@ function errorResponse(error: string, status: number, retryAfterSec?: number) {
 export async function POST(request: Request) {
   const body = bodySchema.safeParse(await request.json().catch(() => undefined));
   if (!body.success) return errorResponse("invalid_request", 400);
-  const result = await moreForRequest(body.data.filters_key, body.data.page, request.headers);
+  const result = await moreForRequest(body.data.filters_key, body.data.page, request.headers, {
+    cards: body.data.mode === "cards",
+  });
   if (!result.ok) return errorResponse(result.error, STATUS[result.error], result.retryAfterSec);
   return Response.json(
     { results: result.results, more_available: result.more_available },

@@ -4,6 +4,7 @@
 // the category tips and the similar products. One column on phones, in the same order.
 // Everything comes in as props (productForPage loads it; the similar products arrive as a slot the
 // page streams), so the view never fetches anything.
+import { LESS_PROVEN_LABEL, LESS_PROVEN_NOTE } from "@/components/card-badges";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ChevronRight, CircleCheck, CircleMinus } from "lucide-react";
@@ -226,7 +227,9 @@ export function ProductView({
             <p className="text-sm leading-relaxed text-muted">
               {allPass
                 ? "בחיפוש אנחנו בודקים גם שהמוצר מתאים למה שביקשתם ושהמחיר בתוך התקציב שכתבתם."
-                : "לפי הנתונים העדכניים מאלי אקספרס, המוצר לא עומד כרגע בכל הספים שלנו."}{" "}
+                : product.passed_tier === "loose"
+                  ? `מוצר ״${LESS_PROVEN_LABEL}״: ${LESS_PROVEN_NOTE}`
+                  : "לפי הנתונים העדכניים מאלי אקספרס, המוצר לא עומד כרגע בכל הספים שלנו."}{" "}
               כל המספרים כאן הגיעו מאלי אקספרס.
             </p>
           </section>

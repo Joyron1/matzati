@@ -94,7 +94,8 @@ export function SaleBar({ sales, checkedAt }: SaleBarProps) {
             <span className="sr-only">
               {lead} {live ? countdownText(left) : ""}. {SALE_DATES_NOTE}
             </span>
-            <span aria-hidden className="flex items-center gap-1 sm:gap-1.5">
+            {/* Days on the left, seconds on the right, as a clock reads (owner request). */}
+            <span aria-hidden dir="ltr" className="flex items-center gap-1 sm:gap-1.5">
               {cells.map((c, i) => (
                 // Seconds from sm: on a phone the title needs the room.
                 <span

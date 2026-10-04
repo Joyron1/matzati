@@ -161,9 +161,14 @@ function extraResults(from: number, count: number, sort: SortPreference, written
     .map((r, i) => ({
       ...r,
       why_he: "",
-      // One shows the shared-numbers note, the last one met the second tier only.
+      // One shows the shared-numbers note, one a valid AliExpress code, the last one met the second
+      // tier only, and the one before it is less proven (LOOSE_TIER, owner decision 2026-10-04).
       ...(i === 1 ? { shared_numbers: { feedback: true, sales: false } } : {}),
+      ...(i === 0 ? { promo_code: { code: "AE5OFF", starts_at: null, ends_at: null } } : {}),
       ...(r.units_sold !== null && r.units_sold < 100 ? { passed_tier: "fill" as const } : {}),
+      ...(i === count - 2
+        ? { passed_tier: "loose" as const, positive_feedback_pct: 86, units_sold: 15 }
+        : {}),
     }));
 }
 
