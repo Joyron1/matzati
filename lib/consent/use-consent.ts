@@ -28,9 +28,9 @@ export interface UseConsent {
 }
 
 /**
- * The visitor's cookie choice under the notice the page shows (BASE_NOTICE, or ANALYTICS_NOTICE
- * while Google Analytics is configured: see consentNotice). Updates when it changes, without a
- * reload.
+ * The visitor's cookie choice under the notice the page shows (BASE_NOTICE, or the notice for the
+ * optional tools the owner has configured: see consentNotice). Pass one of consentNotice's
+ * constants: the store and the subscription key on it. Updates when it changes, without a reload.
  */
 export function useConsent(notice: ConsentNotice = BASE_NOTICE): UseConsent {
   // The store is created on first use in the browser (it binds document and window).

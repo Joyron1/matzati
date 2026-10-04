@@ -15,6 +15,7 @@ import {
   SEARCH_CONSOLE_KEY,
   type GoogleSettingsInput,
 } from "./google";
+import { META_PIXEL_KEY, metaPixelValueSchema, type MetaPixelValue } from "./meta";
 import { SETTINGS_TAG, SHOP_CAP_KEY, shopCapValueSchema } from "./schema";
 
 /**
@@ -40,6 +41,18 @@ export async function saveGoogleSettings(input: unknown): Promise<GoogleSettings
     { key: GOOGLE_ANALYTICS_KEY, value: { measurementId: value.measurementId } },
     { key: SEARCH_CONSOLE_KEY, value: { verification: value.siteVerification } },
   ]);
+  updateTag(SETTINGS_TAG);
+  return value;
+}
+
+/**
+ * Saves the Meta Pixel id (null clears it), never the text it was pasted in. Throws like
+ * saveShopCapMode.
+ */
+export async function saveMetaPixel(input: unknown): Promise<MetaPixelValue> {
+  await requireAdmin();
+  const value = metaPixelValueSchema.parse(input);
+  await upsertSetting(serviceClient(), META_PIXEL_KEY, value);
   updateTag(SETTINGS_TAG);
   return value;
 }

@@ -1,7 +1,11 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { ANALYTICS_NOTICE } from "@/lib/consent/consent";
+import {
+  ANALYTICS_MARKETING_NOTICE,
+  ANALYTICS_NOTICE,
+  MARKETING_NOTICE,
+} from "@/lib/consent/consent";
 import { ConsentGate } from "./consent-gate";
 import { ConsentManager } from "./consent-manager";
 import { CookieBanner } from "./cookie-banner";
@@ -15,21 +19,26 @@ describe("ConsentGate in the server HTML", () => {
       const tag = createElement("script", { src: "https://example.com/tag.js" });
       const html = renderToStaticMarkup(createElement(ConsentGate, { category }, tag));
       expect(html).toBe("");
-      const underAnalytics = createElement(
-        ConsentGate,
-        { category, notice: ANALYTICS_NOTICE },
-        tag,
-      );
-      expect(renderToStaticMarkup(underAnalytics)).toBe("");
+      for (const notice of [ANALYTICS_NOTICE, MARKETING_NOTICE, ANALYTICS_MARKETING_NOTICE]) {
+        const underNotice = createElement(ConsentGate, { category, notice }, tag);
+        expect(renderToStaticMarkup(underNotice)).toBe("");
+      }
     },
   );
 });
 
 describe("ConsentManager in the server HTML", () => {
-  it.each([false, true])(
-    "renders only an empty polite live region (no banner, so no flash; analytics %s)",
-    (analyticsInUse) => {
-      const html = renderToStaticMarkup(createElement(ConsentManager, { analyticsInUse }));
+  it.each([
+    [false, false],
+    [true, false],
+    [false, true],
+    [true, true],
+  ])(
+    "renders only an empty polite live region (no banner, so no flash; analytics %s, marketing %s)",
+    (analyticsInUse, marketingInUse) => {
+      const html = renderToStaticMarkup(
+        createElement(ConsentManager, { analyticsInUse, marketingInUse }),
+      );
       expect(html).toContain('role="status"');
       expect(text(html)).toBe("");
       expect(html).not.toContain('role="region"');
@@ -41,10 +50,15 @@ describe("ConsentManager in the server HTML", () => {
 });
 
 describe("the banner's text", () => {
-  const banner = (analyticsInUse: boolean) =>
+  const banner = (analyticsInUse: boolean, marketingInUse = false) =>
     text(
       renderToStaticMarkup(
-        createElement(CookieBanner, { analyticsInUse, onChoose() {}, onOpenSettings() {} }),
+        createElement(CookieBanner, {
+          analyticsInUse,
+          marketingInUse,
+          onChoose() {},
+          onOpenSettings() {},
+        }),
       ),
     );
 
@@ -57,5 +71,19 @@ describe("the banner's text", () => {
     expect(banner(true)).toContain("Google Analytics סופר ביקורים בלי עוגיות ובלי מזהה קבוע");
     expect(banner(true)).toContain("את עוגיות הסטטיסטיקה שלו נשמור רק אם תאשרו");
     expect(banner(true)).not.toContain("סטטיסטיקה ושיווק לא בשימוש");
+    expect(banner(true)).toContain("עוגיות שיווק לא בשימוש");
+  });
+
+  it("names the Meta Pixel, only with marketing consent, while it is configured", () => {
+    for (const analytics of [false, true]) {
+      const shown = banner(analytics, true);
+      expect(shown).toContain("את Meta Pixel, למדידה ולפרסום בפייסבוק ובאינסטגרם");
+      expect(shown).toContain("נפעיל רק אם תאשרו עוגיות שיווק");
+      expect(shown).not.toContain("שיווק לא בשימוש");
+      expect(shown.includes("Google Analytics")).toBe(analytics);
+    }
+    expect(banner(false, true)).toContain("עוגיות סטטיסטיקה לא בשימוש");
+    expect(banner(false)).not.toContain("Meta");
+    expect(banner(true)).not.toContain("Meta");
   });
 });

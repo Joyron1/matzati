@@ -1,10 +1,12 @@
 "use client";
 
-// Development preview only: the /admin/settings sections "חיבור לגוגל" and "קישור לקהילה" with
+// Development preview only: the /admin/settings sections "חיבור לגוגל", "חיבור ל־Meta" and
+// "קישור לקהילה" with
 // actions that save nothing. A valid save answers, after a short wait (the busy button), with the
 // "could not save" message; an invalid one with the same field messages as the real form.
 import { CommunitySettingsForm } from "@/app/admin/settings/community-form";
 import { GoogleSettingsForm, type StoredGoogle } from "@/app/admin/settings/google-form";
+import { MetaSettingsForm } from "@/app/admin/settings/meta-form";
 import {
   COMMUNITY_ERRORS,
   communityFormValues,
@@ -18,6 +20,12 @@ import {
   parseGoogleForm,
   type GoogleFormState,
 } from "@/lib/settings/google";
+import {
+  META_EXTRACT_ERRORS,
+  META_FORM_ERRORS,
+  parseMetaForm,
+  type MetaFormState,
+} from "@/lib/settings/meta";
 
 const wait = () => new Promise((resolve) => setTimeout(resolve, 800));
 
@@ -54,6 +62,35 @@ export function PreviewGoogleForm({
       savedNote={
         stored?.measurementId ? "נשמר לאחרונה ב־28.9.2026, 23:00 (לדוגמה)." : "עוד לא נשמר."
       }
+    />
+  );
+}
+
+export function PreviewMetaForm({
+  storedPixelId,
+  failed,
+}: {
+  storedPixelId: string | null;
+  failed: boolean;
+}) {
+  const initial: MetaFormState = failed
+    ? { values: { pixel: "12345" }, errors: { pixel: META_EXTRACT_ERRORS.notFound } }
+    : { values: { pixel: storedPixelId ?? "" }, errors: {} };
+  return (
+    <MetaSettingsForm
+      action={async (_prev, formData) => {
+        await wait();
+        const parsed = parseMetaForm(formData);
+        if (!parsed.ok) return parsed.state;
+        return {
+          values: { pixel: parsed.value.pixelId ?? "" },
+          errors: { form: META_FORM_ERRORS.saveFailed },
+        };
+      }}
+      initial={initial}
+      storedPixelId={storedPixelId}
+      readFailed={false}
+      savedNote={storedPixelId ? "נשמר לאחרונה ב־4.10.2026, 12:00 (לדוגמה)." : "עוד לא נשמר."}
     />
   );
 }

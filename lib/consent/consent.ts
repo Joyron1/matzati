@@ -17,6 +17,9 @@ export const CONSENT_COOKIE = "matzati_consent";
  * ./categories.ts and the /cookies page): a stored choice with any other version is ignored, so
  * every visitor is asked again.
  *
+ * Google Analytics and the Meta Pixel, which the owner switches on and off, change the notice
+ * through their own offsets below (consentNotice), not through this number.
+ *
  * 2 (2026-10-03): the necessary category now also covers "החיפושים שלי" (matzati_my_searches,
  * localStorage, lib/recent/mine.ts), and its description in the banner's settings says so. No
  * optional category changed, but what a category covers did, which is this rule.
@@ -46,8 +49,31 @@ export const ANALYTICS_NOTICE_OFFSET = 1000;
  */
 export const ANALYTICS_NOTICE_REVISION = 2;
 
-/** The notice version stored with a choice made under analytics notice `revision`. */
-const analyticsVersion = (revision: number) => CONSENT_VERSION + ANALYTICS_NOTICE_OFFSET * revision;
+/**
+ * Added to CONSENT_VERSION while the Meta Pixel is configured (/admin/settings, "חיבור ל־Meta"):
+ * the banner then says marketing is in use, so a choice made under a notice without it is not
+ * consent to it. Multiplied by MARKETING_NOTICE_REVISION, so the marketing notice can change on its
+ * own; far above every analytics revision, so the two never meet.
+ */
+export const MARKETING_NOTICE_OFFSET = 100_000;
+
+/**
+ * Revision of what the notice says about the Meta Pixel while it is configured. Bump it when that
+ * text changes meaning: only notices with the pixel change, so pages without it keep honoring their
+ * choices, and under a notice with it only the newest counts.
+ *
+ * 1 (2026-10-04, version 100002 alone, 102002 with Google Analytics revision 2): Meta Pixel, strict
+ *   (nothing reaches Meta without marketing consent): page views without search text and the
+ *   buy-click event through /go, the _fbp cookie, no advanced matching.
+ */
+export const MARKETING_NOTICE_REVISION = 1;
+
+/**
+ * The notice version stored with a choice made under analytics notice revision `analytics` and
+ * marketing notice revision `marketing` (0: the tool is not configured).
+ */
+const noticeVersion = (analytics: number, marketing: number) =>
+  CONSENT_VERSION + ANALYTICS_NOTICE_OFFSET * analytics + MARKETING_NOTICE_OFFSET * marketing;
 
 /** The notice a page shows: the version it stores with a new choice and the ones it honors. */
 export interface ConsentNotice {
@@ -57,29 +83,45 @@ export interface ConsentNotice {
   accepts: readonly number[];
 }
 
+/** 0, 1, …, n. */
+const revisions = (n: number) => Array.from({ length: n + 1 }, (_, i) => i);
+
 /**
- * While no optional tool is configured. It also honors a choice made under any revision of
- * ANALYTICS_NOTICE (of this CONSENT_VERSION): nothing optional runs here, and a moment when the
- * setting cannot be read (the page then renders as if Google Analytics were not configured) must
- * not ask everyone again.
+ * While no optional tool is configured. It also honors a choice made under any revision of the
+ * Google Analytics and Meta Pixel notices, alone or together (of this CONSENT_VERSION): nothing
+ * optional runs here, and a moment when the settings cannot be read (the page then renders as if
+ * no tool were configured) must not ask everyone again.
  */
 export const BASE_NOTICE: ConsentNotice = {
   version: CONSENT_VERSION,
-  accepts: [
-    CONSENT_VERSION,
-    ...Array.from({ length: ANALYTICS_NOTICE_REVISION }, (_, i) => analyticsVersion(i + 1)),
-  ],
+  accepts: revisions(MARKETING_NOTICE_REVISION).flatMap((m) =>
+    revisions(ANALYTICS_NOTICE_REVISION).map((a) => noticeVersion(a, m)),
+  ),
 };
 
-/** While Google Analytics is configured: only a choice made under its current revision counts. */
-export const ANALYTICS_NOTICE: ConsentNotice = {
-  version: analyticsVersion(ANALYTICS_NOTICE_REVISION),
-  accepts: [analyticsVersion(ANALYTICS_NOTICE_REVISION)],
+/** A notice with an optional tool: only a choice made under exactly this notice counts. */
+const exactNotice = (analytics: number, marketing: number): ConsentNotice => {
+  const version = noticeVersion(analytics, marketing);
+  return { version, accepts: [version] };
 };
 
-/** The notice for a page: ANALYTICS_NOTICE while Google Analytics is configured. */
-export function consentNotice(analyticsInUse: boolean): ConsentNotice {
-  return analyticsInUse ? ANALYTICS_NOTICE : BASE_NOTICE;
+/** While Google Analytics is configured (and no Meta Pixel). */
+export const ANALYTICS_NOTICE: ConsentNotice = exactNotice(ANALYTICS_NOTICE_REVISION, 0);
+/** While the Meta Pixel is configured (and no Google Analytics). */
+export const MARKETING_NOTICE: ConsentNotice = exactNotice(0, MARKETING_NOTICE_REVISION);
+/** While both are configured. */
+export const ANALYTICS_MARKETING_NOTICE: ConsentNotice = exactNotice(
+  ANALYTICS_NOTICE_REVISION,
+  MARKETING_NOTICE_REVISION,
+);
+
+/**
+ * The notice for a page, by which optional tools the owner has configured. Always one of the four
+ * constants above (the consent stores and hooks key on it).
+ */
+export function consentNotice(analyticsInUse: boolean, marketingInUse: boolean): ConsentNotice {
+  if (analyticsInUse) return marketingInUse ? ANALYTICS_MARKETING_NOTICE : ANALYTICS_NOTICE;
+  return marketingInUse ? MARKETING_NOTICE : BASE_NOTICE;
 }
 
 /** A choice is kept this long, then the visitor is asked again (12 months). */

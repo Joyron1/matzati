@@ -7,7 +7,12 @@
 import { revalidatePath } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
 import { requireAdmin } from "@/lib/admin/auth";
-import { saveCommunityLink, saveGoogleSettings, saveShopCapMode } from "@/lib/settings/admin";
+import {
+  saveCommunityLink,
+  saveGoogleSettings,
+  saveMetaPixel,
+  saveShopCapMode,
+} from "@/lib/settings/admin";
 import {
   COMMUNITY_ERRORS,
   communityFormValues,
@@ -15,6 +20,7 @@ import {
   type CommunityFormState,
 } from "@/lib/settings/community-link";
 import { GOOGLE_FORM_ERRORS, parseGoogleForm, type GoogleFormState } from "@/lib/settings/google";
+import { META_FORM_ERRORS, parseMetaForm, type MetaFormState } from "@/lib/settings/meta";
 import { parseSettingsForm, SETTINGS_ERRORS, type SettingsFormState } from "@/lib/settings/schema";
 
 function logError(where: string, err: unknown) {
@@ -66,6 +72,31 @@ export async function saveGoogleAction(
   }
   revalidatePath("/admin/settings");
   redirect("/admin/settings?status=google-saved");
+}
+
+/**
+ * Saves the "חיבור ל־Meta" form: the Meta Pixel id extracted from what was pasted (an empty field
+ * removes the connection). The pasted text is never stored.
+ */
+export async function saveMetaAction(
+  _prev: MetaFormState,
+  formData: FormData,
+): Promise<MetaFormState> {
+  await requireAdmin();
+  const parsed = parseMetaForm(formData);
+  if (!parsed.ok) return parsed.state;
+  try {
+    await saveMetaPixel(parsed.value);
+  } catch (err) {
+    unstable_rethrow(err);
+    logError("save meta", err);
+    return {
+      values: { pixel: parsed.value.pixelId ?? "" },
+      errors: { form: META_FORM_ERRORS.saveFailed },
+    };
+  }
+  revalidatePath("/admin/settings");
+  redirect("/admin/settings?status=meta-saved");
 }
 
 /** Saves the "קישור לקהילה" form: the link, the button label and whether it is shown. */

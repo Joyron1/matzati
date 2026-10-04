@@ -40,7 +40,7 @@ import { DEFAULT_SHOP_CAP_MODE, isShopCapMode } from "@/lib/ranking/config";
 import { AdminNewsletterPreview, FooterPreview } from "./footer-previews";
 import { RecentStripPreview } from "./home-previews";
 import { PreviewSettingsForm } from "./preview-controls";
-import { PreviewCommunityForm, PreviewGoogleForm } from "./settings-previews";
+import { PreviewCommunityForm, PreviewGoogleForm, PreviewMetaForm } from "./settings-previews";
 import { isSearchScreen, SearchPreview } from "./search-previews";
 import { CategoryPreview } from "./products-previews";
 import { SeoPagePreview } from "./seo-previews";
@@ -494,8 +494,8 @@ export default async function PreviewPage({
   if (screen === "admin-settings") {
     // The /admin/settings forms (sign-in only there), with actions that save nothing.
     // ?mode=max2 selects the other choice, ?error=1 shows the "could not save" message and the
-    // field messages, ?google=none shows no Google connection, ?community=on a shown community
-    // button and ?community=none no link.
+    // field messages, ?google=none shows no Google connection, ?meta=none no Meta Pixel,
+    // ?community=on a shown community button and ?community=none no link.
     const params = await searchParams;
     const mode = isShopCapMode(params.mode) ? params.mode : DEFAULT_SHOP_CAP_MODE;
     const google =
@@ -519,6 +519,10 @@ export default async function PreviewPage({
           <PreviewSettingsForm mode={mode} failed={params.error === "1"} />
           <div className="space-y-10 pt-6">
             <PreviewGoogleForm stored={google} failed={params.error === "1"} />
+            <PreviewMetaForm
+              storedPixelId={params.meta === "none" ? null : "1234567890123456"}
+              failed={params.error === "1"}
+            />
             <PreviewCommunityForm stored={community} failed={params.error === "1"} />
           </div>
         </div>

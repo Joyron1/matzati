@@ -59,10 +59,17 @@ function focusMain() {
  * `analyticsInUse`: Google Analytics is configured (the root layout reads the admin setting). The
  * banner and the dialog then say Google Analytics measures without cookies and sets its cookies
  * only with consent, and the notice version changes (consentNotice), so a choice made under
- * another notice does not count.
+ * another notice does not count. `marketingInUse`: the Meta Pixel is configured; the banner and the
+ * dialog then say it runs only after marketing consent, and the notice changes the same way.
  */
-export function ConsentManager({ analyticsInUse = false }: { analyticsInUse?: boolean }) {
-  const notice = consentNotice(analyticsInUse);
+export function ConsentManager({
+  analyticsInUse,
+  marketingInUse,
+}: {
+  analyticsInUse: boolean;
+  marketingInUse: boolean;
+}) {
+  const notice = consentNotice(analyticsInUse, marketingInUse);
   const { consent } = useConsent(notice);
   const pathname = usePathname();
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -160,13 +167,14 @@ export function ConsentManager({ analyticsInUse = false }: { analyticsInUse?: bo
       {showBanner && (
         <CookieBanner
           analyticsInUse={analyticsInUse}
+          marketingInUse={marketingInUse}
           onChoose={choose}
           onOpenSettings={() => openConsentSettings()}
         />
       )}
       <CookieSettingsDialog
         open={settingsOpen}
-        categories={consentCategories(analyticsInUse)}
+        categories={consentCategories(analyticsInUse, marketingInUse)}
         consent={consent}
         onSave={choose}
         onLeave={() => {

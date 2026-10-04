@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ACCEPT_ALL,
+  ANALYTICS_MARKETING_NOTICE,
   ANALYTICS_NOTICE,
   ANALYTICS_NOTICE_OFFSET,
   ANALYTICS_NOTICE_REVISION,
@@ -8,6 +9,9 @@ import {
   CONSENT_COOKIE,
   CONSENT_MAX_AGE_DAYS,
   CONSENT_VERSION,
+  MARKETING_NOTICE,
+  MARKETING_NOTICE_OFFSET,
+  MARKETING_NOTICE_REVISION,
   NECESSARY_ONLY,
   consentAllows,
   consentCookie,
@@ -22,6 +26,7 @@ import {
   analyticsStorage,
   CONSENT_CATEGORIES,
   consentCategories,
+  marketingStorage,
   STORAGE_INVENTORY,
   storageInventory,
 } from "./categories";
@@ -129,8 +134,8 @@ describe("the notice while Google Analytics is configured", () => {
     );
 
   it("asks everyone again: a choice made before it (statistics said unused) does not count", () => {
-    expect(consentNotice(true)).toBe(ANALYTICS_NOTICE);
-    expect(consentNotice(false)).toBe(BASE_NOTICE);
+    expect(consentNotice(true, false)).toBe(ANALYTICS_NOTICE);
+    expect(consentNotice(false, false)).toBe(BASE_NOTICE);
     expect(ANALYTICS_NOTICE.version).not.toBe(CONSENT_VERSION);
     expect(parseConsent(choiceUnder(BASE_NOTICE.version), NOW, ANALYTICS_NOTICE)).toBeNull();
     const cookies = `${CONSENT_COOKIE}=${choiceUnder(BASE_NOTICE.version)}`;
@@ -159,11 +164,75 @@ describe("the notice while Google Analytics is configured", () => {
     expect(parseConsent(choiceUnder(underStrict), NOW, ANALYTICS_NOTICE)).toBeNull();
     expect(parseConsent(choiceUnder(1001), NOW, ANALYTICS_NOTICE)).toBeNull();
     // The base notice did not change, so its choices and every revision's still count there.
-    expect(BASE_NOTICE.accepts).toEqual([2, 1002, 2002]);
+    expect(BASE_NOTICE.accepts.slice(0, 3)).toEqual([2, 1002, 2002]);
     expect(parseConsent(choiceUnder(underStrict), NOW, BASE_NOTICE)).not.toBeNull();
     expect(parseConsent(choiceUnder(CONSENT_VERSION), NOW, BASE_NOTICE)).not.toBeNull();
     // And nothing from before CONSENT_VERSION 2.
     expect(parseConsent(choiceUnder(1), NOW, BASE_NOTICE)).toBeNull();
+  });
+});
+
+describe("the notices while the Meta Pixel is configured", () => {
+  const choiceUnder = (version: number, choice = ACCEPT_ALL) =>
+    readCookie(
+      consentCookie(makeConsent(choice, NOW, version), { secure: true }).split(";")[0],
+      CONSENT_COOKIE,
+    );
+  const ALL = [BASE_NOTICE, ANALYTICS_NOTICE, MARKETING_NOTICE, ANALYTICS_MARKETING_NOTICE];
+
+  it("has one constant notice per combination of tools", () => {
+    expect(consentNotice(false, false)).toBe(BASE_NOTICE);
+    expect(consentNotice(true, false)).toBe(ANALYTICS_NOTICE);
+    expect(consentNotice(false, true)).toBe(MARKETING_NOTICE);
+    expect(consentNotice(true, true)).toBe(ANALYTICS_MARKETING_NOTICE);
+  });
+
+  it("revision 1 (2026-10-04): the versions, and Google Analytics's stay as they were", () => {
+    expect(MARKETING_NOTICE_OFFSET).toBe(100_000);
+    expect(MARKETING_NOTICE_REVISION).toBe(1);
+    expect(BASE_NOTICE.version).toBe(2);
+    expect(ANALYTICS_NOTICE.version).toBe(2002);
+    expect(MARKETING_NOTICE.version).toBe(100_002);
+    expect(ANALYTICS_MARKETING_NOTICE.version).toBe(102_002);
+    expect(new Set(ALL.map((n) => n.version)).size).toBe(4);
+  });
+
+  it("the base notice honors every analytics revision and every marketing combination", () => {
+    expect(BASE_NOTICE.accepts).toEqual([2, 1002, 2002, 100_002, 101_002, 102_002]);
+    for (const notice of ALL) {
+      expect(parseConsent(choiceUnder(notice.version), NOW, BASE_NOTICE)).not.toBeNull();
+    }
+  });
+
+  it("a notice with a tool honors only its own version", () => {
+    for (const notice of [ANALYTICS_NOTICE, MARKETING_NOTICE, ANALYTICS_MARKETING_NOTICE]) {
+      expect(notice.accepts).toEqual([notice.version]);
+      for (const other of ALL) {
+        const state = parseConsent(choiceUnder(other.version), NOW, notice);
+        expect(state === null, String(other.version)).toBe(other !== notice);
+      }
+    }
+  });
+
+  it("a choice made under analytics only is not honored once the pixel is added", () => {
+    const yes = choiceUnder(ANALYTICS_NOTICE.version);
+    expect(consentAllows(parseConsent(yes, NOW, ANALYTICS_NOTICE), "marketing")).toBe(true);
+    expect(parseConsent(yes, NOW, ANALYTICS_MARKETING_NOTICE)).toBeNull();
+    expect(consentAllows(parseConsent(yes, NOW, ANALYTICS_MARKETING_NOTICE), "marketing")).toBe(
+      false,
+    );
+    // Nor is one from before the pixel on a site without Google Analytics.
+    expect(parseConsent(choiceUnder(BASE_NOTICE.version), NOW, MARKETING_NOTICE)).toBeNull();
+  });
+
+  it("honors a choice made under it, marketing included", () => {
+    const state = parseConsent(
+      choiceUnder(ANALYTICS_MARKETING_NOTICE.version),
+      NOW,
+      ANALYTICS_MARKETING_NOTICE,
+    );
+    expect(consentAllows(state, "marketing")).toBe(true);
+    expect(consentAllows(state, "analytics")).toBe(true);
   });
 });
 
@@ -236,14 +305,16 @@ describe("what the notice says", () => {
 
   it("marks a category in use only when some stored item belongs to it, with or without GA", () => {
     for (const measurementId of [null, "G-AB12CD34EF"]) {
-      const inventory = storageInventory(measurementId);
-      for (const category of consentCategories(measurementId !== null)) {
-        const used = inventory.some((item) => item.category === category.id);
-        expect(category.inUse, `${category.id} ${measurementId}`).toBe(used);
+      for (const pixelId of [null, "1234567890123456"]) {
+        const inventory = storageInventory(measurementId, pixelId);
+        for (const category of consentCategories(measurementId !== null, pixelId !== null)) {
+          const used = inventory.some((item) => item.category === category.id);
+          expect(category.inUse, `${category.id} ${measurementId} ${pixelId}`).toBe(used);
+        }
       }
     }
-    expect(consentCategories(false)).toBe(CONSENT_CATEGORIES);
-    expect(storageInventory(null)).toBe(STORAGE_INVENTORY);
+    expect(consentCategories(false, false)).toBe(CONSENT_CATEGORIES);
+    expect(storageInventory(null, null)).toBe(STORAGE_INVENTORY);
   });
 
   it("lists the consent cookie itself", () => {
@@ -268,12 +339,48 @@ describe("what the notice says", () => {
       expect(item.provider).toContain("Google");
       expect(item.duration).toContain("שנתיים");
     }
-    const statistics = consentCategories(true).find((c) => c.id === "analytics")?.description;
+    const statistics = consentCategories(true, false).find(
+      (c) => c.id === "analytics",
+    )?.description;
     expect(statistics).toContain("Google Analytics");
     // Consent Mode advanced: measured without cookies for everyone, cookies only with consent.
     expect(statistics).toContain("גם בלי אישור");
     expect(statistics).toContain("בלי עוגיות ובלי מזהה קבוע");
     expect(statistics).toContain("אם תאשרו, יישמרו בדפדפן גם עוגיות");
-    expect(consentCategories(true).find((c) => c.id === "marketing")?.inUse).toBe(false);
+    expect(consentCategories(true, false).find((c) => c.id === "marketing")?.inUse).toBe(false);
+  });
+
+  it("lists the Meta Pixel's cookies as marketing from Meta, only while a pixel id is set", () => {
+    expect(storageInventory("G-AB12CD34EF", null).some((i) => i.category === "marketing")).toBe(
+      false,
+    );
+    const items = storageInventory(null, "1234567890123456").filter(
+      (i) => i.category === "marketing",
+    );
+    expect(items).toEqual(marketingStorage());
+    const fbp = items.find((i) => i.name === "_fbp");
+    expect(fbp).toMatchObject({ kind: "cookie", who: "מי שאישר עוגיות שיווק" });
+    expect(fbp?.provider).toBe("Meta Platforms (Meta Pixel)");
+    expect(fbp?.duration).toBe("90 יום מהביקור האחרון, או עד שתבטלו את ההסכמה");
+    expect(fbp?.thirdPartyDomain).toBeUndefined();
+    // Meta's own cookie on its own domain is marked as such.
+    const fr = items.find((i) => i.name === "fr");
+    expect(fr?.thirdPartyDomain).toBe("facebook.com");
+    // With both tools, both sets.
+    const both = storageInventory("G-AB12CD34EF", "1234567890123456").map((i) => i.name);
+    expect(both).toEqual(expect.arrayContaining(["_ga", "_fbp", "fr"]));
+  });
+
+  it("describes marketing as the Meta Pixel, only with consent, while it is configured", () => {
+    for (const analytics of [false, true]) {
+      const categories = consentCategories(analytics, true);
+      const marketing = categories.find((c) => c.id === "marketing");
+      expect(marketing?.inUse).toBe(true);
+      expect(marketing?.description).toContain("Meta Pixel");
+      expect(marketing?.description).toContain("בפייסבוק ובאינסטגרם");
+      expect(marketing?.description).toContain("בלי טקסט החיפוש");
+      expect(marketing?.description).toContain("בלי אישור לא נשלח ל־Meta דבר");
+      expect(categories.find((c) => c.id === "analytics")?.inUse).toBe(analytics);
+    }
   });
 });

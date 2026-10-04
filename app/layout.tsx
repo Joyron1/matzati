@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans_Hebrew, Secular_One } from "next/font/google";
 import { GoogleAnalytics } from "@/components/analytics/google-analytics";
+import { MetaPixel } from "@/components/analytics/meta-pixel";
 import { VercelAnalytics } from "@/components/analytics/vercel-analytics";
 import { ConsentManager } from "@/components/cookie-consent/consent-manager";
 import { InPageLink } from "@/components/in-page-link";
@@ -57,7 +58,10 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const [{ measurementId }, saleBar] = await Promise.all([publicSettings(), saleBarSales()]);
+  const [{ measurementId, metaPixelId }, saleBar] = await Promise.all([
+    publicSettings(),
+    saleBarSales(),
+  ]);
   return (
     <html
       lang="he"
@@ -96,12 +100,24 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <SiteFooter />
           {/* Last in the DOM: Tab reaches the cookie banner after the footer. Client-only, so the
               layout reads no cookies and pages stay static. */}
-          <ConsentManager analyticsInUse={measurementId !== null} />
+          <ConsentManager
+            analyticsInUse={measurementId !== null}
+            marketingInUse={metaPixelId !== null}
+          />
           {/* Google Analytics only while the owner has set an id, in Consent Mode "advanced": it
               loads for every visitor with all consent denied (cookieless pings) and sets its
               cookies only after the visitor accepts statistics; nothing on /admin or /dev.
               Renders no HTML. */}
-          {measurementId && <GoogleAnalytics measurementId={measurementId} />}
+          {measurementId && (
+            <GoogleAnalytics measurementId={measurementId} marketingInUse={metaPixelId !== null} />
+          )}
+          {/* The Meta Pixel only while the owner has set its id, and strictly behind consent: it
+              renders only inside ConsentGate "marketing" (nothing reaches Meta before the visitor
+              accepts marketing), sends page views only for addresses without visitor text, and
+              nothing on /admin, /dev or /go. Renders no HTML. */}
+          {metaPixelId && (
+            <MetaPixel pixelId={metaPixelId} analyticsInUse={measurementId !== null} />
+          )}
           {/* Vercel Web Analytics: cookieless, no query strings, no admin pages (/privacy). */}
           <VercelAnalytics />
         </ThemeProvider>

@@ -17,7 +17,8 @@ import { useConsent } from "@/lib/consent/use-consent";
  * children, but a script that already ran needs its own opt-out call as well. The documented
  * exceptions (CLAUDE.md §9) are Vercel Web Analytics and Google Analytics in Consent Mode
  * "advanced" (components/analytics/google-analytics.tsx), which loads for everyone with all
- * consent denied and follows useConsent(ANALYTICS_NOTICE) itself.
+ * consent denied and follows useConsent(consentNotice(true, …)) itself. The Meta Pixel
+ * (components/analytics/meta-pixel.tsx) renders only inside a gate for "marketing".
  */
 export function ConsentGate({
   category,

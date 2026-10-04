@@ -10,9 +10,15 @@ import {
   type CommunityValue,
 } from "@/lib/settings/community-link";
 import { publicSettingsForAdmin, shopCapSettingForAdmin } from "@/lib/settings/queries";
-import { saveCommunityAction, saveGoogleAction, saveSettingsAction } from "./actions";
+import {
+  saveCommunityAction,
+  saveGoogleAction,
+  saveMetaAction,
+  saveSettingsAction,
+} from "./actions";
 import { CommunitySettingsForm } from "./community-form";
 import { GoogleSettingsForm } from "./google-form";
+import { MetaSettingsForm } from "./meta-form";
 import { SettingsForm } from "./settings-form";
 import { SettingsIntro } from "./settings-intro";
 import { StatusMessage } from "../status-message";
@@ -25,6 +31,7 @@ export const metadata: Metadata = {
 const STATUS: Record<string, string> = {
   saved: "ההגדרה נשמרה. היא חלה על החיפושים שיתחילו מעכשיו.",
   "google-saved": "החיבור לגוגל נשמר. הוא חל על כל עמוד מהטעינה הבאה שלו.",
+  "meta-saved": "החיבור ל־Meta נשמר. הוא חל על כל עמוד מהטעינה הבאה שלו.",
   "community-saved": "קישור הקהילה נשמר. הוא חל על כל עמוד מהטעינה הבאה שלו.",
 };
 
@@ -86,8 +93,8 @@ export default async function AdminSettingsPage({
       <div className="space-y-10 pt-6">
         {connections === null && (
           <ReadFailed>
-            לא הצלחנו לקרוא את החיבור לגוגל ואת קישור הקהילה, ולכן האתר פועל עכשיו בלעדיהם. אפשר
-            לנסות לשמור שוב.
+            לא הצלחנו לקרוא את החיבורים לגוגל ול־Meta ואת קישור הקהילה, ולכן האתר פועל עכשיו
+            בלעדיהם. אפשר לנסות לשמור שוב.
           </ReadFailed>
         )}
         {/* key: a save redirects here with the new stored values, which starts a fresh form. */}
@@ -100,6 +107,14 @@ export default async function AdminSettingsPage({
           }}
           stored={google}
           savedNote={google ? savedNote(google.updatedAt) : null}
+        />
+        <MetaSettingsForm
+          key={`${connections?.meta.pixelId}|${connections?.meta.updatedAt}`}
+          action={saveMetaAction}
+          initial={{ values: { pixel: connections?.meta.pixelId ?? "" }, errors: {} }}
+          storedPixelId={connections?.meta.pixelId ?? null}
+          readFailed={connections === null}
+          savedNote={connections ? savedNote(connections.meta.updatedAt) : null}
         />
         <CommunitySettingsForm
           key={`${community.url}|${community.label}|${community.enabled}|${connections?.community.updatedAt}`}

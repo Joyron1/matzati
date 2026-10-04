@@ -2,7 +2,7 @@
 // shop cap once per request through a 5-minute cache under SETTINGS_TAG, which the admin's save
 // expires (./admin.ts), and falls back to the default on any failure: a settings hiccup never
 // fails a search. Every page reads the public settings (Google Analytics, Search Console, the
-// community link) the same way from the root layout and the footer, so pages stay static.
+// Meta Pixel, the community link) the same way from the root layout and the footer, so pages stay static.
 // /admin/settings reads fresh.
 import "server-only";
 import { unstable_cache } from "next/cache";
@@ -27,6 +27,7 @@ import {
   SEARCH_CONSOLE_KEY,
   siteVerificationOf,
 } from "./google";
+import { extractPixelId, META_PIXEL_KEY, pixelIdOf } from "./meta";
 import { SETTINGS_TAG, SHOP_CAP_KEY, shopCapModeOf, type ShopCapSetting } from "./schema";
 
 /** Seconds a read is reused before the next one reads the table again. */
@@ -100,6 +101,8 @@ export interface PublicSettings {
   measurementId: string | null;
   /** Search Console HTML-tag verification token: <meta name="google-site-verification">. */
   siteVerification: string | null;
+  /** Meta Pixel id: the pixel inside ConsentGate "marketing", /go's buy-click event, the texts. */
+  metaPixelId: string | null;
   /** The footer's "join our community" button, only while it is switched on. */
   community: CommunityLink | null;
 }
@@ -107,10 +110,16 @@ export interface PublicSettings {
 export const EMPTY_PUBLIC_SETTINGS: PublicSettings = {
   measurementId: null,
   siteVerification: null,
+  metaPixelId: null,
   community: null,
 };
 
-const PUBLIC_KEYS = [GOOGLE_ANALYTICS_KEY, SEARCH_CONSOLE_KEY, COMMUNITY_KEY] as const;
+const PUBLIC_KEYS = [
+  GOOGLE_ANALYTICS_KEY,
+  SEARCH_CONSOLE_KEY,
+  META_PIXEL_KEY,
+  COMMUNITY_KEY,
+] as const;
 
 /** One read of the public keys. A stored value this code does not accept reads as unset (logged). */
 async function readPublicSettings(): Promise<PublicSettings> {
@@ -119,6 +128,7 @@ async function readPublicSettings(): Promise<PublicSettings> {
   const settings: PublicSettings = {
     measurementId: measurementIdOf(value(GOOGLE_ANALYTICS_KEY)),
     siteVerification: siteVerificationOf(value(SEARCH_CONSOLE_KEY)),
+    metaPixelId: pixelIdOf(value(META_PIXEL_KEY)),
     community: communityLinkOf(value(COMMUNITY_KEY)),
   };
   // A row that is neither valid nor the owner's "cleared" ({field: null}) was edited by hand.
@@ -129,6 +139,9 @@ async function readPublicSettings(): Promise<PublicSettings> {
   }
   if (unusable(SEARCH_CONSOLE_KEY, settings.siteVerification, "verification")) {
     logError("search console", new Error("stored value is not a verification token"));
+  }
+  if (unusable(META_PIXEL_KEY, settings.metaPixelId, "pixelId")) {
+    logError("meta pixel", new Error("stored value is not a pixel id"));
   }
   if (rows.has(COMMUNITY_KEY) && communityValueOf(value(COMMUNITY_KEY)) === null) {
     logError("community", new Error("stored value is not a community setting"));
@@ -169,9 +182,9 @@ async function storedPublicSettings(): Promise<PublicSettings> {
 }
 
 /**
- * Local development only: DEV_GOOGLE_ANALYTICS_ID, DEV_GOOGLE_SITE_VERIFICATION and
- * DEV_COMMUNITY_URL (for example in .env.development.local, which `next dev` reloads when it
- * changes) replace the stored values, so the loader, the meta tag, the texts and the footer
+ * Local development only: DEV_GOOGLE_ANALYTICS_ID, DEV_GOOGLE_SITE_VERIFICATION, DEV_META_PIXEL_ID
+ * and DEV_COMMUNITY_URL (for example in .env.development.local, which `next dev` reloads when it
+ * changes) replace the stored values, so the loaders, the meta tag, the texts and the footer
  * button can be tried without writing to the database. Each goes through the same extraction as
  * the admin form; an unusable one is ignored (logged). Ignored unless NODE_ENV is "development",
  * so never on Vercel (production and preview builds run with NODE_ENV "production").
@@ -193,6 +206,12 @@ export function withDevOverride(
     const found = extractVerificationToken(gsc);
     if (found.kind === "found") result.siteVerification = found.value;
     else logError("dev override", new Error("DEV_GOOGLE_SITE_VERIFICATION is not a token"));
+  }
+  const pixel = env.DEV_META_PIXEL_ID?.trim();
+  if (pixel) {
+    const found = extractPixelId(pixel);
+    if (found.kind === "found") result.metaPixelId = found.value;
+    else logError("dev override", new Error("DEV_META_PIXEL_ID is not a pixel id"));
   }
   const community = env.DEV_COMMUNITY_URL?.trim();
   if (community) {
@@ -226,6 +245,7 @@ export interface PublicSettingsForAdmin {
     /** When either was last saved (ISO), or null. */
     updatedAt: string | null;
   };
+  meta: { pixelId: string | null; updatedAt: string | null };
   community: CommunityValue & { updatedAt: string | null };
 }
 
@@ -235,6 +255,7 @@ export async function publicSettingsForAdmin(): Promise<PublicSettingsForAdmin |
     const rows = await selectSettings(serviceClient(), PUBLIC_KEYS);
     const ga = rows.get(GOOGLE_ANALYTICS_KEY);
     const gsc = rows.get(SEARCH_CONSOLE_KEY);
+    const meta = rows.get(META_PIXEL_KEY);
     const community = rows.get(COMMUNITY_KEY);
     const latest = [ga?.updatedAt, gsc?.updatedAt]
       .filter((t): t is string => typeof t === "string")
@@ -246,6 +267,7 @@ export async function publicSettingsForAdmin(): Promise<PublicSettingsForAdmin |
         siteVerification: siteVerificationOf(gsc?.value),
         updatedAt: latest ?? null,
       },
+      meta: { pixelId: pixelIdOf(meta?.value), updatedAt: meta?.updatedAt ?? null },
       community: {
         ...(communityValueOf(community?.value) ?? DEFAULT_COMMUNITY_VALUE),
         updatedAt: community?.updatedAt ?? null,

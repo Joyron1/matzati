@@ -1,5 +1,7 @@
 import type { NextRequest } from "next/server";
 import { clickOut, clickRefFrom } from "@/lib/search/server";
+import { publicSettings } from "@/lib/settings/queries";
+import { goResponse } from "./respond";
 
 // A missing link, or one older than LINK_MAX_AGE_DAYS, costs one link.generate call first.
 export const maxDuration = 60;
@@ -10,6 +12,10 @@ export const maxDuration = 60;
 // letters, digits, "_" or "-" is logged as "other" (clickOut). A result card adds `s` (the uid of
 // the search_log row that showed it) and `pos` (its 1-based rank), validated with zod
 // (clickRefFrom) and logged only: a bad value is dropped, never an error.
+// The answer is the 302 to AliExpress, except while the Meta Pixel is configured and the visitor's
+// consent cookie grants marketing: then a tiny page sends the buy-click event first (./respond.ts).
+// The click is logged the same way either way. No other parameter is ever added to /go's address:
+// the buy-click page's pixel sends it to Meta.
 
 // A route handler cannot render app/not-found.tsx, so the 404 is a minimal standalone page.
 const NOT_FOUND_HTML = `<!doctype html>
@@ -39,9 +45,12 @@ export async function GET(request: NextRequest, ctx: RouteContext<"/go/[productI
       headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" },
     });
   }
-  return new Response(null, {
-    status: 302,
-    headers: { Location: link, "Cache-Control": "no-store" },
+  const { measurementId, metaPixelId } = await publicSettings();
+  return goResponse({
+    link,
+    productId,
+    settings: { measurementId, metaPixelId },
+    cookieHeader: request.headers.get("cookie"),
   });
 }
 

@@ -2,7 +2,9 @@
 // (/admin/settings); without one the page says what it said before. Every statement must stay
 // true of components/analytics/gtag.ts (what is sent, Consent Mode "advanced": cookieless pings for
 // everyone, the cookies only after consent; the reduced address, the cookies and their deletion)
-// and of the consent flow (components/analytics/google-analytics.tsx, ANALYTICS_NOTICE).
+// and of the consent flow (components/analytics/google-analytics.tsx, consentNotice). While the
+// Meta Pixel is configured too (`marketingInUse`), the sentences that say the site has no
+// advertising tools give way to ./marketing.tsx.
 import Link from "next/link";
 import { LEGAL_PATHS } from "@/lib/config/legal";
 
@@ -26,8 +28,8 @@ function VercelCounting() {
       <ul>
         <li>
           בכל מעבר עמוד נשלחים ל־Vercel: כתובת העמוד בלי טקסט החיפוש ובלי שאר הפרמטרים, העמוד שממנו
-          הגעתם כפי שהדפדפן מוסר אותו, סוג הדפדפן, מערכת ההפעלה וסוג המכשיר, ומדינה ש־Vercel מסיקה
-          מכתובת ה־IP.
+          הגעתם כפי שהדפדפן מוסר אותו (אצל מי שאישר עוגיות שיווק, בלי טקסט החיפוש), סוג הדפדפן,
+          מערכת ההפעלה וסוג המכשיר, ומדינה ש־Vercel מסיקה מכתובת ה־IP.
         </li>
         <li>
           כדי להבחין בין מבקרים, Vercel מחשבת מכתובת ה־IP ומפרטי הדפדפן ערך מגובב שמתחלף כל יום. לפי
@@ -79,8 +81,34 @@ export function AnalyticsSharingItem({ inUse }: { inUse: boolean }) {
   );
 }
 
-/** #tracking: the whole section's text. */
-export function AnalyticsTracking({ inUse }: { inUse: boolean }) {
+/**
+ * #tracking: the whole section's text about measuring (./marketing.tsx's MarketingTracking follows
+ * it while the Meta Pixel is configured, `marketingInUse`).
+ */
+export function AnalyticsTracking({
+  inUse,
+  marketingInUse,
+}: {
+  inUse: boolean;
+  marketingInUse: boolean;
+}) {
+  if (!inUse && marketingInUse) {
+    return (
+      <>
+        <p>
+          האתר לא משתמש היום בכלי מדידה שמשתמש בעוגיות. כלי הפרסום היחיד באתר הוא Meta Pixel, שנטען
+          רק אחרי שאישרתם עוגיות שיווק (בהמשך הסעיף). הגופנים מוגשים מהשרתים של האתר; תמונות המוצרים
+          נטענות ישירות משרתי התמונות של אלי אקספרס (ראו ״עם מי המידע משותף״). הפירוט המלא של מה
+          שנשמר בדפדפן ב<Link href={LEGAL_PATHS.cookies}>מדיניות העוגיות</Link>.
+        </p>
+        <VercelCounting />
+        <p>
+          אם נוסיף בעתיד כלי מדידה שמשתמש בעוגיות, או כלי פרסום אחר, הוא יפעל רק אחרי שתאשרו אותו
+          בהגדרות העוגיות, ונעדכן את המדיניות לפני כן.
+        </p>
+      </>
+    );
+  }
   if (!inUse) {
     return (
       <>
@@ -105,9 +133,12 @@ export function AnalyticsTracking({ inUse }: { inUse: boolean }) {
         כדי להבין איך משתמשים באתר, אנחנו משתמשים ב־Google Analytics 4 של Google, במצב ההסכמה המתקדם
         של Google (Consent Mode). הסקריפט שלו נטען מהשרתים של Google בכל עמוד באתר, חוץ מעמודי
         הניהול, ושולח ל־Google נתוני שימוש גם לפני שבחרתם בהודעת העוגיות. בלי אישור הוא לא קורא ולא
-        שומר עוגיות; את העוגיות שלו הוא שומר רק אם אישרתם עוגיות סטטיסטיקה. אין באתר פיקסלים או
-        עוגיות פרסום. הגופנים מוגשים מהשרתים של האתר; תמונות המוצרים נטענות ישירות משרתי התמונות של
-        אלי אקספרס (ראו ״עם מי המידע משותף״).
+        שומר עוגיות; את העוגיות שלו הוא שומר רק אם אישרתם עוגיות סטטיסטיקה.{" "}
+        {marketingInUse
+          ? "כלי הפרסום היחיד באתר הוא Meta Pixel, שנטען רק אחרי שאישרתם עוגיות שיווק (בהמשך הסעיף)."
+          : "אין באתר פיקסלים או עוגיות פרסום."}{" "}
+        הגופנים מוגשים מהשרתים של האתר; תמונות המוצרים נטענות ישירות משרתי התמונות של אלי אקספרס
+        (ראו ״עם מי המידע משותף״).
       </p>
       <VercelCounting />
       <h3>מה נשלח ל־Google, גם בלי אישור</h3>

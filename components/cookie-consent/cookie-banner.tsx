@@ -8,6 +8,25 @@ import { LEGAL_PATHS } from "@/lib/config/legal";
 import { ACCEPT_ALL, NECESSARY_ONLY, type ConsentChoice } from "@/lib/consent/consent";
 import styles from "./cookie-consent.module.css";
 
+/**
+ * The banner's sentence for the tools the owner has configured. The texts without the Meta Pixel
+ * are the ones before it (unchanged, so their notice versions stay). Changing what a text says
+ * about Google Analytics bumps ANALYTICS_NOTICE_REVISION; about the Meta Pixel,
+ * MARKETING_NOTICE_REVISION (lib/consent/consent.ts).
+ */
+export function bannerText(analyticsInUse: boolean, marketingInUse: boolean): string {
+  if (analyticsInUse && marketingInUse) {
+    return "אנחנו שומרים בדפדפן את מה שהכרחי לאתר. Google Analytics סופר ביקורים בלי עוגיות ובלי מזהה קבוע, ואת עוגיות הסטטיסטיקה שלו נשמור רק אם תאשרו. את Meta Pixel, למדידה ולפרסום בפייסבוק ובאינסטגרם, נפעיל רק אם תאשרו עוגיות שיווק.";
+  }
+  if (analyticsInUse) {
+    return "אנחנו שומרים בדפדפן את מה שהכרחי לאתר. Google Analytics סופר ביקורים בלי עוגיות ובלי מזהה קבוע, ואת עוגיות הסטטיסטיקה שלו נשמור רק אם תאשרו. עוגיות שיווק לא בשימוש.";
+  }
+  if (marketingInUse) {
+    return "אנחנו שומרים בדפדפן רק את מה שהכרחי לאתר. את Meta Pixel, למדידה ולפרסום בפייסבוק ובאינסטגרם, נפעיל רק אם תאשרו עוגיות שיווק. עוגיות סטטיסטיקה לא בשימוש.";
+  }
+  return "אנחנו שומרים בדפדפן רק את מה שהכרחי לאתר. עוגיות סטטיסטיקה ושיווק לא בשימוש, ונפעיל אותן רק אם תאשרו.";
+}
+
 /** Read by app/globals.css: scroll padding and page padding while the banner is up. */
 const BANNER_SPACE_VAR = "--consent-banner-h";
 
@@ -24,13 +43,17 @@ const button = "min-h-11 grow px-2.5 text-sm sm:grow-0 sm:px-4";
  * invisible strip beside it catches clicks meant for the page. `analyticsInUse`: Google Analytics
  * is configured, so the text says it counts visits without cookies and sets its statistics
  * cookies only with consent (Consent Mode "advanced", components/analytics/gtag.ts).
+ * `marketingInUse`: the Meta Pixel is configured, so the text says it runs only with marketing
+ * consent (components/analytics/meta-pixel.tsx). bannerText has the four texts.
  */
 export function CookieBanner({
-  analyticsInUse = false,
+  analyticsInUse,
+  marketingInUse,
   onChoose,
   onOpenSettings,
 }: {
-  analyticsInUse?: boolean;
+  analyticsInUse: boolean;
+  marketingInUse: boolean;
   onChoose(choice: ConsentChoice): void;
   onOpenSettings(): void;
 }) {
@@ -77,9 +100,7 @@ export function CookieBanner({
           </h2>
           {/* What is stored, item by item: /cookies (STORAGE_INVENTORY). */}
           <p className="mt-1 text-sm leading-relaxed text-muted">
-            {analyticsInUse
-              ? "אנחנו שומרים בדפדפן את מה שהכרחי לאתר. Google Analytics סופר ביקורים בלי עוגיות ובלי מזהה קבוע, ואת עוגיות הסטטיסטיקה שלו נשמור רק אם תאשרו. עוגיות שיווק לא בשימוש."
-              : "אנחנו שומרים בדפדפן רק את מה שהכרחי לאתר. עוגיות סטטיסטיקה ושיווק לא בשימוש, ונפעיל אותן רק אם תאשרו."}{" "}
+            {bannerText(analyticsInUse, marketingInUse)}{" "}
             <Link
               href={LEGAL_PATHS.cookies}
               className="font-medium whitespace-nowrap text-accent-ink underline underline-offset-4 hover:no-underline"

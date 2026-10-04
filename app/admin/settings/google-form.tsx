@@ -174,8 +174,8 @@ export function GoogleSettingsForm({
   );
 }
 
-/** English (Google's menu names, ids) kept left to right inside the Hebrew text. */
-function Ltr({ children }: { children: ReactNode }) {
+/** English (Google's and Meta's menu names, ids) kept left to right inside the Hebrew text. */
+export function Ltr({ children }: { children: ReactNode }) {
   return (
     <bdi dir="ltr" className="font-medium">
       {children}
@@ -202,7 +202,12 @@ function preview(result: Extraction, storedValue: string | null, foundLabel: str
   return { tone: "ok", text: `זיהינו ${foundLabel} (${status}):`, value: result.value };
 }
 
-function ConnectionField({
+/**
+ * One pasted-connection field: label and live status, a hint, the textarea, the live line of what a
+ * save will store (the same extraction the save runs) and the save's message. Shared by the
+ * "חיבור לגוגל" and "חיבור ל־Meta" forms.
+ */
+export function ConnectionField({
   name,
   label,
   status,

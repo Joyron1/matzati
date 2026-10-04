@@ -12,7 +12,7 @@ import {
   type StorageItem,
 } from "@/lib/consent/categories";
 import { CONSENT_COOKIE } from "@/lib/consent/consent";
-import { googleAnalyticsId } from "@/lib/settings/queries";
+import { publicSettings } from "@/lib/settings/queries";
 import { pageMetadata } from "@/lib/seo/page-meta";
 
 export const metadata: Metadata = {
@@ -53,6 +53,14 @@ function StorageCard({
     ["למה", item.purpose],
     ["לכמה זמן", item.duration],
     ...(item.provider ? [["ספק", item.provider] as [string, string]] : []),
+    ...(item.thirdPartyDomain
+      ? [
+          [
+            "איפה",
+            `בדומיין ${item.thirdPartyDomain}, של הספק ולא של האתר. האתר לא שומר ולא קורא אותה.`,
+          ] as [string, string],
+        ]
+      : []),
   ];
   return (
     <div className={`${card} p-5`}>
@@ -73,12 +81,24 @@ function StorageCard({
   );
 }
 
-// Google Analytics is described only while the owner has set its id (/admin/settings): the page
-// reads the same cached setting as the root layout, so it stays static and changes with it.
+/** Inline code (cookie names) kept left to right. */
+function Code({ children }: { children: string }) {
+  return (
+    <bdi dir="ltr" className="font-mono">
+      {children}
+    </bdi>
+  );
+}
+
+// Google Analytics and the Meta Pixel are described only while the owner has set their ids
+// (/admin/settings): the page reads the same cached settings as the root layout, so it stays
+// static and changes with them. Every Meta statement must stay true of
+// components/analytics/fbq.ts, meta-pixel.tsx and app/go/[productId]/respond.ts.
 export default async function CookiesPage() {
-  const measurementId = await googleAnalyticsId();
+  const { measurementId, metaPixelId } = await publicSettings();
   const analytics = measurementId !== null;
-  const categories = consentCategories(analytics);
+  const marketing = metaPixelId !== null;
+  const categories = consentCategories(analytics, marketing);
   return (
     <StaticPage
       page="cookies"
@@ -89,7 +109,15 @@ export default async function CookiesPage() {
             עוגייה (cookie) היא קובץ טקסט קטן שאתר שומר בדפדפן. אתרים יכולים לשמור מידע גם באחסון
             המקומי של הדפדפן. כאן מפורט כל מה שהאתר שומר בדפדפן שלכם, ולמה.
           </p>
-          {analytics ? (
+          {marketing ? (
+            <p>
+              בקצרה: אנחנו שומרים מה שהכרחי כדי שהאתר יעבוד ויזכור בחירות שעשיתם.{" "}
+              {analytics &&
+                "את השימוש באתר אנחנו מודדים גם עם Google Analytics: בלי אישור הוא פועל בלי עוגיות ובלי מזהה קבוע, ואת העוגיות שלו הוא שומר רק אם תאשרו עוגיות סטטיסטיקה. "}
+              כדי למדוד ולפרסם את המודעות שלנו בפייסבוק ובאינסטגרם אנחנו משתמשים ב־Meta Pixel של
+              Meta, שנטען ושומר עוגיות רק אם תאשרו עוגיות שיווק. בלי אישור לא נשלח ל־Meta דבר.
+            </p>
+          ) : analytics ? (
             <p>
               בקצרה: אנחנו שומרים מה שהכרחי כדי שהאתר יעבוד ויזכור בחירות שעשיתם. את השימוש באתר
               אנחנו מודדים גם עם Google Analytics: בלי אישור הוא פועל בלי עוגיות ובלי מזהה קבוע, ואת
@@ -106,7 +134,7 @@ export default async function CookiesPage() {
     >
       <LegalSection {...SEC.inUse}>
         <div className="grid gap-4">
-          {storageInventory(measurementId).map((item) => (
+          {storageInventory(measurementId, metaPixelId).map((item) => (
             <StorageCard key={item.name} item={item} categories={categories} />
           ))}
         </div>
@@ -122,6 +150,17 @@ export default async function CookiesPage() {
             האתר, והמידע שבהן נשלח ל־Google. בלי אישור, הסקריפט של Google Analytics עדיין נטען ושולח
             ל־Google נתוני שימוש, אבל לא קורא ולא שומר עוגיות. מה בדיוק נשלח, לפני האישור ואחריו,
             מפורט ב<Link href={`${LEGAL_PATHS.privacy}#tracking`}>מדיניות הפרטיות</Link>.
+          </p>
+        )}
+        {marketing && (
+          <p>
+            עוגיות Meta Pixel (<Code>_fbp</Code>, ו־<Code>_fbc</Code> אם הגעתם מלחיצה בפייסבוק או
+            באינסטגרם) נשמרות רק אצל מי שאישר עוגיות שיווק. הן נשמרות בדומיין של האתר, והמידע שבהן
+            נשלח ל־Meta. בלי אישור, הסקריפט של Meta לא נטען בכלל ולא נשלח אליה דבר. העוגייה{" "}
+            <Code>fr</Code> ועוגיות אחרות של Meta שמורות בדומיין של Meta (facebook.com), לא בדומיין
+            של האתר: אנחנו לא שומרים ולא קוראים אותן, אבל כשהפיקסל פונה ל־Meta הדפדפן שולח לה אותן,
+            והיא משתמשת בהן לפי מדיניות העוגיות שלה. מה בדיוק נשלח ל־Meta מפורט ב
+            <Link href={`${LEGAL_PATHS.privacy}#tracking`}>מדיניות הפרטיות</Link>.
           </p>
         )}
       </LegalSection>
@@ -145,9 +184,11 @@ export default async function CookiesPage() {
             {CONSENT_COOKIE}
           </bdi>{" "}
           ל־12 חודשים, ואז נשאל שוב.{" "}
-          {analytics
-            ? "את Google Analytics אנחנו מפעילים בלי עוגיות אצל כל המבקרים, ואת העוגיות שלו רק אחרי שאישרתם סטטיסטיקה. אם נוסיף כלי שיווק, הוא יפעל רק אחרי שתאשרו אותו, נעדכן את העמוד הזה ונשאל אתכם מחדש."
-            : "אם נוסיף כלי סטטיסטיקה שמשתמש בעוגיות, או כלי שיווק, הוא יפעל רק אחרי שתאשרו אותו, נעדכן את העמוד הזה ונשאל אתכם מחדש."}
+          {marketing
+            ? `${analytics ? "את Google Analytics אנחנו מפעילים בלי עוגיות אצל כל המבקרים, ואת העוגיות שלו רק אחרי שאישרתם סטטיסטיקה. " : ""}את Meta Pixel אנחנו מפעילים רק אחרי שאישרתם שיווק. אם נוסיף כלי אחר, הוא יפעל רק אחרי שתאשרו אותו, נעדכן את העמוד הזה ונשאל אתכם מחדש.`
+            : analytics
+              ? "את Google Analytics אנחנו מפעילים בלי עוגיות אצל כל המבקרים, ואת העוגיות שלו רק אחרי שאישרתם סטטיסטיקה. אם נוסיף כלי שיווק, הוא יפעל רק אחרי שתאשרו אותו, נעדכן את העמוד הזה ונשאל אתכם מחדש."
+              : "אם נוסיף כלי סטטיסטיקה שמשתמש בעוגיות, או כלי שיווק, הוא יפעל רק אחרי שתאשרו אותו, נעדכן את העמוד הזה ונשאל אתכם מחדש."}
         </p>
       </LegalSection>
 
@@ -155,9 +196,11 @@ export default async function CookiesPage() {
         {/* components/share-link.tsx and whatsapp-cta.tsx are plain wa.me links: nothing loads
             from WhatsApp until one is followed. */}
         <p>
-          {analytics
-            ? "אין באתר פיקסלים של רשתות פרסום, תוספים שנטענים מרשתות חברתיות או סקריפטים של צד שלישי, מלבד Google Analytics, שנטען מהשרתים של Google בכל עמוד באתר (חוץ מעמודי הניהול) ושומר עוגיות רק אחרי שאישרתם עוגיות סטטיסטיקה."
-            : "אין באתר פיקסלים של רשתות פרסום, תוספים שנטענים מרשתות חברתיות או סקריפטים של צד שלישי."}{" "}
+          {marketing
+            ? `אין באתר תוספים שנטענים מרשתות חברתיות או סקריפטים של צד שלישי, מלבד ${analytics ? "Google Analytics, שנטען מהשרתים של Google בכל עמוד באתר (חוץ מעמודי הניהול) ושומר עוגיות רק אחרי שאישרתם עוגיות סטטיסטיקה, ו־" : ""}Meta Pixel, שנטען מהשרתים של Meta רק אחרי שאישרתם עוגיות שיווק. אין באתר פיקסלים של רשתות פרסום אחרות.`
+            : analytics
+              ? "אין באתר פיקסלים של רשתות פרסום, תוספים שנטענים מרשתות חברתיות או סקריפטים של צד שלישי, מלבד Google Analytics, שנטען מהשרתים של Google בכל עמוד באתר (חוץ מעמודי הניהול) ושומר עוגיות רק אחרי שאישרתם עוגיות סטטיסטיקה."
+              : "אין באתר פיקסלים של רשתות פרסום, תוספים שנטענים מרשתות חברתיות או סקריפטים של צד שלישי."}{" "}
           את הביקורים בעמודים אנחנו סופרים בכלי של ספק האחסון (Vercel Web Analytics), שנטען מהדומיין
           של האתר ולא שומר בדפדפן עוגיות או מידע אחר; הפירוט ב
           <Link href={`${LEGAL_PATHS.privacy}#tracking`}>מדיניות הפרטיות</Link>. כפתור השיתוף
@@ -194,6 +237,14 @@ export default async function CookiesPage() {
             </bdi>{" "}
             מהדפדפן, ומאותו רגע Google Analytics חוזר לשלוח נתוני שימוש בלי עוגיות ובלי מזהה קבוע.
             את השליחה הזו אפשר למנוע רק בדפדפן עצמו: בהגנה מפני מעקב שלו, או בתוסף שחוסם כלי מדידה.
+          </p>
+        )}
+        {marketing && (
+          <p>
+            ביטול ההסכמה לשיווק עוצר מיד את Meta Pixel ומוחק מהדפדפן את העוגיות <Code>_fbp</Code> ו־
+            <Code>_fbc</Code>. מה שכבר נשלח ל־Meta נשמר אצלה לפי המדיניות שלה. את העוגיות של Meta
+            בדומיין שלה אפשר למחוק בהגדרות הדפדפן, ואת השימוש שלה בנתונים לפרסום אפשר להגביל בהגדרות
+            המודעות בחשבון פייסבוק או אינסטגרם.
           </p>
         )}
         <CookieSettingsButton className={`${btnSecondary} ${btnMd} print:hidden`} />

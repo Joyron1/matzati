@@ -3,7 +3,7 @@
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef } from "react";
 import { BRAND } from "@/lib/config/brand";
-import { ANALYTICS_NOTICE, consentAllows } from "@/lib/consent/consent";
+import { consentAllows, consentNotice } from "@/lib/consent/consent";
 import { useConsent } from "@/lib/consent/use-consent";
 import {
   analyticsLocation,
@@ -113,11 +113,18 @@ function GtagTracker({ measurementId, granted }: { measurementId: string; grante
  * Analytics, CLAUDE.md §9): the root layout renders it only while an id is set, and it loads
  * gtag.js for every visitor with all consent denied, so Google gets cookieless pings with the
  * reduced address and no identifier. Only a visitor who accepts "סטטיסטיקה" under the notice that
- * describes this (ANALYTICS_NOTICE) gets analytics_storage granted and the _ga cookies. Renders no
- * HTML, and nothing before the browser has read the consent cookie.
+ * describes this (consentNotice(true, marketingInUse): ANALYTICS_NOTICE, or
+ * ANALYTICS_MARKETING_NOTICE while the Meta Pixel is configured too) gets analytics_storage granted
+ * and the _ga cookies. Renders no HTML, and nothing before the browser has read the consent cookie.
  */
-export function GoogleAnalytics({ measurementId }: { measurementId: string }) {
-  const { consent } = useConsent(ANALYTICS_NOTICE);
+export function GoogleAnalytics({
+  measurementId,
+  marketingInUse,
+}: {
+  measurementId: string;
+  marketingInUse: boolean;
+}) {
+  const { consent } = useConsent(consentNotice(true, marketingInUse));
   // Unknown on the server and during hydration: nothing until the cookie is read, so a visitor
   // who accepted is granted before gtag.js loads, never after a first denied page view.
   if (consent === undefined) return null;

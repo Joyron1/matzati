@@ -13,7 +13,7 @@ import { LEGAL_PATHS, RETENTION } from "@/lib/config/legal";
 import { MY_SEARCHES_MAX } from "@/lib/recent/mine";
 import { SEARCHES_PER_DAY, SEARCHES_PER_HOUR } from "@/lib/guard/rate-limit";
 import { CACHE_TTL_DAYS } from "@/lib/search/cache-key";
-import { googleAnalyticsId } from "@/lib/settings/queries";
+import { publicSettings } from "@/lib/settings/queries";
 import {
   AnalyticsBasisItem,
   AnalyticsRetentionItem,
@@ -21,6 +21,14 @@ import {
   AnalyticsSummary,
   AnalyticsTracking,
 } from "./analytics";
+import {
+  MarketingBasisItem,
+  MarketingRetentionItem,
+  MarketingRights,
+  MarketingSharingItem,
+  MarketingSummary,
+  MarketingTracking,
+} from "./marketing";
 import { NEWSLETTER_PRIVACY_SECTION, NewsletterPrivacy } from "./newsletter";
 import { WHATSAPP_PRIVACY_SECTION, WhatsAppPrivacy } from "./whatsapp";
 import { whatsappEnabled } from "@/lib/whatsapp/config";
@@ -47,7 +55,8 @@ export const metadata: Metadata = {
 // only), the crawler guard (lib/guard/bots.ts: the user agent is read, never stored), the
 // AliExpress gateway in Singapore
 // (ALIEXPRESS_GATEWAY in lib/env.ts), Supabase Auth's own records (auth.sessions ip and
-// user_agent, auth.audit_log_entries ip_address). Retention: RETENTION in lib/config/legal.ts,
+// user_agent, auth.audit_log_entries ip_address), Google Analytics (./analytics.tsx) and the
+// Meta Pixel (./marketing.tsx) while their ids are set. Retention: RETENTION in lib/config/legal.ts,
 // true only once supabase/migrations/20260928200000_retention.sql is applied (a deploy gate).
 const SEC = {
   controller: { id: "controller", title: "מי אחראי למידע" },
@@ -67,9 +76,12 @@ const SEC = {
 } as const satisfies Record<string, PageSection>;
 
 export default async function PrivacyPage() {
-  // Google Analytics (./analytics.tsx) is described only while the owner has set its id: the same
-  // cached setting the root layout reads, so the page stays static and changes with it.
-  const analytics = (await googleAnalyticsId()) !== null;
+  // Google Analytics (./analytics.tsx) and the Meta Pixel (./marketing.tsx) are described only
+  // while the owner has set their ids: the same cached settings the root layout reads, so the page
+  // stays static and changes with them.
+  const { measurementId, metaPixelId } = await publicSettings();
+  const analytics = measurementId !== null;
+  const marketing = metaPixelId !== null;
   // The WhatsApp bot (./whatsapp.tsx) is described only while it is switched on (its secrets set).
   const whatsapp = whatsappEnabled();
   return (
@@ -84,9 +96,14 @@ export default async function PrivacyPage() {
           </p>
           <p>
             בקצרה: אין באתר חשבונות משתמש, ואנחנו לא מבקשים שם או טלפון. אימייל נבקש רק אם תבחרו
-            להירשם לעדכונים על מבצעים וקופונים. <AnalyticsSummary inUse={analytics} /> את מה שאתם
-            כותבים בחיפוש אנחנו שומרים בלי פרטים על מי שחיפש, ואת כתובת ה־IP שלכם שומרים במסד
-            הנתונים שלנו רק כערך מגובב (hash) חד־כיווני, לזמן קצר.
+            להירשם לעדכונים על מבצעים וקופונים.{" "}
+            {marketing ? (
+              <MarketingSummary analytics={analytics} />
+            ) : (
+              <AnalyticsSummary inUse={analytics} />
+            )}{" "}
+            את מה שאתם כותבים בחיפוש אנחנו שומרים בלי פרטים על מי שחיפש, ואת כתובת ה־IP שלכם שומרים
+            במסד הנתונים שלנו רק כערך מגובב (hash) חד־כיווני, לזמן קצר.
             {whatsapp && (
               <>
                 {" "}
@@ -215,6 +232,7 @@ export default async function PrivacyPage() {
           <li>את הערך המגובב של כתובת ה־IP אנחנו שומרים לצורך אבטחה ומניעת שימוש לרעה.</li>
           <li>נתוני השימוש, בלי פרטים מזהים, משמשים לשיפור השירות ולסטטיסטיקה.</li>
           <AnalyticsBasisItem inUse={analytics} />
+          <MarketingBasisItem inUse={marketing} />
         </ul>
       </LegalSection>
 
@@ -249,13 +267,16 @@ export default async function PrivacyPage() {
           <li>רשומות ההתחברות של מנהלי האתר והיומנים של שירות הכניסה: לפי המדיניות של Supabase.</li>
           <li>היומנים של ספק האחסון ונתוני ספירת הביקורים: לפי המדיניות של Vercel.</li>
           <AnalyticsRetentionItem inUse={analytics} />
+          <MarketingRetentionItem inUse={marketing} />
         </ul>
         <p>המחיקה נעשית אוטומטית פעם ביום, ולכן רשומה עשויה להישאר עד יום אחד אחרי המועד.</p>
       </LegalSection>
 
       <LegalSection {...SEC.sharing}>
         <p>
-          אנחנו לא מוכרים מידע ולא מעבירים אותו למפרסמים. אלה הספקים שמעבדים מידע כדי שהשירות יעבוד:
+          {marketing
+            ? "אנחנו לא מוכרים מידע. לרשת פרסום עובר מידע רק דרך Meta Pixel, ורק ממי שאישר עוגיות שיווק (בהמשך הרשימה). אלה הספקים שמעבדים מידע כדי שהשירות יעבוד, ו־Meta:"
+            : "אנחנו לא מוכרים מידע ולא מעבירים אותו למפרסמים. אלה הספקים שמעבדים מידע כדי שהשירות יעבוד:"}
         </p>
         <ul>
           <li>
@@ -282,6 +303,7 @@ export default async function PrivacyPage() {
             הוא נטען רק כשתפעילו אותו). היא פועלת לפי מדיניות הפרטיות שלה.
           </li>
           <AnalyticsSharingItem inUse={analytics} />
+          <MarketingSharingItem inUse={marketing} />
           {whatsapp && (
             <li>
               Meta (וואטסאפ): רק למי שכותב לנו בוואטסאפ. ההודעות ומספר הטלפון עוברים דרך פלטפורמת
@@ -295,9 +317,11 @@ export default async function PrivacyPage() {
         </p>
       </LegalSection>
 
-      {/* Analytics (Google Analytics, while the owner has set its id): ./analytics.tsx. */}
+      {/* Analytics (Google Analytics, while the owner has set its id): ./analytics.tsx; the Meta
+          Pixel, while its id is set: ./marketing.tsx. */}
       <LegalSection {...SEC.tracking}>
-        <AnalyticsTracking inUse={analytics} />
+        <AnalyticsTracking inUse={analytics} marketingInUse={marketing} />
+        <MarketingTracking inUse={marketing} />
       </LegalSection>
 
       {/* Newsletter (the footer's sign-up for email updates): ./newsletter.tsx. */}
@@ -342,6 +366,7 @@ export default async function PrivacyPage() {
           בחיפוש פרט אישי ואתם רוצים שנמחק אותו, כתבו לנו את נוסח החיפוש ובערך מתי חיפשתם, ונמחק את
           הרשומות המתאימות.
         </p>
+        <MarketingRights inUse={marketing} />
         <p>
           פניות: <ContactEmail />. אפשר גם לפנות לרשות להגנת הפרטיות.
         </p>

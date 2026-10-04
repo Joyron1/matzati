@@ -42,7 +42,7 @@ function trapTab(event: KeyboardEvent<HTMLDialogElement>) {
  * close button) and makes the page inert; Esc closes it (the native cancel), and so do the close
  * button and every choice. On close, ConsentManager returns focus to the button that opened it.
  * `categories`: consentCategories() for the page (statistics in use while Google Analytics is
- * configured).
+ * configured, marketing while the Meta Pixel is).
  */
 export function CookieSettingsDialog({
   open,

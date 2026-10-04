@@ -4,10 +4,13 @@
 // CONSENT_VERSION (./consent.ts) so visitors are asked again.
 //
 // Google Analytics is on only while the owner has set its measurement id (/admin/settings): the
-// pages then use consentCategories(true) and storageInventory(id), and the notice version changes
-// on its own (consentNotice in ./consent.ts). It measures every visitor without cookies and sets
-// its cookies only with consent (Consent Mode "advanced", components/analytics/gtag.ts). CONSENT_CATEGORIES and STORAGE_INVENTORY are the
-// site without it.
+// pages then use consentCategories(true, …) and storageInventory(id, …), and the notice version
+// changes on its own (consentNotice in ./consent.ts). It measures every visitor without cookies and
+// sets its cookies only with consent (Consent Mode "advanced", components/analytics/gtag.ts). The
+// Meta Pixel likewise, while the owner has set its pixel id: consentCategories(…, true) and
+// storageInventory(…, pixelId); it runs only after marketing consent (components/analytics/
+// meta-pixel.tsx, app/go/[productId]/route.ts). CONSENT_CATEGORIES and STORAGE_INVENTORY are the
+// site without either.
 import type { ConsentCategory } from "./consent";
 
 export interface ConsentCategoryInfo {
@@ -53,10 +56,32 @@ const ANALYTICS_IN_USE: ConsentCategoryInfo = {
   inUse: true,
 };
 
+/**
+ * The marketing category while the Meta Pixel is configured (components/analytics/meta-pixel.tsx
+ * and the buy-click page of app/go/[productId]/route.ts): nothing before consent, no advanced
+ * matching. Changing what this says means bumping MARKETING_NOTICE_REVISION (./consent.ts).
+ */
+const MARKETING_IN_USE: ConsentCategoryInfo = {
+  id: "marketing",
+  label: "שיווק",
+  description:
+    "מדידה ופרסום של המודעות שלנו בפייסבוק ובאינסטגרם עם Meta Pixel של Meta. רק אם תאשרו, Meta תקבל מהדפדפן שלכם את העמודים שבהם ביקרתם (בלי טקסט החיפוש) ואת הלחיצות לקנייה באלי אקספרס, ותישמר בדפדפן עוגייה של Meta עם מזהה אקראי, כדי למדוד אם ביקור הגיע ממודעה ולהציג את המודעות שלנו לקהלים מתאימים. בלי אישור לא נשלח ל־Meta דבר.",
+  inUse: true,
+};
+
 /** The categories the banner, the settings dialog and /cookies show. */
-export function consentCategories(analyticsInUse: boolean): readonly ConsentCategoryInfo[] {
-  if (!analyticsInUse) return CONSENT_CATEGORIES;
-  return CONSENT_CATEGORIES.map((c) => (c.id === "analytics" ? ANALYTICS_IN_USE : c));
+export function consentCategories(
+  analyticsInUse: boolean,
+  marketingInUse: boolean,
+): readonly ConsentCategoryInfo[] {
+  if (!analyticsInUse && !marketingInUse) return CONSENT_CATEGORIES;
+  return CONSENT_CATEGORIES.map((c) =>
+    c.id === "analytics" && analyticsInUse
+      ? ANALYTICS_IN_USE
+      : c.id === "marketing" && marketingInUse
+        ? MARKETING_IN_USE
+        : c,
+  );
 }
 
 export interface StorageItem {
@@ -70,13 +95,18 @@ export interface StorageItem {
   duration: string;
   /** A third party that receives what it holds; unset for the site's own storage. */
   provider?: string;
+  /**
+   * Set on another site's domain, not ours (the site neither writes nor reads it): shown as such on
+   * /cookies. Unset for storage on the site's own domain.
+   */
+  thirdPartyDomain?: string;
   /** The code that writes it (for maintainers, not shown to visitors). */
   source: string;
 }
 
 /**
- * Everything the site stores in the visitor's browser without Google Analytics (storageInventory
- * adds its cookies while it is configured). Apart from it, the site sets no analytics or
+ * Everything the site stores in the visitor's browser without Google Analytics and the Meta Pixel
+ * (storageInventory adds their cookies while they are configured). Apart from it, the site sets no analytics or
  * marketing cookies and loads no third-party scripts. Pages of AliExpress (after a buy link) and
  * the product video (loaded from AliExpress's video host when a product page with a video opens,
  * where it plays muted unless the visitor asked for reduced motion or to save data) are under
@@ -173,9 +203,67 @@ export function analyticsStorage(measurementId: string): StorageItem[] {
   ];
 }
 
-/** Everything the site stores in the browser, with Google Analytics's cookies while it is set. */
-export function storageInventory(measurementId: string | null): readonly StorageItem[] {
-  return measurementId
-    ? [...STORAGE_INVENTORY, ...analyticsStorage(measurementId)]
-    : STORAGE_INVENTORY;
+/**
+ * The Meta Pixel's storage once the visitor accepts marketing (components/analytics/meta-pixel.tsx):
+ * fbevents.js writes the first-party `_fbp` (90 days, renewed on each visit) and, after a click with
+ * fbclid, `_fbc`; both are deleted when the consent is withdrawn and on every page without it. Meta may also read its own cookies on its own
+ * domain (such as `fr` on facebook.com) when the pixel's requests reach it: listed, marked as Meta's
+ * domain, because the visitor's browser sends them, but the site neither sets nor reads them.
+ */
+export function marketingStorage(): StorageItem[] {
+  const who = "מי שאישר עוגיות שיווק";
+  const provider = "Meta Platforms (Meta Pixel)";
+  return [
+    {
+      name: "_fbp",
+      kind: "cookie",
+      category: "marketing",
+      who,
+      purpose:
+        "מזהה אקראי של הדפדפן שמאפשר ל־Meta למדוד אם ביקור באתר הגיע ממודעה ולבנות קהלים לפרסום.",
+      duration: "90 יום מהביקור האחרון, או עד שתבטלו את ההסכמה",
+      provider,
+      source: "components/analytics/meta-pixel.tsx (fbevents.js)",
+    },
+    {
+      // fbevents.js writes it when the page address has fbclid (META_ALLOWED_PARAMS keeps it).
+      name: "_fbc",
+      kind: "cookie",
+      category: "marketing",
+      who: "מי שאישר עוגיות שיווק והגיע לאתר מלחיצה על מודעה או על קישור בפייסבוק או באינסטגרם",
+      purpose:
+        "שומרת את מזהה הלחיצה שפייסבוק ואינסטגרם מוסיפות לכתובת (fbclid), כדי ש־Meta תדע שהביקור הגיע מלחיצה אצלה.",
+      duration: "90 יום מהביקור האחרון, או עד שתבטלו את ההסכמה",
+      provider,
+      source: "components/analytics/meta-pixel.tsx (fbevents.js)",
+    },
+    {
+      name: "fr",
+      kind: "cookie",
+      category: "marketing",
+      who: "מי שאישר עוגיות שיווק ומחובר לפייסבוק או לאינסטגרם בדפדפן הזה, או ביקר בהם",
+      purpose:
+        "עוגייה של Meta בדומיין שלה (facebook.com), לא בדומיין של האתר. כשהפיקסל שולח נתונים ל־Meta, הדפדפן שולח לה גם את העוגיות שלה, ו־Meta עשויה להשתמש בהן כדי לקשר את הביקור לחשבון ולהציג מודעות. אנחנו לא שומרים ולא קוראים אותה.",
+      duration: "לפי מדיניות העוגיות של Meta",
+      provider,
+      thirdPartyDomain: "facebook.com",
+      source: "fbevents.js requests to facebook.com (Meta's own cookie, not ours)",
+    },
+  ];
+}
+
+/**
+ * Everything the site stores in the browser, with Google Analytics's cookies while it is set and
+ * the Meta Pixel's while its id is set.
+ */
+export function storageInventory(
+  measurementId: string | null,
+  metaPixelId: string | null,
+): readonly StorageItem[] {
+  if (!measurementId && !metaPixelId) return STORAGE_INVENTORY;
+  return [
+    ...STORAGE_INVENTORY,
+    ...(measurementId ? analyticsStorage(measurementId) : []),
+    ...(metaPixelId ? marketingStorage() : []),
+  ];
 }

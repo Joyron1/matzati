@@ -58,7 +58,9 @@ describe("before the page is measured", () => {
   });
 
   it("the loader renders nothing on the server: consent is unknown until the browser reads it", () => {
-    const html = renderToStaticMarkup(createElement(GoogleAnalytics, { measurementId: ID }));
+    const html = renderToStaticMarkup(
+      createElement(GoogleAnalytics, { measurementId: ID, marketingInUse: false }),
+    );
     expect(html).toBe("");
   });
 });
@@ -357,8 +359,8 @@ describe("no Google Analytics without an id", () => {
     const layout = readFileSync(new URL("../../app/layout.tsx", import.meta.url), "utf8");
     const mounts = layout.match(/<GoogleAnalytics\b[^>]*>/g) ?? [];
     expect(mounts).toHaveLength(1);
-    expect(layout).toContain(
-      "{measurementId && <GoogleAnalytics measurementId={measurementId} />}",
+    expect(layout).toMatch(
+      /\{measurementId && \(\s*<GoogleAnalytics measurementId=\{measurementId\} marketingInUse=\{metaPixelId !== null\} \/>\s*\)\}/,
     );
   });
 });

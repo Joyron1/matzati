@@ -18,7 +18,7 @@ vi.mock("next/cache", () => ({
 }));
 
 import { DEFAULT_SHOP_CAP_MODE } from "@/lib/ranking/config";
-import { saveCommunityLink, saveGoogleSettings, saveShopCapMode } from "./admin";
+import { saveCommunityLink, saveGoogleSettings, saveMetaPixel, saveShopCapMode } from "./admin";
 import { getCommunityLink } from "./community";
 import { COMMUNITY_KEY, DEFAULT_COMMUNITY_LABEL } from "./community-link";
 import {
@@ -30,6 +30,7 @@ import {
   type SettingsClient,
 } from "./db";
 import { GOOGLE_ANALYTICS_KEY, SEARCH_CONSOLE_KEY } from "./google";
+import { META_PIXEL_KEY } from "./meta";
 import {
   EMPTY_PUBLIC_SETTINGS,
   googleAnalyticsId,
@@ -92,6 +93,7 @@ class FakeTable {
 const GA_ID = "G-AB12CD34EF";
 const TOKEN = "rXkTz3m9_Q-abcdEFGHijklMNOP0123456789xyzAB";
 const INVITE = "https://chat.whatsapp.com/AbCdEf123";
+const PIXEL = "1234567890123456";
 const AT = "2026-09-28T23:00:00Z";
 
 let table: FakeTable;
@@ -267,9 +269,10 @@ describe("publicSettings (every page's read)", () => {
     expect(await googleAnalyticsId()).toBeNull();
   });
 
-  it("reads the id, the token and a shown community link in one query", async () => {
+  it("reads the id, the token, the pixel and a shown community link in one query", async () => {
     table.rows.set(GOOGLE_ANALYTICS_KEY, { value: { measurementId: GA_ID }, updated_at: AT });
     table.rows.set(SEARCH_CONSOLE_KEY, { value: { verification: TOKEN }, updated_at: AT });
+    table.rows.set(META_PIXEL_KEY, { value: { pixelId: PIXEL }, updated_at: AT });
     table.rows.set(COMMUNITY_KEY, {
       value: { url: INVITE, label: "בואו לקבוצה", enabled: true },
       updated_at: AT,
@@ -277,13 +280,14 @@ describe("publicSettings (every page's read)", () => {
     expect(await publicSettings()).toEqual({
       measurementId: GA_ID,
       siteVerification: TOKEN,
+      metaPixelId: PIXEL,
       community: { url: INVITE, label: "בואו לקבוצה" },
     });
     expect(table.calls).toEqual([
       {
         op: "select-in",
         table: SETTINGS_TABLE,
-        payload: [GOOGLE_ANALYTICS_KEY, SEARCH_CONSOLE_KEY, COMMUNITY_KEY],
+        payload: [GOOGLE_ANALYTICS_KEY, SEARCH_CONSOLE_KEY, META_PIXEL_KEY, COMMUNITY_KEY],
       },
     ]);
     expect(await getCommunityLink()).toEqual({ url: INVITE, label: "בואו לקבוצה" });
@@ -303,6 +307,7 @@ describe("publicSettings (every page's read)", () => {
     try {
       table.rows.set(GOOGLE_ANALYTICS_KEY, { value: { measurementId: null }, updated_at: AT });
       table.rows.set(SEARCH_CONSOLE_KEY, { value: { verification: null }, updated_at: AT });
+      table.rows.set(META_PIXEL_KEY, { value: { pixelId: null }, updated_at: AT });
       expect(await publicSettings()).toEqual(EMPTY_PUBLIC_SETTINGS);
       expect(errors).not.toHaveBeenCalled();
       table.rows.set(GOOGLE_ANALYTICS_KEY, {
@@ -313,8 +318,12 @@ describe("publicSettings (every page's read)", () => {
         value: { url: "javascript:alert(1)", label: "x!", enabled: true },
         updated_at: AT,
       });
+      table.rows.set(META_PIXEL_KEY, {
+        value: { pixelId: "<script>fbq()</script>" },
+        updated_at: AT,
+      });
       expect(await publicSettings()).toEqual(EMPTY_PUBLIC_SETTINGS);
-      expect(errors).toHaveBeenCalledTimes(2);
+      expect(errors).toHaveBeenCalledTimes(3);
       expect(errors.mock.calls.join(" ")).not.toContain("script");
     } finally {
       errors.mockRestore();
@@ -351,10 +360,12 @@ describe("withDevOverride", () => {
       DEV_GOOGLE_ANALYTICS_ID: "g-dev12345",
       DEV_GOOGLE_SITE_VERIFICATION: `<meta name="google-site-verification" content="${TOKEN}">`,
       DEV_COMMUNITY_URL: INVITE,
+      DEV_META_PIXEL_ID: `fbq('init', '${PIXEL}');`,
     });
     expect(withDevOverride(EMPTY_PUBLIC_SETTINGS, env)).toEqual({
       measurementId: "G-DEV12345",
       siteVerification: TOKEN,
+      metaPixelId: PIXEL,
       community: { url: INVITE, label: DEFAULT_COMMUNITY_LABEL },
     });
     for (const NODE_ENV of ["production", "test", undefined]) {
@@ -371,10 +382,14 @@ describe("withDevOverride", () => {
       expect(
         withDevOverride(
           stored,
-          dev({ DEV_GOOGLE_ANALYTICS_ID: "UA-1234-1", DEV_COMMUNITY_URL: "http://x.y" }),
+          dev({
+            DEV_GOOGLE_ANALYTICS_ID: "UA-1234-1",
+            DEV_COMMUNITY_URL: "http://x.y",
+            DEV_META_PIXEL_ID: "12345",
+          }),
         ),
       ).toEqual(stored);
-      expect(errors).toHaveBeenCalledTimes(2);
+      expect(errors).toHaveBeenCalledTimes(3);
     } finally {
       errors.mockRestore();
     }
@@ -385,6 +400,7 @@ describe("publicSettingsForAdmin", () => {
   it("reads fresh what is stored, with when it was saved; null when it cannot read", async () => {
     expect(await publicSettingsForAdmin()).toEqual({
       google: { measurementId: null, siteVerification: null, updatedAt: null },
+      meta: { pixelId: null, updatedAt: null },
       community: { url: null, label: DEFAULT_COMMUNITY_LABEL, enabled: false, updatedAt: null },
     });
     table.rows.set(GOOGLE_ANALYTICS_KEY, { value: { measurementId: GA_ID }, updated_at: AT });
@@ -396,8 +412,10 @@ describe("publicSettingsForAdmin", () => {
       value: { url: INVITE, label: DEFAULT_COMMUNITY_LABEL, enabled: false },
       updated_at: AT,
     });
+    table.rows.set(META_PIXEL_KEY, { value: { pixelId: PIXEL }, updated_at: AT });
     expect(await publicSettingsForAdmin()).toEqual({
       google: { measurementId: GA_ID, siteVerification: TOKEN, updatedAt: "2026-09-28T23:30:00Z" },
+      meta: { pixelId: PIXEL, updatedAt: AT },
       community: { url: INVITE, label: DEFAULT_COMMUNITY_LABEL, enabled: false, updatedAt: AT },
     });
     const errors = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -475,6 +493,37 @@ describe("saveCommunityLink (the admin's write)", () => {
       await expect(saveCommunityLink(value)).rejects.toThrow();
     }
     expect(table.calls).toEqual([]);
+    expect(m.updateTag).not.toHaveBeenCalled();
+  });
+});
+
+describe("saveMetaPixel (the admin's write)", () => {
+  it("checks the admin, writes the id and expires the settings tag", async () => {
+    expect(await saveMetaPixel({ pixelId: PIXEL })).toEqual({ pixelId: PIXEL });
+    expect(m.requireAdmin).toHaveBeenCalledTimes(1);
+    expect(table.calls).toEqual([
+      {
+        op: "upsert",
+        table: SETTINGS_TABLE,
+        payload: { key: META_PIXEL_KEY, value: { pixelId: PIXEL } },
+      },
+    ]);
+    expect(m.updateTag).toHaveBeenCalledWith(SETTINGS_TAG);
+  });
+
+  it("stores null for a cleared connection", async () => {
+    await saveMetaPixel({ pixelId: null });
+    expect(table.rows.get(META_PIXEL_KEY)?.value).toEqual({ pixelId: null });
+  });
+
+  it("never stores pasted code, and writes nothing without an admin or on a failed write", async () => {
+    await expect(saveMetaPixel({ pixelId: `fbq('init', '${PIXEL}')` })).rejects.toThrow();
+    expect(table.calls).toEqual([]);
+    m.requireAdmin.mockRejectedValueOnce(new Error("NEXT_REDIRECT"));
+    await expect(saveMetaPixel({ pixelId: PIXEL })).rejects.toThrow("NEXT_REDIRECT");
+    expect(table.calls).toEqual([]);
+    table.failing = true;
+    await expect(saveMetaPixel({ pixelId: PIXEL })).rejects.toBeInstanceOf(SettingsDbError);
     expect(m.updateTag).not.toHaveBeenCalled();
   });
 });
