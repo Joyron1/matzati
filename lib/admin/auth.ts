@@ -5,7 +5,7 @@ import "server-only";
 import { redirect, unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 import { cache } from "react";
-import { adminEmails } from "@/lib/env";
+import { allowedAdminEmails } from "./allowlist";
 import { authClient } from "@/lib/supabase/ssr";
 import { ADMIN_LOGIN_PATH, adminFromUser } from "./rules";
 
@@ -18,7 +18,7 @@ const currentAdmin = cache(async (): Promise<AdminUser | null> => {
   // Always decided at request time. Without this, a build with ADMIN_EMAILS unset would reach the
   // early return below without any request API and prerender admin pages as a static redirect.
   await connection();
-  const allowed = adminEmails();
+  const allowed = await allowedAdminEmails();
   if (allowed.length === 0) return null; // nobody is admin: skip the network call
   try {
     const supabase = await authClient();

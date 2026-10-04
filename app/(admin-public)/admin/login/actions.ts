@@ -18,7 +18,7 @@ import {
   type LoginState,
   type PasswordLoginState,
 } from "@/lib/admin/rules";
-import { adminEmails } from "@/lib/env";
+import { allowedAdminEmails } from "@/lib/admin/allowlist";
 import { clientIp, hashIp } from "@/lib/guard/rate-limit";
 import { serviceClient } from "@/lib/supabase/server";
 import { authClient, deferredAuthClient } from "@/lib/supabase/ssr";
@@ -85,7 +85,7 @@ export async function signInWithPassword(
   const counted = await countAttempt();
   if (counted !== "ok") return passwordLoginState(counted);
 
-  const allowed = adminEmails();
+  const allowed = await allowedAdminEmails();
   let outcome: "signed_in" | "wrong_credentials" | "unavailable" = "wrong_credentials";
   if (isAllowedAdmin(email, allowed)) {
     try {
@@ -124,7 +124,7 @@ export async function requestMagicLink(_prev: LoginState, formData: FormData): P
   if (counted !== "ok") return loginState(counted);
 
   const requestHeaders = await headers();
-  const admin = isAllowedAdmin(email, adminEmails());
+  const admin = isAllowedAdmin(email, await allowedAdminEmails());
   try {
     // Only an admin address reaches Supabase. Any other address runs the same call against a
     // stand-in that sends nothing (no request, no email), so the response sets the same PKCE

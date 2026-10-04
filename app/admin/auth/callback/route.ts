@@ -1,7 +1,7 @@
 // Magic-link landing: Supabase redirects here with ?code=… (PKCE). Exchanges the code for a
 // session cookie, then lets only ADMIN_EMAILS in. Redirects go to fixed relative paths only.
 import type { NextRequest } from "next/server";
-import { adminEmails } from "@/lib/env";
+import { allowedAdminEmails } from "@/lib/admin/allowlist";
 import {
   ADMIN_HOME_PATH,
   adminFromUser,
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
       if (reason === "unavailable") logError(error);
       return redirectTo(loginErrorPath(reason));
     }
-    if (!adminFromUser(data.user, adminEmails())) {
+    if (!adminFromUser(data.user, await allowedAdminEmails())) {
       // A valid link for an address that is not (or no longer) in ADMIN_EMAILS.
       const { error: signOutError } = await supabase.auth.signOut({ scope: "local" });
       if (signOutError) logError(signOutError);
