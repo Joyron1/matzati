@@ -185,7 +185,10 @@ export class AliExpressClient {
       headers: { "Content-Type": "application/x-www-form-urlencoded;charset=utf-8" },
       body: new URLSearchParams(fields).toString(),
       signal: AbortSignal.timeout(this.timeoutMs),
-      cache: "no-store",
+      // No `cache: "no-store"`: Next caches a fetch only when asked to (the fetch docs in
+      // node_modules/next), and "no-store" makes a cached page dynamic at run time: /p is cached a
+      // day and refreshes its product here, and its first visit failed with "Page changed from
+      // static to dynamic" (2026-10-08).
     });
     if (response.status >= 500) {
       throw new AliExpressError("server", `AliExpress HTTP ${response.status}`, {

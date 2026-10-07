@@ -1,19 +1,41 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { SimilarProducts } from "@/components/similar-products";
 import { BRAND } from "@/lib/config/brand";
-import { hotBack as hotBackOf } from "@/lib/hot/params";
+import { CATALOG } from "@/lib/catalog/categories";
+import { hotBack } from "@/lib/hot/params";
 import { clip } from "@/lib/og/bidi";
 import { productTitleView } from "@/lib/product-title";
-import { firstParam, parseSort, parseWithout } from "@/lib/search-url";
 import { productForPage } from "@/lib/search/server";
 import { pageMetadata } from "@/lib/seo/page-meta";
-import { similarForPage, type SimilarRequest } from "@/lib/similar/load";
+import { BackLink, DefaultBackLink, SimilarFromVisit, type HotBacks } from "./from-visit";
 import { ProductView } from "./product-view";
 
-// A fresh search (parse, up to 3 AliExpress calls, explain) takes 7-15 s; give it room.
+// A refresh (productdetail.get, link.generate) can take a few seconds; give it room.
 export const maxDuration = 60;
+
+// Cached a day per product (owner request 2026-10-08: crawlers going through thousands of product
+// pages rendered each one on every visit, most of the project's Vercel CPU). The first visit of a
+// day renders it, refreshing the product from AliExpress when its row is over a day old
+// (productForPage); every other visit, crawler or not, gets the cached page. Nothing here reads
+// the request: the back link and the similar products depend on where the visitor came from, so
+// they read the address in the browser (./from-visit.tsx).
+export const revalidate = 86400;
+
+/** No product is built at build time: each page is made on its first visit. */
+export function generateStaticParams() {
+  return [];
+}
+
+/** The hot lists' back links by catalog key ("" for the mix), for BackLink in the browser. */
+const HOT_BACKS: HotBacks = Object.fromEntries([
+  ["", pick(hotBack({ from: "hot" }))],
+  ...CATALOG.map((c) => [c.key, pick(hotBack({ from: "hot", cat: c.key }))]),
+]);
+
+function pick(back: ReturnType<typeof hotBack>) {
+  return { href: back?.href ?? "/products", label: back?.label ?? "חזרה לכל המוצרים" };
+}
 
 // productForPage is request-cached, so the metadata and the page share one lookup.
 export async function generateMetadata({ params }: PageProps<"/p/[productId]">): Promise<Metadata> {
@@ -29,41 +51,26 @@ export async function generateMetadata({ params }: PageProps<"/p/[productId]">):
   });
 }
 
-/**
- * The similar products, streamed after the rest of the page: reads of what is already cached only
- * (lib/similar/load.ts), and nothing at all when there is nothing to show.
- */
-async function SimilarSection({ request }: { request: SimilarRequest }) {
-  const data = await similarForPage(request);
-  return <SimilarProducts data={data} className="mt-12" />;
-}
-
-export default async function ProductPage({ params, searchParams }: PageProps<"/p/[productId]">) {
+export default async function ProductPage({ params }: PageProps<"/p/[productId]">) {
   const { productId } = await params;
-  const query = await searchParams;
-  const q = firstParam(query.q).trim().slice(0, 200);
-  // Opened from a hot list (from=hot&cat=<catalog key>, also the old /hot links): back to it.
-  const hotBack = hotBackOf(query);
   const data = await productForPage(productId);
   if (!data) notFound();
-
-  const request: SimilarRequest = {
-    productId: data.product.product_id,
-    categoryId: data.product.category_id,
-    q,
-    sort: parseSort(query.sort),
-    without: parseWithout(query.without),
-    hot: hotBack ? { category: hotBack.category } : null,
-  };
   return (
     <ProductView
       data={data}
-      q={q}
-      hotBack={hotBack}
+      q=""
       now={new Date()}
+      backSlot={
+        <Suspense fallback={<DefaultBackLink />}>
+          <BackLink hotBacks={HOT_BACKS} />
+        </Suspense>
+      }
       similar={
         <Suspense fallback={null}>
-          <SimilarSection request={request} />
+          <SimilarFromVisit
+            productId={data.product.product_id}
+            categoryId={data.product.category_id}
+          />
         </Suspense>
       }
     />

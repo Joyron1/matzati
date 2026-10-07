@@ -42,7 +42,9 @@ function backLink(q: string, hotBack: { href: string; label: string } | null) {
 /**
  * `q` is the search the visitor came from ("" for none); `hotBack` the hot list a card was opened
  * from (its link and label, lib/hot/params.ts hotBack), or null; `now` is the time of the render. `similar` is shown last, at full
- * width: the page passes the similar products there (components/similar-products.tsx), streamed.
+ * width: the page passes the similar products there (components/similar-products.tsx). `backSlot`
+ * replaces the back link built from `q` and `hotBack`: /p is cached per product, so it passes
+ * one that reads the address in the browser (./from-visit.tsx); the dev preview passes neither.
  */
 export function ProductView({
   data,
@@ -50,12 +52,14 @@ export function ProductView({
   hotBack = null,
   now,
   similar = null,
+  backSlot = null,
 }: {
   data: ProductPageData;
   q: string;
   hotBack?: { href: string; label: string } | null;
   now: Date;
   similar?: ReactNode;
+  backSlot?: ReactNode;
 }) {
   const {
     product,
@@ -101,13 +105,15 @@ export function ProductView({
 
   return (
     <div className="mx-auto max-w-6xl px-4 pt-4 sm:px-6 sm:pt-8">
-      <Link
-        href={back.href}
-        className="inline-flex min-h-11 items-center gap-1 rounded-full pe-3 font-semibold text-muted hover:text-ink"
-      >
-        <ChevronRight aria-hidden className="size-5" />
-        {back.label}
-      </Link>
+      {backSlot ?? (
+        <Link
+          href={back.href}
+          className="inline-flex min-h-11 items-center gap-1 rounded-full pe-3 font-semibold text-muted hover:text-ink"
+        >
+          <ChevronRight aria-hidden className="size-5" />
+          {back.label}
+        </Link>
+      )}
 
       {/* From lg the gallery sticks (the header scrolls away, so just under the window's top) while
           the details scroll, until the tips below the two columns. On phones nothing sticks. */}

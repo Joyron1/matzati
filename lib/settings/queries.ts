@@ -6,6 +6,7 @@
 // /admin/settings reads fresh.
 import "server-only";
 import { unstable_cache } from "next/cache";
+import { LAYOUT_DATA_REVALIDATE_SECONDS } from "@/lib/config/site";
 import { cache } from "react";
 import { DEFAULT_SHOP_CAP_MODE, type ShopCapMode } from "@/lib/ranking/config";
 import { serviceClient } from "@/lib/supabase/server";
@@ -31,7 +32,7 @@ import { extractPixelId, META_PIXEL_KEY, pixelIdOf } from "./meta";
 import { SETTINGS_TAG, SHOP_CAP_KEY, shopCapModeOf, type ShopCapSetting } from "./schema";
 
 /** Seconds a read is reused before the next one reads the table again. */
-const REVALIDATE_SECONDS = 300;
+const REVALIDATE_SECONDS = LAYOUT_DATA_REVALIDATE_SECONDS;
 /**
  * After a failed read (the table is missing, the database is down), this instance uses the
  * default for this long without trying again, so a search does not wait for a failing read each

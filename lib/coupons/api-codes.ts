@@ -6,6 +6,7 @@
 // refreshed in the last 48 hours, so a code AliExpress has since dropped does not linger here.
 // Service role: the products table has no public policy.
 import "server-only";
+import { LAYOUT_DATA_REVALIDATE_SECONDS } from "@/lib/config/site";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { unstable_cache } from "next/cache";
 import { z } from "zod";
@@ -138,7 +139,9 @@ export async function selectApiCodes(db: ProductsClient, now: Date): Promise<Api
 const cachedApiCodes = unstable_cache(
   async () => selectApiCodes(serviceClient(), new Date()),
   ["api-promo-codes", "2"],
-  { revalidate: 300 },
+  // Read by the header's coupons link on every page (hasPublishedCoupons): a day, like the other
+  // layout reads; the time rules run again on each read, so an ended code is never shown.
+  { revalidate: LAYOUT_DATA_REVALIDATE_SECONDS },
 );
 
 /**

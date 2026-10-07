@@ -5,6 +5,7 @@
 import "server-only";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { unstable_cache } from "next/cache";
+import { LAYOUT_DATA_REVALIDATE_SECONDS } from "@/lib/config/site";
 import { serviceClient } from "@/lib/supabase/server";
 import { listApiCodes } from "./api-codes";
 import {
@@ -62,12 +63,12 @@ function logError(where: string, err: unknown) {
 const cachedPublished = unstable_cache(
   async (): Promise<Coupon[]> => selectPublishedCoupons(publicClient(), new Date()),
   ["published-coupons"],
-  { revalidate: 300, tags: [COUPONS_TAG] },
+  { revalidate: LAYOUT_DATA_REVALIDATE_SECONDS, tags: [COUPONS_TAG] },
 );
 
 /**
  * Published coupons for /coupons: valid now (featured first, then the soonest to end) and
- * starting later (soonest first). Cached for 5 minutes and refreshed at once when an admin
+ * starting later (soonest first). Cached for a day (LAYOUT_DATA_REVALIDATE_SECONDS) and refreshed at once when an admin
  * changes a coupon. Throws on a database failure (the page shows an error card).
  */
 export async function listPublicCoupons(now: Date): Promise<PublicCoupons> {
@@ -103,7 +104,7 @@ export async function couponsForSale(saleId: string, now: Date): Promise<Coupon[
 /**
  * True when /coupons has something to show: an owner coupon that is valid now or starts later,
  * or an AliExpress code on a product we checked. For the menu and footer links: an empty coupons
- * page is not linked. Cached for 5 minutes and refreshed at once when an admin changes a coupon.
+ * page is not linked. Cached for a day (LAYOUT_DATA_REVALIDATE_SECONDS) and refreshed at once when an admin changes a coupon.
  * Failures read as "nothing" so a database hiccup never breaks the header.
  */
 export const hasPublishedCoupons = unstable_cache(
@@ -123,7 +124,7 @@ export const hasPublishedCoupons = unstable_cache(
     }
   },
   ["has-published-coupons"],
-  { revalidate: 300, tags: [COUPONS_TAG] },
+  { revalidate: LAYOUT_DATA_REVALIDATE_SECONDS, tags: [COUPONS_TAG] },
 );
 
 // Admin (callers must have passed requireAdmin()).

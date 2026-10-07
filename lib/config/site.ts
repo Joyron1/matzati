@@ -81,3 +81,14 @@ export function siteUrl(): string {
 export function absoluteUrl(path: string): string {
   return `${siteUrl()}${path.startsWith("/") ? path : `/${path}`}`;
 }
+
+/**
+ * Lifetime of the cached reads every page's layout makes (the owner settings, the header and
+ * footer links, the sale bar; owner request 2026-10-08). Next gives a cached page the shortest
+ * lifetime of what it read, so this is how often every static page and /p is made again: at 5
+ * minutes, a crawler going through thousands of product pages had each one rendered on its visit
+ * (most of the project's Vercel CPU). The admin's saves expire these reads at once (updateTag);
+ * only what depends on the time alone (a sale or a code ending) may show up to a day late in a
+ * menu link, and the sale bar hides an ended sale in the browser.
+ */
+export const LAYOUT_DATA_REVALIDATE_SECONDS = 86_400;

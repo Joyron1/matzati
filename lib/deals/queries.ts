@@ -5,6 +5,7 @@
 import "server-only";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { unstable_cache } from "next/cache";
+import { LAYOUT_DATA_REVALIDATE_SECONDS } from "@/lib/config/site";
 import { serviceClient } from "@/lib/supabase/server";
 import type { Deal, DealInput } from "@/lib/types";
 import {
@@ -104,7 +105,7 @@ export const DEALS_TAG = "deals";
 
 /**
  * Whether /deals has anything to show, for the menu and footer links: an empty deals page is not
- * linked. Cached for 5 minutes and refreshed at once when an admin changes a deal. Failures read
+ * linked. Cached for a day (LAYOUT_DATA_REVALIDATE_SECONDS) and refreshed at once when an admin changes a deal. Failures read
  * as "no deals" so a database hiccup never breaks the header.
  */
 export const hasPublishedDeals = unstable_cache(
@@ -116,7 +117,7 @@ export const hasPublishedDeals = unstable_cache(
     }
   },
   ["has-published-deals"],
-  { revalidate: 300, tags: [DEALS_TAG] },
+  { revalidate: LAYOUT_DATA_REVALIDATE_SECONDS, tags: [DEALS_TAG] },
 );
 
 /**
@@ -141,7 +142,7 @@ export const saleBarSales = unstable_cache(
     }
   },
   ["sale-bar-sales"],
-  { revalidate: 300, tags: [DEALS_TAG] },
+  { revalidate: LAYOUT_DATA_REVALIDATE_SECONDS, tags: [DEALS_TAG] },
 );
 
 /**
@@ -157,5 +158,5 @@ export const hasUpcomingSales = unstable_cache(
     }
   },
   ["has-upcoming-sales"],
-  { revalidate: 300, tags: [DEALS_TAG] },
+  { revalidate: LAYOUT_DATA_REVALIDATE_SECONDS, tags: [DEALS_TAG] },
 );
