@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { connection } from "next/server";
 import { ChevronLeft, History, Search } from "lucide-react";
 import { isAllowedImage } from "@/lib/images";
 import { productLabelOf, uniqueByProduct } from "@/lib/recent/display";
@@ -123,7 +122,6 @@ function Tile({ search }: { search: RecentSearch }) {
  * 2026-09-28; they were small pills).
  */
 export async function RecentSearchesStrip() {
-  await connection(); // recent = as of this visit, not of the build
   // A full page, so products searched twice ("בובת סוניק", "בובת סוניק לילד") still fill the grid.
   const searches = uniqueByProduct(await latestRecentSearches(RECENT_PAGE_SIZE), STRIP_SIZE);
   return <RecentSearchesTiles searches={searches} />;

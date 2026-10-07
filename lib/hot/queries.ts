@@ -74,8 +74,18 @@ export const CAROUSEL_MAX_AGE_MS = STALE_RESULTS_HOURS * 3_600_000;
  */
 const readOnly = new AsyncLocalStorage<true>();
 
+/**
+ * True while `next build` prerenders pages: the home page and the default views of "כל המוצרים"
+ * are cached pages (2026-10-08) and get built then, and a build must never call AliExpress. They
+ * read the lists from the shared cache only (on Vercel it outlives a deploy); a list it lacks
+ * shows up at the page's next regeneration.
+ */
+const building = () => process.env.NEXT_PHASE === "phase-production-build";
+
 // One loader per server instance: concurrent cold views share one call (lib/hot/loader.ts).
-const loader = new HotPoolLoader({ mayFetch: () => readOnly.getStore() !== true });
+const loader = new HotPoolLoader({
+  mayFetch: () => readOnly.getStore() !== true && !building(),
+});
 
 /**
  * The link fields of the stored rows among `productIds` (at most one list, 50 ids), read only when

@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { after, connection } from "next/server";
+import { after } from "next/server";
+import { shortLived } from "@/lib/cache-lifetime";
 import { ChevronLeft, Flame } from "lucide-react";
 import type { ReactNode } from "react";
 import { HOT_FILTER_NOTE, HOT_TITLES_NOTE } from "@/lib/hot/copy";
@@ -82,20 +83,25 @@ function Notes({ ghost = false }: { ghost?: boolean }) {
 }
 
 /**
- * Home page "מוצרים חמים": up to 50 products picked at random on every visit from AliExpress's hot
+ * Home page "מוצרים חמים": up to 50 products picked at random at each render (every 10 minutes) from AliExpress's hot
  * lists of a few categories, each passed our filters, in one swipeable row (lib/hot,
  * hotCarouselProducts). Renders nothing when there is nothing to show, so it never leaves an empty
  * heading. Brings its own width and gutters; the page sets the gap above it.
  */
 export async function HotProductsCarousel() {
-  // Per visit, never at build time: a build must not call AliExpress. The random pick is made per
-  // request, so any copy of the HTML (a crawler's, a cached one) is a valid page.
-  await connection();
+  // The home page is cached 10 minutes (owner request 2026-10-08, Vercel CPU): the random pick is
+  // made per render, so a new one every 10 minutes, and any copy of the HTML is a valid page. A
+  // build reads the lists from the cache only (lib/hot/queries.ts, `building`).
   const products = await hotCarouselProducts();
   // The other hot categories' lists join the pick once this instance holds them; they are loaded
   // after the response, so no visitor waits for them (warmCarouselLists).
   after(() => warmCarouselLists());
-  if (products.length === 0) return null;
+  // The home page is cached 10 minutes: without the carousel (a cold cache at a build, AliExpress
+  // down) it renders again after a minute.
+  if (products.length === 0) {
+    await shortLived();
+    return null;
+  }
   const now = new Date();
   return (
     <section aria-labelledby="hot-products-title" className={HOT_SECTION}>

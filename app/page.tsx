@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { connection } from "next/server";
 import { Suspense } from "react";
 import { ListChecks, MessageSquareText, Sparkles, SlidersHorizontal } from "lucide-react";
 import { HomeFaq } from "@/components/home-faq";
@@ -46,7 +45,6 @@ const STEPS = [
 
 /** The next big sale from the deals table (admin-managed); hidden when there is none. */
 async function NextSale() {
-  await connection(); // "next" depends on the time of the visit
   const now = new Date();
   const sale = await nextSale(now).catch((err: unknown) => {
     console.error(
@@ -99,6 +97,11 @@ async function PopularSearches() {
     </section>
   );
 }
+
+// Cached 10 minutes (owner request 2026-10-08: rendered on every visit, crawlers included, it was a
+// large share of the project's Vercel CPU). The carousel picks its 50 products and the recent
+// searches are read at each render; the sale countdown runs on the visitor's clock.
+export const revalidate = 600;
 
 export default function HomePage() {
   return (

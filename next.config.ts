@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 import { LEGACY_SITE_HOST, SITE_HOST } from "./lib/config/site";
 
+/** The parameters of a filtered /products view (parseHotParams in lib/hot/params.ts). */
+const PRODUCTS_VIEW_KEYS = ["price", "sort", "code", "video", "page"];
+/** The parameters of a filtered category view (parseCategoryParams in lib/catalog/params.ts). */
+const CATEGORY_VIEW_KEYS = [...PRODUCTS_VIEW_KEYS, "sub", "lists"];
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   // The site's CSS (about 14 KB) goes inline in every HTML document instead of a separate
@@ -20,6 +25,27 @@ const nextConfig: NextConfig = {
       permanent: true,
     },
   ],
+  // The default views of "כל המוצרים" (no filter, sort, step or loaded lists) come from cached
+  // routes (owner request 2026-10-08, Vercel CPU: rendered per request, crawlers included, these
+  // pages cost a share of the quota). The address stays /products or /products/<slug>; a view with
+  // any of these parameters renders per request as before. beforeFiles: /products is a page of
+  // its own, which an ordinary rewrite would never reach.
+  rewrites: async () => ({
+    beforeFiles: [
+      {
+        source: "/products",
+        missing: PRODUCTS_VIEW_KEYS.map((key) => ({ type: "query" as const, key })),
+        destination: "/products-view",
+      },
+      {
+        source: "/products/:slug",
+        missing: CATEGORY_VIEW_KEYS.map((key) => ({ type: "query" as const, key })),
+        destination: "/products-view/:slug",
+      },
+    ],
+    afterFiles: [],
+    fallback: [],
+  }),
   images: {
     // Every next/image goes through lib/image-loader.ts (AliExpress's resized copies): Vercel's
     // optimizer is never used, since Hobby's monthly quota ran out on 2026-09-29 and it then

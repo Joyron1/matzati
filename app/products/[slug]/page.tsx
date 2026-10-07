@@ -1,42 +1,20 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import {
-  catalogBySlug,
-  categoryPath,
-  categoryTitle,
-  type CatalogCategory,
-} from "@/lib/catalog/categories";
 import { loadCategoryList } from "@/lib/catalog/load";
 import { parseCategoryParams } from "@/lib/catalog/params";
 import { siteUrl } from "@/lib/config/site";
 import { isBotUserAgent } from "@/lib/guard/bots";
-import { FILTERS } from "@/lib/ranking/config";
-import { pageMetadata } from "@/lib/seo/page-meta";
-import { parseSlugParam } from "@/lib/seo/slug";
 import { CategoryView } from "./category-view";
+import { categoryMetadata, categoryOf } from "./meta";
 
 interface CategoryPageProps {
   params: Promise<{ slug: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-/** The catalog category of the route's slug (percent-encoded or decoded), or null. */
-function categoryOf(slugParam: string): CatalogCategory | null {
-  const slug = parseSlugParam(slugParam);
-  return slug ? catalogBySlug(slug) : null;
-}
-
-// Indexable; the canonical is the category's page alone: the sub-category, price, sort, toggles,
-// step and lists loaded are views of it.
 export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
-  const category = categoryOf((await params).slug);
-  if (!category) return { title: "הדף לא נמצא", robots: { index: false } };
-  return pageMetadata({
-    title: categoryTitle(category),
-    description: `${category.introHe} רק מוצרים עם לפחות ${FILTERS.minPositiveFeedbackPct}% משוב חיובי ו־${FILTERS.minUnitsSold} מכירות ב־30 הימים האחרונים.`,
-    path: categoryPath(category),
-  });
+  return categoryMetadata((await params).slug);
 }
 
 /**
@@ -45,7 +23,8 @@ export async function generateMetadata({ params }: CategoryPageProps): Promise<M
  * like page 1), sub-category pills and /hot's filters over what is loaded (never a call), a search
  * limited to the category, and the notes /hot had. A crawler gets page 1 like anyone and pages 2-3
  * only from the cache (never a call). Only slugs of the fixed catalog render; any other is a 404
- * without a call.
+ * without a call. This route renders a filtered view per request; the default view (no filter)
+ * is served cached from app/products-view/[slug]/page.tsx (the rewrite in next.config.ts).
  */
 export default async function CategoryPage({ params, searchParams }: CategoryPageProps) {
   const category = categoryOf((await params).slug);
