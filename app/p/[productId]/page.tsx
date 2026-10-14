@@ -14,13 +14,16 @@ import { ProductView } from "./product-view";
 // A refresh (productdetail.get, link.generate) can take a few seconds; give it room.
 export const maxDuration = 60;
 
-// Cached a day per product (owner request 2026-10-08: crawlers going through thousands of product
+// Cached per product (owner request 2026-10-08: crawlers going through thousands of product
 // pages rendered each one on every visit, most of the project's Vercel CPU). The first visit of a
-// day renders it, refreshing the product from AliExpress when its row is over a day old
+// week renders it, refreshing the product from AliExpress when its row is over a day old
 // (productForPage); every other visit, crawler or not, gets the cached page. Nothing here reads
 // the request: the back link and the similar products depend on where the visitor came from, so
 // they read the address in the browser (./from-visit.tsx).
-export const revalidate = 86400;
+// A week since 2026-10-14 (Vercel's ISR writes quota: about 4,300 product pages, each written
+// again on its first visit after it expires). The price shown keeps its date ("המחיר נבדק ב־"),
+// and the buy button goes through /go, which always uses a fresh affiliate link.
+export const revalidate = 604800;
 
 /** No product is built at build time: each page is made on its first visit. */
 export function generateStaticParams() {

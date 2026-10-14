@@ -93,7 +93,8 @@ const cachedPopular = unstable_cache(
       title_he,
     })),
   ["popular-seo-pages"],
-  { revalidate: 600, tags: [SEO_TAG] },
+  // An hour (2026-10-14): read by the home page, cached an hour; the admin's saves expire it.
+  { revalidate: 3600, tags: [SEO_TAG] },
 );
 
 /**

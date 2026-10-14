@@ -112,8 +112,14 @@ function Host({ color }: { color: string }) {
   );
 }
 
+// ImageResponse says "max-age=0, must-revalidate", so every share preview and crawler fetch drew
+// the card again (CPU, and sharp for the JPEG). Vercel's CDN keeps it a week instead (2026-10-14,
+// Vercel usage); a changed title shows on the next week's fetch.
+const OG_CACHE_CONTROL = "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400";
+
 async function render(node: ReactNode, format: OgFormat): Promise<Response> {
   const png = new ImageResponse(node as React.ReactElement, { ...OG_SIZE, fonts: await fonts });
+  if (process.env.NODE_ENV !== "development") png.headers.set("cache-control", OG_CACHE_CONTROL);
   if (format === "png") return png;
   const jpeg = await sharp(Buffer.from(await png.arrayBuffer()))
     .jpeg({ quality: 82, mozjpeg: true })

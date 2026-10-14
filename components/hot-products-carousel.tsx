@@ -83,20 +83,20 @@ function Notes({ ghost = false }: { ghost?: boolean }) {
 }
 
 /**
- * Home page "מוצרים חמים": up to 50 products picked at random at each render (every 10 minutes) from AliExpress's hot
+ * Home page "מוצרים חמים": up to 50 products picked at random at each render (every hour) from AliExpress's hot
  * lists of a few categories, each passed our filters, in one swipeable row (lib/hot,
  * hotCarouselProducts). Renders nothing when there is nothing to show, so it never leaves an empty
  * heading. Brings its own width and gutters; the page sets the gap above it.
  */
 export async function HotProductsCarousel() {
-  // The home page is cached 10 minutes (owner request 2026-10-08, Vercel CPU): the random pick is
-  // made per render, so a new one every 10 minutes, and any copy of the HTML is a valid page. A
+  // The home page is cached an hour (owner requests 2026-10-08 and 10-14, Vercel usage): the
+  // random pick is made per render, so a new one every hour, and any copy of the HTML is a valid page. A
   // build reads the lists from the cache only (lib/hot/queries.ts, `building`).
   const products = await hotCarouselProducts();
   // The other hot categories' lists join the pick once this instance holds them; they are loaded
   // after the response, so no visitor waits for them (warmCarouselLists).
   after(() => warmCarouselLists());
-  // The home page is cached 10 minutes: without the carousel (a cold cache at a build, AliExpress
+  // The home page is cached an hour: without the carousel (a cold cache at a build, AliExpress
   // down) it renders again after a minute.
   if (products.length === 0) {
     await shortLived();

@@ -34,10 +34,10 @@ import {
 export { RecentSearchesError, queryNormSchema, type HiddenSearch } from "./db";
 
 /**
- * How long the home strip may be behind the newest search: the home page is cached 10 minutes
- * (2026-10-08, Vercel CPU), and a shorter read here would make the whole page shorter-lived.
+ * How long the home strip may be behind the newest search: the home page is cached an hour
+ * (2026-10-14, Vercel usage), and a shorter read here would make the whole page shorter-lived.
  */
-const STRIP_REVALIDATE_SECONDS = 600;
+const STRIP_REVALIDATE_SECONDS = 3600;
 
 function logError(where: string, err: unknown) {
   // Name and message only: never the filter text or any row.

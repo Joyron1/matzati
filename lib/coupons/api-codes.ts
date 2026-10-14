@@ -139,17 +139,29 @@ export async function selectApiCodes(db: ProductsClient, now: Date): Promise<Api
 const cachedApiCodes = unstable_cache(
   async () => selectApiCodes(serviceClient(), new Date()),
   ["api-promo-codes", "2"],
-  // Read by the header's coupons link on every page (hasPublishedCoupons): a day, like the other
+  // Read by the header's coupons link on every page (hasPublishedCoupons): as long as the other
   // layout reads; the time rules run again on each read, so an ended code is never shown.
   { revalidate: LAYOUT_DATA_REVALIDATE_SECONDS },
 );
 
+// The /coupons page's own read, 10 minutes like the page (2026-10-14): the rows count only while
+// checked in the last 48 hours, so the layout's week-long read would have lost most of them.
+const cachedApiCodesForPage = unstable_cache(
+  async () => selectApiCodes(serviceClient(), new Date()),
+  ["api-promo-codes-page", "2"],
+  { revalidate: 600 },
+);
+
 /**
  * Stored ILS products whose AliExpress promo code is valid at `now`, the soonest to end first.
- * Cached for 5 minutes. Throws when the database fails (the section shows an error line).
+ * `read` "layout" (the header's coupons link: the week-long layout read) or "page" (/coupons:
+ * 10 minutes). Throws when the database fails (the section shows an error line).
  */
-export async function listApiCodes(now: Date): Promise<ApiCodeProduct[]> {
-  const cached = await cachedApiCodes();
+export async function listApiCodes(
+  now: Date,
+  read: "layout" | "page" = "layout",
+): Promise<ApiCodeProduct[]> {
+  const cached = await (read === "page" ? cachedApiCodesForPage() : cachedApiCodes());
   return cached.filter(
     (item) => isPromoCodeCurrent(item.promoCode, now) && item.checkedAt >= cutoff(now),
   );

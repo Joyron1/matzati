@@ -84,11 +84,12 @@ export function absoluteUrl(path: string): string {
 
 /**
  * Lifetime of the cached reads every page's layout makes (the owner settings, the header and
- * footer links, the sale bar; owner request 2026-10-08). Next gives a cached page the shortest
+ * footer links, the sale bar; owner request 2026-10-08; a week since 2026-10-14, when the
+ * account passed Vercel Hobby's ISR writes quota: every regeneration of a page is a write). Next gives a cached page the shortest
  * lifetime of what it read, so this is how often every static page and /p is made again: at 5
  * minutes, a crawler going through thousands of product pages had each one rendered on its visit
  * (most of the project's Vercel CPU). The admin's saves expire these reads at once (updateTag);
  * only what depends on the time alone (a sale or a code ending) may show up to a day late in a
- * menu link, and the sale bar hides an ended sale in the browser.
+ * menu link, and the sale bar hides an ended sale in the browser. /p is cached a week too (app/p/[productId]/page.tsx).
  */
-export const LAYOUT_DATA_REVALIDATE_SECONDS = 86_400;
+export const LAYOUT_DATA_REVALIDATE_SECONDS = 604_800;

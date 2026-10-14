@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { connection } from "next/server";
 import { CalendarClock, ChevronLeft, CloudOff } from "lucide-react";
 import { DealsBoard } from "@/components/deals-board";
 import { StateCard } from "@/components/state-card";
@@ -28,10 +27,13 @@ async function loadDeals(): Promise<Deal[] | null> {
   }
 }
 
+// Cached an hour (2026-10-14, Vercel CPU; was per request, and every page's header links here):
+// a deal that ended within the hour may still show until then; the admin's saves refresh the page
+// at once (revalidatePath("/deals")).
+export const revalidate = 3600;
+
 export default async function DealsPage() {
   if (!DEALS_ENABLED) notFound();
-  // Rendered per request: which deals have ended depends on the time of the visit.
-  await connection();
   const [deals, hasSales] = await Promise.all([loadDeals(), hasUpcomingSales()]);
 
   return (

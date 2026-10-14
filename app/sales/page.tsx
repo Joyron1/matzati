@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { connection } from "next/server";
 import { CalendarClock, CloudOff, Search, TicketPercent } from "lucide-react";
 import { StateCard } from "@/components/state-card";
 import { btnMd, btnPrimary, btnSecondary } from "@/components/styles";
@@ -63,9 +62,13 @@ async function NoSales() {
   );
 }
 
+// Cached an hour (2026-10-14, Vercel CPU; was per request); the admin's saves refresh it at once
+// (revalidatePath("/sales")).
+export const revalidate = 3600;
+
 export default async function SalesPage() {
-  // Rendered per request: which sale is next, and the countdowns, depend on the time of the visit.
-  await connection();
+  // Cached an hour (2026-10-14, Vercel CPU; was per request): the countdowns run on the
+  // visitor's clock, and a sale that ended within the hour is marked ended by them.
   const now = new Date();
   const data = await loadSales(now);
 

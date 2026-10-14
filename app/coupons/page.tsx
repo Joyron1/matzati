@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { connection } from "next/server";
 import { listApiCodes, type ApiCodeProduct } from "@/lib/coupons/api-codes";
 import { listPublicCoupons, type PublicCoupons } from "@/lib/coupons/queries";
 import { pageMetadata } from "@/lib/seo/page-meta";
@@ -34,16 +33,19 @@ async function loadCoupons(now: Date): Promise<PublicCoupons | null> {
 
 async function loadApiCodes(now: Date): Promise<ApiCodeProduct[] | null> {
   try {
-    return (await listApiCodes(now)).slice(0, API_CODES_SHOWN);
+    return (await listApiCodes(now, "page")).slice(0, API_CODES_SHOWN);
   } catch (err) {
     logError("api-codes", err);
     return null;
   }
 }
 
+// Cached 10 minutes (2026-10-14, Vercel CPU; was per request): which coupons and codes are valid
+// depends on the time, so the page is made again often; the admin's saves refresh it at once
+// (revalidatePath("/coupons")).
+export const revalidate = 600;
+
 export default async function CouponsPage() {
-  // Rendered per request: which coupons are valid depends on the time of the visit.
-  await connection();
   const now = new Date();
   const [coupons, apiCodes] = await Promise.all([loadCoupons(now), loadApiCodes(now)]);
 

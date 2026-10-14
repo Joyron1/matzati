@@ -98,10 +98,11 @@ async function PopularSearches() {
   );
 }
 
-// Cached 10 minutes (owner request 2026-10-08: rendered on every visit, crawlers included, it was a
+// Cached an hour (owner request 2026-10-08: rendered on every visit, crawlers included, it was a
 // large share of the project's Vercel CPU). The carousel picks its 50 products and the recent
 // searches are read at each render; the sale countdown runs on the visitor's clock.
-export const revalidate = 600;
+// An hour since 2026-10-14 (ISR writes quota; was 10 minutes).
+export const revalidate = 3600;
 
 export default function HomePage() {
   return (

@@ -9,7 +9,8 @@ import { buildSitemap } from "@/lib/seo/sitemap";
 
 // Cached like a static route and regenerated in the background. Admin changes to landing pages
 // call revalidatePath("/sitemap.xml") so new pages are listed right away.
-export const revalidate = 3600;
+// A day (2026-10-14, ISR writes); a published landing page shows at once (revalidatePath).
+export const revalidate = 86400;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const origin = siteUrl();
