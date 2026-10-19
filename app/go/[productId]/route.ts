@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { isBotUserAgent } from "@/lib/guard/bots";
 import { clickOut, clickRefFrom } from "@/lib/search/server";
 import { publicSettings } from "@/lib/settings/queries";
 import { goResponse } from "./respond";
@@ -35,8 +36,41 @@ const NOT_FOUND_HTML = `<!doctype html>
 </html>
 `;
 
+/**
+ * A crawler or script never reaches the affiliate link (owner request 2026-10-19): on 2026-10-17/18
+ * one followed about 420 buy links of /s and /p pages in six hours, robots.txt notwithstanding, and
+ * AliExpress's agreement counts clicks made by robots or scripts as fraud (1.7). It gets a page that
+ * links to the product page instead: no click logged, no redirect, no link.generate call.
+ */
+function botPage(productId: string): Response {
+  const product = `/p/${encodeURIComponent(productId)}`;
+  const html = `<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>מעבר לאלי אקספרס</title>
+</head>
+<body style="font-family: system-ui, sans-serif; max-width: 32rem; margin: 4rem auto; padding: 0 1rem; text-align: center; line-height: 1.6">
+<h1>הקישור לאלי אקספרס פתוח לגולשים בדפדפן</h1>
+<p><a href="${product}">לעמוד המוצר</a></p>
+</body>
+</html>
+`;
+  return new Response(html, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store",
+      "X-Robots-Tag": "noindex, nofollow",
+    },
+  });
+}
+
 export async function GET(request: NextRequest, ctx: RouteContext<"/go/[productId]">) {
   const { productId } = await ctx.params;
+  if (isBotUserAgent(request.headers.get("user-agent"))) return botPage(productId);
   const params = request.nextUrl.searchParams;
   const link = await clickOut(productId, params.get("src") ?? "", clickRefFrom(params));
   if (!link) {
