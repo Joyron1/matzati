@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Search, ShieldCheck } from "lucide-react";
 import { useId, useRef, type KeyboardEvent } from "react";
 import { keepPricesTogether } from "@/lib/format";
+import type { SearchMode } from "@/lib/types";
+import { AgentSwitch } from "./agent-switch";
 import { btnLg, btnMd, btnPrimary } from "./styles";
 
 // FULL_EXAMPLE of components/search-guide.tsx, the home example chosen on the snapshots.
@@ -16,9 +18,15 @@ export const COMPOSER_INPUT_ID = "composer-q";
 interface SearchComposerProps {
   variant?: "hero" | "bar";
   defaultValue?: string;
+  /** The mode of the page's search (/search?mode=), so the "סוכן חכם" switch starts as it is. */
+  mode?: SearchMode;
 }
 
-export function SearchComposer({ variant = "hero", defaultValue = "" }: SearchComposerProps) {
+export function SearchComposer({
+  variant = "hero",
+  defaultValue = "",
+  mode = "smart",
+}: SearchComposerProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const barInputId = useId();
   const hintId = useId();
@@ -34,30 +42,31 @@ export function SearchComposer({ variant = "hero", defaultValue = "" }: SearchCo
 
   if (variant === "bar") {
     return (
-      <Form
-        ref={formRef}
-        action="/search"
-        role="search"
-        // The field has no outline of its own; the pill takes the site focus ring (globals.css).
-        className="flex items-center gap-2 rounded-full border border-line bg-surface p-1.5 ps-5 shadow-soft has-[input:focus-visible]:border-accent has-[input:focus-visible]:outline-3 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-accent"
-      >
-        <label htmlFor={barInputId} className="sr-only">
-          מה אתם מחפשים?
-        </label>
-        <Search aria-hidden className="size-5 shrink-0 text-muted" />
-        <input
-          id={barInputId}
-          name="q"
-          type="search"
-          required
-          maxLength={200}
-          defaultValue={defaultValue}
-          placeholder={PLACEHOLDER}
-          className="h-12 min-w-0 flex-1 bg-transparent text-base text-ink outline-none placeholder:text-muted"
-        />
-        <button type="submit" className={`${btnPrimary} ${btnMd}`}>
-          חיפוש
-        </button>
+      <Form ref={formRef} action="/search" role="search" className="space-y-1">
+        <div
+          // The field has no outline of its own; the pill takes the site focus ring (globals.css).
+          className="flex items-center gap-2 rounded-full border border-line bg-surface p-1.5 ps-5 shadow-soft has-[input:focus-visible]:border-accent has-[input:focus-visible]:outline-3 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-accent"
+        >
+          <label htmlFor={barInputId} className="sr-only">
+            מה אתם מחפשים?
+          </label>
+          <Search aria-hidden className="size-5 shrink-0 text-muted" />
+          <input
+            id={barInputId}
+            name="q"
+            type="search"
+            required
+            maxLength={200}
+            defaultValue={defaultValue}
+            placeholder={PLACEHOLDER}
+            className="h-12 min-w-0 flex-1 bg-transparent text-base text-ink outline-none placeholder:text-muted"
+          />
+          <button type="submit" className={`${btnPrimary} ${btnMd}`}>
+            חיפוש
+          </button>
+        </div>
+        {/* Keyed by the mode, so a page of the other mode starts the switch as that page is. */}
+        <AgentSwitch key={mode} defaultOn={mode !== "simple"} className="ps-2" />
       </Form>
     );
   }
@@ -107,7 +116,8 @@ export function SearchComposer({ variant = "hero", defaultValue = "" }: SearchCo
             />
             <span aria-hidden className="composer-caret" />
           </div>
-          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:ps-1.5">
+          <AgentSwitch className="mt-2 sm:ps-0.5" />
+          <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:ps-1.5">
             {/* Hidden on phones to keep the button in view; still read as the field's description. */}
             <p id={hintId} className="hidden text-sm text-muted sm:block">
               אפשר לכתוב תקציב, למי זה ומה חשוב לכם.

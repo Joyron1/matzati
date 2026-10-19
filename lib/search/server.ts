@@ -52,7 +52,7 @@ import { serviceClient } from "@/lib/supabase/server";
 import { categoryLabelHe, tipsCategoryOf, type TipsCategory } from "@/lib/tips/category";
 import { TipsRefresher, type TipsJobDeps } from "@/lib/tips/refresh";
 import { displayableTips, readCategoryTips } from "@/lib/tips/store";
-import type { Deal, ResultProduct, SearchResponse } from "@/lib/types";
+import type { Deal, ResultProduct, SearchMode, SearchResponse } from "@/lib/types";
 import {
   MAX_CLICK_POSITION,
   type ClickRef,
@@ -323,6 +323,8 @@ interface SharedRunInput {
   owner: boolean;
   /** The category the search is limited to (SearchInput.category), already validated. */
   category?: string;
+  /** "simple" for a simple search (SearchInput.mode); omitted, the smart search. */
+  mode?: SearchMode;
 }
 
 /**
@@ -354,6 +356,8 @@ function sharedRun(
     sort ?? null,
     deps.shopCap ?? null,
     ...(input.category ? [input.category] : []),
+    // A simple search never joins the smart one, or the other way.
+    ...(input.mode === "simple" ? ["simple"] : []),
   ]);
   const running = inFlight.get(key);
   if (running) {
@@ -439,6 +443,8 @@ export async function startSearchForRequest(
     arrival?: SearchArrival;
     /** A first-level category from parseSearchCategory (lib/search-url.ts), or undefined. */
     category?: string;
+    /** "simple" from parseMode (lib/search-url.ts); omitted, the smart search. */
+    mode?: SearchMode;
   },
   headers: Headers,
 ): Promise<Staged<SearchStream>> {
@@ -467,6 +473,7 @@ export async function startSearchForRequest(
         ...(input.arrival ? { arrival: input.arrival } : {}),
         owner: await requestIsOwner(),
         ...(input.category ? { category: input.category } : {}),
+        ...(input.mode === "simple" ? { mode: "simple" as const } : {}),
       },
       deps,
     );
@@ -524,7 +531,13 @@ const NO_FETCH: typeof fetch = () => Promise.reject(new CacheMissError("results"
  * pipeline change could never make a crawler spend money.
  */
 export async function cachedSearchForBot(
-  input: { q: string; without?: string[]; sort?: SortPreference; category?: string },
+  input: {
+    q: string;
+    without?: string[];
+    sort?: SortPreference;
+    category?: string;
+    mode?: SearchMode;
+  },
   headers: Headers,
 ): Promise<LoggedSearchResponse | null> {
   const q = input.q.trim();
@@ -552,6 +565,7 @@ export async function cachedSearchForBot(
         cacheOnly: true,
         bot: true,
         ...(input.category ? { category: input.category } : {}),
+        ...(input.mode === "simple" ? { mode: "simple" as const } : {}),
       },
       deps,
     );

@@ -2,6 +2,13 @@
 
 export type SortPreference = "best_value" | "cheapest" | "most_popular";
 
+/**
+ * How a search picks its products (owner request 2026-10-19): "smart", the default, is the search
+ * agent (our filters, ranking and lines, CLAUDE.md §6); "simple" shows what AliExpress returns for
+ * the search's English keywords, by 30-day sales, with none of our filters ("חיפוש פשוט").
+ */
+export type SearchMode = "smart" | "simple";
+
 export type ChipKind = "keywords" | "must_have" | "min_price" | "max_price" | "category";
 
 export interface FilterChip {
@@ -121,6 +128,14 @@ export interface SearchResponse {
    * mention them rank higher, and the page says they were not checked. Absent when there are none.
    */
   not_filtered?: string[];
+  /**
+   * "simple" for a simple search (SearchMode): `results` holds every product kept (up to
+   * RESULTS_KEPT) in AliExpress's order, with AliExpress's Hebrew titles, no line and no trust tier;
+   * `extra_results` is empty and "עוד N" does not apply. Absent on the smart search.
+   */
+  mode?: "simple";
+  /** A simple search: the English keywords sent to AliExpress (the parse's keywords_en). */
+  searched_keywords?: string;
 }
 
 export type DealType = "deal" | "holiday" | "dont_buy";

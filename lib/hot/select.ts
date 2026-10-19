@@ -63,15 +63,22 @@ const EXCLUDED_CATEGORIES = new Set([
   "201520802", // Second-Hand
 ]);
 
+/** In one of the EXCLUDED_CATEGORIES, at either level: never shown (the simple search too). */
+export function inExcludedCategory(p: Pick<AliProduct, "category">): boolean {
+  const { firstId, secondId } = p.category;
+  return Boolean(
+    (firstId && EXCLUDED_CATEGORIES.has(firstId)) ||
+    (secondId && EXCLUDED_CATEGORIES.has(secondId)),
+  );
+}
+
 /** Passes FILTERS with an ILS price, has an affiliate link, and is in no excluded category. */
 function isShowable(p: AliProduct): boolean {
-  const { firstId, secondId } = p.category;
   return (
     p.currency === "ILS" &&
     trustTierOf(p) === "standard" &&
     Boolean(p.promotionLink) &&
-    !(firstId && EXCLUDED_CATEGORIES.has(firstId)) &&
-    !(secondId && EXCLUDED_CATEGORIES.has(secondId))
+    !inExcludedCategory(p)
   );
 }
 

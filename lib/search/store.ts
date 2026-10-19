@@ -141,6 +141,8 @@ export interface SearchDiag {
   titles_failed?: true;
   /** Titles of that call the checks rejected (the card showed AliExpress's). Absent for none. */
   titles_rejected?: number;
+  /** A simple search (SearchMode "simple"): one product.query, none of our filters. */
+  simple?: true;
   /**
    * Explain's Hebrew titles a check refused (the card showed AliExpress's English title): the
    * product, the rule (CopyProblem) and what the model wrote, at most 10. Absent for none.
@@ -187,6 +189,11 @@ export interface CachedResults {
    * entries.
    */
   pool?: CachedPool;
+  /**
+   * A simple search's result set (SearchMode "simple", simpleResultsKey): AliExpress's order and
+   * Hebrew titles, no lines. Never served to "עוד N" (loadMore), which explains products.
+   */
+  simple?: true;
 }
 
 /**
@@ -252,6 +259,8 @@ export interface SearchStore {
     products: AliProduct[],
     titlesHe: Record<string, string | null>,
     checkedAt?: Date,
+    /** Rows with a Hebrew title of ours are left alone (AliExpress's Hebrew data: hot lists). */
+    options?: { keepTitledRows?: boolean },
   ): Promise<void>;
 }
 

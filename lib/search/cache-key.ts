@@ -112,6 +112,27 @@ export function filtersKey(
 }
 
 /**
+ * The results key of a simple search (SearchMode "simple"): only what is sent to AliExpress (the
+ * keywords as a set of words, the rounded price bounds, the category). Its own prefix, so a simple
+ * result set never answers a smart search or the other way round.
+ */
+export function simpleResultsKey(
+  f: Pick<SearchFilters, "keywords_en" | "min_price_ils" | "max_price_ils"> & {
+    category_id?: string;
+  },
+): string {
+  const round = (n: number | undefined) => (n === undefined ? null : Math.round(n));
+  return sha256(
+    `s1:${JSON.stringify({
+      k: [...new Set(f.keywords_en.toLowerCase().split(/s+/).filter(Boolean))].sort(),
+      min: round(f.min_price_ils),
+      max: round(f.max_price_ils),
+      c: f.category_id ?? null,
+    })}`,
+  );
+}
+
+/**
  * How long a result set with no products is reused: the 48h of before the 14-day decision, so a
  * momentary gap in the AliExpress catalog does not say "nothing found" for two weeks. The same
  * holds for the parse of a search whose own filters found nothing (emptyParseCreatedAt in

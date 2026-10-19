@@ -41,7 +41,8 @@ import type {
   SearchStream,
   Staged,
 } from "@/lib/search/server";
-import type { FilterChip, SearchResponse, SortPreference } from "@/lib/types";
+import type { FilterChip, SearchMode, SearchResponse, SortPreference } from "@/lib/types";
+import { SimpleResultsView } from "./simple-results";
 
 export interface SearchViewProps {
   q: string;
@@ -49,6 +50,8 @@ export interface SearchViewProps {
   without: string[];
   /** The category the search is limited to (/search?cat=), kept by every link of the page. */
   cat?: string;
+  /** "simple" for the simple search (mode=simple); omitted, the smart search. */
+  mode?: SearchMode;
   /** The page's own URL: "ניסיון נוסף" reloads it. */
   retryHref: string;
 }
@@ -117,6 +120,7 @@ export function SearchResultsView({
   ...props
 }: SearchViewProps & { response: LoggedSearchResponse }) {
   const { q, sort, without, cat } = props;
+  if (response.mode === "simple") return <SimpleResultsView response={response} q={q} cat={cat} />;
   const outcome =
     response.results.length > 0
       ? `בדקנו ${formatCount(response.checked_count)} מוצרים. ${formatCount(response.passed_count)} עברו את הסינון.`
@@ -275,6 +279,16 @@ function Results({
           )}
         </div>
         <SortBar q={q} active={response.sort} without={without} cat={cat} />
+        {/* The other mode (owner request 2026-10-19): everything AliExpress returns, unfiltered. */}
+        <p className="text-sm text-muted">
+          רוצים לראות את כל מה שאלי אקספרס מחזירה, בלי הסינון שלנו?{" "}
+          <Link
+            href={searchHref({ q, cat, mode: "simple" })}
+            className="font-semibold text-accent-ink underline underline-offset-4 hover:text-ink"
+          >
+            חיפוש פשוט
+          </Link>
+        </p>
       </div>
 
       {/* Its own cards per result set: a sort change keeps the page, not the cards. */}

@@ -36,7 +36,15 @@ import { isListableQuery } from "@/lib/recent/privacy";
 import { fixTransliterations } from "@/lib/transliterations";
 import type { SearchArrival } from "@/lib/search-url";
 import type { LlmCallKind, LlmUsageRecord } from "@/lib/stats/usage";
-import type { FilterBlocker, FilterChip, ResultProduct, SearchResponse } from "@/lib/types";
+import { inExcludedCategory } from "@/lib/hot/select";
+import { hotTitle } from "@/lib/product-title";
+import type {
+  FilterBlocker,
+  FilterChip,
+  ResultProduct,
+  SearchMode,
+  SearchResponse,
+} from "@/lib/types";
 import {
   CACHE_TTL_HOURS,
   EMPTY_RESULTS_TTL_HOURS,
@@ -44,6 +52,7 @@ import {
   isFreshResults,
   normalizeQuery,
   queryKey,
+  simpleResultsKey,
 } from "./cache-key";
 import { applyOverrides, buildChips } from "./chips";
 import {
@@ -209,6 +218,11 @@ export interface SearchInput {
    * cached under their own key (canonicalFilters). Logged in search_log.parsed with the filters.
    */
   category?: string;
+  /**
+   * "simple" (owner request 2026-10-19): after the parse, one product.query for its keywords_en,
+   * shown in AliExpress's order with none of our filters (simpleSearch). Default "smart".
+   */
+  mode?: SearchMode;
 }
 
 /**
@@ -1029,6 +1043,160 @@ async function runStages(
   }
 }
 
+// --- Simple search ("חיפוש פשוט", owner request 2026-10-19) -----------------------------------
+
+/**
+ * A simple search's card: AliExpress's Hebrew title with the known loan words fixed (hotTitle, as
+ * the hot lists), no line, and no trust tier: nothing on it says it passed a filter of ours.
+ */
+function simpleResult(p: AliProduct): ResultProduct {
+  const { shared_numbers: _shared, ...result } = toResultProduct(p, undefined);
+  return {
+    ...result,
+    title_he: hotTitle(p.title),
+    title_en: p.title,
+    why_he: "",
+    passed_tier: null,
+  };
+}
+
+/**
+ * What a simple search shows of one product.query page: AliExpress's order, once per product, an
+ * ILS price, in no excluded category (adult, vaping, test and second-hand, as the hot lists), up to
+ * RESULTS_KEPT. No trust, type or requirement check.
+ */
+export function simpleShowable(products: readonly AliProduct[]): AliProduct[] {
+  const seen = new Set<string>();
+  return products
+    .filter((p) => {
+      if (seen.has(p.productId)) return false;
+      seen.add(p.productId);
+      return p.currency === "ILS" && !inExcludedCategory(p);
+    })
+    .slice(0, RESULTS_KEPT);
+}
+
+function simpleResponse(
+  q: string,
+  filters: ParsedQuery,
+  results: CachedResults,
+  key: string,
+  fromCache: boolean,
+): SearchResponse {
+  const { not_filtered: _notFiltered, ...understood } = understoodOf(q, filters);
+  return {
+    ...understood,
+    checked_count: results.checked,
+    passed_count: results.products.length,
+    results: results.products.map(simpleResult),
+    extra_results: [],
+    more_available: false,
+    more_after_first_view: false,
+    filters_key: key,
+    cached: fromCache,
+    fetched_at: results.createdAt,
+    mode: "simple",
+    searched_keywords: filters.keywords_en,
+  };
+}
+
+/**
+ * The simple search (SearchMode "simple"), after the parse: the products AliExpress returns for
+ * the parse's English keywords (a Hebrew query sent as it is finds unrelated products: checked
+ * live on 2026-10-19, "פופ נארוטו" returned fishing gear), one product.query by 30-day sales in
+ * Hebrew, with the price bounds and the category; kept as simpleShowable keeps them, linked
+ * (ensureLinks) and saved as the hot lists save theirs (AliExpress's Hebrew data, rows with a title
+ * of ours left alone). No explain or titles call. Cached like any result set under its own key
+ * (simpleResultsKey), logged with diag.simple and never listed on /searches (its products did not
+ * pass our filters).
+ */
+async function simpleSearch(
+  q: string,
+  filters: ParsedQuery,
+  state: SearchRun,
+  stages: Stages,
+): Promise<SearchOutcome> {
+  const { deps, meta, run, now, sleep } = state;
+  const key = simpleResultsKey(filters);
+  const hit = await deps.store.getResults(key, now());
+  let results: CachedResults;
+  if (hit?.simple) {
+    meta.cache = "results";
+    results = hit;
+  } else {
+    if (state.cacheOnly) throw new CacheMissError("results");
+    let checked = 0;
+    const products = await timed(run, meta, "fetch_ms", async () => {
+      meta.aliCalls++;
+      meta.keywordsTried.push(filters.keywords_en);
+      meta.fetchStop = "calls";
+      try {
+        const page = await queryProducts(deps.ali, {
+          keywords: filters.keywords_en,
+          pageNo: 1,
+          sort: FETCH_SORT,
+          language: "HE",
+          minPriceIls: filters.min_price_ils,
+          maxPriceIls: filters.max_price_ils,
+          ...(filters.category_id ? { categoryIds: filters.category_id } : {}),
+        });
+        checked = page.products.length;
+        const kept = simpleShowable(page.products);
+        const linked = await ensureLinks(deps.ali, kept, meta, sleep, deps.aliSpacingMs ?? 1_100);
+        if (kept.length && !linked.length) {
+          throw new SearchError("upstream", "no product of the simple search could be linked");
+        }
+        // AliExpress's Hebrew data, like a hot list's: /p reads the title's language by its letters.
+        return linked.map((p) => ({ ...p, source: "hot" as const }));
+      } catch (err) {
+        if (err instanceof AliExpressError) throw new SearchError("upstream", err.message);
+        throw err;
+      }
+    });
+    results = {
+      filters,
+      checked,
+      passed: products.length,
+      products,
+      explanations: {},
+      createdAt: now().toISOString(),
+      simple: true,
+    };
+    // The rows the cards' /go links read, before the cards show.
+    if (products.length) {
+      await deps.store.saveProducts(products, {}, now(), { keepTitledRows: true });
+    }
+  }
+  meta.timings.products_ms = Math.round(run.clock() - run.started);
+  const response = simpleResponse(q, filters, results, key, meta.cache === "results");
+  stages.products.resolve({ response, pending: false });
+  stages.final.resolve(response);
+
+  const entry = searchLogEntry(q, filters, results.products, response, state);
+  const log: SearchLogEntry = {
+    ...entry,
+    // The cards a first view of the smart search would count, so the stats compare.
+    resultsCount: Math.min(response.results.length, RESULTS_FIRST_VIEW),
+    listable: false,
+    diag: {
+      ...(entry.diag ?? {
+        fetch_stop: null,
+        keywords_tried: [],
+        demoted: [],
+        explain_failed: false,
+        explain_rejected: 0,
+      }),
+      simple: true,
+    },
+  };
+  await Promise.all([
+    hit?.simple ? null : quietly("putResults", () => deps.store.putResults(key, q, results)),
+    quietly("logSearch", () => deps.store.logSearch(log)),
+    state.writeUsage(),
+  ]);
+  return { response, meta, log };
+}
+
 /** A result set to show, however it was found, and what finishing it needs. */
 interface ViewPlan {
   source: "hit" | "derived" | "fetched";
@@ -1105,6 +1273,7 @@ async function search(
   };
   state.filters = filters;
   stages.understood.resolve(understoodOf(q, filters));
+  if (input.mode === "simple") return simpleSearch(q, filters, state, stages);
 
   // 2. The results: cached for exactly these filters (under this shop cap mode), ranked again from
   // a pool a fetch already checked (a sort change, a removed requirement; item 13), or fetched.
@@ -1867,7 +2036,8 @@ export async function loadMore(
   const now = deps.now ?? (() => new Date());
   const run = startRun(deps);
   const cached = await deps.store.getResults(fk, now());
-  if (!cached) return null;
+  // A simple search's set has no "עוד N": its results page shows every product it kept.
+  if (!cached || cached.simple) return null;
   const meta = newMeta<"explain_more" | "titles">("results");
   const writeUsage = usageWriter(deps.store, meta);
   const origin: SearchOrigin = {

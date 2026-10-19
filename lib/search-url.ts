@@ -1,7 +1,7 @@
 // Used by client components too (ShowMore renders result cards): no zod here. The /go parameters
 // are validated on the server (clickRefFrom in lib/search/server.ts).
 import { catalogByFirstLevel } from "./catalog/categories";
-import type { ResultProduct, SortPreference } from "./types";
+import type { ResultProduct, SearchMode, SortPreference } from "./types";
 
 type Param = string | string[] | undefined;
 
@@ -51,6 +51,14 @@ export function searchCategoryChip(categoryId: string | undefined): string | nul
   return category ? `בקטגוריה: ${category.nameHe}` : null;
 }
 
+/**
+ * The search mode a /search URL asks for (owner request 2026-10-19): "simple" for mode=simple,
+ * otherwise undefined (the smart search, the default).
+ */
+export function parseMode(value: Param): Extract<SearchMode, "simple"> | undefined {
+  return firstParam(value) === "simple" ? "simple" : undefined;
+}
+
 /** The `from` of one of our own links, or undefined for a query the visitor typed. */
 export function parseFrom(value: Param): SearchFrom | undefined {
   const v = firstParam(value);
@@ -85,16 +93,19 @@ export interface SearchHrefInput {
   from?: SearchFrom;
   /** The category the search is limited to (parseSearchCategory); omitted, no limit. */
   cat?: string;
+  /** "simple" for the simple search (parseMode); omitted, the smart search. */
+  mode?: SearchMode;
 }
 
 /** Builds a /search URL. Empty values are omitted to keep URLs short and shareable. */
-export function searchHref({ q, sort, without = [], from, cat }: SearchHrefInput): string {
+export function searchHref({ q, sort, without = [], from, cat, mode }: SearchHrefInput): string {
   const params = new URLSearchParams({ q });
   if (sort) params.set("sort", sort);
   const unique = [...new Set(without)];
   if (unique.length) params.set("without", unique.join(","));
   if (from) params.set("from", from);
   if (cat && parseSearchCategory(cat)) params.set("cat", cat);
+  if (mode === "simple") params.set("mode", "simple");
   return `/search?${params.toString()}`;
 }
 
