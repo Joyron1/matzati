@@ -53,8 +53,15 @@ describe("usageRow", () => {
   });
 
   it("knows exactly the kinds the llm_usage check constraint allows", () => {
-    expect([...LLM_CALL_KINDS]).toEqual(["parse", "explain", "explain_more", "titles", "tips"]);
-    // The newest migration that sets the check (20260930120000_ten_results.sql) lists them all.
+    expect([...LLM_CALL_KINDS]).toEqual([
+      "parse",
+      "explain",
+      "explain_more",
+      "titles",
+      "tips",
+      "agent_finder",
+    ]);
+    // The newest migration that sets the check (20261019120000_agents.sql) lists them all.
     const dir = "supabase/migrations";
     const latest = readdirSync(dir)
       .filter((f) => f.endsWith(".sql"))

@@ -188,8 +188,11 @@ export function StandardProductCard({
   rankOf = "בדירוג",
 }: CardProps & {
   src?: string;
-  /** Whose order the rank is in: "בדירוג" (ours), or "באלי אקספרס" for a simple search. */
-  rankOf?: string;
+  /**
+   * Whose order the rank is in: "בדירוג" (ours), or "באלי אקספרס" for a simple search; null shows
+   * no rank (the recommended products, which are not ranked).
+   */
+  rankOf?: string | null;
 }) {
   const href = productHref(product.product_id, q);
   return (
@@ -203,9 +206,11 @@ export function StandardProductCard({
         sizes="(min-width: 1280px) 220px, (min-width: 768px) 30vw, 46vw"
       />
       <div className="flex flex-1 flex-col gap-2.5 p-3 sm:p-4">
-        <p className="text-xs font-semibold text-muted">
-          מקום {rank} {rankOf}
-        </p>
+        {rankOf !== null && (
+          <p className="text-xs font-semibold text-muted">
+            מקום {rank} {rankOf}
+          </p>
+        )}
         <h3 className="text-[15px] leading-snug font-semibold">
           <Link
             href={href}

@@ -6,6 +6,7 @@ import { CATALOG, categoryPath } from "./categories";
 
 vi.mock("@/lib/seo/queries", () => ({ listPublishedSeoPages: vi.fn(async () => []) }));
 vi.mock("@/lib/coupons/queries", () => ({ hasPublishedCoupons: vi.fn(async () => false) }));
+vi.mock("@/lib/agents/server", () => ({ recommendedProducts: vi.fn(async () => []) }));
 vi.mock("@/lib/deals/queries", () => ({
   hasPublishedDeals: vi.fn(async () => false),
   hasUpcomingSales: vi.fn(async () => false),

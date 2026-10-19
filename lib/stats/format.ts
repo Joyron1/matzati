@@ -115,6 +115,7 @@ const KIND_LABELS: Record<LlmCallKind, string> = {
   explain_more: `הסבר ל${MORE_BUTTON}`,
   titles: `שמות בעברית למקומות ${RESULTS_PER_PAGE + 1} עד ${RESULTS_FIRST_VIEW}`,
   tips: "טיפים לקטגוריה",
+  agent_finder: "סוכן מציאת מוצרים",
 };
 
 export function llmKindLabel(kind: LlmCallKind): string {

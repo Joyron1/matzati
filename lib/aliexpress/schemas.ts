@@ -130,8 +130,10 @@ export interface AliProduct {
   /**
    * hot_product_commission_rate: the rate AliExpress offers for a hot link (type 2) to a hot
    * product. Null when it is "0.0%" (every product.query and productdetail.get product) or missing.
-   * Stored for stats, and read only to choose which link type a hot product gets
-   * (lib/hot/links.ts): it never influences selection, filtering or order, and never breaks a tie.
+   * Stored for stats, and read to choose which link type a hot product gets (lib/hot/links.ts): it
+   * never influences a search's or a hot list's selection, filtering or order, and never breaks a
+   * tie. The one exception is the product finder (lib/agents/finder, owner request 2026-10-19),
+   * which proposes products paying 20% or more for the owner's "המומלצים שלנו", labelled so.
    * Optional: products saved before 2026-09-28 lack it.
    */
   hotCommissionRatePct?: number | null;

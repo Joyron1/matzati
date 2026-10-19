@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { ListChecks, MessageSquareText, Sparkles, SlidersHorizontal } from "lucide-react";
 import { HomeFaq } from "@/components/home-faq";
+import { RecommendedStrip } from "@/components/recommended-strip";
 import { MySearches } from "@/components/my-searches";
 import {
   HotProductsCarousel,
@@ -151,6 +152,11 @@ export default function HomePage() {
           <HotProductsCarousel />
         </Suspense>
       </div>
+
+      {/* The owner's approved picks (owner request 2026-10-19); nothing while there are none. */}
+      <Suspense fallback={null}>
+        <RecommendedStrip />
+      </Suspense>
 
       {/* As wide as the sections around it, so 6 photo tiles fit in one row on desktop. */}
       <div className="mx-auto mt-12 max-w-6xl px-4 sm:mt-16 sm:px-6">

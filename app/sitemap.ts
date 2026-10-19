@@ -4,6 +4,7 @@ import { hasPublishedCoupons } from "@/lib/coupons/queries";
 import { hasPublishedDeals, hasUpcomingSales } from "@/lib/deals/queries";
 import { CATALOG, categoryPath } from "@/lib/catalog/categories";
 import { PRODUCTS_PATH } from "@/lib/hot/params";
+import { recommendedProducts } from "@/lib/agents/server";
 import { listPublishedSeoPages } from "@/lib/seo/queries";
 import { buildSitemap } from "@/lib/seo/sitemap";
 
@@ -14,7 +15,7 @@ export const revalidate = 86400;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const origin = siteUrl();
-  const [hasDeals, hasSales, hasCoupons, pages] = await Promise.all([
+  const [hasDeals, hasSales, hasCoupons, pages, recommended] = await Promise.all([
     hasPublishedDeals(), // never throws: a failure reads as "no deals"
     hasUpcomingSales(), // likewise
     hasPublishedCoupons(), // likewise
@@ -24,6 +25,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       console.error(`[sitemap] ${text.slice(0, 300)}`);
       return [];
     }),
+    recommendedProducts(), // never throws: a failure reads as none
   ]);
   // /products and its category pages always have a page (their empty and error states included).
   // /sales and /coupons are listed only while they have something to show, like /deals (and the
@@ -31,6 +33,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // its page 1 list, cached 12 hours (pages 2-3 are cache-only for crawlers).
   const offers: MetadataRoute.Sitemap = [
     PRODUCTS_PATH,
+    // The owner's picks (2026-10-19), while there are any.
+    ...(recommended.length ? ["/recommended"] : []),
     ...(hasSales ? ["/sales"] : []),
     ...(hasCoupons ? ["/coupons"] : []),
   ].map((path) => ({ url: `${origin}${path}`, changeFrequency: "daily", priority: 0.7 }));
