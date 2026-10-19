@@ -45,6 +45,7 @@ import type { Coupon } from "@/lib/coupons/types";
 import { couponForProduct } from "@/lib/deals/queries";
 import { getAdminUser } from "@/lib/admin/auth";
 import { aliexpressConfig, ConfigError, llmConfig } from "@/lib/env";
+import { isBotUserAgent } from "@/lib/guard/bots";
 import { checkSearchRate, clientIp, consumeDailyLlmBudget, hashIp } from "@/lib/guard/rate-limit";
 import { AnthropicProvider } from "@/lib/llm/anthropic";
 import type { LlmProvider } from "@/lib/llm/provider";
@@ -87,7 +88,7 @@ import {
   SeoOutOfTimeError,
   type SeoRunDeps,
 } from "./seo-run";
-import { normalizeQuery } from "./cache-key";
+import { normalizeQuery, queryKey } from "./cache-key";
 import { RefreshGate } from "./refresh-gate";
 import type { SearchLogEntry, SearchStore } from "./store";
 import { SupabaseStore, type StoredProduct } from "./supabase-store";
@@ -661,6 +662,89 @@ export async function moreForRequest(
       return { ok: false, error: "rate_limited", retryAfterSec: err.retryAfterSec };
     }
     return { ok: false, error: toFailure(err, "more") === "capacity" ? "capacity" : "unavailable" };
+  }
+}
+
+/** "עוד מוצרים שמצאנו באלי אקספרס": the products, each with its place in AliExpress's order. */
+export type AliExpressMoreResult =
+  | { ok: true; results: LoggedResult[]; ranks: number[] }
+  | { ok: false; error: "rate_limited"; retryAfterSec: number }
+  | { ok: false; error: "unavailable" };
+
+/**
+ * The section under a smart search's results (owner request 2026-10-19: the products that passed
+ * first, then the others the simple search finds): the simple search of the same query and
+ * category (SearchInput.mode "simple"), without the products the smart result set `exclude`
+ * (its filters_key) already holds. Never paid LLM work: only a query whose parse is cached (the
+ * smart search just made it) is searched, with an LLM that cannot be called; otherwise no results.
+ * A crawler gets none. New AliExpress work counts against the per-IP search limit (as "עוד N"
+ * does), a cached set does not. Logged as source "more" (never listed, like "עוד N").
+ */
+export async function moreFromAliExpressForRequest(
+  input: { q: string; category?: string; exclude?: string },
+  headers: Headers,
+): Promise<AliExpressMoreResult> {
+  const none: AliExpressMoreResult = { ok: true, results: [], ranks: [] };
+  const q = input.q.trim();
+  if (!q || q.length > MAX_QUERY_LENGTH || isBotUserAgent(headers.get("user-agent"))) return none;
+  try {
+    const env = guardEnv();
+    const { db, deps } = searchDeps(env.dailyCap);
+    if (!(await deps.store.getParse(queryKey(q), new Date()))) return none;
+    const chargeBudget = deps.beforeLlmWork;
+    const out = await runSearch(
+      {
+        q,
+        mode: "simple",
+        source: "more",
+        typed: false,
+        owner: await requestIsOwner(),
+        ...(input.category ? { category: input.category } : {}),
+      },
+      {
+        ...deps,
+        llm: NO_LLM,
+        beforeLlmWork: async () => {
+          if (!env.ipHashSalt) throw new ConfigError(["IP_HASH_SALT"]);
+          const rate = await checkSearchRate(
+            db,
+            hashIp(clientIp(headers), env.ipHashSalt),
+            new Date(),
+          );
+          if (!rate.ok) throw new RateLimitedError(rate.retryAfterSec);
+          await chargeBudget?.();
+        },
+        // Like a refused search, a request refused by the per-IP limit is not logged.
+        failureOf: (err) => (err instanceof RateLimitedError ? null : failureCode(err)),
+      },
+    );
+    const shown =
+      input.exclude && FILTERS_KEY.test(input.exclude)
+        ? await deps.store.getResults(input.exclude, new Date())
+        : null;
+    const skip = new Set([
+      ...(shown?.products ?? []).map((p) => p.productId),
+      ...(shown?.pool?.products ?? []).map((p) => p.productId),
+    ]);
+    const searchUid = out.log.searchUid;
+    const kept = out.response.results.flatMap((r, i) =>
+      skip.has(r.product_id) ? [] : [{ r: { ...r, search_uid: searchUid }, rank: i + 1 }],
+    );
+    return {
+      ok: true,
+      results: withPromoValidity(
+        kept.map((k) => k.r),
+        Date.now(),
+      ),
+      ranks: kept.map((k) => k.rank),
+    };
+  } catch (err) {
+    if (err instanceof RateLimitedError) {
+      return { ok: false, error: "rate_limited", retryAfterSec: err.retryAfterSec };
+    }
+    if (err instanceof CacheMissError) return none;
+    toFailure(err, "more-aliexpress");
+    return { ok: false, error: "unavailable" };
   }
 }
 

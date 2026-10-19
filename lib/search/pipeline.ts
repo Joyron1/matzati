@@ -186,8 +186,11 @@ export interface SearchInput {
   without?: string[];
   /** Sort chosen with the refine buttons; overrides the parsed preference without a new parse. */
   sort?: SortPreference;
-  /** Written to search_log (default "search"); "preview" is examplePreview (SEO landing pages). */
-  source?: Exclude<SearchSource, "more">;
+  /**
+   * Written to search_log (default "search"); "preview" is examplePreview (SEO landing pages);
+   * "more" only for the simple search under a smart one's results (moreFromAliExpressForRequest).
+   */
+  source?: SearchSource;
   /**
    * The visitor typed the query. Defaults to true unless `arrival` is set. False when it came from
    * one of our own links (a recent-search card, an example query) or an ad. Logged as the origin
@@ -1107,8 +1110,8 @@ function simpleResponse(
  * Hebrew, with the price bounds and the category; kept as simpleShowable keeps them, linked
  * (ensureLinks) and saved as the hot lists save theirs (AliExpress's Hebrew data, rows with a title
  * of ours left alone). No explain or titles call. Cached like any result set under its own key
- * (simpleResultsKey), logged with diag.simple and never listed on /searches (its products did not
- * pass our filters).
+ * (simpleResultsKey), logged with diag.simple; listed on /searches like any search (owner decision
+ * 2026-10-19), except as source "more" (the section under a smart search's results).
  */
 async function simpleSearch(
   q: string,
@@ -1125,6 +1128,8 @@ async function simpleSearch(
     results = hit;
   } else {
     if (state.cacheOnly) throw new CacheMissError("results");
+    // New AliExpress work: the daily budget (and the caller's own checks) once, as any search.
+    await state.chargeOnce();
     let checked = 0;
     const products = await timed(run, meta, "fetch_ms", async () => {
       meta.aliCalls++;
@@ -1175,9 +1180,9 @@ async function simpleSearch(
   const entry = searchLogEntry(q, filters, results.products, response, state);
   const log: SearchLogEntry = {
     ...entry,
-    // The cards a first view of the smart search would count, so the stats compare.
+    // The cards a first view of the smart search would count, so the stats compare. Listed on
+    // /searches like any search (owner decision 2026-10-19), never as "more".
     resultsCount: Math.min(response.results.length, RESULTS_FIRST_VIEW),
-    listable: false,
     diag: {
       ...(entry.diag ?? {
         fetch_stop: null,

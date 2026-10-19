@@ -42,6 +42,17 @@ class ParseOnlyLlm implements LlmProvider {
   }
 }
 
+/** A smart search's LLM: the parse, then explain and titles answered with empty lists. */
+class SmartLlm implements LlmProvider {
+  readonly name = "anthropic" as const;
+  readonly model = "claude-haiku-4-5";
+  async generateStructured<T extends z.ZodType>(req: StructuredRequest<T>) {
+    const usage = { inputTokens: 900, outputTokens: 100, cacheReadTokens: 0, cacheWriteTokens: 0 };
+    const data = req.system.includes("Hebrew shopping request") ? PARSE : { items: [] };
+    return { data: data as z.infer<T>, usage, model: this.model };
+  }
+}
+
 function setup() {
   const fetchMock = vi.fn<typeof fetch>(async () => new Response(PRODUCTS));
   const ali = new AliExpressClient(
@@ -82,8 +93,10 @@ describe("simple search", () => {
     expect(response.results.every((r) => r.shared_numbers === undefined)).toBe(true);
     expect(response.passed_count).toBe(response.results.length);
 
-    // Logged, never listed, marked simple; the first view's count, as a smart search counts it.
-    expect(log.listable).toBe(false);
+    // Logged, listed like any search (owner decision 2026-10-19), marked simple; the first view's
+    // count, as a smart search counts it.
+    expect(log.listable).toBe(true);
+    expect(log.origin).toBe("typed");
     expect(log.diag?.simple).toBe(true);
     expect(log.resultsCount).toBe(RESULTS_FIRST_VIEW);
     expect(store.logs).toHaveLength(1);
@@ -114,6 +127,27 @@ describe("simple search", () => {
     expect(simple.response.filters_key).toBe(
       simpleResultsKey({ keywords_en: "usb cable", max_price_ils: 40 }),
     );
+  });
+
+  it("runs under a smart search as 'more': no LLM with a cached parse, never listed", async () => {
+    const { deps, llm } = setup();
+    // The smart search parsed the query first.
+    await runSearch({ q: "כבל USB עד 40 ש״ח" }, { ...deps, llm: new SmartLlm() });
+    const charged: string[] = [];
+    const { log } = await runSearch(
+      { q: "כבל USB עד 40 ש״ח", mode: "simple", source: "more", typed: false },
+      { ...deps, beforeLlmWork: async () => void charged.push("charged") },
+    );
+    expect(llm.calls).toBe(0);
+    expect(charged).toEqual(["charged"]); // the new AliExpress call, once
+    expect(log.origin).toBe("more");
+    expect(log.listable).toBe(false);
+    // Cached now: no new work, nothing charged.
+    await runSearch(
+      { q: "כבל USB עד 40 ש״ח", mode: "simple", source: "more", typed: false },
+      { ...deps, beforeLlmWork: async () => void charged.push("charged") },
+    );
+    expect(charged).toEqual(["charged"]);
   });
 
   it("has no 'עוד N': loadMore refuses a simple result set", async () => {

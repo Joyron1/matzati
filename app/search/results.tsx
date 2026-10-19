@@ -15,6 +15,7 @@ import {
 import type { ReactNode } from "react";
 import { BlockerHint, BlockerList, chipBlockers } from "@/components/filter-blockers";
 import { FilterChips } from "@/components/filter-chips";
+import { MoreFromAliExpress } from "@/components/more-from-aliexpress";
 import { LinkPending } from "@/components/pending-navigation";
 import { ExtraResultCards, ResultCards } from "@/components/result-cards";
 import { fewResultsTitle, SearchHelpBox } from "@/components/search-help";
@@ -170,54 +171,63 @@ function Results({
           ? "נסו להסיר את אחד הסינונים שלמעלה."
           : "נסו לכתוב את החיפוש במילים אחרות או בצורה כללית יותר.";
     return (
-      <StateCard Icon={SearchX} title="לא מצאנו מוצרים שעוברים את הסינון">
-        <p className="max-w-md leading-relaxed text-muted">
-          {response.checked_count > 0 ? (
-            <>
-              בדקנו <bdi dir="ltr">{formatCount(response.checked_count)}</bdi> מוצרים ואף אחד לא
-              עבר.
-            </>
+      <>
+        <StateCard Icon={SearchX} title="לא מצאנו מוצרים שעוברים את הסינון">
+          <p className="max-w-md leading-relaxed text-muted">
+            {response.checked_count > 0 ? (
+              <>
+                בדקנו <bdi dir="ltr">{formatCount(response.checked_count)}</bdi> מוצרים ואף אחד לא
+                עבר.
+              </>
+            ) : (
+              "אלי אקספרס לא החזירה מוצרים לחיפוש הזה."
+            )}
+            {blockers.length === 0 && <> {advice}</>}
+          </p>
+          {blockers.length > 0 ? (
+            <BlockerList blockers={blockers} q={q} sort={sort} without={without} cat={cat} />
           ) : (
-            "אלי אקספרס לא החזירה מוצרים לחיפוש הזה."
+            priceChips.length > 0 && (
+              <Link
+                href={searchHref({
+                  q,
+                  sort,
+                  without: [...without, ...priceChips.map((c) => c.id)],
+                  cat,
+                })}
+                className={`${btnPrimary} ${btnMd} relative`}
+              >
+                {priceChips.length === 1
+                  ? `הסרת הסינון: ${priceChips[0].label_he}`
+                  : "הסרת סינון המחיר"}
+                <LinkPending />
+              </Link>
+            )
           )}
-          {blockers.length === 0 && <> {advice}</>}
-        </p>
-        {blockers.length > 0 ? (
-          <BlockerList blockers={blockers} q={q} sort={sort} without={without} cat={cat} />
-        ) : (
-          priceChips.length > 0 && (
-            <Link
-              href={searchHref({
-                q,
-                sort,
-                without: [...without, ...priceChips.map((c) => c.id)],
-                cat,
-              })}
-              className={`${btnPrimary} ${btnMd} relative`}
-            >
-              {priceChips.length === 1
-                ? `הסרת הסינון: ${priceChips[0].label_he}`
-                : "הסרת סינון המחיר"}
-              <LinkPending />
-            </Link>
-          )
-        )}
-        <SearchHelpBox
-          // Without what the card already offers: the blockers' list, or the price button.
-          help={searchHelp(
-            response.chips,
-            response.blockers,
-            blockers.length > 0 ? ["blocker"] : priceChips.length > 0 ? ["price"] : [],
-          )}
-          heading="עוד כמה רעיונות"
-          headingLevel={3}
-          className="mt-2"
+          <SearchHelpBox
+            // Without what the card already offers: the blockers' list, or the price button.
+            help={searchHelp(
+              response.chips,
+              response.blockers,
+              blockers.length > 0 ? ["blocker"] : priceChips.length > 0 ? ["price"] : [],
+            )}
+            heading="עוד כמה רעיונות"
+            headingLevel={3}
+            className="mt-2"
+            q={q}
+            sort={sort}
+            without={without}
+            cat={cat}
+          />
+        </StateCard>
+        {/* Nothing passed: what AliExpress returns for the search is still worth seeing. */}
+        <MoreFromAliExpress
+          key={response.filters_key}
           q={q}
-          sort={sort}
-          without={without}
           cat={cat}
+          exclude={response.filters_key}
         />
-      </StateCard>
+      </>
     );
   }
 
@@ -325,6 +335,15 @@ function Results({
         )}
         <ShareLink text={`מצאתי תוצאות לחיפוש "${q}"`} label="שיתוף החיפוש בוואטסאפ" />
       </div>
+
+      {/* The products that passed first, then the others the simple search finds (owner request
+          2026-10-19). Loaded when the visitor gets near it. */}
+      <MoreFromAliExpress
+        key={`ali-${response.filters_key}`}
+        q={q}
+        cat={cat}
+        exclude={response.filters_key}
+      />
     </>
   );
 }
