@@ -1,19 +1,28 @@
-"use client";
-
 import { Share2 } from "lucide-react";
+import { absoluteUrl } from "@/lib/config/site";
 import { whatsappShareUrl } from "@/lib/format";
-import { useMounted } from "@/lib/use-mounted";
 
-/** Shares the current page of our site on WhatsApp (never the affiliate link). */
-export function ShareLink({ text, label = "שיתוף בוואטסאפ" }: { text: string; label?: string }) {
-  const mounted = useMounted();
-  const href = mounted ? whatsappShareUrl(text, window.location.href) : undefined;
+/**
+ * Shares a page of our site on WhatsApp (never the affiliate link). The page is named by its path,
+ * never read from the browser's address: after a client navigation the new page renders before the
+ * address changes, so a product page reached from /search shared the search, whose preview is the
+ * brand card (owner report 2026-10-21). /p/<id> previews with the product's own card.
+ */
+export function ShareLink({
+  text,
+  path,
+  label = "שיתוף בוואטסאפ",
+}: {
+  text: string;
+  /** The shared page, e.g. "/p/1005001" or a searchHref(...). */
+  path: string;
+  label?: string;
+}) {
   return (
     <a
-      href={href}
+      href={whatsappShareUrl(text, absoluteUrl(path))}
       target="_blank"
       rel="noopener"
-      aria-disabled={!mounted}
       className="inline-flex min-h-11 items-center gap-2 rounded-full px-2 text-sm font-semibold text-accent-ink underline-offset-4 hover:underline"
     >
       <Share2 aria-hidden className="size-[18px]" />

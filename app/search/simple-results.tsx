@@ -106,7 +106,11 @@ export function SimpleResultsView({
             ))}
           />
           <div className="flex justify-center">
-            <ShareLink text={`מצאתי תוצאות לחיפוש "${q}"`} label="שיתוף החיפוש בוואטסאפ" />
+            <ShareLink
+              text={`מצאתי תוצאות לחיפוש "${q}"`}
+              path={searchHref({ q, cat, mode: "simple" })}
+              label="שיתוף החיפוש בוואטסאפ"
+            />
           </div>
         </>
       )}

@@ -333,7 +333,11 @@ function Results({
             cards={extra !== undefined}
           />
         )}
-        <ShareLink text={`מצאתי תוצאות לחיפוש "${q}"`} label="שיתוף החיפוש בוואטסאפ" />
+        <ShareLink
+          text={`מצאתי תוצאות לחיפוש "${q}"`}
+          path={searchHref({ q, sort, without, cat })}
+          label="שיתוף החיפוש בוואטסאפ"
+        />
       </div>
 
       {/* The products that passed first, then the others the simple search finds (owner request

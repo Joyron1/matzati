@@ -196,7 +196,7 @@ export function ProductView({
             {/* The affiliate disclosure stays directly under the buy button (inside BuyButton). */}
             <BuyButton productId={product.product_id} src="product" />
             <div className="flex justify-center">
-              <ShareLink text={title.text} />
+              <ShareLink text={title.text} path={`/p/${encodeURIComponent(product.product_id)}`} />
             </div>
           </div>
 
