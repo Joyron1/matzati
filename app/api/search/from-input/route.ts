@@ -21,11 +21,11 @@ import {
   isAliexpressShortLink,
   productFromHtml,
   IMAGE_MAX_PX,
-  IMAGE_MODEL,
+  INPUT_MODEL,
   parseFromImage,
-  queryFromProductName,
+  parseFromProductName,
   wordsFromUrl,
-  type QueryOutcome,
+  type InputOutcome,
 } from "@/lib/search/from-input";
 import { normalizeQuery, queryKey } from "@/lib/search/cache-key";
 import { guardEnv } from "@/lib/search/server";
@@ -53,10 +53,27 @@ function llm(model?: string) {
 }
 
 /** Records the LLM call (llm_usage, kind "parse": it understands the search). */
-async function logUsage(store: SupabaseStore, out: Pick<QueryOutcome, "usage" | "model">) {
+async function logUsage(store: SupabaseStore, out: InputOutcome) {
   if (out.usage && out.model) {
     await store.logUsage([{ kind: "parse", model: out.model, usage: out.usage }]).catch(() => {});
   }
+}
+
+/**
+ * The parse is cached under its Hebrew line, so /search runs no parse call (a parse already cached
+ * for that line, a typed search, is kept), and the page opens the simple search: no more LLM calls.
+ */
+async function simpleSearchAnswer(
+  store: SupabaseStore,
+  out: InputOutcome,
+  empty: Fail,
+): Promise<Response> {
+  if (!out.query || !out.parsed) return fail(empty, 422);
+  const key = queryKey(out.query);
+  if (!(await store.getParse(key, new Date()))) {
+    await store.putParse(key, normalizeQuery(out.query), out.parsed);
+  }
+  return Response.json({ q: out.query, mode: "simple" }, { headers: noStore });
 }
 
 /** An AliExpress item: saved with productdetail.get (so /p and /go work), then its page. */
@@ -114,11 +131,9 @@ export async function POST(request: Request): Promise<Response> {
       if (!name) return fail("unreadable", 422);
       if (!(await consumeDailyLlmBudget(db, new Date(), env.dailyCap)))
         return fail("capacity", 503);
-      const out = await queryFromProductName(llm(), name, found.brand);
+      const out = await parseFromProductName(llm(INPUT_MODEL), name, found.brand);
       await logUsage(store, out);
-      return out.query
-        ? Response.json({ q: out.query }, { headers: noStore })
-        : fail("unreadable", 422);
+      return simpleSearchAnswer(store, out, "unreadable");
     }
 
     // --- An image -------------------------------------------------------------------------------
@@ -137,16 +152,9 @@ export async function POST(request: Request): Promise<Response> {
       .jpeg({ quality: 80 })
       .toBuffer();
     if (!(await consumeDailyLlmBudget(db, new Date(), env.dailyCap))) return fail("capacity", 503);
-    const out = await parseFromImage(llm(IMAGE_MODEL), jpeg);
+    const out = await parseFromImage(llm(INPUT_MODEL), jpeg);
     await logUsage(store, out);
-    if (!out.query || !out.parsed) return fail("not_found", 422);
-    // The photo's parse is cached under its Hebrew line, so /search runs no parse call; a parse
-    // already cached for that line (a typed search) is kept.
-    const key = queryKey(out.query);
-    if (!(await store.getParse(key, new Date()))) {
-      await store.putParse(key, normalizeQuery(out.query), out.parsed);
-    }
-    return Response.json({ q: out.query, mode: "simple" }, { headers: noStore });
+    return simpleSearchAnswer(store, out, "not_found");
   } catch (err) {
     const text = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
     console.error(`[search-from-input] ${text.slice(0, 300)}`);

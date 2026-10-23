@@ -12,11 +12,6 @@ import type { ParsedQuery } from "@/lib/search/filters";
 /** The query the search runs: 2 to 80 characters, Hebrew or Latin letters. */
 export const QUERY_MAX = 80;
 
-const querySchema = z.object({
-  /** A short shopping query in Hebrew, as an Israeli would type it. Empty when nothing found. */
-  query_he: z.string(),
-});
-
 // The photo becomes the search's parse directly (owner request 2026-10-23: the cheapest exact
 // path): the seller words AliExpress titles use, so the simple search (one product.query, no LLM)
 // finds the same product, and no parse, explain or titles call follows.
@@ -30,28 +25,30 @@ const IMAGE_SYSTEM = `You see a photo a shopper uploaded to find this exact prod
 - query_he: a short Hebrew line (2 to 6 words) naming the product as a shopper would type it, Latin names kept as shown.
 If the photo shows no product, return empty keywords_en, product_terms and query_he.`;
 
-/** The cheap vision model for photos (Haiku 5.5, $0.10 / $0.50 per million tokens). */
-export const IMAGE_MODEL = "claude-haiku-5-5";
+/** The cheap model for photos and links (Haiku 5.5, $0.10 / $0.50 per million tokens; it has vision). */
+export const INPUT_MODEL = "claude-haiku-5-5";
 
 /** Longest side of the photo sent to the model: about 800 input tokens. */
 export const IMAGE_MAX_PX = 768;
 
-const imageSchema = parsedQuerySchema.extend({ query_he: z.string() });
+const inputSchema = parsedQuerySchema.extend({ query_he: z.string() });
 
-const LINK_SYSTEM = `You get the name of a product from an online store page (any language) and maybe its brand. Write query_he: a short Hebrew shopping search (2 to 7 words) for the same kind of product on AliExpress: the product type and its 1-3 key features (keep a brand, model, character or franchise name in Latin letters). Drop marketing words, store names, sizes lists and prices. If the text names no product, return an empty string.`;
-
-export interface QueryOutcome {
-  query: string | null;
-  usage: LlmUsage | null;
-  model: string | null;
-}
+const LINK_SYSTEM = `You get the name of a product from an online store page (any language) and maybe its brand. The shopper wants this exact product, or identical ones, on AliExpress. Fill the fields as an AliExpress search parser:
+- keywords_en: 3 to 6 English words exactly as AliExpress sellers title this product: the product type plus the features that identify it (a brand, model, character or franchise name as written, shape, material, mechanism). Drop marketing words, the store's name, size lists, prices and audience or gift words.
+- product_terms: 1 to 3 short English phrases naming the product itself, the most specific first.
+- product_he: the product type in Hebrew, 2 to 4 words.
+- requirements: 0 to 2, only a brand, model, character or franchise name the text names: en (Latin, as written), alt (other spellings sellers use), he (Hebrew label). Never a color, size or material.
+- preferences: [].
+- min_price_ils and max_price_ils: null. sort_preference: "best_value". category_hint: a 1 to 3 word English category, or null.
+- query_he: a short Hebrew line (2 to 6 words) naming the product as a shopper would type it, Latin names kept as written.
+If the text names no product, return empty keywords_en, product_terms and query_he.`;
 
 function cleanQuery(raw: string | undefined): string | null {
   const q = (raw ?? "").replace(/\s+/g, " ").trim().slice(0, QUERY_MAX);
   return q.length >= 2 && /[֐-׿A-Za-z]/.test(q) ? q : null;
 }
 
-export interface ImageOutcome {
+export interface InputOutcome {
   /** The Hebrew line the search page shows (its parse is cached under it). */
   query: string | null;
   parsed: ParsedQuery | null;
@@ -60,37 +57,46 @@ export interface ImageOutcome {
 }
 
 /** The parse for an uploaded photo (a JPEG of at most IMAGE_MAX_PX): one vision call. */
-export async function parseFromImage(llm: LlmProvider, jpeg: Buffer): Promise<ImageOutcome> {
+export async function parseFromImage(llm: LlmProvider, jpeg: Buffer): Promise<InputOutcome> {
   const res = await llm.generateStructured({
     system: IMAGE_SYSTEM,
     user: "זהו את המוצר בתמונה.",
     images: [{ mediaType: "image/jpeg", data: jpeg.toString("base64") }],
-    schema: imageSchema,
+    schema: inputSchema,
     maxTokens: 500,
     temperature: 0,
     timeoutMs: 20_000,
     maxRetries: 1,
   });
+  return outcome(res);
+}
+
+function outcome(res: {
+  data: z.infer<typeof inputSchema> | null;
+  usage: LlmUsage;
+  model: string;
+}): InputOutcome {
   const query = cleanQuery(res.data?.query_he);
   const parsed = res.data && query ? normalizeParsed(res.data, query) : null;
   return { query: parsed ? query : null, parsed, usage: res.usage, model: res.model };
 }
 
-/** The query for a product's name (and brand) read from another store's page. */
-export async function queryFromProductName(
+/** The parse for a product's name (and brand) read from another store's page: one call. */
+export async function parseFromProductName(
   llm: LlmProvider,
   name: string,
   brand: string | null,
-): Promise<QueryOutcome> {
+): Promise<InputOutcome> {
   const res = await llm.generateStructured({
     system: LINK_SYSTEM,
     user: JSON.stringify({ name: name.slice(0, 400), brand: brand?.slice(0, 80) ?? null }),
-    schema: querySchema,
-    maxTokens: 300,
+    schema: inputSchema,
+    maxTokens: 500,
+    temperature: 0,
     timeoutMs: 15_000,
     maxRetries: 1,
   });
-  return { query: cleanQuery(res.data?.query_he), usage: res.usage, model: res.model };
+  return outcome(res);
 }
 
 // --- Reading a link ------------------------------------------------------------------------------
