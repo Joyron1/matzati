@@ -25,11 +25,15 @@ const IMAGE_SYSTEM = `You see a photo a shopper uploaded to find this exact prod
 - query_he: a short Hebrew line (2 to 6 words) naming the product as a shopper would type it, Latin names kept as shown.
 If the photo shows no product, return empty keywords_en, product_terms and query_he.`;
 
-/** The cheap model for photos and links (Haiku 5.5, $0.10 / $0.50 per million tokens; it has vision). */
-export const INPUT_MODEL = "claude-haiku-5-5";
+/**
+ * Photos go to Sonnet 5.5 (owner decision 2026-10-23: Haiku named the product less precisely; about
+ * $0.006 a photo), product names to Haiku 5.5 (text only, about $0.0002).
+ */
+export const IMAGE_MODEL = "claude-sonnet-5-5";
+export const LINK_MODEL = "claude-haiku-5-5";
 
-/** Longest side of the photo sent to the model: about 800 input tokens. */
-export const IMAGE_MAX_PX = 768;
+/** Longest side of the photo sent to the model: about 1,400 input tokens. */
+export const IMAGE_MAX_PX = 1024;
 
 const inputSchema = parsedQuerySchema.extend({ query_he: z.string() });
 

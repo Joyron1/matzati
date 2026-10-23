@@ -5,7 +5,13 @@ import { AliExpressClient } from "@/lib/aliexpress/client";
 import type { AliProduct } from "@/lib/aliexpress/schemas";
 import type { LlmProvider, LlmUsage, StructuredRequest } from "@/lib/llm/provider";
 import { DEFAULT_AGENT_SETTINGS, type AgentSettings } from "../settings";
-import { runFinder, worstCaseCostUsd, type FinderStore, type NewCandidate } from "./run";
+import {
+  runFinder,
+  worstCaseCostUsd,
+  type FinderStore,
+  type NewCandidate,
+  SHIPPING_MAX_CHECKS,
+} from "./run";
 import {
   commissionOf,
   HOT_BONUS_PCT,
@@ -256,9 +262,32 @@ class FakeStore implements FinderStore {
   }
 }
 
+/** product.shipping.get's envelope: free for product ids ending in an even digit. */
+function shippingFor(productId: string | null): string {
+  const free = Number((productId ?? "1").slice(-1)) % 2 === 0;
+  return JSON.stringify({
+    aliexpress_affiliate_product_shipping_get_response: {
+      resp_result: {
+        resp_code: 200,
+        resp_msg: "Call succeeds",
+        result: {
+          shipping_fee: free ? "0.00" : "7.49",
+          min_delivery_days: "7",
+          max_delivery_days: "12",
+          ship_from_country: "CN",
+        },
+      },
+    },
+  });
+}
+
 function setup(hotPaying = 12) {
   const fetchMock = vi.fn<typeof fetch>(async (_url, init) => {
-    const method = new URLSearchParams(String(init?.body)).get("method");
+    const body = new URLSearchParams(String(init?.body));
+    const method = body.get("method");
+    if (method === "aliexpress.affiliate.product.shipping.get") {
+      return new Response(shippingFor(body.get("product_id")));
+    }
     return new Response(
       method === "aliexpress.affiliate.link.generate" ? LINKS : hotList(hotPaying),
     );
@@ -286,7 +315,9 @@ function setup(hotPaying = 12) {
   return { fetchMock, store, llm, llmCalls, deps: { ali, llm, store, sleep: async () => {} } };
 }
 
-const ON: AgentSettings = { ...DEFAULT_AGENT_SETTINGS, finderEnabled: true };
+// The free-shipping check has its own test below.
+const ANY_SHIPPING: AgentSettings = { ...DEFAULT_AGENT_SETTINGS, freeShippingOnly: false };
+const ON: AgentSettings = { ...ANY_SHIPPING, finderEnabled: true };
 
 describe("runFinder", () => {
   it("does nothing on the schedule while the finder is off", async () => {
@@ -299,7 +330,7 @@ describe("runFinder", () => {
 
   it("scans its lists, queues the candidates with posts and logs the run", async () => {
     const { deps, store, llmCalls, fetchMock } = setup();
-    const r = await runFinder("admin", DEFAULT_AGENT_SETTINGS, deps);
+    const r = await runFinder("admin", ANY_SHIPPING, deps);
     expect(r.status).toBe("ok");
     expect(r.aliCalls).toBeLessThanOrEqual(SCAN_CALLS_PER_RUN + 2); // + hot links + details
     expect(fetchMock.mock.calls.length).toBe(r.aliCalls);
@@ -334,6 +365,23 @@ describe("runFinder", () => {
     expect(r.added).toBe(0);
     expect(store.added).toHaveLength(0);
     expect(r.note).toMatch(/standard rate/);
+  });
+
+  it("keeps only products AliExpress ships free to Israel when the switch is on", async () => {
+    const { deps, store, fetchMock } = setup();
+    const r = await runFinder("admin", DEFAULT_AGENT_SETTINGS, deps);
+    const asked = fetchMock.mock.calls.filter(
+      ([, init]) =>
+        new URLSearchParams(String(init?.body)).get("method") ===
+        "aliexpress.affiliate.product.shipping.get",
+    );
+    expect(asked.length).toBeGreaterThan(0);
+    expect(asked.length).toBeLessThanOrEqual(SHIPPING_MAX_CHECKS);
+    expect(r.added).toBeGreaterThan(0);
+    expect(store.added.every((c) => c.product.shipping?.feeIls === 0)).toBe(true);
+    expect(store.added.every((c) => Number(c.productId.slice(-1)) % 2 === 0)).toBe(true);
+    // The post says so, from the data.
+    expect(store.added.every((c) => c.postHe.includes("משלוח חינם לישראל"))).toBe(true);
   });
 
   it("bounds a writer call's cost by the model", () => {

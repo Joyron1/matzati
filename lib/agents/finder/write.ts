@@ -27,9 +27,10 @@ post_he, in this order, each part on its own line(s):
 2. Two to four benefit lines, each starting with "✅": a feature the title names and what it gives the buyer in plain words (a fleece lining keeps warm, a loop strap adjusts without holes). Use only features the title names; never invent a material, size, spec, use or result the title does not state.
 3. The price line starting with "💰": the price in ₪, "במקום" the original price when given, and the discount % when given.
 4. For each coupon given, a line starting with "🎟️": "קוד קופון: CODE" and what it gives as written, with its minimum order and end date when given. No coupon line when no coupon is given.
-5. The social-proof line starting with "⭐": the % positive feedback and how many were sold in the last 30 days.
-6. A strong call to action starting with "👇", sending them to the "לקנייה באלי אקספרס" button below (for example "לחצו על ״לקנייה באלי אקספרס״ כאן למטה ובדקו את המחיר עכשיו"). You may say that prices on AliExpress change often; never invent scarcity or a deadline ("רק היום", "נשארו מעט", "אחרונים") other than a coupon's end date as given.
-Between 300 and 850 characters. No hashtags, no links, no "הכי זול"/"הכי טוב"/"מומלץ ביותר" or any superlative, no promise of quality, shipping or delivery time.
+5. When free_shipping_il is true, a line starting with "🚚": "משלוח חינם לישראל", plus the delivery days as given ("7-12 ימי משלוח לפי אלי אקספרס") when both are given. No shipping line otherwise.
+6. The social-proof line starting with "⭐": the % positive feedback and how many were sold in the last 30 days.
+7. A strong call to action starting with "👇", sending them to the "לקנייה באלי אקספרס" button below (for example "לחצו על ״לקנייה באלי אקספרס״ כאן למטה ובדקו את המחיר עכשיו"). You may say that prices on AliExpress change often; never invent scarcity or a deadline ("רק היום", "נשארו מעט", "אחרונים") other than a coupon's end date as given.
+Between 300 and 850 characters. No hashtags, no links, no "הכי זול"/"הכי טוב"/"מומלץ ביותר" or any superlative, no promise of quality; shipping and delivery only as line 5 states them.
 
 why_he: one sentence (up to 120 characters) for the site owner: why it is worth posting, from the numbers only.
 
@@ -65,6 +66,10 @@ export interface WriterInput {
   positive_feedback_pct: number | null;
   units_sold_30d: number | null;
   coupons: CouponInfo[];
+  /** product.shipping.get for the default variant: true only when its fee is 0. */
+  free_shipping_il: boolean | null;
+  delivery_days_min: number | null;
+  delivery_days_max: number | null;
 }
 
 export function writerInput(p: AliProduct, coupons: CouponInfo[] = []): WriterInput {
@@ -80,6 +85,9 @@ export function writerInput(p: AliProduct, coupons: CouponInfo[] = []): WriterIn
     positive_feedback_pct: p.positiveFeedbackPct,
     units_sold_30d: p.unitsSold,
     coupons,
+    free_shipping_il: p.shipping ? p.shipping.feeIls === 0 : null,
+    delivery_days_min: p.shipping?.minDays ?? null,
+    delivery_days_max: p.shipping?.maxDays ?? null,
   };
 }
 
@@ -102,6 +110,13 @@ export function postFromData(i: WriterInput): string {
     lines.push(
       `🎟️ קוד קופון: ${c.code} · ${c.offer}${terms.length ? ` (${terms.join(", ")})` : ""}`,
     );
+  }
+  if (i.free_shipping_il) {
+    const days =
+      i.delivery_days_min !== null && i.delivery_days_max !== null
+        ? ` · ${i.delivery_days_min}-${i.delivery_days_max} ימי משלוח לפי אלי אקספרס`
+        : "";
+    lines.push(`🚚 משלוח חינם לישראל${days}`);
   }
   const trust = [
     i.positive_feedback_pct !== null ? `${i.positive_feedback_pct}% משוב חיובי` : null,

@@ -21,7 +21,8 @@ import {
   isAliexpressShortLink,
   productFromHtml,
   IMAGE_MAX_PX,
-  INPUT_MODEL,
+  IMAGE_MODEL,
+  LINK_MODEL,
   parseFromImage,
   parseFromProductName,
   wordsFromUrl,
@@ -67,32 +68,48 @@ async function simpleSearchAnswer(
   store: SupabaseStore,
   out: InputOutcome,
   empty: Fail,
+  cat?: string | null,
 ): Promise<Response> {
   if (!out.query || !out.parsed) return fail(empty, 422);
   const key = queryKey(out.query);
   if (!(await store.getParse(key, new Date()))) {
     await store.putParse(key, normalizeQuery(out.query), out.parsed);
   }
-  return Response.json({ q: out.query, mode: "simple" }, { headers: noStore });
+  return Response.json(
+    { q: out.query, mode: "simple", ...(cat ? { cat } : {}) },
+    { headers: noStore },
+  );
 }
 
-/** An AliExpress item: saved with productdetail.get (so /p and /go work), then its page. */
-async function aliexpressProduct(store: SupabaseStore, productId: string): Promise<Response> {
+/**
+ * An AliExpress item (owner request 2026-10-23: show very similar products, not the same link): its
+ * English title from productdetail.get becomes the parse (one cheap call), searched in its
+ * first-level category by the simple search.
+ */
+async function aliexpressSimilar(
+  store: SupabaseStore,
+  productId: string,
+  canSpend: () => Promise<boolean>,
+): Promise<Response> {
+  let title: string;
+  let cat: string | null;
   try {
     const page = await getProductDetails(
       new AliExpressClient(aliexpressConfig()),
       [productId],
-      "HE",
+      "EN",
     );
     const product = page.products[0];
-    if (!product?.promotionLink) return fail("not_found", 404);
-    await store.saveProducts([{ ...product, source: "hot" }], {}, new Date(), {
-      keepTitledRows: true,
-    });
-    return Response.json({ productId }, { headers: noStore });
+    if (!product) return fail("not_found", 404);
+    title = product.title;
+    cat = product.category.firstId;
   } catch {
     return fail("not_found", 404);
   }
+  if (!(await canSpend())) return fail("capacity", 503);
+  const out = await parseFromProductName(llm(LINK_MODEL), title, null);
+  await logUsage(store, out);
+  return simpleSearchAnswer(store, out, "not_found", cat);
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -119,19 +136,19 @@ export async function POST(request: Request): Promise<Response> {
       if (!start) return fail("invalid", 400);
 
       const direct = aliexpressItemId(start);
-      if (direct) return aliexpressProduct(store, direct);
+      const canSpend = () => consumeDailyLlmBudget(db, new Date(), env.dailyCap);
+      if (direct) return aliexpressSimilar(store, direct, canSpend);
       const page = await fetchPage(start);
       // A short AliExpress link resolves to its item.
       const resolved = page ? aliexpressItemId(page.url) : null;
-      if (resolved) return aliexpressProduct(store, resolved);
+      if (resolved) return aliexpressSimilar(store, resolved, canSpend);
       if (isAliexpressShortLink(start)) return fail("unreadable", 422);
 
       const found = page?.html ? productFromHtml(page.html) : { name: null, brand: null };
       const name = found.name ?? wordsFromUrl(page?.url ?? start);
       if (!name) return fail("unreadable", 422);
-      if (!(await consumeDailyLlmBudget(db, new Date(), env.dailyCap)))
-        return fail("capacity", 503);
-      const out = await parseFromProductName(llm(INPUT_MODEL), name, found.brand);
+      if (!(await canSpend())) return fail("capacity", 503);
+      const out = await parseFromProductName(llm(LINK_MODEL), name, found.brand);
       await logUsage(store, out);
       return simpleSearchAnswer(store, out, "unreadable");
     }
@@ -152,7 +169,7 @@ export async function POST(request: Request): Promise<Response> {
       .jpeg({ quality: 80 })
       .toBuffer();
     if (!(await consumeDailyLlmBudget(db, new Date(), env.dailyCap))) return fail("capacity", 503);
-    const out = await parseFromImage(llm(INPUT_MODEL), jpeg);
+    const out = await parseFromImage(llm(IMAGE_MODEL), jpeg);
     await logUsage(store, out);
     return simpleSearchAnswer(store, out, "not_found");
   } catch (err) {

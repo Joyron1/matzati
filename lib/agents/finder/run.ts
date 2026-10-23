@@ -9,6 +9,7 @@ import {
   queryHotProducts,
 } from "@/lib/aliexpress/affiliate";
 import type { AliExpressClient } from "@/lib/aliexpress/client";
+import { canAskShipping, getShippingToIsrael } from "@/lib/aliexpress/shipping";
 import type { AliProduct } from "@/lib/aliexpress/schemas";
 import { hotLinkSources, withHotLinks } from "@/lib/hot/links";
 import { costUsd } from "@/lib/llm/pricing";
@@ -16,6 +17,12 @@ import type { LlmProvider, LlmUsage } from "@/lib/llm/provider";
 import type { AgentSettings } from "../settings";
 import { MAX_CANDIDATES_PER_RUN, scanTargets, selectCandidates, targetsForRun } from "./select";
 import { WRITE_BATCH, WRITE_TOKENS, writePosts, type CouponInfo } from "./write";
+
+/** Free shipping: how many products a run may ask about, and until when (the run has 60 s). */
+export const SHIPPING_MAX_CHECKS = 14;
+export const SHIPPING_DEADLINE_MS = 32_000;
+/** Ranked products the free-shipping check goes through. */
+const SHIPPING_POOL = 40;
 
 export interface NewCandidate {
   productId: string;
@@ -105,6 +112,7 @@ export async function runFinder(
     return { status: "skipped", scanned: 0, added: 0, aliCalls: 0, costUsd: 0, note: "off" };
   }
 
+  const startedAt = now().getTime();
   const runIndex = await store.runCount();
   const runId = await store.startRun(trigger);
   // Never fails the run: the bar is a convenience.
@@ -154,10 +162,37 @@ export async function runFinder(
     // 2. Choose: never a product proposed before.
     await step(62, "בוחר מוצרים לפי עמלה, משוב ומכירות");
     const known = await store.knownProductIds([...new Set(found.map((p) => p.productId))]);
-    let chosen = selectCandidates(found, known, { max: MAX_CANDIDATES_PER_RUN });
+    let chosen = selectCandidates(found, known, {
+      max: settings.freeShippingOnly ? SHIPPING_POOL : MAX_CANDIDATES_PER_RUN,
+    });
     if (!chosen.length) {
       result.note = "no new product paid the standard rate and passed the filters";
       return result;
+    }
+    // 2b. Free shipping to Israel (owner request 2026-10-23): one product.shipping.get per product,
+    // best first, until a full run is found, the checks run out or the run's time does.
+    if (settings.freeShippingOnly) {
+      const free: AliProduct[] = [];
+      let checks = 0;
+      for (const p of chosen.filter(canAskShipping)) {
+        if (free.length >= MAX_CANDIDATES_PER_RUN || checks >= SHIPPING_MAX_CHECKS) break;
+        if (now().getTime() - startedAt > SHIPPING_DEADLINE_MS) break;
+        await step(62 + Math.round((checks / SHIPPING_MAX_CHECKS) * 5), "בודק משלוח חינם לישראל");
+        await sleep(spacing);
+        result.aliCalls++;
+        checks++;
+        try {
+          const shipping = await getShippingToIsrael(ali, p, now());
+          if (shipping && shipping.feeIls === 0) free.push({ ...p, shipping });
+        } catch (err) {
+          console.error(`[finder] shipping ${p.productId}: ${String(err).slice(0, 200)}`);
+        }
+      }
+      chosen = free;
+      if (!chosen.length) {
+        result.note = `no free shipping to Israel among ${checks} checked`;
+        return result;
+      }
     }
 
     // 3. Hot links where AliExpress offers the hot rate (one call); a failure keeps the list's.

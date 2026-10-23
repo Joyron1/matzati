@@ -107,7 +107,20 @@ export const rawProductSchema = z.object({
   // Read leniently below: a bad video or promo code drops that field, never the product.
   product_video_url: z.unknown().optional(),
   promo_code_info: z.unknown().optional(),
+  // The default variant: product.shipping.get needs it (verified 2026-10-23).
+  sku_id: id.optional(),
 });
+
+/** product.shipping.get for one variant to Israel (lib/aliexpress/shipping.ts). */
+export interface AliShipping {
+  /** The shipping fee in ILS: 0 is free shipping. */
+  feeIls: number;
+  minDays: number | null;
+  maxDays: number | null;
+  fromCountry: string | null;
+  /** When it was asked (ISO). */
+  checkedAt: string;
+}
 
 export interface AliProduct {
   productId: string;
@@ -149,6 +162,10 @@ export interface AliProduct {
   videoUrl?: string | null;
   /** promo_code_info (see promo-code.ts); null when absent or unusable. */
   promoCode?: AliPromoCode | null;
+  /** sku_id of the default variant (product.query, hotproduct.query); absent on older rows. */
+  skuId?: string | null;
+  /** Shipping to Israel of the default variant, when the product finder asked for it. */
+  shipping?: AliShipping | null;
   /**
    * When promotionLink was made (ISO), where that differs from the stored row's updated_at: /go
    * sets it when it regenerates an old link, and the /p refresh keeps it when it reuses the stored
@@ -206,6 +223,7 @@ export const productSchema = rawProductSchema.transform((p, ctx): AliProduct => 
     },
     videoUrl: mediaUrl(p.product_video_url),
     promoCode: parsePromoCode(p.promo_code_info),
+    skuId: p.sku_id ?? null,
   };
 });
 

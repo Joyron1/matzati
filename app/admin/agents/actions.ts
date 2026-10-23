@@ -42,6 +42,7 @@ export async function saveAgentSettingsAction(formData: FormData): Promise<void>
     // Meta has its own panel (phase 2); kept as they were.
     facebookEnabled: formData.get("facebookEnabled") === "on",
     instagramEnabled: formData.get("instagramEnabled") === "on",
+    freeShippingOnly: formData.get("freeShippingOnly") === "on",
   });
   if (!parsed.success || !AGENT_MODELS.some((m) => m.id === parsed.data.model)) back("invalid");
   try {

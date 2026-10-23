@@ -26,6 +26,8 @@ export const agentSettingsSchema = z.object({
   /** ... and to the Facebook Page / its Instagram account (owner request 2026-10-23). */
   facebookEnabled: z.boolean().default(false),
   instagramEnabled: z.boolean().default(false),
+  /** Only products AliExpress ships free to Israel (owner request 2026-10-23). */
+  freeShippingOnly: z.boolean().default(true),
 });
 export type AgentSettings = z.infer<typeof agentSettingsSchema>;
 
@@ -37,6 +39,7 @@ export const DEFAULT_AGENT_SETTINGS: AgentSettings = {
   telegramEnabled: false,
   facebookEnabled: false,
   instagramEnabled: false,
+  freeShippingOnly: true,
 };
 
 /** The stored settings, or the defaults when none are saved or the row does not parse. */

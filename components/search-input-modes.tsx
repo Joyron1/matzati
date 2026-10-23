@@ -86,11 +86,12 @@ function useFromInput() {
       const data = (await res.json().catch(() => ({}))) as {
         q?: string;
         mode?: "simple";
+        cat?: string;
         productId?: string;
         error?: string;
       };
       if (data.productId) router.push(`/p/${encodeURIComponent(data.productId)}`);
-      else if (data.q) router.push(searchHref({ q: data.q, mode: data.mode }));
+      else if (data.q) router.push(searchHref({ q: data.q, mode: data.mode, cat: data.cat }));
       else {
         setError(ERRORS[data.error ?? "unavailable"] ?? ERRORS.unavailable);
         setBusy(false);
@@ -161,8 +162,8 @@ export function LinkSearch({
         </button>
       </div>
       <p className="px-1 text-sm text-muted">
-        קישור לאלי אקספרס פותח את המוצר אצלנו. קישור מאתר אחר: נקרא את שם המוצר ונחפש לכם את
-        המקבילים באלי אקספרס.
+        נזהה את המוצר מהקישור, מאלי אקספרס או מכל חנות אחרת, ונחפש לכם באלי אקספרס מוצרים זהים או
+        דומים מאוד.
       </p>
       {error && (
         <p role="alert" className="px-1 text-sm font-semibold text-ink">

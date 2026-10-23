@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Bot, Check, Download, Film, PenLine, Send, Trash2, X } from "lucide-react";
+import { Bot, Check, Download, Film, PenLine, Send, Trash2, Truck, X } from "lucide-react";
 import { ProductImage } from "@/components/product-image";
 import { btnMd, btnPrimary, btnSecondary, btnSm, card } from "@/components/styles";
 import { requireAdmin } from "@/lib/admin/auth";
@@ -221,6 +221,20 @@ function Settings({
         <label className="flex min-h-11 items-center gap-3">
           <input
             type="checkbox"
+            name="freeShippingOnly"
+            defaultChecked={settings.freeShippingOnly}
+            className="size-5 accent-[var(--accent)]"
+          />
+          <span>
+            <span className="font-semibold">משלוח חינם לישראל בלבד</span>{" "}
+            <span className="text-sm text-muted">
+              · נבדק מול אלי אקספרס לכל מוצר (לגרסה הבסיסית שלו), עד 14 בדיקות בריצה
+            </span>
+          </span>
+        </label>
+        <label className="flex min-h-11 items-center gap-3">
+          <input
+            type="checkbox"
             name="telegramEnabled"
             defaultChecked={settings.telegramEnabled}
             className="size-5 accent-[var(--accent)]"
@@ -293,6 +307,28 @@ function ProductFacts({ c }: { c: Candidate }) {
         <dt>נמכרו ב־30 יום:</dt>
         <dd className="text-ink">
           <bdi dir="ltr">{p.unitsSold === null ? "-" : formatCount(p.unitsSold)}</bdi>
+        </dd>
+      </div>
+      <div className="flex gap-1">
+        <dt>משלוח לישראל:</dt>
+        <dd className="text-ink">
+          {!p.shipping ? (
+            "לא נבדק"
+          ) : (
+            <>
+              {p.shipping.feeIls === 0 ? "חינם" : <bdi dir="ltr">₪{p.shipping.feeIls}</bdi>}
+              {p.shipping.minDays !== null && p.shipping.maxDays !== null && (
+                <>
+                  {" "}
+                  ·{" "}
+                  <bdi dir="ltr">
+                    {p.shipping.minDays}-{p.shipping.maxDays}
+                  </bdi>{" "}
+                  ימים
+                </>
+              )}
+            </>
+          )}
         </dd>
       </div>
     </dl>
@@ -401,6 +437,11 @@ function Row({ c }: { c: Candidate }) {
           {p.videoUrl && (
             <span className="inline-flex items-center gap-1">
               <Film aria-hidden className="size-3.5" /> וידאו
+            </span>
+          )}
+          {p.shipping?.feeIls === 0 && (
+            <span className="inline-flex items-center gap-1 font-semibold text-ink">
+              <Truck aria-hidden className="size-3.5" /> משלוח חינם
             </span>
           )}
           {c.video_path && <span className="font-semibold text-accent-ink">סרטון שלך הועלה</span>}
