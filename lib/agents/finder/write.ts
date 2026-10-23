@@ -9,14 +9,14 @@ import type { LlmProvider, LlmUsage } from "@/lib/llm/provider";
 import { hotTitle } from "@/lib/product-title";
 
 export const POST_MIN = 40;
-export const POST_MAX = 600;
+export const POST_MAX = 700;
 export const WHY_MAX = 200;
 /** Output cap: room for adaptive thinking on the larger models and 10 posts. */
 export const WRITE_TOKENS = 6_000;
 
 export const FINDER_SYSTEM = `You write short Hebrew posts for a Telegram channel of AliExpress deals, run by an Israeli shopping site.
 For each product you get its machine-translated Hebrew title and its numbers. Write:
-- post_he: 2 to 5 short lines in natural Hebrew, plural and gender-neutral ("שווה לבדוק", never singular address). First line: a short hook naming what the product is. Then what it is, only from the title (no invented features, specs, materials or uses). Then the price line and the trust line, with the numbers exactly as given (price in ₪, "במקום" the original price when given, the % positive feedback, the number sold in the last 30 days). At most two emoji. No hashtags, no links, no "הכי זול"/"הכי טוב"/"מומלץ ביותר" or any superlative, no urgency ("רק היום", "נגמר"), no promise of quality, shipping or delivery time.
+- post_he: 3 to 6 short lines in natural, lively Hebrew that make people want to buy, plural and gender-neutral ("שווה לבדוק", never singular address). First line: a catchy hook naming what the product is and who it is for. Then one or two lines on what it is and why it is handy, only from the title (no invented features, specs, materials or uses). Then the price line (price in ₪, "במקום" the original price when given, and the discount % when given) and the social-proof line (the % positive feedback and the number sold in the last 30 days), with the numbers exactly as given. Last line: a call to action to the button below (for example "לפרטים ולקנייה בכפתור למטה 👇"). Up to three emoji. No hashtags, no links, no "הכי זול"/"הכי טוב"/"מומלץ ביותר" or any superlative, no false urgency ("רק היום", "נגמר", "אחרונים"), no promise of quality, shipping or delivery time.
 - why_he: one sentence (up to 120 characters) for the site owner: why it is worth posting, from the numbers only.
 Every number you write must appear in the product's data. Never mention commission.`;
 

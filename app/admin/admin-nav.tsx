@@ -9,7 +9,7 @@ import { usePathname } from "next/navigation";
 const LINKS = [
   { href: "/admin", label: "דילים", section: ["/admin", "/admin/deals"] },
   { href: "/admin/coupons", label: "קופונים", section: ["/admin/coupons"] },
-  { href: "/admin/agents", label: "סוכנים", section: ["/admin/agents"] },
+  { href: "/admin/agents", label: "טלגרם", section: ["/admin/agents"] },
   { href: "/admin/revenue", label: "הכנסות", section: ["/admin/revenue"] },
   { href: "/admin/stats", label: "נתונים", section: ["/admin/stats"] },
   { href: "/admin/seo", label: "עמודי SEO", section: ["/admin/seo"] },

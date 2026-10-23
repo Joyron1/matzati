@@ -6,7 +6,6 @@ import Link from "next/link";
 import { Sparkles } from "lucide-react";
 import { StandardProductCard } from "@/components/product-cards";
 import { StateCard } from "@/components/state-card";
-import { MIN_COMMISSION_PCT } from "@/lib/agents/finder/select";
 import { recommendedProducts } from "@/lib/agents/server";
 import { formatCount } from "@/lib/format";
 import { FILTERS } from "@/lib/ranking/config";
@@ -34,9 +33,8 @@ export default async function RecommendedPage() {
           מוצרים מאלי אקספרס שבחרנו בעצמנו. כל אחד עבר את הסינון שלנו כשמצאנו אותו (
           <bdi dir="ltr">{FILTERS.minPositiveFeedbackPct}%</bdi> משוב חיובי ומעלה ולפחות{" "}
           <bdi dir="ltr">{formatCount(FILTERS.minUnitsSold)}</bdi> מכירות ב־30 הימים האחרונים). על
-          המוצרים בעמוד הזה אלי אקספרס משלמת לנו עמלה גבוהה מהרגיל (
-          <bdi dir="ltr">{MIN_COMMISSION_PCT}%</bdi> ומעלה), וזו אחת הסיבות שבחרנו בהם. המחיר שלכם
-          לא משתנה בגלל זה.{" "}
+          המוצרים בעמוד הזה אלי אקספרס משלמת לנו עמלה גבוהה מהממוצע, וזו אחת הסיבות שבחרנו בהם.
+          המחיר שלכם לא משתנה בגלל זה.{" "}
           <Link href="/terms#affiliate" className="underline underline-offset-4 hover:text-ink">
             על קישורי השותפים
           </Link>

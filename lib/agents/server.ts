@@ -1,6 +1,7 @@
-// Server entry points of the agents (owner request 2026-10-19): a finder run (cron or the admin's
-// "run now"), the approved products the site shows (/recommended, the home page), and approving a
-// candidate (shown on the site at once, posted to Telegram when that is on). Server-only.
+// Server entry points of the agents (owner requests 2026-10-19 and 10-23): a finder run (cron or
+// the admin's "run now"), the approved products the site shows (/recommended, the home page),
+// approving a candidate (shown on the site at once, given the next Telegram slot), posting what is
+// due to Telegram (cron every 15 minutes), and the owner's motion video per product. Server-only.
 import "server-only";
 import { unstable_cache, updateTag } from "next/cache";
 import { AliExpressClient } from "@/lib/aliexpress/client";
@@ -11,18 +12,20 @@ import type { LlmProvider } from "@/lib/llm/provider";
 import { hotTitle } from "@/lib/product-title";
 import { toResultProduct } from "@/lib/search/pipeline";
 import { serviceClient } from "@/lib/supabase/server";
-import { metaConfig, publishFacebook, publishInstagram, type MetaResult } from "@/lib/meta/publish";
-import { postProduct, telegramConfig, type TelegramResult } from "@/lib/telegram/client";
+import { postProduct, telegramConfig } from "@/lib/telegram/client";
 import type { ResultProduct } from "@/lib/types";
 import { runFinder, type FinderResult } from "./finder/run";
 import { readAgentSettings, type AgentSettings } from "./settings";
+import { nextSlot } from "./schedule";
 import {
   decideCandidate,
+  dueTelegramPosts,
   getCandidate,
   listCandidates,
-  recordMeta,
   recordTelegram,
+  setCandidateVideo,
   SupabaseFinderStore,
+  takenTelegramSlots,
 } from "./store";
 
 /** Expired whenever the approved list changes, so /recommended and the home page show it. */
@@ -118,72 +121,117 @@ export const recommendedProducts = unstable_cache(
 
 // --- The admin's decisions ----------------------------------------------------------------------
 
-/** The channels an approval may post to, besides the site (which always shows it). */
-export interface Channels {
-  telegram: boolean;
-  facebook: boolean;
-  instagram: boolean;
-}
-
 export interface DecisionResult {
   ok: boolean;
-  /** Per channel asked: what it answered, or "off" (switched off or not configured). */
-  telegram?: TelegramResult | "off";
-  facebook?: MetaResult | "off";
-  instagram?: MetaResult | "off";
+  /** The Telegram slot the post was given; null when Telegram is off or not configured. */
+  telegramAt?: Date | null;
 }
 
 /**
- * Approves a candidate with the post as the owner left it: shown on the site at once, and posted
- * to each channel asked whose admin switch is on and which is configured (Telegram, the Facebook
- * Page, its Instagram account; owner decision 2026-10-23: every post approved by hand). Each
- * channel's answer is stored on the candidate; one failing never stops the others. Call from a
- * server action that checked requireAdmin() (it expires the cached list).
+ * Approves a candidate with the post as the owner left it: shown on the site at once (it expires
+ * the cached list), and, when `telegram` is asked, the admin's switch is on and the channel is
+ * configured, given the next free Telegram slot (lib/agents/schedule.ts: fixed times, never Friday
+ * 17:00 to Saturday 19:30); the cron posts it then (owner decision 2026-10-23: approval and
+ * schedule). Call from a server action that checked requireAdmin().
  */
 export async function approveCandidate(
   id: string,
   postHe: string,
-  channels: Channels,
+  telegram: boolean,
 ): Promise<DecisionResult> {
   const db = serviceClient();
   const candidate = await getCandidate(db, id);
   if (!candidate) return { ok: false };
-  await decideCandidate(db, id, "approved", postHe);
+  let at: Date | null = null;
+  if (telegram) {
+    const { settings } = await readAgentSettings(db);
+    if (settings.telegramEnabled && telegramConfig()) {
+      const now = new Date();
+      at = nextSlot(now, await takenTelegramSlots(db, now));
+    }
+  }
+  await decideCandidate(db, id, "approved", postHe, telegram ? at : undefined);
   updateTag(RECOMMENDED_TAG);
-  const out: DecisionResult = { ok: true };
-  if (!channels.telegram && !channels.facebook && !channels.instagram) return out;
-  const { settings } = await readAgentSettings(db);
-  const photoUrl = candidate.product.imageUrls[0] ?? candidate.product.mainImageUrl;
-  const productId = candidate.product_id;
-
-  if (channels.telegram) {
-    const config = telegramConfig();
-    if (!settings.telegramEnabled || !config) out.telegram = "off";
-    else {
-      out.telegram = await postProduct(config, { productId, postHe, photoUrl });
-      await recordTelegram(db, id, out.telegram);
-    }
-  }
-  const meta = metaConfig();
-  if (channels.facebook) {
-    if (!settings.facebookEnabled || !meta) out.facebook = "off";
-    else {
-      out.facebook = await publishFacebook(meta, { productId, postHe });
-      await recordMeta(db, id, "facebook", out.facebook);
-    }
-  }
-  if (channels.instagram) {
-    if (!settings.instagramEnabled || !meta?.igUserId) out.instagram = "off";
-    else {
-      out.instagram = await publishInstagram(meta, { productId, postHe, photoUrl });
-      await recordMeta(db, id, "instagram", out.instagram);
-    }
-  }
-  return out;
+  return { ok: true, telegramAt: telegram ? at : undefined };
 }
 
 /** Rejects a pending candidate, or takes an approved one off the site (never proposed again). */
 export async function rejectCandidate(id: string): Promise<void> {
   await decideCandidate(serviceClient(), id, "rejected");
   updateTag(RECOMMENDED_TAG);
+}
+
+// --- The owner's videos (bucket agent-media, private) -------------------------------------------
+
+export const MEDIA_BUCKET = "agent-media";
+
+/** The path a candidate's video is uploaded to: its own folder, one name per upload. */
+export function videoPathFor(candidateId: string, now = Date.now()): string {
+  return `candidates/${candidateId}/${now}.mp4`;
+}
+
+/** A signed upload URL for the admin's browser (the file goes straight to Supabase Storage). */
+export async function signedVideoUpload(
+  candidateId: string,
+): Promise<{ path: string; token: string } | null> {
+  const db = serviceClient();
+  if (!(await getCandidate(db, candidateId))) return null;
+  const path = videoPathFor(candidateId);
+  const { data, error } = await db.storage.from(MEDIA_BUCKET).createSignedUploadUrl(path);
+  if (error || !data) return null;
+  return { path: data.path, token: data.token };
+}
+
+/** Records an uploaded video on its candidate (only a path in the candidate's own folder). */
+export async function attachVideo(candidateId: string, path: string): Promise<boolean> {
+  if (!path.startsWith(`candidates/${candidateId}/`) || path.includes("..")) return false;
+  await setCandidateVideo(serviceClient(), candidateId, path);
+  return true;
+}
+
+export async function removeVideo(candidateId: string): Promise<void> {
+  await setCandidateVideo(serviceClient(), candidateId, null);
+}
+
+/** A URL to the video valid for `seconds` (the admin's preview, Telegram's fetch). */
+export async function signedVideoUrl(path: string, seconds = 3600): Promise<string | null> {
+  const { data } = await serviceClient().storage.from(MEDIA_BUCKET).createSignedUrl(path, seconds);
+  return data?.signedUrl ?? null;
+}
+
+// --- Posting what is due -------------------------------------------------------------------------
+
+export interface PublishSummary {
+  due: number;
+  posted: number;
+  failed: number;
+}
+
+/**
+ * Posts the approved candidates whose Telegram slot has come (up to 3 a run; the cron runs every
+ * 15 minutes): the owner's video when there is one, else the photo. Never in quiet time (the
+ * slots already avoid it). A failure is stored and the slot given up. Production only.
+ */
+export async function publishDue(now = new Date()): Promise<PublishSummary> {
+  const summary: PublishSummary = { due: 0, posted: 0, failed: 0 };
+  if (deployEnv() !== "production") return summary;
+  const config = telegramConfig();
+  const db = serviceClient();
+  const { settings } = await readAgentSettings(db);
+  if (!config || !settings.telegramEnabled) return summary;
+  const due = await dueTelegramPosts(db, now);
+  summary.due = due.length;
+  for (const c of due) {
+    const videoUrl = c.video_path ? await signedVideoUrl(c.video_path, 3600) : null;
+    const result = await postProduct(config, {
+      productId: c.product_id,
+      postHe: c.post_he,
+      photoUrl: c.product.imageUrls[0] ?? c.product.mainImageUrl,
+      videoUrl,
+    });
+    await recordTelegram(db, c.id, result);
+    if (result.ok) summary.posted++;
+    else summary.failed++;
+  }
+  return summary;
 }

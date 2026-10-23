@@ -1,13 +1,21 @@
 "use server";
-// The admin's agent actions (owner request 2026-10-19). Each checks requireAdmin() itself (an
-// action is reachable by a direct POST), validates its form with zod and redirects back to
-// /admin/agents with a status the page says.
+// The admin's agent actions (owner requests 2026-10-19 and 10-23). Each checks requireAdmin()
+// itself (an action is reachable by a direct POST) and validates its input with zod. The form
+// actions redirect back to /admin/agents with a status the page says; the video actions answer
+// the client component that uploads the file.
 import { revalidatePath } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/admin/auth";
-import { approveCandidate, rejectCandidate, runFinderFor } from "@/lib/agents/server";
+import {
+  approveCandidate,
+  attachVideo,
+  rejectCandidate,
+  removeVideo,
+  signedVideoUpload,
+} from "@/lib/agents/server";
 import { AGENT_MODELS, AGENTS_KEY, agentSettingsSchema } from "@/lib/agents/settings";
+import { slotLabel } from "@/lib/agents/schedule";
 import { upsertSetting } from "@/lib/settings/db";
 import { serviceClient } from "@/lib/supabase/server";
 
@@ -18,9 +26,9 @@ function logError(where: string, err: unknown) {
   console.error(`[admin-agents] ${where}: ${text.slice(0, 300)}`);
 }
 
-function back(status: string): never {
+function back(status: string, extra = ""): never {
   revalidatePath(PAGE);
-  redirect(`${PAGE}?status=${status}`);
+  redirect(`${PAGE}?status=${status}${extra}`);
 }
 
 export async function saveAgentSettingsAction(formData: FormData): Promise<void> {
@@ -30,6 +38,7 @@ export async function saveAgentSettingsAction(formData: FormData): Promise<void>
     dailyBudgetUsd: Number(formData.get("dailyBudgetUsd")),
     finderEnabled: formData.get("finderEnabled") === "on",
     telegramEnabled: formData.get("telegramEnabled") === "on",
+    // Meta has its own panel (phase 2); kept as they were.
     facebookEnabled: formData.get("facebookEnabled") === "on",
     instagramEnabled: formData.get("instagramEnabled") === "on",
   });
@@ -44,19 +53,6 @@ export async function saveAgentSettingsAction(formData: FormData): Promise<void>
   back("saved");
 }
 
-export async function runFinderAction(): Promise<void> {
-  await requireAdmin();
-  let status = "run-failed";
-  try {
-    const r = await runFinderFor("admin");
-    status = r.status === "failed" ? "run-failed" : `run-${r.added}`;
-  } catch (err) {
-    unstable_rethrow(err);
-    logError("run", err);
-  }
-  back(status);
-}
-
 const decisionSchema = z.object({
   id: z.string().uuid(),
   post: z.string().trim().min(10).max(1000),
@@ -66,30 +62,24 @@ export async function approveAction(formData: FormData): Promise<void> {
   await requireAdmin();
   const parsed = decisionSchema.safeParse({ id: formData.get("id"), post: formData.get("post") });
   if (!parsed.success) back("invalid");
-  const channels = {
-    telegram: formData.get("telegram") === "on",
-    facebook: formData.get("facebook") === "on",
-    instagram: formData.get("instagram") === "on",
-  };
+  const telegram = formData.get("telegram") === "on";
   let status = "approve-failed";
+  let extra = "";
   try {
-    const r = await approveCandidate(parsed.data.id, parsed.data.post, channels);
-    const answers = [r.telegram, r.facebook, r.instagram].filter((a) => a !== undefined);
-    status = !r.ok
-      ? "approve-failed"
-      : !answers.length
-        ? "approved"
-        : answers.some((a) => a !== "off" && !a.ok)
-          ? "approved-channel-failed"
-          : answers.some((a) => a === "off")
-            ? "approved-channel-off"
-            : "approved-channels";
+    const r = await approveCandidate(parsed.data.id, parsed.data.post, telegram);
+    if (r.ok) {
+      if (!telegram) status = "approved";
+      else if (r.telegramAt) {
+        status = "approved-scheduled";
+        extra = `&at=${encodeURIComponent(slotLabel(r.telegramAt))}`;
+      } else status = "approved-telegram-off";
+    }
   } catch (err) {
     unstable_rethrow(err);
     logError("approve", err);
   }
   revalidatePath("/recommended");
-  back(status);
+  back(status, extra);
 }
 
 export async function rejectAction(formData: FormData): Promise<void> {
@@ -105,4 +95,48 @@ export async function rejectAction(formData: FormData): Promise<void> {
   }
   revalidatePath("/recommended");
   back("rejected");
+}
+
+// --- The owner's motion video ----------------------------------------------------------------
+
+/** A signed upload URL for one candidate's video; null when the candidate is unknown. */
+export async function videoUploadAction(
+  candidateId: string,
+): Promise<{ path: string; token: string } | null> {
+  await requireAdmin();
+  if (!z.string().uuid().safeParse(candidateId).success) return null;
+  try {
+    return await signedVideoUpload(candidateId);
+  } catch (err) {
+    logError("video upload url", err);
+    return null;
+  }
+}
+
+/** Records the uploaded file on its candidate. */
+export async function videoAttachAction(candidateId: string, path: string): Promise<boolean> {
+  await requireAdmin();
+  if (!z.string().uuid().safeParse(candidateId).success) return false;
+  try {
+    const ok = await attachVideo(candidateId, path);
+    if (ok) revalidatePath(PAGE);
+    return ok;
+  } catch (err) {
+    logError("video attach", err);
+    return false;
+  }
+}
+
+export async function videoRemoveAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = z.string().uuid().safeParse(formData.get("id"));
+  if (!id.success) back("invalid");
+  try {
+    await removeVideo(id.data);
+  } catch (err) {
+    unstable_rethrow(err);
+    logError("video remove", err);
+    back("video-failed");
+  }
+  back("video-removed");
 }

@@ -48,19 +48,26 @@ export function buttonsOf(productId: string) {
 
 export type TelegramResult = { ok: true; messageId: string } | { ok: false; error: string };
 
-/** Posts one product. Never throws: a failure comes back as its reason (no secret in it). */
+/**
+ * Posts one product: the owner's video when there is one (sendVideo, a URL Telegram fetches, up
+ * to 20 MB), else its photo (sendPhoto). Never throws: a failure comes back as its reason (no
+ * secret in it).
+ */
 export async function postProduct(
   config: TelegramConfig,
-  post: { productId: string; postHe: string; photoUrl: string },
+  post: { productId: string; postHe: string; photoUrl: string; videoUrl?: string | null },
   fetchImpl: typeof fetch = fetch,
 ): Promise<TelegramResult> {
+  const media = post.videoUrl
+    ? { method: "sendVideo", field: { video: post.videoUrl, supports_streaming: true } }
+    : { method: "sendPhoto", field: { photo: post.photoUrl } };
   try {
-    const res = await fetchImpl(`https://api.telegram.org/bot${config.token}/sendPhoto`, {
+    const res = await fetchImpl(`https://api.telegram.org/bot${config.token}/${media.method}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chat_id: config.chatId,
-        photo: post.photoUrl,
+        ...media.field,
         caption: captionOf(post.postHe),
         parse_mode: "HTML",
         reply_markup: buttonsOf(post.productId),

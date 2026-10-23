@@ -67,12 +67,25 @@ export class SupabaseFinderStore implements FinderStore {
     return data.id as string;
   }
 
+  async progress(id: string, percent: number, stage: string): Promise<void> {
+    const { error } = await this.db
+      .from(RUNS)
+      .update({
+        progress: Math.max(0, Math.min(100, Math.round(percent))),
+        stage: stage.slice(0, 120),
+      })
+      .eq("id", id);
+    if (error) fail("progress", error);
+  }
+
   async finishRun(id: string, r: Parameters<FinderStore["finishRun"]>[1]): Promise<void> {
     const { error } = await this.db
       .from(RUNS)
       .update({
         status: r.status,
         finished_at: new Date().toISOString(),
+        progress: 100,
+        stage: null,
         scanned: r.scanned,
         added: r.added,
         ali_calls: r.aliCalls,
@@ -139,11 +152,13 @@ const candidateRow = z.object({
   facebook_error: z.string().nullable().default(null),
   instagram_posted_at: z.string().nullable().default(null),
   instagram_error: z.string().nullable().default(null),
+  video_path: z.string().nullable().default(null),
+  telegram_due_at: z.string().nullable().default(null),
 });
 export type Candidate = z.infer<typeof candidateRow>;
 
 const COLUMNS =
-  "id, product_id, status, commission_pct, product, post_he, why_he, created_at, decided_at, telegram_posted_at, telegram_message_id, telegram_error, facebook_posted_at, facebook_error, instagram_posted_at, instagram_error";
+  "id, product_id, status, commission_pct, product, post_he, why_he, created_at, decided_at, telegram_posted_at, telegram_message_id, telegram_error, facebook_posted_at, facebook_error, instagram_posted_at, instagram_error, video_path, telegram_due_at";
 
 /** Candidates in `status`, newest first (approved: by when they were approved). */
 export async function listCandidates(
@@ -177,6 +192,7 @@ export async function decideCandidate(
   id: string,
   status: CandidateStatus,
   postHe?: string,
+  telegramDueAt?: Date | null,
 ): Promise<void> {
   const { error } = await db
     .from(CANDIDATES)
@@ -184,9 +200,60 @@ export async function decideCandidate(
       status,
       decided_at: status === "pending" ? null : new Date().toISOString(),
       ...(postHe !== undefined ? { post_he: postHe } : {}),
+      // A rejected or removed candidate never goes to Telegram.
+      ...(status === "rejected"
+        ? { telegram_due_at: null }
+        : telegramDueAt !== undefined
+          ? { telegram_due_at: telegramDueAt?.toISOString() ?? null }
+          : {}),
     })
     .eq("id", id);
   if (error) fail("decide", error);
+}
+
+/** The Telegram slots already given to approved posts still to go out (from `now` on). */
+export async function takenTelegramSlots(db: SupabaseClient, now: Date): Promise<Date[]> {
+  const { data, error } = await db
+    .from(CANDIDATES)
+    .select("telegram_due_at")
+    .eq("status", "approved")
+    .is("telegram_posted_at", null)
+    .gte("telegram_due_at", now.toISOString());
+  if (error) fail("slots", error);
+  return (data ?? []).flatMap((r) =>
+    r.telegram_due_at ? [new Date(r.telegram_due_at as string)] : [],
+  );
+}
+
+/** Approved posts whose Telegram slot has come, oldest first, at most `limit`. */
+export async function dueTelegramPosts(
+  db: SupabaseClient,
+  now: Date,
+  limit = 3,
+): Promise<Candidate[]> {
+  const { data, error } = await db
+    .from(CANDIDATES)
+    .select(COLUMNS)
+    .eq("status", "approved")
+    .is("telegram_posted_at", null)
+    .lte("telegram_due_at", now.toISOString())
+    .order("telegram_due_at", { ascending: true })
+    .limit(limit);
+  if (error) fail("due", error);
+  return (data ?? []).flatMap((row) => {
+    const parsed = candidateRow.safeParse(row);
+    return parsed.success ? [parsed.data] : [];
+  });
+}
+
+/** The owner's video for a candidate (its path in the agent-media bucket), or none. */
+export async function setCandidateVideo(
+  db: SupabaseClient,
+  id: string,
+  path: string | null,
+): Promise<void> {
+  const { error } = await db.from(CANDIDATES).update({ video_path: path }).eq("id", id);
+  if (error) fail("video", error);
 }
 
 export async function recordTelegram(
@@ -203,7 +270,8 @@ export async function recordTelegram(
             telegram_message_id: result.messageId,
             telegram_error: null,
           }
-        : { telegram_error: result.error.slice(0, 300) },
+        : // A failed slot is given up (the admin sees why and schedules again).
+          { telegram_error: result.error.slice(0, 300), telegram_due_at: null },
     )
     .eq("id", id);
   if (error) fail("telegram", error);
@@ -234,6 +302,8 @@ export async function recordMeta(
 
 export interface AgentRun {
   id: string;
+  progress: number;
+  stage: string | null;
   trigger: string;
   status: string;
   started_at: string;
@@ -249,7 +319,7 @@ export async function listRuns(db: SupabaseClient, limit = 10): Promise<AgentRun
   const { data, error } = await db
     .from(RUNS)
     .select(
-      "id, trigger, status, started_at, finished_at, scanned, added, ali_calls, cost_usd, note",
+      "id, trigger, status, started_at, finished_at, scanned, added, ali_calls, cost_usd, note, progress, stage",
     )
     .order("started_at", { ascending: false })
     .limit(limit);

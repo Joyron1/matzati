@@ -8,6 +8,7 @@ import { DEFAULT_AGENT_SETTINGS, type AgentSettings } from "../settings";
 import { runFinder, worstCaseCostUsd, type FinderStore, type NewCandidate } from "./run";
 import {
   commissionOf,
+  HOT_BONUS_PCT,
   isCandidate,
   MAX_CANDIDATES_PER_RUN,
   SCAN_CALLS_PER_RUN,
@@ -62,9 +63,14 @@ describe("finder selection", () => {
     expect(commissionOf({ commissionRatePct: null, hotCommissionRatePct: undefined })).toBeNull();
   });
 
-  it("asks 20% and the site's trust bar, an ILS price, a link and a photo", () => {
+  it("asks the standard rate (7%), the site's trust bar, an ILS price, a link and a photo", () => {
     expect(isCandidate(product("1"))).toBe(true);
-    expect(isCandidate(product("1", { hotCommissionRatePct: 19.9 }))).toBe(false);
+    // The hot rate alone never qualifies a product (2026-10-23: unconfirmed).
+    expect(isCandidate(product("1", { commissionRatePct: 3, hotCommissionRatePct: 20 }))).toBe(
+      false,
+    );
+    expect(isCandidate(product("1", { commissionRatePct: 6.9 }))).toBe(false);
+    expect(HOT_BONUS_PCT).toBe(20);
     expect(isCandidate(product("1", { unitsSold: 99 }))).toBe(false);
     expect(isCandidate(product("1", { positiveFeedbackPct: 89 }))).toBe(false);
     expect(isCandidate(product("1", { currency: "USD" }))).toBe(false);
@@ -79,18 +85,19 @@ describe("finder selection", () => {
     ).toBe(false);
   });
 
-  it("never proposes a product twice, one per shop, the best-selling first", () => {
+  it("never proposes a product twice, one per shop, the highest standard rate first", () => {
     const chosen = selectCandidates(
       [
-        product("a", { unitsSold: 200 }),
+        product("a", { unitsSold: 200, commissionRatePct: 9 }),
         product("b", { unitsSold: 5000 }),
         product("c", { unitsSold: 900, shop: { id: "shop-b", name: null, url: null } }),
-        product("d", { unitsSold: 3000 }),
+        product("d", { unitsSold: 3000, commissionRatePct: 12 }),
         product("b", { unitsSold: 5000 }),
+        product("e", { unitsSold: 100 }),
       ],
       new Set(["d"]),
     );
-    expect(chosen.map((p) => p.productId)).toEqual(["b", "a"]);
+    expect(chosen.map((p) => p.productId)).toEqual(["a", "b", "e"]);
     const many = Array.from({ length: 30 }, (_, i) => product(String(i)));
     expect(selectCandidates(many, new Set())).toHaveLength(MAX_CANDIDATES_PER_RUN);
   });
@@ -168,13 +175,18 @@ const LINKS = readFileSync(
   "utf8",
 );
 
-/** The fixture's hot list with its first `n` products paying a 25% hot rate. */
+/** The fixture's hot list with its first `n` products paying a standard 9% (and a hot 25%). */
 function hotList(n: number): string {
   const text = JSON.stringify(HOT);
   let i = 0;
-  return text.replace(/"hot_product_commission_rate":"[^"]*"/g, (m) =>
-    i++ < n ? '"hot_product_commission_rate":"25.0%"' : m,
-  );
+  let j = 0;
+  return text
+    .replace(/"hot_product_commission_rate":"[^"]*"/g, (m) =>
+      i++ < n ? '"hot_product_commission_rate":"25.0%"' : m,
+    )
+    .replace(/"commission_rate":"[^"]*"/g, () =>
+      j++ < n ? '"commission_rate":"9.0%"' : '"commission_rate":"3.0%"',
+    );
 }
 
 class FakeStore implements FinderStore {
@@ -197,6 +209,10 @@ class FakeStore implements FinderStore {
   async startRun() {
     this.runs++;
     return "run-1";
+  }
+  stages: number[] = [];
+  async progress(_id: string, percent: number) {
+    this.stages.push(percent);
   }
   async finishRun(_id: string, r: Parameters<FinderStore["finishRun"]>[1]) {
     this.finished.push(r);
@@ -258,11 +274,14 @@ describe("runFinder", () => {
     const { deps, store, llmCalls, fetchMock } = setup();
     const r = await runFinder("admin", DEFAULT_AGENT_SETTINGS, deps);
     expect(r.status).toBe("ok");
-    expect(r.aliCalls).toBeLessThanOrEqual(SCAN_CALLS_PER_RUN + 1);
+    expect(r.aliCalls).toBeLessThanOrEqual(SCAN_CALLS_PER_RUN + 2); // + hot links + details
     expect(fetchMock.mock.calls.length).toBe(r.aliCalls);
     expect(r.added).toBeGreaterThan(0);
     expect(r.added).toBeLessThanOrEqual(MAX_CANDIDATES_PER_RUN);
-    expect(store.added.every((c) => c.commissionPct >= 20 && c.postHe.length > 0)).toBe(true);
+    expect(store.added.every((c) => c.commissionPct === 9 && c.postHe.length > 0)).toBe(true);
+    // The bar moved forward to the queue.
+    expect(store.stages.at(-1)).toBeGreaterThanOrEqual(90);
+    expect([...store.stages].sort((a, b) => a - b)).toEqual(store.stages);
     // Saved as hot rows before they are queued, so /p and /go work for them.
     expect(store.saved.map((p) => p.productId)).toEqual(store.added.map((c) => c.productId));
     expect(store.saved.every((p) => p.source === "hot")).toBe(true);
@@ -282,12 +301,12 @@ describe("runFinder", () => {
     expect(r.added).toBeGreaterThan(0);
   });
 
-  it("queues nothing new when nothing pays 20%", async () => {
+  it("queues nothing new when nothing pays the standard rate", async () => {
     const { deps, store } = setup(0);
     const r = await runFinder("admin", ON, deps);
     expect(r.added).toBe(0);
     expect(store.added).toHaveLength(0);
-    expect(r.note).toMatch(/20%/);
+    expect(r.note).toMatch(/standard rate/);
   });
 
   it("bounds a writer call's cost by the model", () => {

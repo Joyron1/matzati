@@ -2,20 +2,19 @@
 // candidates (./select.ts), give them hot links, save them as products (so /p and /go work), write
 // their posts (./write.ts) within the daily budget, and queue them for the owner's approval.
 // Dependencies are passed in, so the run is tested without the network or the database.
-import { generateLinks, HOT_LINK_TYPE, queryHotProducts } from "@/lib/aliexpress/affiliate";
+import {
+  generateLinks,
+  getProductDetails,
+  HOT_LINK_TYPE,
+  queryHotProducts,
+} from "@/lib/aliexpress/affiliate";
 import type { AliExpressClient } from "@/lib/aliexpress/client";
 import type { AliProduct } from "@/lib/aliexpress/schemas";
 import { hotLinkSources, withHotLinks } from "@/lib/hot/links";
 import { costUsd } from "@/lib/llm/pricing";
 import type { LlmProvider, LlmUsage } from "@/lib/llm/provider";
 import type { AgentSettings } from "../settings";
-import {
-  commissionOf,
-  MAX_CANDIDATES_PER_RUN,
-  scanTargets,
-  selectCandidates,
-  targetsForRun,
-} from "./select";
+import { MAX_CANDIDATES_PER_RUN, scanTargets, selectCandidates, targetsForRun } from "./select";
 import { WRITE_TOKENS, writePosts } from "./write";
 
 export interface NewCandidate {
@@ -35,6 +34,8 @@ export interface FinderStore {
   /** The ids among `ids` already proposed, whatever became of them. */
   knownProductIds(ids: string[]): Promise<Set<string>>;
   startRun(trigger: "cron" | "admin"): Promise<string>;
+  /** How far the run is (0-100) and what it is doing, for the admin's progress bar. */
+  progress(id: string, percent: number, stage: string): Promise<void>;
   finishRun(
     id: string,
     result: {
@@ -104,6 +105,9 @@ export async function runFinder(
 
   const runIndex = await store.runCount();
   const runId = await store.startRun(trigger);
+  // Never fails the run: the bar is a convenience.
+  const step = (percent: number, stage: string) =>
+    store.progress(runId, percent, stage).catch(() => undefined);
   const result: FinderResult = {
     status: "ok",
     scanned: 0,
@@ -116,7 +120,12 @@ export async function runFinder(
     // 1. Scan: each list once, spaced; a failed list is skipped (another run will reach it).
     const found: AliProduct[] = [];
     const failed: string[] = [];
-    for (const target of targetsForRun(scanTargets(), runIndex)) {
+    const targets = targetsForRun(scanTargets(), runIndex);
+    for (const [i, target] of targets.entries()) {
+      await step(
+        5 + Math.round((i / targets.length) * 55),
+        `סורק רשימה ${i + 1} מתוך ${targets.length}`,
+      );
       if (result.aliCalls > 0) await sleep(spacing);
       result.aliCalls++;
       try {
@@ -141,16 +150,18 @@ export async function runFinder(
     }
 
     // 2. Choose: never a product proposed before.
+    await step(62, "בוחר מוצרים לפי עמלה, משוב ומכירות");
     const known = await store.knownProductIds([...new Set(found.map((p) => p.productId))]);
     let chosen = selectCandidates(found, known, { max: MAX_CANDIDATES_PER_RUN });
     if (!chosen.length) {
-      result.note = "no new product paid 20% or more and passed the filters";
+      result.note = "no new product paid the standard rate and passed the filters";
       return result;
     }
 
     // 3. Hot links where AliExpress offers the hot rate (one call); a failure keeps the list's.
     const sources = hotLinkSources(chosen);
     if (sources.length) {
+      await step(68, "יוצר קישורי Hot");
       await sleep(spacing);
       result.aliCalls++;
       try {
@@ -160,10 +171,36 @@ export async function runFinder(
         console.error(`[finder] hot links: ${String(err).slice(0, 200)}`);
       }
     }
+    // 4. Every photo and the video, from one productdetail.get for all of them (the owner exports
+    // them for the motion video, owner request 2026-10-23); a failure keeps the list's photos.
+    await step(74, "מושך תמונות ווידאו");
+    await sleep(spacing);
+    result.aliCalls++;
+    try {
+      const details = await getProductDetails(
+        ali,
+        chosen.map((p) => p.productId),
+        "HE",
+      );
+      const byId = new Map(details.products.map((d) => [d.productId, d]));
+      chosen = chosen.map((p) => {
+        const d = byId.get(p.productId);
+        if (!d) return p;
+        return {
+          ...p,
+          imageUrls: [...new Set([...p.imageUrls, ...d.imageUrls])],
+          videoUrl: d.videoUrl ?? p.videoUrl ?? null,
+        };
+      });
+    } catch (err) {
+      console.error(`[finder] details: ${String(err).slice(0, 200)}`);
+    }
     const rows = chosen.map((p) => ({ ...p, source: "hot" as const }));
+    await step(80, "שומר את המוצרים");
     await store.saveProducts(rows, now());
 
-    // 4. Posts, within the daily budget (else from the data).
+    // 5. Posts, within the daily budget (else from the data).
+    await step(84, "כותב פוסטים");
     const spent = await store.spentTodayUsd(now());
     const affordable =
       deps.llm !== null &&
@@ -176,14 +213,16 @@ export async function runFinder(
     if (!affordable)
       result.note = deps.llm ? "budget: posts from the data" : "no LLM key: posts from the data";
 
-    // 5. Queue.
+    // 6. Queue.
+    await step(96, "מכניס לתור האישור");
     result.added = await store.insertCandidates(
       runId,
       rows.map((p) => {
         const post = written.posts.get(p.productId)!;
         return {
           productId: p.productId,
-          commissionPct: commissionOf(p) ?? 0,
+          // The standard rate (the hot rate stays in the product, shown as a bonus).
+          commissionPct: p.commissionRatePct ?? 0,
           product: p,
           postHe: post.post_he,
           whyHe: post.why_he,

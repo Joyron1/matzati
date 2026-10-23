@@ -1,17 +1,20 @@
-// The product finder's choices (owner request 2026-10-19), pure: which hot lists a run scans and
-// which of their products become candidates. Code decides; the model only writes the posts.
+// The product finder's choices (owner requests 2026-10-19 and 10-23), pure: which hot lists a run
+// scans and which of their products become candidates. Code decides; the model only writes posts.
 //
-// A candidate pays 20% or more (MIN_COMMISSION_PCT: the hot rate when AliExpress offers one, else
-// the standard rate) AND passes FILTERS (the site's trust bar), has an ILS price and a link, is in
-// no excluded category, and was never proposed before. Measured 2026-10-19: of 5,565 products seen
-// in 30 days, 21 met both, all from hot lists (hot_product_commission_rate), none from searches; so
-// the finder scans hot lists, rotating through the catalog's categories and pages.
+// A candidate's STANDARD rate (commission_rate, the one Portals shows) is MIN_STANDARD_PCT or more,
+// AND it passes FILTERS (the site's trust bar), has an ILS price, a link and a photo, is in no
+// excluded category, and was never proposed before. The hot rate (hot_product_commission_rate of
+// hotproduct.query, paid only through a type 2 hot link and UNCONFIRMED: on 2026-10-23 a USB hub
+// listed 20% hot showed 3% in Portals) is only a bonus: shown to the owner, and it breaks ties.
 import type { AliProduct } from "@/lib/aliexpress/schemas";
 import { CATALOG } from "@/lib/catalog/categories";
 import { inExcludedCategory } from "@/lib/hot/select";
 import { trustTierOf } from "@/lib/ranking/rank";
 
-export const MIN_COMMISSION_PCT = 20;
+/** The standard rate a candidate must pay (owner decision 2026-10-23; the average seen is 7%). */
+export const MIN_STANDARD_PCT = 7;
+/** A hot rate from this up is flagged to the owner as a possible bonus (unconfirmed). */
+export const HOT_BONUS_PCT = 20;
 /** Candidates added per run at most (owner decision 2026-10-19). */
 export const MAX_CANDIDATES_PER_RUN = 10;
 /** hotproduct.query calls per run: about 10 s with AliExpress's spacing. */
@@ -63,12 +66,11 @@ export function commissionOf(
   return rates.length ? Math.max(...rates) : null;
 }
 
-/** A product that may be proposed: high commission and everything a hot list asks of a product. */
-export function isCandidate(p: AliProduct, minCommission = MIN_COMMISSION_PCT): boolean {
-  const commission = commissionOf(p);
+/** A product that may be proposed: the standard rate and everything a hot list asks of one. */
+export function isCandidate(p: AliProduct, minStandard = MIN_STANDARD_PCT): boolean {
   return (
-    commission !== null &&
-    commission >= minCommission &&
+    p.commissionRatePct !== null &&
+    p.commissionRatePct >= minStandard &&
     p.currency === "ILS" &&
     Boolean(p.promotionLink) &&
     trustTierOf(p) === "standard" &&
@@ -79,20 +81,22 @@ export function isCandidate(p: AliProduct, minCommission = MIN_COMMISSION_PCT): 
 
 /**
  * The run's candidates: once per product, never one already proposed (`known`), at most PER_SHOP
- * per shop, the best-selling first (sales prove the product; the rate only qualifies it), up to
- * `max`.
+ * per shop, the highest standard rate first, then the best-selling, then the higher hot rate, up
+ * to `max`.
  */
 export function selectCandidates(
   products: readonly AliProduct[],
   known: ReadonlySet<string>,
-  { max = MAX_CANDIDATES_PER_RUN, minCommission = MIN_COMMISSION_PCT } = {},
+  { max = MAX_CANDIDATES_PER_RUN, minStandard = MIN_STANDARD_PCT } = {},
 ): AliProduct[] {
   const unique = [...new Map(products.map((p) => [p.productId, p])).values()];
   const ranked = unique
-    .filter((p) => !known.has(p.productId) && isCandidate(p, minCommission))
+    .filter((p) => !known.has(p.productId) && isCandidate(p, minStandard))
     .sort(
       (a, b) =>
+        (b.commissionRatePct ?? 0) - (a.commissionRatePct ?? 0) ||
         (b.unitsSold ?? 0) - (a.unitsSold ?? 0) ||
+        (b.hotCommissionRatePct ?? 0) - (a.hotCommissionRatePct ?? 0) ||
         (b.positiveFeedbackPct ?? 0) - (a.positiveFeedbackPct ?? 0) ||
         a.productId.localeCompare(b.productId),
     );

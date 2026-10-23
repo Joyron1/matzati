@@ -1,55 +1,49 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Bot, Check, Play, Send, X } from "lucide-react";
+import { Bot, Check, Download, Send, Trash2, X } from "lucide-react";
 import { ProductImage } from "@/components/product-image";
-import { btnMd, btnPrimary, btnSecondary, card } from "@/components/styles";
+import { btnMd, btnPrimary, btnSecondary, btnSm, card } from "@/components/styles";
 import { requireAdmin } from "@/lib/admin/auth";
-import { MIN_COMMISSION_PCT } from "@/lib/agents/finder/select";
+import { HOT_BONUS_PCT, MIN_STANDARD_PCT } from "@/lib/agents/finder/select";
+import { slotLabel, TELEGRAM_SLOTS } from "@/lib/agents/schedule";
+import { signedVideoUrl } from "@/lib/agents/server";
 import { AGENT_MODELS, readAgentSettings } from "@/lib/agents/settings";
 import { listCandidates, listRuns, type AgentRun, type Candidate } from "@/lib/agents/store";
 import { formatCount, formatDateTime } from "@/lib/format";
 import { hotTitle } from "@/lib/product-title";
 import { firstParam } from "@/lib/search-url";
 import { serviceClient } from "@/lib/supabase/server";
-import { metaConfig } from "@/lib/meta/publish";
 import { telegramConfig } from "@/lib/telegram/client";
 import { inputClass } from "../settings/form-parts";
 import { StatusMessage } from "../status-message";
-import { approveAction, rejectAction, runFinderAction, saveAgentSettingsAction } from "./actions";
+import { approveAction, rejectAction, saveAgentSettingsAction, videoRemoveAction } from "./actions";
+import { RunFinder } from "./run-finder";
+import { VideoUpload } from "./video-upload";
 
 export const metadata: Metadata = {
-  title: "סוכנים", // the admin layout adds "| ניהול | <brand>"
+  title: "פאנל טלגרם", // the admin layout adds "| ניהול | <brand>"
   robots: { index: false, follow: false },
 };
-
-// A run can take most of a minute (8 AliExpress lists and one writer call).
-export const maxDuration = 60;
 
 const STATUS: Record<string, string> = {
   saved: "ההגדרות נשמרו.",
   invalid: "משהו בטופס לא תקין. נסו שוב.",
   "save-failed": "לא הצלחנו לשמור. נסו שוב.",
-  "run-failed": "הריצה נכשלה. הפרטים בטבלת הריצות.",
   approved: "המוצר אושר ומופיע עכשיו במומלצים באתר.",
-  "approved-channels": "המוצר אושר, מופיע במומלצים ופורסם בערוצים שבחרתם.",
-  "approved-channel-off":
-    "המוצר אושר ומופיע במומלצים. חלק מהערוצים שבחרתם כבויים או עוד לא מחוברים, ושם הוא לא פורסם.",
-  "approved-channel-failed":
-    "המוצר אושר ומופיע במומלצים, אבל הפרסום באחד הערוצים נכשל. הסיבה מופיעה ברשימת המאושרים.",
+  "approved-telegram-off":
+    "המוצר אושר ומופיע במומלצים. לטלגרם הוא לא תוזמן: הפרסום כבוי או שהערוץ עוד לא מחובר.",
   "approve-failed": "לא הצלחנו לאשר. נסו שוב.",
-  rejected: "המוצר הוסר מהרשימה ולא יוצע שוב.",
+  rejected: "המוצר הוסר ולא יוצע שוב.",
   "reject-failed": "לא הצלחנו להסיר. נסו שוב.",
+  "video-removed": "הסרטון הוסר מהמוצר. בטלגרם תעלה התמונה.",
+  "video-failed": "לא הצלחנו להסיר את הסרטון. נסו שוב.",
 };
 
-function statusText(status: string): string | null {
-  if (STATUS[status]) return STATUS[status];
-  const run = /^run-(\d+)$/.exec(status);
-  if (run) {
-    return Number(run[1]) > 0
-      ? `הריצה הסתיימה: ${run[1]} מוצרים חדשים ממתינים לאישור.`
-      : "הריצה הסתיימה בלי מוצרים חדשים. ריצה הבאה תסרוק קטגוריות אחרות.";
+function statusText(status: string, at: string): string | null {
+  if (status === "approved-scheduled") {
+    return `המוצר אושר, מופיע במומלצים ותוזמן לטלגרם: ${at}.`;
   }
-  return null;
+  return STATUS[status] ?? null;
 }
 
 const RUN_STATUS: Record<string, string> = {
@@ -69,6 +63,20 @@ function money(usd: number) {
   return `$${usd < 0.01 && usd > 0 ? usd.toFixed(4) : usd.toFixed(2)}`;
 }
 
+/** /api/admin/media: downloads an AliExpress photo or video as a file. */
+function downloadHref(url: string, name: string) {
+  return `/api/admin/media?${new URLSearchParams({ url, name }).toString()}`;
+}
+
+async function withVideoUrls(list: Candidate[]) {
+  return Promise.all(
+    list.map(async (c) => ({
+      c,
+      videoPreview: c.video_path ? await signedVideoUrl(c.video_path, 3600) : null,
+    })),
+  );
+}
+
 async function load() {
   const db = serviceClient();
   const [settings, pending, approved, runs] = await Promise.all([
@@ -77,38 +85,40 @@ async function load() {
     listCandidates(db, "approved", 30),
     listRuns(db, 10),
   ]);
-  return { ...settings, pending, approved, runs };
+  return {
+    ...settings,
+    pending: await withVideoUrls(pending),
+    approved: await withVideoUrls(approved),
+    runs,
+  };
 }
 
 export default async function AgentsPage({ searchParams }: PageProps<"/admin/agents">) {
   await requireAdmin();
-  const status = statusText(firstParam((await searchParams).status));
+  const params = await searchParams;
+  const status = statusText(firstParam(params.status), firstParam(params.at));
   let data: Awaited<ReturnType<typeof load>> | null = null;
   try {
     data = await load();
   } catch (err) {
     console.error(`[admin-agents] load: ${String(err).slice(0, 300)}`);
   }
-  const meta = metaConfig();
-  const ready: Ready = {
-    telegram: telegramConfig() !== null,
-    facebook: meta !== null,
-    instagram: meta?.igUserId != null,
-  };
+  const telegramReady = telegramConfig() !== null;
 
   return (
     <div className="mx-auto max-w-6xl space-y-10 px-4 pt-8 sm:px-6 sm:pt-12">
       <div className="space-y-2">
-        <h1 className="font-display text-4xl">סוכנים</h1>
+        <h1 className="font-display text-4xl">פאנל טלגרם</h1>
         <p className="max-w-prose text-muted">
-          סוכן מציאת המוצרים סורק את רשימות המוצרים החמים של אלי אקספרס ומחפש מוצרים שמשלמים עמלה של{" "}
-          {MIN_COMMISSION_PCT}% ומעלה ועוברים את הסינון שלנו (משוב ומכירות). הוא כותב לכל אחד פוסט,
-          והם מחכים כאן לאישור שלכם. מוצר שאישרתם מופיע ב
+          סוכן מציאת המוצרים סורק את רשימות המוצרים החמים של אלי אקספרס ומחפש מוצרים שהעמלה הרגילה
+          שלהם <bdi dir="ltr">{MIN_STANDARD_PCT}%</bdi> ומעלה ושעוברים את הסינון שלנו (משוב
+          ומכירות). לכל מוצר: התמונות והווידאו להורדה, מקום להעלות סרטון שהכנתם, ופוסט שאפשר לערוך.
+          מוצר שאישרתם מופיע מיד ב
           <Link href="/recommended" className="font-semibold text-accent-ink underline">
             מומלצים
           </Link>{" "}
-          ובדף הבית, ואם תבחרו, גם בטלגרם, בעמוד הפייסבוק ובאינסטגרם. שום דבר לא מתפרסם בלי אישור
-          שלכם.
+          ומתוזמן לערוץ הטלגרם (בשעות <bdi dir="ltr">{TELEGRAM_SLOTS.join(", ")}</bdi>, אף פעם לא
+          משישי <bdi dir="ltr">17:00</bdi> עד שבת <bdi dir="ltr">19:30</bdi>).
         </p>
       </div>
 
@@ -116,22 +126,14 @@ export default async function AgentsPage({ searchParams }: PageProps<"/admin/age
 
       {!data ? (
         <p className={`${card} p-5 text-muted`}>
-          לא הצלחנו לטעון את הנתונים. אם זו הפעם הראשונה, ודאו שהמיגרציה{" "}
-          <bdi dir="ltr" className="font-mono">
-            20261019120000_agents
-          </bdi>{" "}
-          הוחלה.
+          לא הצלחנו לטעון את הנתונים. ודאו שהמיגרציות של הסוכנים הוחלו.
         </p>
       ) : (
         <>
-          <Settings settings={data.settings} ready={ready} />
+          <Settings settings={data.settings} telegramReady={telegramReady} />
           <Queue
             pending={data.pending}
-            on={{
-              telegram: data.settings.telegramEnabled && ready.telegram,
-              facebook: data.settings.facebookEnabled && ready.facebook,
-              instagram: data.settings.instagramEnabled && ready.instagram,
-            }}
+            telegramOn={data.settings.telegramEnabled && telegramReady}
           />
           <Approved approved={data.approved} />
           <Runs runs={data.runs} />
@@ -141,43 +143,12 @@ export default async function AgentsPage({ searchParams }: PageProps<"/admin/age
   );
 }
 
-/** Which channels are configured in Vercel (their variables are set). */
-interface Ready {
-  telegram: boolean;
-  facebook: boolean;
-  instagram: boolean;
-}
-
-const CHANNELS = [
-  {
-    key: "telegram",
-    setting: "telegramEnabled",
-    label: "פרסום בטלגרם כשמאשרים",
-    short: "טלגרם",
-    missing: "צריך להגדיר TELEGRAM_BOT_TOKEN ו־TELEGRAM_CHAT_ID ב־Vercel",
-  },
-  {
-    key: "facebook",
-    setting: "facebookEnabled",
-    label: "פרסום בעמוד הפייסבוק כשמאשרים",
-    short: "פייסבוק",
-    missing: "צריך להגדיר META_PAGE_ID ו־META_PAGE_ACCESS_TOKEN ב־Vercel",
-  },
-  {
-    key: "instagram",
-    setting: "instagramEnabled",
-    label: "פרסום באינסטגרם כשמאשרים",
-    short: "אינסטגרם",
-    missing: "צריך להגדיר גם META_IG_USER_ID ב־Vercel",
-  },
-] as const;
-
 function Settings({
   settings,
-  ready,
+  telegramReady,
 }: {
   settings: Awaited<ReturnType<typeof readAgentSettings>>["settings"];
-  ready: Ready;
+  telegramReady: boolean;
 }) {
   return (
     <section aria-labelledby="agent-settings" className={`${card} space-y-5 p-5 sm:p-6`}>
@@ -186,6 +157,9 @@ function Settings({
         הגדרות
       </h2>
       <form action={saveAgentSettingsAction} className="space-y-5">
+        {/* Meta's switches live in its own panel (phase 2); kept here unchanged. */}
+        {settings.facebookEnabled && <input type="hidden" name="facebookEnabled" value="on" />}
+        {settings.instagramEnabled && <input type="hidden" name="instagramEnabled" value="on" />}
         <fieldset className="space-y-2">
           <legend className="font-semibold">המודל שכותב לסוכנים</legend>
           {AGENT_MODELS.map((m) => (
@@ -231,36 +205,52 @@ function Settings({
             <span className="text-sm text-muted">· פעמיים ביום, עד 10 מוצרים בכל ריצה</span>
           </span>
         </label>
-        {CHANNELS.map((ch) => (
-          <label key={ch.key} className="flex min-h-11 items-center gap-3">
-            <input
-              type="checkbox"
-              name={ch.setting}
-              defaultChecked={settings[ch.setting]}
-              className="size-5 accent-[var(--accent)]"
-            />
-            <span>
-              <span className="font-semibold">{ch.label}</span>{" "}
-              <span className="text-sm text-muted">
-                · {ready[ch.key] ? "מחובר" : `עוד לא מחובר: ${ch.missing}`}
-              </span>
+        <label className="flex min-h-11 items-center gap-3">
+          <input
+            type="checkbox"
+            name="telegramEnabled"
+            defaultChecked={settings.telegramEnabled}
+            className="size-5 accent-[var(--accent)]"
+          />
+          <span>
+            <span className="font-semibold">תזמון לטלגרם כשמאשרים</span>{" "}
+            <span className="text-sm text-muted">
+              ·{" "}
+              {telegramReady
+                ? "הערוץ מחובר"
+                : "הערוץ עוד לא מחובר: צריך להגדיר TELEGRAM_BOT_TOKEN ו־TELEGRAM_CHAT_ID ב־Vercel"}
             </span>
-          </label>
-        ))}
+          </span>
+        </label>
         <button type="submit" className={`${btnPrimary} ${btnMd}`}>
           שמירה
         </button>
       </form>
-      <form action={runFinderAction} className="border-t border-line pt-5">
-        <button type="submit" className={`${btnSecondary} ${btnMd}`}>
-          <Play aria-hidden className="size-[18px]" />
-          הרצה עכשיו
-        </button>
-        <p className="mt-2 text-sm text-muted">
-          סורקת 8 רשימות (בערך דקה). עולה כמו ריצה רגילה: בערך סנט אחד עם Haiku.
-        </p>
-      </form>
+      <div className="border-t border-line pt-5">
+        <RunFinder />
+      </div>
     </section>
+  );
+}
+
+function Rates({ c }: { c: Candidate }) {
+  const p = c.product;
+  const hot = p.hotCommissionRatePct ?? null;
+  return (
+    <p className="text-sm">
+      <span className="font-semibold">עמלה רגילה:</span>{" "}
+      <bdi dir="ltr" className="font-bold">
+        {p.commissionRatePct ?? "-"}%
+      </bdi>
+      {hot !== null && hot > (p.commissionRatePct ?? 0) && (
+        <>
+          {" · "}
+          <span className={hot >= HOT_BONUS_PCT ? "font-semibold text-accent-ink" : "text-muted"}>
+            עמלת Hot: <bdi dir="ltr">{hot}%</bdi> (לא מאומת)
+          </span>
+        </>
+      )}
+    </p>
   );
 }
 
@@ -281,12 +271,6 @@ function ProductFacts({ c }: { c: Candidate }) {
         </dd>
       </div>
       <div className="flex gap-1">
-        <dt>עמלה:</dt>
-        <dd className="font-bold text-ink">
-          <bdi dir="ltr">{c.commission_pct}%</bdi>
-        </dd>
-      </div>
-      <div className="flex gap-1">
         <dt>משוב:</dt>
         <dd className="text-ink">
           <bdi dir="ltr">{p.positiveFeedbackPct ?? "-"}%</bdi>
@@ -302,7 +286,81 @@ function ProductFacts({ c }: { c: Candidate }) {
   );
 }
 
-function Queue({ pending, on }: { pending: Candidate[]; on: Ready }) {
+/** Every photo and the AliExpress video, each downloadable as a file (for the motion video). */
+function Media({ c }: { c: Candidate }) {
+  const p = c.product;
+  const photos = p.imageUrls.length ? p.imageUrls : [p.mainImageUrl];
+  return (
+    <details className="rounded-xl border border-line p-3">
+      <summary className="cursor-pointer text-sm font-semibold">
+        תמונות ווידאו להורדה (<bdi dir="ltr">{photos.length}</bdi> תמונות
+        {p.videoUrl ? " ווידאו" : ", אין וידאו"})
+      </summary>
+      <ul className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5">
+        {photos.map((url, i) => (
+          <li key={url} className="space-y-1">
+            <ProductImage
+              src={url}
+              alt=""
+              className="aspect-square w-full rounded-lg border border-line"
+              iconClassName="size-6"
+              sizes="120px"
+            />
+            <a
+              href={downloadHref(url, `${c.product_id}-${i + 1}.jpg`)}
+              className="flex min-h-11 items-center justify-center gap-1 text-xs font-semibold text-accent-ink underline"
+            >
+              <Download aria-hidden className="size-3.5" />
+              הורדה
+            </a>
+          </li>
+        ))}
+      </ul>
+      {p.videoUrl && (
+        <a
+          href={downloadHref(p.videoUrl, `${c.product_id}-video.mp4`)}
+          className={`${btnSecondary} ${btnSm} mt-3 inline-flex gap-1`}
+        >
+          <Download aria-hidden className="size-4" />
+          הורדת הווידאו של המוצר
+        </a>
+      )}
+    </details>
+  );
+}
+
+function OwnVideo({ c, preview }: { c: Candidate; preview: string | null }) {
+  return (
+    <div className="space-y-2">
+      {preview && (
+        <div className="flex items-start gap-3">
+          <video
+            src={preview}
+            controls
+            preload="metadata"
+            className="h-40 rounded-lg border border-line bg-black"
+          />
+          <form action={videoRemoveAction}>
+            <input type="hidden" name="id" value={c.id} />
+            <button type="submit" className={`${btnSecondary} ${btnSm} gap-1`}>
+              <Trash2 aria-hidden className="size-4" />
+              הסרה
+            </button>
+          </form>
+        </div>
+      )}
+      <VideoUpload candidateId={c.id} hasVideo={Boolean(c.video_path)} />
+    </div>
+  );
+}
+
+function Queue({
+  pending,
+  telegramOn,
+}: {
+  pending: { c: Candidate; videoPreview: string | null }[];
+  telegramOn: boolean;
+}) {
   return (
     <section aria-labelledby="queue" className="space-y-4">
       <h2 id="queue" className="font-display text-2xl">
@@ -313,9 +371,9 @@ function Queue({ pending, on }: { pending: Candidate[]; on: Ready }) {
           אין כרגע מוצרים שממתינים. הסוכן ימצא חדשים בריצה הבאה, או לחצו ״הרצה עכשיו״.
         </p>
       ) : (
-        <ul className="grid gap-4 lg:grid-cols-2">
-          {pending.map((c) => (
-            <li key={c.id} className={`${card} space-y-3 p-4`}>
+        <ul className="space-y-4">
+          {pending.map(({ c, videoPreview }) => (
+            <li key={c.id} className={`${card} space-y-4 p-4 sm:p-5`}>
               <div className="flex gap-3">
                 <ProductImage
                   src={c.product.imageUrls[0] ?? c.product.mainImageUrl}
@@ -331,6 +389,7 @@ function Queue({ pending, on }: { pending: Candidate[]; on: Ready }) {
                   >
                     {hotTitle(c.product.title)}
                   </Link>
+                  <Rates c={c} />
                   <ProductFacts c={c} />
                   {c.why_he && <p className="text-sm text-muted">{c.why_he}</p>}
                   {c.product.price < SUSPECT_PRICE_ILS && (
@@ -341,37 +400,31 @@ function Queue({ pending, on }: { pending: Candidate[]; on: Ready }) {
                   )}
                 </div>
               </div>
+              <Media c={c} />
+              <OwnVideo c={c} preview={videoPreview} />
               <form action={approveAction} className="space-y-3">
                 <input type="hidden" name="id" value={c.id} />
                 <label className="block space-y-1">
-                  <span className="text-sm font-semibold">הפוסט (אפשר לערוך)</span>
+                  <span className="text-sm font-semibold">הפוסט לטלגרם (אפשר לערוך)</span>
                   <textarea
                     name="post"
-                    rows={5}
+                    rows={6}
                     maxLength={1000}
                     defaultValue={c.post_he}
                     className={`${inputClass} leading-relaxed`}
                   />
                 </label>
-                <fieldset className="flex flex-wrap gap-x-5 gap-y-1">
-                  <legend className="mb-1 flex items-center gap-1.5 text-sm font-semibold">
-                    <Send aria-hidden className="size-4" />
-                    לפרסם גם ב:
-                  </legend>
-                  {CHANNELS.map((ch) => (
-                    <label key={ch.key} className="flex min-h-11 items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        name={ch.key}
-                        defaultChecked={on[ch.key]}
-                        disabled={!on[ch.key]}
-                        className="size-5 accent-[var(--accent)]"
-                      />
-                      {ch.short}
-                      {!on[ch.key] && <span className="text-muted">(כבוי)</span>}
-                    </label>
-                  ))}
-                </fieldset>
+                <label className="flex min-h-11 items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    name="telegram"
+                    defaultChecked={telegramOn}
+                    disabled={!telegramOn}
+                    className="size-5 accent-[var(--accent)]"
+                  />
+                  <Send aria-hidden className="size-4" />
+                  {telegramOn ? "לתזמן לטלגרם (לשעה הפנויה הבאה)" : "טלגרם כבוי או לא מחובר"}
+                </label>
                 <div className="flex flex-wrap gap-2">
                   <button type="submit" className={`${btnPrimary} ${btnMd}`}>
                     <Check aria-hidden className="size-[18px]" />
@@ -395,21 +448,22 @@ function Queue({ pending, on }: { pending: Candidate[]; on: Ready }) {
   );
 }
 
-function channelNote(name: string, postedAt: string | null, error: string | null): string {
-  if (postedAt) return ` · פורסם ב${name}`;
-  if (error) return ` · ${name} נכשל: ${error}`;
+function telegramNote(c: Candidate): string {
+  if (c.telegram_posted_at) return ` · פורסם בטלגרם ${formatDateTime(c.telegram_posted_at)}`;
+  if (c.telegram_due_at) return ` · מתוזמן לטלגרם: ${slotLabel(new Date(c.telegram_due_at))}`;
+  if (c.telegram_error) return ` · טלגרם נכשל: ${c.telegram_error}`;
   return "";
 }
 
-function Approved({ approved }: { approved: Candidate[] }) {
+function Approved({ approved }: { approved: { c: Candidate; videoPreview: string | null }[] }) {
   if (!approved.length) return null;
   return (
     <section aria-labelledby="approved" className="space-y-4">
       <h2 id="approved" className="font-display text-2xl">
-        במומלצים באתר <span className="text-muted">({approved.length})</span>
+        מאושרים <span className="text-muted">({approved.length})</span>
       </h2>
       <ul className={`${card} divide-y divide-line`}>
-        {approved.map((c) => (
+        {approved.map(({ c }) => (
           <li key={c.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
             <div className="min-w-0 space-y-1">
               <Link
@@ -419,11 +473,10 @@ function Approved({ approved }: { approved: Candidate[] }) {
                 {hotTitle(c.product.title)}
               </Link>
               <p className="text-sm text-muted">
-                אושר {c.decided_at ? formatDateTime(c.decided_at) : ""} · עמלה{" "}
-                <bdi dir="ltr">{c.commission_pct}%</bdi>
-                {channelNote("טלגרם", c.telegram_posted_at, c.telegram_error)}
-                {channelNote("פייסבוק", c.facebook_posted_at, c.facebook_error)}
-                {channelNote("אינסטגרם", c.instagram_posted_at, c.instagram_error)}
+                אושר {c.decided_at ? formatDateTime(c.decided_at) : ""} · עמלה רגילה{" "}
+                <bdi dir="ltr">{c.product.commissionRatePct ?? "-"}%</bdi>
+                {c.video_path ? " · עם סרטון" : ""}
+                {telegramNote(c)}
               </p>
             </div>
             <form action={rejectAction}>
@@ -469,7 +522,15 @@ function Runs({ runs }: { runs: AgentRun[] }) {
                 <tr key={r.id} className="border-b border-line last:border-0">
                   <td className="px-3 py-2.5 whitespace-nowrap">{formatDateTime(r.started_at)}</td>
                   <td className="px-3 py-2.5">{r.trigger === "cron" ? "אוטומטית" : "ידנית"}</td>
-                  <td className="px-3 py-2.5">{RUN_STATUS[r.status] ?? r.status}</td>
+                  <td className="px-3 py-2.5">
+                    {RUN_STATUS[r.status] ?? r.status}
+                    {r.status === "running" && (
+                      <>
+                        {" "}
+                        <bdi dir="ltr">{r.progress}%</bdi>
+                      </>
+                    )}
+                  </td>
                   <td className="px-3 py-2.5">
                     <bdi dir="ltr">{formatCount(r.scanned)}</bdi>
                   </td>
