@@ -30,6 +30,8 @@ export async function saveAgentSettingsAction(formData: FormData): Promise<void>
     dailyBudgetUsd: Number(formData.get("dailyBudgetUsd")),
     finderEnabled: formData.get("finderEnabled") === "on",
     telegramEnabled: formData.get("telegramEnabled") === "on",
+    facebookEnabled: formData.get("facebookEnabled") === "on",
+    instagramEnabled: formData.get("instagramEnabled") === "on",
   });
   if (!parsed.success || !AGENT_MODELS.some((m) => m.id === parsed.data.model)) back("invalid");
   try {
@@ -64,19 +66,24 @@ export async function approveAction(formData: FormData): Promise<void> {
   await requireAdmin();
   const parsed = decisionSchema.safeParse({ id: formData.get("id"), post: formData.get("post") });
   if (!parsed.success) back("invalid");
-  const telegram = formData.get("telegram") === "on";
+  const channels = {
+    telegram: formData.get("telegram") === "on",
+    facebook: formData.get("facebook") === "on",
+    instagram: formData.get("instagram") === "on",
+  };
   let status = "approve-failed";
   try {
-    const r = await approveCandidate(parsed.data.id, parsed.data.post, telegram);
+    const r = await approveCandidate(parsed.data.id, parsed.data.post, channels);
+    const answers = [r.telegram, r.facebook, r.instagram].filter((a) => a !== undefined);
     status = !r.ok
       ? "approve-failed"
-      : r.telegram === undefined
+      : !answers.length
         ? "approved"
-        : r.telegram === "off"
-          ? "approved-telegram-off"
-          : r.telegram.ok
-            ? "approved-telegram"
-            : "approved-telegram-failed";
+        : answers.some((a) => a !== "off" && !a.ok)
+          ? "approved-channel-failed"
+          : answers.some((a) => a === "off")
+            ? "approved-channel-off"
+            : "approved-channels";
   } catch (err) {
     unstable_rethrow(err);
     logError("approve", err);

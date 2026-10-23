@@ -11,6 +11,7 @@ import { formatCount, formatDateTime } from "@/lib/format";
 import { hotTitle } from "@/lib/product-title";
 import { firstParam } from "@/lib/search-url";
 import { serviceClient } from "@/lib/supabase/server";
+import { metaConfig } from "@/lib/meta/publish";
 import { telegramConfig } from "@/lib/telegram/client";
 import { inputClass } from "../settings/form-parts";
 import { StatusMessage } from "../status-message";
@@ -30,11 +31,11 @@ const STATUS: Record<string, string> = {
   "save-failed": "לא הצלחנו לשמור. נסו שוב.",
   "run-failed": "הריצה נכשלה. הפרטים בטבלת הריצות.",
   approved: "המוצר אושר ומופיע עכשיו במומלצים באתר.",
-  "approved-telegram": "המוצר אושר, מופיע במומלצים ופורסם בטלגרם.",
-  "approved-telegram-off":
-    "המוצר אושר ומופיע במומלצים. לא פורסם בטלגרם: הפרסום כבוי או שהערוץ עוד לא מחובר.",
-  "approved-telegram-failed":
-    "המוצר אושר ומופיע במומלצים, אבל הפרסום בטלגרם נכשל. הסיבה מופיעה בכרטיס.",
+  "approved-channels": "המוצר אושר, מופיע במומלצים ופורסם בערוצים שבחרתם.",
+  "approved-channel-off":
+    "המוצר אושר ומופיע במומלצים. חלק מהערוצים שבחרתם כבויים או עוד לא מחוברים, ושם הוא לא פורסם.",
+  "approved-channel-failed":
+    "המוצר אושר ומופיע במומלצים, אבל הפרסום באחד הערוצים נכשל. הסיבה מופיעה ברשימת המאושרים.",
   "approve-failed": "לא הצלחנו לאשר. נסו שוב.",
   rejected: "המוצר הוסר מהרשימה ולא יוצע שוב.",
   "reject-failed": "לא הצלחנו להסיר. נסו שוב.",
@@ -88,7 +89,12 @@ export default async function AgentsPage({ searchParams }: PageProps<"/admin/age
   } catch (err) {
     console.error(`[admin-agents] load: ${String(err).slice(0, 300)}`);
   }
-  const telegramReady = telegramConfig() !== null;
+  const meta = metaConfig();
+  const ready: Ready = {
+    telegram: telegramConfig() !== null,
+    facebook: meta !== null,
+    instagram: meta?.igUserId != null,
+  };
 
   return (
     <div className="mx-auto max-w-6xl space-y-10 px-4 pt-8 sm:px-6 sm:pt-12">
@@ -101,7 +107,8 @@ export default async function AgentsPage({ searchParams }: PageProps<"/admin/age
           <Link href="/recommended" className="font-semibold text-accent-ink underline">
             מומלצים
           </Link>{" "}
-          ובדף הבית, ואם תבחרו, גם בערוץ הטלגרם.
+          ובדף הבית, ואם תבחרו, גם בטלגרם, בעמוד הפייסבוק ובאינסטגרם. שום דבר לא מתפרסם בלי אישור
+          שלכם.
         </p>
       </div>
 
@@ -117,10 +124,14 @@ export default async function AgentsPage({ searchParams }: PageProps<"/admin/age
         </p>
       ) : (
         <>
-          <Settings settings={data.settings} telegramReady={telegramReady} />
+          <Settings settings={data.settings} ready={ready} />
           <Queue
             pending={data.pending}
-            telegramOn={data.settings.telegramEnabled && telegramReady}
+            on={{
+              telegram: data.settings.telegramEnabled && ready.telegram,
+              facebook: data.settings.facebookEnabled && ready.facebook,
+              instagram: data.settings.instagramEnabled && ready.instagram,
+            }}
           />
           <Approved approved={data.approved} />
           <Runs runs={data.runs} />
@@ -130,12 +141,43 @@ export default async function AgentsPage({ searchParams }: PageProps<"/admin/age
   );
 }
 
+/** Which channels are configured in Vercel (their variables are set). */
+interface Ready {
+  telegram: boolean;
+  facebook: boolean;
+  instagram: boolean;
+}
+
+const CHANNELS = [
+  {
+    key: "telegram",
+    setting: "telegramEnabled",
+    label: "פרסום בטלגרם כשמאשרים",
+    short: "טלגרם",
+    missing: "צריך להגדיר TELEGRAM_BOT_TOKEN ו־TELEGRAM_CHAT_ID ב־Vercel",
+  },
+  {
+    key: "facebook",
+    setting: "facebookEnabled",
+    label: "פרסום בעמוד הפייסבוק כשמאשרים",
+    short: "פייסבוק",
+    missing: "צריך להגדיר META_PAGE_ID ו־META_PAGE_ACCESS_TOKEN ב־Vercel",
+  },
+  {
+    key: "instagram",
+    setting: "instagramEnabled",
+    label: "פרסום באינסטגרם כשמאשרים",
+    short: "אינסטגרם",
+    missing: "צריך להגדיר גם META_IG_USER_ID ב־Vercel",
+  },
+] as const;
+
 function Settings({
   settings,
-  telegramReady,
+  ready,
 }: {
   settings: Awaited<ReturnType<typeof readAgentSettings>>["settings"];
-  telegramReady: boolean;
+  ready: Ready;
 }) {
   return (
     <section aria-labelledby="agent-settings" className={`${card} space-y-5 p-5 sm:p-6`}>
@@ -189,23 +231,22 @@ function Settings({
             <span className="text-sm text-muted">· פעמיים ביום, עד 10 מוצרים בכל ריצה</span>
           </span>
         </label>
-        <label className="flex min-h-11 items-center gap-3">
-          <input
-            type="checkbox"
-            name="telegramEnabled"
-            defaultChecked={settings.telegramEnabled}
-            className="size-5 accent-[var(--accent)]"
-          />
-          <span>
-            <span className="font-semibold">פרסום בטלגרם כשמאשרים</span>{" "}
-            <span className="text-sm text-muted">
-              ·{" "}
-              {telegramReady
-                ? "הערוץ מחובר"
-                : "הערוץ עוד לא מחובר: צריך להגדיר TELEGRAM_BOT_TOKEN ו־TELEGRAM_CHAT_ID ב־Vercel"}
+        {CHANNELS.map((ch) => (
+          <label key={ch.key} className="flex min-h-11 items-center gap-3">
+            <input
+              type="checkbox"
+              name={ch.setting}
+              defaultChecked={settings[ch.setting]}
+              className="size-5 accent-[var(--accent)]"
+            />
+            <span>
+              <span className="font-semibold">{ch.label}</span>{" "}
+              <span className="text-sm text-muted">
+                · {ready[ch.key] ? "מחובר" : `עוד לא מחובר: ${ch.missing}`}
+              </span>
             </span>
-          </span>
-        </label>
+          </label>
+        ))}
         <button type="submit" className={`${btnPrimary} ${btnMd}`}>
           שמירה
         </button>
@@ -261,7 +302,7 @@ function ProductFacts({ c }: { c: Candidate }) {
   );
 }
 
-function Queue({ pending, telegramOn }: { pending: Candidate[]; telegramOn: boolean }) {
+function Queue({ pending, on }: { pending: Candidate[]; on: Ready }) {
   return (
     <section aria-labelledby="queue" className="space-y-4">
       <h2 id="queue" className="font-display text-2xl">
@@ -312,17 +353,25 @@ function Queue({ pending, telegramOn }: { pending: Candidate[]; telegramOn: bool
                     className={`${inputClass} leading-relaxed`}
                   />
                 </label>
-                <label className="flex min-h-11 items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    name="telegram"
-                    defaultChecked={telegramOn}
-                    disabled={!telegramOn}
-                    className="size-5 accent-[var(--accent)]"
-                  />
-                  <Send aria-hidden className="size-4" />
-                  {telegramOn ? "לפרסם גם בטלגרם" : "טלגרם כבוי או לא מחובר"}
-                </label>
+                <fieldset className="flex flex-wrap gap-x-5 gap-y-1">
+                  <legend className="mb-1 flex items-center gap-1.5 text-sm font-semibold">
+                    <Send aria-hidden className="size-4" />
+                    לפרסם גם ב:
+                  </legend>
+                  {CHANNELS.map((ch) => (
+                    <label key={ch.key} className="flex min-h-11 items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        name={ch.key}
+                        defaultChecked={on[ch.key]}
+                        disabled={!on[ch.key]}
+                        className="size-5 accent-[var(--accent)]"
+                      />
+                      {ch.short}
+                      {!on[ch.key] && <span className="text-muted">(כבוי)</span>}
+                    </label>
+                  ))}
+                </fieldset>
                 <div className="flex flex-wrap gap-2">
                   <button type="submit" className={`${btnPrimary} ${btnMd}`}>
                     <Check aria-hidden className="size-[18px]" />
@@ -346,6 +395,12 @@ function Queue({ pending, telegramOn }: { pending: Candidate[]; telegramOn: bool
   );
 }
 
+function channelNote(name: string, postedAt: string | null, error: string | null): string {
+  if (postedAt) return ` · פורסם ב${name}`;
+  if (error) return ` · ${name} נכשל: ${error}`;
+  return "";
+}
+
 function Approved({ approved }: { approved: Candidate[] }) {
   if (!approved.length) return null;
   return (
@@ -366,11 +421,9 @@ function Approved({ approved }: { approved: Candidate[] }) {
               <p className="text-sm text-muted">
                 אושר {c.decided_at ? formatDateTime(c.decided_at) : ""} · עמלה{" "}
                 <bdi dir="ltr">{c.commission_pct}%</bdi>
-                {c.telegram_posted_at
-                  ? " · פורסם בטלגרם"
-                  : c.telegram_error
-                    ? ` · טלגרם נכשל: ${c.telegram_error}`
-                    : ""}
+                {channelNote("טלגרם", c.telegram_posted_at, c.telegram_error)}
+                {channelNote("פייסבוק", c.facebook_posted_at, c.facebook_error)}
+                {channelNote("אינסטגרם", c.instagram_posted_at, c.instagram_error)}
               </p>
             </div>
             <form action={rejectAction}>

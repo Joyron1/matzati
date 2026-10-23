@@ -11,6 +11,7 @@ import type { LlmProvider } from "@/lib/llm/provider";
 import { hotTitle } from "@/lib/product-title";
 import { toResultProduct } from "@/lib/search/pipeline";
 import { serviceClient } from "@/lib/supabase/server";
+import { metaConfig, publishFacebook, publishInstagram, type MetaResult } from "@/lib/meta/publish";
 import { postProduct, telegramConfig, type TelegramResult } from "@/lib/telegram/client";
 import type { ResultProduct } from "@/lib/types";
 import { runFinder, type FinderResult } from "./finder/run";
@@ -19,6 +20,7 @@ import {
   decideCandidate,
   getCandidate,
   listCandidates,
+  recordMeta,
   recordTelegram,
   SupabaseFinderStore,
 } from "./store";
@@ -116,35 +118,68 @@ export const recommendedProducts = unstable_cache(
 
 // --- The admin's decisions ----------------------------------------------------------------------
 
+/** The channels an approval may post to, besides the site (which always shows it). */
+export interface Channels {
+  telegram: boolean;
+  facebook: boolean;
+  instagram: boolean;
+}
+
 export interface DecisionResult {
   ok: boolean;
-  /** Set when the product was also sent to Telegram (or that failed). */
+  /** Per channel asked: what it answered, or "off" (switched off or not configured). */
   telegram?: TelegramResult | "off";
+  facebook?: MetaResult | "off";
+  instagram?: MetaResult | "off";
 }
 
 /**
  * Approves a candidate with the post as the owner left it: shown on the site at once, and posted
- * to Telegram when `telegram` is asked, the admin's switch is on and the channel is configured.
- * Call from a server action that checked requireAdmin() (it expires the cached list).
+ * to each channel asked whose admin switch is on and which is configured (Telegram, the Facebook
+ * Page, its Instagram account; owner decision 2026-10-23: every post approved by hand). Each
+ * channel's answer is stored on the candidate; one failing never stops the others. Call from a
+ * server action that checked requireAdmin() (it expires the cached list).
  */
 export async function approveCandidate(
   id: string,
   postHe: string,
-  telegram: boolean,
+  channels: Channels,
 ): Promise<DecisionResult> {
   const db = serviceClient();
   const candidate = await getCandidate(db, id);
   if (!candidate) return { ok: false };
   await decideCandidate(db, id, "approved", postHe);
   updateTag(RECOMMENDED_TAG);
-  if (!telegram) return { ok: true };
+  const out: DecisionResult = { ok: true };
+  if (!channels.telegram && !channels.facebook && !channels.instagram) return out;
   const { settings } = await readAgentSettings(db);
-  const config = telegramConfig();
-  if (!settings.telegramEnabled || !config) return { ok: true, telegram: "off" };
   const photoUrl = candidate.product.imageUrls[0] ?? candidate.product.mainImageUrl;
-  const result = await postProduct(config, { productId: candidate.product_id, postHe, photoUrl });
-  await recordTelegram(db, id, result);
-  return { ok: true, telegram: result };
+  const productId = candidate.product_id;
+
+  if (channels.telegram) {
+    const config = telegramConfig();
+    if (!settings.telegramEnabled || !config) out.telegram = "off";
+    else {
+      out.telegram = await postProduct(config, { productId, postHe, photoUrl });
+      await recordTelegram(db, id, out.telegram);
+    }
+  }
+  const meta = metaConfig();
+  if (channels.facebook) {
+    if (!settings.facebookEnabled || !meta) out.facebook = "off";
+    else {
+      out.facebook = await publishFacebook(meta, { productId, postHe });
+      await recordMeta(db, id, "facebook", out.facebook);
+    }
+  }
+  if (channels.instagram) {
+    if (!settings.instagramEnabled || !meta?.igUserId) out.instagram = "off";
+    else {
+      out.instagram = await publishInstagram(meta, { productId, postHe, photoUrl });
+      await recordMeta(db, id, "instagram", out.instagram);
+    }
+  }
+  return out;
 }
 
 /** Rejects a pending candidate, or takes an approved one off the site (never proposed again). */

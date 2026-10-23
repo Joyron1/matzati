@@ -82,7 +82,7 @@ export const AFFILIATE_SECTION_ID = "affiliate";
  * changes in substance.
  */
 export const LEGAL_UPDATED_AT: Record<LegalPage, string> = {
-  terms: "2026-10-19",
+  terms: "2026-10-23",
   privacy: "2026-10-04",
   cookies: "2026-10-04",
   accessibility: "2026-10-03",

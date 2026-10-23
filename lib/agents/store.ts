@@ -135,11 +135,15 @@ const candidateRow = z.object({
   telegram_posted_at: z.string().nullable(),
   telegram_message_id: z.string().nullable(),
   telegram_error: z.string().nullable(),
+  facebook_posted_at: z.string().nullable().default(null),
+  facebook_error: z.string().nullable().default(null),
+  instagram_posted_at: z.string().nullable().default(null),
+  instagram_error: z.string().nullable().default(null),
 });
 export type Candidate = z.infer<typeof candidateRow>;
 
 const COLUMNS =
-  "id, product_id, status, commission_pct, product, post_he, why_he, created_at, decided_at, telegram_posted_at, telegram_message_id, telegram_error";
+  "id, product_id, status, commission_pct, product, post_he, why_he, created_at, decided_at, telegram_posted_at, telegram_message_id, telegram_error, facebook_posted_at, facebook_error, instagram_posted_at, instagram_error";
 
 /** Candidates in `status`, newest first (approved: by when they were approved). */
 export async function listCandidates(
@@ -203,6 +207,29 @@ export async function recordTelegram(
     )
     .eq("id", id);
   if (error) fail("telegram", error);
+}
+
+/** What Facebook or Instagram answered for an approved candidate. */
+export async function recordMeta(
+  db: SupabaseClient,
+  id: string,
+  channel: "facebook" | "instagram",
+  result: { ok: true; id: string } | { ok: false; error: string },
+): Promise<void> {
+  const idColumn = channel === "facebook" ? "facebook_post_id" : "instagram_media_id";
+  const { error } = await db
+    .from(CANDIDATES)
+    .update(
+      result.ok
+        ? {
+            [idColumn]: result.id,
+            [`${channel}_posted_at`]: new Date().toISOString(),
+            [`${channel}_error`]: null,
+          }
+        : { [`${channel}_error`]: result.error.slice(0, 300) },
+    )
+    .eq("id", id);
+  if (error) fail(channel, error);
 }
 
 export interface AgentRun {

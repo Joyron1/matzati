@@ -23,6 +23,9 @@ export const agentSettingsSchema = z.object({
   finderEnabled: z.boolean(),
   /** An approved product is also posted to the Telegram channel (when it is configured). */
   telegramEnabled: z.boolean(),
+  /** ... and to the Facebook Page / its Instagram account (owner request 2026-10-23). */
+  facebookEnabled: z.boolean().default(false),
+  instagramEnabled: z.boolean().default(false),
 });
 export type AgentSettings = z.infer<typeof agentSettingsSchema>;
 
@@ -32,6 +35,8 @@ export const DEFAULT_AGENT_SETTINGS: AgentSettings = {
   dailyBudgetUsd: 1,
   finderEnabled: false,
   telegramEnabled: false,
+  facebookEnabled: false,
+  instagramEnabled: false,
 };
 
 /** The stored settings, or the defaults when none are saved or the row does not parse. */
