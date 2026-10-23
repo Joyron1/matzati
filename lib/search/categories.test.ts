@@ -132,14 +132,14 @@ describe("the fetch with assigned categories", () => {
 });
 
 describe("cache keys with assigned categories", () => {
+  const plain: ParsedQuery = { ...RC, category_guess: undefined };
+
   it("separate the results of a guessed search from an unguessed one", () => {
-    const { category_guess: _, ...plain } = RC;
     expect(filtersKey(RC, "none")).not.toBe(filtersKey(plain, "none"));
     expect(simpleResultsKey(RC)).not.toBe(simpleResultsKey(plain));
   });
 
   it("follow the page's own category when there is one", () => {
-    const { category_guess: _, ...plain } = RC;
     expect(filtersKey({ ...RC, category_id: "44" }, "none")).toBe(
       filtersKey({ ...plain, category_id: "44" }, "none"),
     );
