@@ -29,7 +29,8 @@ const cachedOrders = unstable_cache(
       return null;
     }
   },
-  ["affiliate-orders", "2"] // 2: amounts in cents (2026-10-23),
+  // Key version 2: amounts in cents (2026-10-23), so amounts cached before are not served.
+  ["affiliate-orders", "2"],
   { revalidate: 3600 },
 );
 
