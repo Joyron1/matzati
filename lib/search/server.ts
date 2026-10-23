@@ -160,7 +160,8 @@ const guardEnvSchema = z.object({
   ),
 });
 
-function guardEnv() {
+/** IP_HASH_SALT and DAILY_SEARCH_CAP; throws ConfigError when they are invalid. */
+export function guardEnv() {
   const parsed = guardEnvSchema.safeParse(process.env);
   if (!parsed.success) {
     throw new ConfigError([...new Set(parsed.error.issues.map((i) => String(i.path[0])))]);

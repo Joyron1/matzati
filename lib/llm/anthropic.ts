@@ -27,7 +27,20 @@ export class AnthropicProvider implements LlmProvider {
         model: this.model,
         max_tokens: req.maxTokens,
         system: req.system,
-        messages: [{ role: "user", content: req.user }],
+        messages: [
+          {
+            role: "user",
+            content: req.images?.length
+              ? [
+                  ...req.images.map((img) => ({
+                    type: "image" as const,
+                    source: { type: "base64" as const, media_type: img.mediaType, data: img.data },
+                  })),
+                  { type: "text" as const, text: req.user },
+                ]
+              : req.user,
+          },
+        ],
         output_config: { format },
         ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
       },

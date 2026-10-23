@@ -21,6 +21,8 @@ export interface StructuredRequest<T extends z.ZodType> {
   timeoutMs?: number;
   /** Retries of a failed attempt (network, timeout, 5xx, rate limit); omitted means the default. */
   maxRetries?: number;
+  /** Images sent before the user text (search by image), base64 without a data: prefix. */
+  images?: { mediaType: "image/jpeg" | "image/png" | "image/webp"; data: string }[];
 }
 
 export interface StructuredResult<T> {
