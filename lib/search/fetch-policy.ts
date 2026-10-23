@@ -231,7 +231,24 @@ export function keywordLadder(parsed: ParsedQuery): string[] {
 export interface FetchStep {
   keywords: string;
   pageNo: number;
+  /** The assigned categories (a comma list) when the call is limited to them. */
+  categoryIds?: string;
 }
+
+/**
+ * The categories a search's calls are limited to, from the parse (category_guess), while they
+ * work: none when the page set its own category (the pipeline sends that one on every call), and
+ * none once a call was made without them (the fallback below).
+ */
+export function guessedCategories(s: Pick<FetchProgress, "filters" | "calls">): string | undefined {
+  const guess = s.filters.category_id ? [] : (s.filters.category_guess ?? []);
+  if (!guess.length) return undefined;
+  if (s.calls.some((c) => !c.categoryIds)) return undefined;
+  return guess.join(",");
+}
+
+const withCategory = (step: FetchStep, categoryIds: string | undefined): FetchStep =>
+  categoryIds ? { ...step, categoryIds } : step;
 
 /** A call already made, with what it brought. */
 export interface FetchedPage extends FetchStep {
@@ -274,9 +291,10 @@ function nextPrimaryPage(
   passed: number,
   primaryPages: number,
   fillTo: number,
+  categoryIds: string | undefined,
 ): FetchStep | null {
   const last = s.calls
-    .filter((c) => c.keywords === primary)
+    .filter((c) => c.keywords === primary && c.categoryIds === categoryIds)
     .reduce<FetchedPage | null>((a, c) => (a && a.pageNo >= c.pageNo ? a : c), null);
   if (!last || last.pageNo >= primaryPages || last.count === 0) return null;
   const more =
@@ -286,7 +304,7 @@ function nextPrimaryPage(
   const bar =
     passed < fillTo ? Math.min(FILL_TIER.minUnitsSold, FILTERS.minUnitsSold) : FILTERS.minUnitsSold;
   if (!more || last.lowestUnitsSold === null || last.lowestUnitsSold < bar) return null;
-  return { keywords: primary, pageNo: last.pageNo + 1 };
+  return withCategory({ keywords: primary, pageNo: last.pageNo + 1 }, categoryIds);
 }
 
 // Steps that keep the requirement words come before "reduced", which drops them: a product found
@@ -313,10 +331,16 @@ export function nextFetch(
 ): FetchDecision {
   const steps = keywordSteps(s.filters);
   const primary = steps[0].keywords;
-  if (!s.calls.length) return { step: { keywords: primary, pageNo: 1 } };
+  const categoryIds = guessedCategories(s);
+  if (!s.calls.length) return { step: withCategory({ keywords: primary, pageNo: 1 }, categoryIds) };
   if (s.calls.length >= maxCalls) return { stop: "calls" };
   const passed = passedCount(s.pool, s.filters, fillTo);
   if (passed >= target) return { stop: "enough" };
+  // The assigned categories found under a page: the primary keywords again without them (a wrong or
+  // too narrow guess never hides the products), and every later call goes without them too.
+  if (categoryIds && passed < RESULTS_PER_PAGE) {
+    return { step: { keywords: primary, pageNo: 1 } };
+  }
   if (
     s.pool.length >= REQUIREMENT_STOP_CHECKED &&
     requirementBlocksAll(s.pool, s.filters, passed)
@@ -325,17 +349,20 @@ export function nextFetch(
   }
   const r = rejectionCounts([...s.pool], s.filters);
   const trustLimited = r.feedback + r.volume > r.type + r.requirement;
-  const page = nextPrimaryPage(s, primary, passed, primaryPages, fillTo);
+  const page = nextPrimaryPage(s, primary, passed, primaryPages, fillTo, categoryIds);
   // Page 2 of keywords whose products were all of another type brings more of the same: another phrasing
   // first (live SEO page "מזוודה לילדים", 2026-10-04: five pages of "kids suitcase" were stickers
   // "for suitcase", and "kids luggage" was never tried).
   // A requirement that blocks keeps page 2: REQUIREMENT_STOP_CHECKED needs its 100 products.
   const typeBlockedAll = passed === 0 && r.type > r.requirement;
   if (page && !trustLimited && !typeBlockedAll) return { step: page };
-  const tried = new Set(s.calls.map((c) => wordSet(c.keywords)));
+  // A step counts as tried in the same mode (with or without the categories).
+  const tried = new Set(
+    s.calls.filter((c) => c.categoryIds === categoryIds).map((c) => wordSet(c.keywords)),
+  );
   for (const kind of trustLimited ? TRUST_ORDER : RELEVANCE_ORDER) {
     const step = steps.find((k) => k.kind === kind && !tried.has(wordSet(k.keywords)));
-    if (step) return { step: { keywords: step.keywords, pageNo: 1 } };
+    if (step) return { step: withCategory({ keywords: step.keywords, pageNo: 1 }, categoryIds) };
   }
   return page ? { step: page } : { stop: "exhausted" };
 }

@@ -459,10 +459,12 @@ export async function fetchAndRank(
       meta.fetchStop = "time";
       break;
     }
-    const { keywords, pageNo } = decision.step;
+    const { keywords, pageNo, categoryIds } = decision.step;
     if (meta.aliCalls > 0) await deps.sleep(deps.aliSpacingMs);
     meta.aliCalls++;
-    meta.keywordsTried.push(pageNo > 1 ? `${keywords} (p${pageNo})` : keywords);
+    meta.keywordsTried.push(
+      `${keywords}${pageNo > 1 ? ` (p${pageNo})` : ""}${categoryIds ? ` [cat ${categoryIds}]` : ""}`,
+    );
     let products: AliProduct[];
     let totalRecords: number | null;
     try {
@@ -472,8 +474,13 @@ export async function fetchAndRank(
         minPriceIls: parsed.min_price_ils,
         maxPriceIls: parsed.max_price_ils,
         sort: FETCH_SORT,
-        // A search limited to a category (/search?cat=): every call, every keyword step.
-        ...(parsed.category_id ? { categoryIds: parsed.category_id } : {}),
+        // A search limited to a category (/search?cat=): every call, every keyword step; else the
+        // parse's assigned categories while the policy keeps them (lib/search/fetch-policy.ts).
+        ...(parsed.category_id
+          ? { categoryIds: parsed.category_id }
+          : categoryIds
+            ? { categoryIds }
+            : {}),
       }));
     } catch (err) {
       if (!calls.length || !(err instanceof AliExpressError)) throw err;
@@ -485,6 +492,7 @@ export async function fetchAndRank(
     calls.push({
       keywords,
       pageNo,
+      ...(categoryIds ? { categoryIds } : {}),
       count: products.length,
       totalRecords,
       lowestUnitsSold: lowestUnitsSold(products),
@@ -1132,19 +1140,31 @@ async function simpleSearch(
     await state.chargeOnce();
     let checked = 0;
     const products = await timed(run, meta, "fetch_ms", async () => {
-      meta.aliCalls++;
-      meta.keywordsTried.push(filters.keywords_en);
       meta.fetchStop = "calls";
-      try {
-        const page = await queryProducts(deps.ali, {
+      const query = async (categoryIds: string | undefined) => {
+        if (meta.aliCalls > 0) await sleep(deps.aliSpacingMs ?? 1_100);
+        meta.aliCalls++;
+        meta.keywordsTried.push(
+          `${filters.keywords_en}${categoryIds ? ` [cat ${categoryIds}]` : ""}`,
+        );
+        return queryProducts(deps.ali, {
           keywords: filters.keywords_en,
           pageNo: 1,
           sort: FETCH_SORT,
           language: "HE",
           minPriceIls: filters.min_price_ils,
           maxPriceIls: filters.max_price_ils,
-          ...(filters.category_id ? { categoryIds: filters.category_id } : {}),
+          ...(categoryIds ? { categoryIds } : {}),
         });
+      };
+      try {
+        // The page's category, else the parse's assigned ones; under a page of products in them,
+        // one more call without (as the smart search's fetch does).
+        const guess = filters.category_id ? undefined : filters.category_guess?.join(",");
+        let page = await query(filters.category_id ?? guess);
+        if (guess && simpleShowable(page.products).length < RESULTS_PER_PAGE) {
+          page = await query(undefined);
+        }
         checked = page.products.length;
         const kept = simpleShowable(page.products);
         const linked = await ensureLinks(deps.ali, kept, meta, sleep, deps.aliSpacingMs ?? 1_100);

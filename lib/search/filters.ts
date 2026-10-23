@@ -54,4 +54,11 @@ export interface ParsedQuery extends SearchFilters {
   product_he: string;
   /** Broader English category, used by the keyword fallback ladder. */
   category_hint?: string;
+  /**
+   * The AliExpress first-level categories the parse assigned (owner request 2026-10-23; at most 2,
+   * lib/search/categories.ts). The fetch sends them as category_ids until too few pass, then drops
+   * them (lib/search/fetch-policy.ts); a page's own category (category_id) wins. Part of the
+   * results cache key.
+   */
+  category_guess?: string[];
 }

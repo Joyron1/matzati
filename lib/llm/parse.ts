@@ -1,6 +1,7 @@
 // Job (a): parse a free-Hebrew query into structured search filters (CLAUDE.md §6.3, contract in
 // lib/search/filters.ts). Price chips are rendered by code from the numbers, never by the model.
 import { z } from "zod";
+import { CATEGORY_RULE, knownCategoryIds } from "@/lib/search/categories";
 import { normalizePhrase, parseSpec } from "@/lib/ranking/match";
 import { SYNONYM_GROUPS } from "@/lib/ranking/synonyms";
 import type { ParsedQuery, Preference, Requirement } from "@/lib/search/filters";
@@ -17,7 +18,7 @@ import { fixSpelling } from "./text-checks";
 // (the `preferences` field; owner request 2026-09-30: no Sonic balloon shown said "3"). 9: with a
 // number preference the product terms lose the number (withoutNumbers: "number 5 balloon" turned
 // away gold number balloons).
-export const PARSE_VERSION = 9;
+export const PARSE_VERSION = 10;
 
 const MAX_KEYWORD_WORDS = 6;
 const MAX_PRODUCT_TERMS = 4;
@@ -51,14 +52,19 @@ export const parsedQuerySchema = z.object({
   max_price_ils: z.number().nullable(),
   sort_preference: z.enum(["best_value", "cheapest", "most_popular"]),
   category_hint: z.string().nullable(),
+  // PARSE_VERSION 10 (owner request 2026-10-23): ids from lib/search/categories.ts.
+  category_ids: z.array(z.string()),
 });
 
 /**
  * The model's answer. `preferences` is optional here only for answers recorded before PARSE_VERSION
  * 8 (fixtures, the offline replay): the schema the model answers with always has it.
  */
-export type ParsedQueryRaw = Omit<z.infer<typeof parsedQuerySchema>, "preferences"> &
-  Partial<Pick<z.infer<typeof parsedQuerySchema>, "preferences">>;
+export type ParsedQueryRaw = Omit<
+  z.infer<typeof parsedQuerySchema>,
+  "preferences" | "category_ids"
+> &
+  Partial<Pick<z.infer<typeof parsedQuerySchema>, "preferences" | "category_ids">>;
 
 // Examples are deliberately different from the eval queries (fixtures/llm/), so the eval keeps
 // measuring generalization.
@@ -79,10 +85,11 @@ Fix typos and slang (רמקל=רמקול). "גן ילדים", or "לגן"/"בג�
 - min/max_price_ils: a shekel budget only (ש״ח, ₪ or a bare number): עד/בפחות מ/מתחת ל X -> max; מ/מעל/לפחות X -> min; בין X ל־Y -> both. Ages, sizes, specs and models (בת 5, 2 מטר, S24) are not prices. Otherwise null.
 - sort_preference: cheapest for הכי זול, most_popular for popular or best-selling, else best_value.
 - category_hint: broader 2-3 word English phrase or null.
+${CATEGORY_RULE}
 
 Hebrew labels (product_he, requirement he): short and spelled right, the usual phrase ("אטום לדליפות"), with ״ ׳ never ASCII quotes (ס״מ). Never a price.
 
-Example: "מנורת שולחן מתקפלת נטענת למשרד עד 120 ש״ח" -> {"product_he":"מנורת שולחן למשרד","product_terms":["desk lamp","table lamp"],"requirements":[{"en":"foldable","alt":["folding"],"he":"מתקפלת"},{"en":"rechargeable","alt":["usb charging","built-in battery"],"he":"נטענת"}],"preferences":[],"keywords_en":"foldable desk lamp","min_price_ils":null,"max_price_ils":120,"sort_preference":"best_value","category_hint":"office lighting"}`;
+Example: "מנורת שולחן מתקפלת נטענת למשרד עד 120 ש״ח" -> {"product_he":"מנורת שולחן למשרד","product_terms":["desk lamp","table lamp"],"requirements":[{"en":"foldable","alt":["folding"],"he":"מתקפלת"},{"en":"rechargeable","alt":["usb charging","built-in battery"],"he":"נטענת"}],"preferences":[],"keywords_en":"foldable desk lamp","min_price_ils":null,"max_price_ils":120,"sort_preference":"best_value","category_hint":"office lighting","category_ids":["39"]}`;
 
 // Sent on a retry. The parse runs at temperature 0, so repeating the same request would mostly
 // repeat the same unusable answer.
@@ -593,6 +600,7 @@ export function normalizeParsedWithFixes(
   const hint = raw.category_hint === null ? "" : english(raw.category_hint);
   const category = noGarden ? withoutGarden(hint) : hint;
 
+  const guess = knownCategoryIds(raw.category_ids);
   const dropped: Preference[] = [];
   const ages: Preference[] = [];
   // Against the model's own terms: an added plain term must not turn a phrase every term says
@@ -616,6 +624,7 @@ export function normalizeParsedWithFixes(
     sort_preference: raw.sort_preference,
     product_he: hebrew(raw.product_he) || productTerms[0],
     ...(category ? { category_hint: category } : {}),
+    ...(guess.length ? { category_guess: guess } : {}),
   };
   return { parsed, fixes };
 }

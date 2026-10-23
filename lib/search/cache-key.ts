@@ -78,7 +78,7 @@ const label = (he: string) => fixSpelling(he.replace(/\s+/g, " ").trim());
  * shares a key with the unrestricted one.
  */
 export function canonicalFilters(
-  f: SearchFilters & Partial<Pick<ParsedQuery, "category_hint" | "product_he">>,
+  f: SearchFilters & Partial<Pick<ParsedQuery, "category_hint" | "product_he" | "category_guess">>,
   shopCap: ShopCapMode,
 ) {
   const round = (n: number | undefined) => (n === undefined ? null : Math.round(n));
@@ -101,11 +101,13 @@ export function canonicalFilters(
     max: round(f.max_price_ils),
     s: f.sort_preference,
     ...(f.category_id ? { c: f.category_id } : {}),
+    // The assigned categories, only when the page set none (that one wins); absent before 2026-10-23.
+    ...(!f.category_id && f.category_guess?.length ? { g: f.category_guess } : {}),
   };
 }
 
 export function filtersKey(
-  f: SearchFilters & Partial<Pick<ParsedQuery, "category_hint" | "product_he">>,
+  f: SearchFilters & Partial<Pick<ParsedQuery, "category_hint" | "product_he" | "category_guess">>,
   shopCap: ShopCapMode,
 ): string {
   return sha256(`f2:${JSON.stringify(canonicalFilters(f, shopCap))}`);
@@ -119,6 +121,7 @@ export function filtersKey(
 export function simpleResultsKey(
   f: Pick<SearchFilters, "keywords_en" | "min_price_ils" | "max_price_ils"> & {
     category_id?: string;
+    category_guess?: string[];
   },
 ): string {
   const round = (n: number | undefined) => (n === undefined ? null : Math.round(n));
@@ -128,6 +131,7 @@ export function simpleResultsKey(
       min: round(f.min_price_ils),
       max: round(f.max_price_ils),
       c: f.category_id ?? null,
+      ...(!f.category_id && f.category_guess?.length ? { g: f.category_guess } : {}),
     })}`,
   );
 }

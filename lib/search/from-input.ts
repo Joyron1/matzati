@@ -7,6 +7,7 @@ import "server-only";
 import { z } from "zod";
 import { normalizeParsed, parsedQuerySchema } from "@/lib/llm/parse";
 import type { LlmProvider, LlmUsage } from "@/lib/llm/provider";
+import { CATEGORY_RULE } from "@/lib/search/categories";
 import type { ParsedQuery } from "@/lib/search/filters";
 
 /** The query the search runs: 2 to 80 characters, Hebrew or Latin letters. */
@@ -23,6 +24,7 @@ const IMAGE_SYSTEM = `You see a photo a shopper uploaded to find this exact prod
 - preferences: [].
 - min_price_ils and max_price_ils: null. sort_preference: "best_value". category_hint: a 1 to 3 word English category, or null.
 - query_he: a short Hebrew line (2 to 6 words) naming the product as a shopper would type it, Latin names kept as shown.
+${CATEGORY_RULE}
 If the photo shows no product, return empty keywords_en, product_terms and query_he.`;
 
 /**
@@ -45,6 +47,7 @@ const LINK_SYSTEM = `You get the name of a product from an online store page (an
 - preferences: [].
 - min_price_ils and max_price_ils: null. sort_preference: "best_value". category_hint: a 1 to 3 word English category, or null.
 - query_he: a short Hebrew line (2 to 6 words) naming the product as a shopper would type it, Latin names kept as written.
+${CATEGORY_RULE}
 If the text names no product, return empty keywords_en, product_terms and query_he.`;
 
 function cleanQuery(raw: string | undefined): string | null {
