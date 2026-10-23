@@ -228,6 +228,39 @@ export async function approveCandidate(
   return { ok: true, telegramAt: telegram ? at : undefined };
 }
 
+export type PublishNowResult =
+  | { ok: true }
+  | { ok: false; reason: "missing" | "not-connected" | "already" | "telegram"; error?: string };
+
+/**
+ * "פרסום עכשיו" (owner request 2026-10-23, for tests): posts the candidate to Telegram at once,
+ * outside the slots and the quiet time (only the scheduled posts keep them). A pending candidate is
+ * approved first with the post as the owner left it. Needs the channel configured, not the admin's
+ * switch. Call from a server action that checked requireAdmin().
+ */
+export async function publishNow(id: string, postHe?: string): Promise<PublishNowResult> {
+  const config = telegramConfig();
+  if (!config) return { ok: false, reason: "not-connected" };
+  const db = serviceClient();
+  const candidate = await getCandidate(db, id);
+  if (!candidate || candidate.status === "rejected") return { ok: false, reason: "missing" };
+  if (candidate.telegram_posted_at) return { ok: false, reason: "already" };
+  const post = postHe ?? candidate.post_he;
+  if (candidate.status === "pending") {
+    await decideCandidate(db, id, "approved", post, null);
+    updateTag(RECOMMENDED_TAG);
+  }
+  const videoUrl = candidate.video_path ? await signedVideoUrl(candidate.video_path, 3600) : null;
+  const result = await postProduct(config, {
+    productId: candidate.product_id,
+    postHe: post,
+    photoUrl: candidate.product.imageUrls[0] ?? candidate.product.mainImageUrl,
+    videoUrl,
+  });
+  await recordTelegram(db, id, result);
+  return result.ok ? { ok: true } : { ok: false, reason: "telegram", error: result.error };
+}
+
 /** Rejects a pending candidate, or takes an approved one off the site (never proposed again). */
 export async function rejectCandidate(id: string): Promise<void> {
   await decideCandidate(serviceClient(), id, "rejected");

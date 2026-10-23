@@ -10,6 +10,7 @@ import { requireAdmin } from "@/lib/admin/auth";
 import {
   approveCandidate,
   attachVideo,
+  publishNow,
   rejectCandidate,
   removeVideo,
   rewriteCandidate,
@@ -79,6 +80,28 @@ export async function approveAction(formData: FormData): Promise<void> {
   } catch (err) {
     unstable_rethrow(err);
     logError("approve", err);
+  }
+  revalidatePath("/recommended");
+  back(status, extra);
+}
+
+/** "פרסום עכשיו": approve if needed and post to Telegram at once, ignoring slots and quiet time. */
+export async function publishNowAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = z.string().uuid().safeParse(formData.get("id"));
+  if (!id.success) back("invalid");
+  const post = z.string().trim().min(1).max(1000).safeParse(formData.get("post"));
+  let status = "publish-failed";
+  let extra = "";
+  try {
+    const r = await publishNow(id.data, post.success ? post.data : undefined);
+    if (r.ok) status = "published-now";
+    else if (r.reason === "not-connected") status = "publish-not-connected";
+    else if (r.reason === "already") status = "publish-already";
+    else if (r.error) extra = `&err=${encodeURIComponent(r.error.slice(0, 200))}`;
+  } catch (err) {
+    unstable_rethrow(err);
+    logError("publish now", err);
   }
   revalidatePath("/recommended");
   back(status, extra);

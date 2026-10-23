@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Bot, Check, Download, Film, PenLine, Send, Trash2, Truck, X } from "lucide-react";
 import { ProductImage } from "@/components/product-image";
-import { btnMd, btnPrimary, btnSecondary, btnSm, card } from "@/components/styles";
+import { btnBusy, btnMd, btnPrimary, btnSecondary, btnSm, card } from "@/components/styles";
 import { requireAdmin } from "@/lib/admin/auth";
 import { HOT_BONUS_PCT, MIN_STANDARD_PCT } from "@/lib/agents/finder/select";
 import { slotLabel, TELEGRAM_SLOTS } from "@/lib/agents/schedule";
@@ -18,6 +18,7 @@ import { inputClass } from "../settings/form-parts";
 import { StatusMessage } from "../status-message";
 import {
   approveAction,
+  publishNowAction,
   rejectAction,
   rewriteAction,
   saveAgentSettingsAction,
@@ -40,6 +41,10 @@ const STATUS: Record<string, string> = {
   "approved-telegram-off":
     "המוצר אושר ומופיע במומלצים. לטלגרם הוא לא תוזמן: הפרסום כבוי או שהערוץ עוד לא מחובר.",
   "approve-failed": "לא הצלחנו לאשר. נסו שוב.",
+  "published-now": "פורסם עכשיו בטלגרם (בלי תזמון ובלי הגבלת שבת). המוצר מאושר ומופיע במומלצים.",
+  "publish-not-connected":
+    "הערוץ עוד לא מחובר: צריך להגדיר TELEGRAM_BOT_TOKEN ו־TELEGRAM_CHAT_ID ב־Vercel.",
+  "publish-already": "המוצר הזה כבר פורסם בטלגרם.",
   rejected: "המוצר הוסר ולא יוצע שוב.",
   "reject-failed": "לא הצלחנו להסיר. נסו שוב.",
   "video-removed": "הסרטון הוסר מהמוצר. בטלגרם תעלה התמונה.",
@@ -49,7 +54,10 @@ const STATUS: Record<string, string> = {
     "לא הצלחנו לכתוב את הפוסט מחדש (המודל לא ענה או שהטקסט לא עבר את הבדיקות). אפשר לנסות שוב או לערוך ידנית.",
 };
 
-function statusText(status: string, at: string): string | null {
+function statusText(status: string, at: string, err = ""): string | null {
+  if (status === "publish-failed") {
+    return `הפרסום בטלגרם נכשל${err ? `: ${err}` : "."} נסו שוב.`;
+  }
   if (status === "approved-scheduled") {
     return `המוצר אושר, מופיע במומלצים ותוזמן לטלגרם: ${at}.`;
   }
@@ -106,7 +114,11 @@ async function load() {
 export default async function AgentsPage({ searchParams }: PageProps<"/admin/agents">) {
   await requireAdmin();
   const params = await searchParams;
-  const status = statusText(firstParam(params.status), firstParam(params.at));
+  const status = statusText(
+    firstParam(params.status),
+    firstParam(params.at),
+    firstParam(params.err),
+  );
   // Reopens the candidate's drawer after an action that reloaded the page.
   const openId = firstParam(params.open);
   let data: Awaited<ReturnType<typeof load>> | null = null;
@@ -146,9 +158,10 @@ export default async function AgentsPage({ searchParams }: PageProps<"/admin/age
           <Queue
             pending={data.pending}
             telegramOn={data.settings.telegramEnabled && telegramReady}
+            telegramReady={telegramReady}
             openId={openId}
           />
-          <Approved approved={data.approved} />
+          <Approved approved={data.approved} telegramReady={telegramReady} />
           <Runs runs={data.runs} />
         </>
       )}
@@ -457,10 +470,12 @@ function Row({ c }: { c: Candidate }) {
 function Queue({
   pending,
   telegramOn,
+  telegramReady,
   openId,
 }: {
   pending: { c: Candidate; videoPreview: string | null }[];
   telegramOn: boolean;
+  telegramReady: boolean;
   openId: string;
 }) {
   return (
@@ -543,6 +558,15 @@ function Queue({
                     </button>
                     <button
                       type="submit"
+                      formAction={publishNowAction}
+                      aria-disabled={!telegramReady}
+                      className={`${btnSecondary} ${btnMd} ${btnBusy}`}
+                    >
+                      <Send aria-hidden className="size-[18px]" />
+                      פרסום עכשיו
+                    </button>
+                    <button
+                      type="submit"
                       formAction={rewriteAction}
                       className={`${btnSecondary} ${btnMd}`}
                     >
@@ -559,8 +583,10 @@ function Queue({
                     </button>
                   </div>
                   <p className="text-xs text-muted">
-                    ״כתיבה מחדש״ כותבת את הפוסט שוב עם המודל שבחרתם, כולל הקופונים שבתוקף (בערך סנט
-                    אחד). שינויים שעשיתם בטקסט לא נשמרים בכתיבה מחדש.
+                    ״פרסום עכשיו״ מאשר ושולח לטלגרם מיד, עם הטקסט שבתיבה, בלי תזמון ובלי הגבלת
+                    שישי־שבת (לבדיקות). הפרסום האוטומטי ממשיך לכבד את השבת. ״כתיבה מחדש״ כותבת את
+                    הפוסט שוב עם המודל שבחרתם, כולל הקופונים שבתוקף (בערך סנט אחד). שינויים שעשיתם
+                    בטקסט לא נשמרים בכתיבה מחדש.
                   </p>
                 </form>
               </CandidateDrawer>
@@ -579,7 +605,13 @@ function telegramNote(c: Candidate): string {
   return "";
 }
 
-function Approved({ approved }: { approved: { c: Candidate; videoPreview: string | null }[] }) {
+function Approved({
+  approved,
+  telegramReady,
+}: {
+  approved: { c: Candidate; videoPreview: string | null }[];
+  telegramReady: boolean;
+}) {
   if (!approved.length) return null;
   return (
     <section aria-labelledby="approved" className="space-y-4">
@@ -603,12 +635,23 @@ function Approved({ approved }: { approved: { c: Candidate; videoPreview: string
                 {telegramNote(c)}
               </p>
             </div>
-            <form action={rejectAction}>
-              <input type="hidden" name="id" value={c.id} />
-              <button type="submit" className={`${btnSecondary} ${btnMd}`}>
-                הסרה מהאתר
-              </button>
-            </form>
+            <div className="flex flex-wrap gap-2">
+              {telegramReady && !c.telegram_posted_at && (
+                <form action={publishNowAction}>
+                  <input type="hidden" name="id" value={c.id} />
+                  <button type="submit" className={`${btnSecondary} ${btnMd}`}>
+                    <Send aria-hidden className="size-[18px]" />
+                    פרסום עכשיו
+                  </button>
+                </form>
+              )}
+              <form action={rejectAction}>
+                <input type="hidden" name="id" value={c.id} />
+                <button type="submit" className={`${btnSecondary} ${btnMd}`}>
+                  הסרה מהאתר
+                </button>
+              </form>
+            </div>
           </li>
         ))}
       </ul>
