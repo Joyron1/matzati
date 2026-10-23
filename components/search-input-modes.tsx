@@ -85,11 +85,12 @@ function useFromInput() {
       const res = await fetch("/api/search/from-input", { method: "POST", ...init });
       const data = (await res.json().catch(() => ({}))) as {
         q?: string;
+        mode?: "simple";
         productId?: string;
         error?: string;
       };
       if (data.productId) router.push(`/p/${encodeURIComponent(data.productId)}`);
-      else if (data.q) router.push(searchHref({ q: data.q }));
+      else if (data.q) router.push(searchHref({ q: data.q, mode: data.mode }));
       else {
         setError(ERRORS[data.error ?? "unavailable"] ?? ERRORS.unavailable);
         setBusy(false);
@@ -172,10 +173,10 @@ export function LinkSearch({
   );
 }
 
-/** Downscales a photo in the browser (Vercel takes at most 4.5 MB per request): JPEG, 1280 px. */
+/** Downscales a photo in the browser (Vercel takes at most 4.5 MB per request): JPEG, 1024 px. */
 async function downscale(file: File): Promise<Blob> {
   const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, 1280 / Math.max(bitmap.width, bitmap.height));
+  const scale = Math.min(1, 1024 / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(bitmap.width * scale);
   canvas.height = Math.round(bitmap.height * scale);
@@ -261,7 +262,7 @@ export function ImageSearch({ variant }: { variant: "hero" | "bar" }) {
         </button>
       </div>
       <p className="px-1 text-sm text-muted">
-        ה־AI מזהה את המוצר ומחפש אותו אצלנו. התמונה לא נשמרת.
+        ה־AI מזהה את המוצר ומחפש את אותו מוצר באלי אקספרס. התמונה לא נשמרת.
       </p>
       {(localError ?? error) && (
         <p role="alert" className="px-1 text-sm font-semibold text-ink">

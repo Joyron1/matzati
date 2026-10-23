@@ -20,11 +20,14 @@ import {
   fetchPage,
   isAliexpressShortLink,
   productFromHtml,
-  queryFromImage,
+  IMAGE_MAX_PX,
+  IMAGE_MODEL,
+  parseFromImage,
   queryFromProductName,
   wordsFromUrl,
   type QueryOutcome,
 } from "@/lib/search/from-input";
+import { normalizeQuery, queryKey } from "@/lib/search/cache-key";
 import { guardEnv } from "@/lib/search/server";
 import { SupabaseStore } from "@/lib/search/supabase-store";
 import { serviceClient } from "@/lib/supabase/server";
@@ -43,14 +46,14 @@ function fail(error: Fail, status: number, retryAfterSec?: number): Response {
   return Response.json({ error, ...(retryAfterSec ? { retryAfterSec } : {}) }, { status, headers });
 }
 
-function llm() {
+function llm(model?: string) {
   const cfg = llmConfig();
   if (cfg.provider !== "anthropic" || !cfg.apiKey) throw new ConfigError(["ANTHROPIC_API_KEY"]);
-  return new AnthropicProvider(cfg.apiKey, cfg.model);
+  return new AnthropicProvider(cfg.apiKey, model ?? cfg.model);
 }
 
 /** Records the LLM call (llm_usage, kind "parse": it understands the search). */
-async function logUsage(store: SupabaseStore, out: QueryOutcome) {
+async function logUsage(store: SupabaseStore, out: Pick<QueryOutcome, "usage" | "model">) {
   if (out.usage && out.model) {
     await store.logUsage([{ kind: "parse", model: out.model, usage: out.usage }]).catch(() => {});
   }
@@ -130,15 +133,20 @@ export async function POST(request: Request): Promise<Response> {
     }
     const jpeg = await sharp(Buffer.from(await file.arrayBuffer()))
       .rotate()
-      .resize(1024, 1024, { fit: "inside", withoutEnlargement: true })
+      .resize(IMAGE_MAX_PX, IMAGE_MAX_PX, { fit: "inside", withoutEnlargement: true })
       .jpeg({ quality: 80 })
       .toBuffer();
     if (!(await consumeDailyLlmBudget(db, new Date(), env.dailyCap))) return fail("capacity", 503);
-    const out = await queryFromImage(llm(), jpeg);
+    const out = await parseFromImage(llm(IMAGE_MODEL), jpeg);
     await logUsage(store, out);
-    return out.query
-      ? Response.json({ q: out.query }, { headers: noStore })
-      : fail("not_found", 422);
+    if (!out.query || !out.parsed) return fail("not_found", 422);
+    // The photo's parse is cached under its Hebrew line, so /search runs no parse call; a parse
+    // already cached for that line (a typed search) is kept.
+    const key = queryKey(out.query);
+    if (!(await store.getParse(key, new Date()))) {
+      await store.putParse(key, normalizeQuery(out.query), out.parsed);
+    }
+    return Response.json({ q: out.query, mode: "simple" }, { headers: noStore });
   } catch (err) {
     const text = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
     console.error(`[search-from-input] ${text.slice(0, 300)}`);
