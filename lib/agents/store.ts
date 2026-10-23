@@ -246,6 +246,20 @@ export async function dueTelegramPosts(
   });
 }
 
+/** A candidate's post and reason written again (the admin's "כתיבה מחדש"). */
+export async function updateCandidatePost(
+  db: SupabaseClient,
+  id: string,
+  postHe: string,
+  whyHe: string,
+): Promise<void> {
+  const { error } = await db
+    .from(CANDIDATES)
+    .update({ post_he: postHe.slice(0, 1000), why_he: whyHe.slice(0, 300) })
+    .eq("id", id);
+  if (error) fail("rewrite", error);
+}
+
 /** The owner's video for a candidate (its path in the agent-media bucket), or none. */
 export async function setCandidateVideo(
   db: SupabaseClient,

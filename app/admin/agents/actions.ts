@@ -12,6 +12,7 @@ import {
   attachVideo,
   rejectCandidate,
   removeVideo,
+  rewriteCandidate,
   signedVideoUpload,
 } from "@/lib/agents/server";
 import { AGENT_MODELS, AGENTS_KEY, agentSettingsSchema } from "@/lib/agents/settings";
@@ -97,6 +98,20 @@ export async function rejectAction(formData: FormData): Promise<void> {
   back("rejected");
 }
 
+export async function rewriteAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = z.string().uuid().safeParse(formData.get("id"));
+  if (!id.success) back("invalid");
+  let ok = false;
+  try {
+    ok = await rewriteCandidate(id.data);
+  } catch (err) {
+    unstable_rethrow(err);
+    logError("rewrite", err);
+  }
+  back(ok ? "rewritten" : "rewrite-failed", `&open=${id.data}`);
+}
+
 // --- The owner's motion video ----------------------------------------------------------------
 
 /** A signed upload URL for one candidate's video; null when the candidate is unknown. */
@@ -138,5 +153,5 @@ export async function videoRemoveAction(formData: FormData): Promise<void> {
     logError("video remove", err);
     back("video-failed");
   }
-  back("video-removed");
+  back("video-removed", `&open=${id.data}`);
 }

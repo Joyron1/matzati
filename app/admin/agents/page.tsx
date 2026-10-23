@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Bot, Check, Download, Send, Trash2, X } from "lucide-react";
+import { Bot, Check, Download, Film, PenLine, Send, Trash2, X } from "lucide-react";
 import { ProductImage } from "@/components/product-image";
 import { btnMd, btnPrimary, btnSecondary, btnSm, card } from "@/components/styles";
 import { requireAdmin } from "@/lib/admin/auth";
@@ -16,7 +16,14 @@ import { serviceClient } from "@/lib/supabase/server";
 import { telegramConfig } from "@/lib/telegram/client";
 import { inputClass } from "../settings/form-parts";
 import { StatusMessage } from "../status-message";
-import { approveAction, rejectAction, saveAgentSettingsAction, videoRemoveAction } from "./actions";
+import {
+  approveAction,
+  rejectAction,
+  rewriteAction,
+  saveAgentSettingsAction,
+  videoRemoveAction,
+} from "./actions";
+import { CandidateDrawer } from "./candidate-drawer";
 import { RunFinder } from "./run-finder";
 import { VideoUpload } from "./video-upload";
 
@@ -37,6 +44,9 @@ const STATUS: Record<string, string> = {
   "reject-failed": "לא הצלחנו להסיר. נסו שוב.",
   "video-removed": "הסרטון הוסר מהמוצר. בטלגרם תעלה התמונה.",
   "video-failed": "לא הצלחנו להסיר את הסרטון. נסו שוב.",
+  rewritten: "הפוסט נכתב מחדש.",
+  "rewrite-failed":
+    "לא הצלחנו לכתוב את הפוסט מחדש (המודל לא ענה או שהטקסט לא עבר את הבדיקות). אפשר לנסות שוב או לערוך ידנית.",
 };
 
 function statusText(status: string, at: string): string | null {
@@ -97,6 +107,8 @@ export default async function AgentsPage({ searchParams }: PageProps<"/admin/age
   await requireAdmin();
   const params = await searchParams;
   const status = statusText(firstParam(params.status), firstParam(params.at));
+  // Reopens the candidate's drawer after an action that reloaded the page.
+  const openId = firstParam(params.open);
   let data: Awaited<ReturnType<typeof load>> | null = null;
   try {
     data = await load();
@@ -134,6 +146,7 @@ export default async function AgentsPage({ searchParams }: PageProps<"/admin/age
           <Queue
             pending={data.pending}
             telegramOn={data.settings.telegramEnabled && telegramReady}
+            openId={openId}
           />
           <Approved approved={data.approved} />
           <Runs runs={data.runs} />
@@ -354,12 +367,60 @@ function OwnVideo({ c, preview }: { c: Candidate; preview: string | null }) {
   );
 }
 
+/** The row of the queue: photo, title, rates, price, and what the drawer holds. */
+function Row({ c }: { c: Candidate }) {
+  const p = c.product;
+  return (
+    <>
+      <ProductImage
+        src={p.imageUrls[0] ?? p.mainImageUrl}
+        alt=""
+        className="size-16 shrink-0 rounded-xl border border-line"
+        iconClassName="size-6"
+        sizes="64px"
+      />
+      <span className="min-w-0 flex-1 space-y-1">
+        <span className="line-clamp-1 font-semibold">{hotTitle(p.title)}</span>
+        <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-muted">
+          <span>
+            רגילה{" "}
+            <bdi dir="ltr" className="font-bold text-ink">
+              {p.commissionRatePct ?? "-"}%
+            </bdi>
+          </span>
+          {p.hotCommissionRatePct != null &&
+            p.hotCommissionRatePct > (p.commissionRatePct ?? 0) && (
+              <span>
+                Hot <bdi dir="ltr">{p.hotCommissionRatePct}%</bdi>
+              </span>
+            )}
+          <bdi dir="ltr">₪{p.price}</bdi>
+          <span>
+            <bdi dir="ltr">{p.unitsSold === null ? "-" : formatCount(p.unitsSold)}</bdi> נמכרו
+          </span>
+          {p.videoUrl && (
+            <span className="inline-flex items-center gap-1">
+              <Film aria-hidden className="size-3.5" /> וידאו
+            </span>
+          )}
+          {c.video_path && <span className="font-semibold text-accent-ink">סרטון שלך הועלה</span>}
+          {p.price < SUSPECT_PRICE_ILS && (
+            <span className="font-semibold text-ink">⚠ מחיר חשוד</span>
+          )}
+        </span>
+      </span>
+    </>
+  );
+}
+
 function Queue({
   pending,
   telegramOn,
+  openId,
 }: {
   pending: { c: Candidate; videoPreview: string | null }[];
   telegramOn: boolean;
+  openId: string;
 }) {
   return (
     <section aria-labelledby="queue" className="space-y-4">
@@ -371,75 +432,97 @@ function Queue({
           אין כרגע מוצרים שממתינים. הסוכן ימצא חדשים בריצה הבאה, או לחצו ״הרצה עכשיו״.
         </p>
       ) : (
-        <ul className="space-y-4">
+        <ul className={`${card} divide-y divide-line overflow-hidden`}>
           {pending.map(({ c, videoPreview }) => (
-            <li key={c.id} className={`${card} space-y-4 p-4 sm:p-5`}>
-              <div className="flex gap-3">
-                <ProductImage
-                  src={c.product.imageUrls[0] ?? c.product.mainImageUrl}
-                  alt=""
-                  className="size-24 shrink-0 rounded-xl border border-line"
-                  iconClassName="size-8"
-                  sizes="96px"
-                />
-                <div className="min-w-0 space-y-1.5">
-                  <Link
-                    href={`/p/${encodeURIComponent(c.product_id)}`}
-                    className="line-clamp-2 font-semibold underline-offset-4 hover:underline"
-                  >
-                    {hotTitle(c.product.title)}
-                  </Link>
-                  <Rates c={c} />
-                  <ProductFacts c={c} />
-                  {c.why_he && <p className="text-sm text-muted">{c.why_he}</p>}
-                  {c.product.price < SUSPECT_PRICE_ILS && (
-                    <p className="rounded-xl bg-gold-soft px-3 py-2 text-sm font-semibold text-ink">
-                      מחיר נמוך מאוד: לעיתים זה המחיר של וריאציה זולה אחת (מדבקה, כיסוי) ולא של
-                      המוצר בתמונה. בדקו באלי אקספרס לפני שמאשרים.
-                    </p>
-                  )}
-                </div>
-              </div>
-              <Media c={c} />
-              <OwnVideo c={c} preview={videoPreview} />
-              <form action={approveAction} className="space-y-3">
-                <input type="hidden" name="id" value={c.id} />
-                <label className="block space-y-1">
-                  <span className="text-sm font-semibold">הפוסט לטלגרם (אפשר לערוך)</span>
-                  <textarea
-                    name="post"
-                    rows={6}
-                    maxLength={1000}
-                    defaultValue={c.post_he}
-                    className={`${inputClass} leading-relaxed`}
+            <li key={c.id}>
+              <CandidateDrawer
+                title={hotTitle(c.product.title)}
+                row={<Row c={c} />}
+                defaultOpen={openId === c.id}
+              >
+                <div className="flex gap-3">
+                  <ProductImage
+                    src={c.product.imageUrls[0] ?? c.product.mainImageUrl}
+                    alt=""
+                    className="size-28 shrink-0 rounded-xl border border-line"
+                    iconClassName="size-8"
+                    sizes="112px"
                   />
-                </label>
-                <label className="flex min-h-11 items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    name="telegram"
-                    defaultChecked={telegramOn}
-                    disabled={!telegramOn}
-                    className="size-5 accent-[var(--accent)]"
-                  />
-                  <Send aria-hidden className="size-4" />
-                  {telegramOn ? "לתזמן לטלגרם (לשעה הפנויה הבאה)" : "טלגרם כבוי או לא מחובר"}
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  <button type="submit" className={`${btnPrimary} ${btnMd}`}>
-                    <Check aria-hidden className="size-[18px]" />
-                    אישור
-                  </button>
-                  <button
-                    type="submit"
-                    formAction={rejectAction}
-                    className={`${btnSecondary} ${btnMd}`}
-                  >
-                    <X aria-hidden className="size-[18px]" />
-                    לא מתאים
-                  </button>
+                  <div className="min-w-0 space-y-1.5">
+                    <Link
+                      href={`/p/${encodeURIComponent(c.product_id)}`}
+                      target="_blank"
+                      className="line-clamp-3 font-semibold underline-offset-4 hover:underline"
+                    >
+                      {hotTitle(c.product.title)}
+                    </Link>
+                    <Rates c={c} />
+                    <ProductFacts c={c} />
+                    {c.why_he && <p className="text-sm text-muted">{c.why_he}</p>}
+                  </div>
                 </div>
-              </form>
+                {c.product.price < SUSPECT_PRICE_ILS && (
+                  <p className="rounded-xl bg-gold-soft px-3 py-2 text-sm font-semibold text-ink">
+                    מחיר נמוך מאוד: לעיתים זה המחיר של וריאציה זולה אחת (מדבקה, כיסוי) ולא של המוצר
+                    בתמונה. בדקו באלי אקספרס לפני שמאשרים.
+                  </p>
+                )}
+                <Media c={c} />
+                <section aria-label="סרטון לפרסום" className="space-y-2">
+                  <h3 className="font-semibold">סרטון לפרסום</h3>
+                  <OwnVideo c={c} preview={videoPreview} />
+                </section>
+                <form action={approveAction} className="space-y-3">
+                  <input type="hidden" name="id" value={c.id} />
+                  <label className="block space-y-1">
+                    <span className="font-semibold">הפוסט לטלגרם (אפשר לערוך)</span>
+                    <textarea
+                      name="post"
+                      rows={12}
+                      maxLength={1000}
+                      defaultValue={c.post_he}
+                      className={`${inputClass} leading-relaxed`}
+                    />
+                  </label>
+                  <label className="flex min-h-11 items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      name="telegram"
+                      defaultChecked={telegramOn}
+                      disabled={!telegramOn}
+                      className="size-5 accent-[var(--accent)]"
+                    />
+                    <Send aria-hidden className="size-4" />
+                    {telegramOn ? "לתזמן לטלגרם (לשעה הפנויה הבאה)" : "טלגרם כבוי או לא מחובר"}
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="submit" className={`${btnPrimary} ${btnMd}`}>
+                      <Check aria-hidden className="size-[18px]" />
+                      אישור
+                    </button>
+                    <button
+                      type="submit"
+                      formAction={rewriteAction}
+                      className={`${btnSecondary} ${btnMd}`}
+                    >
+                      <PenLine aria-hidden className="size-[18px]" />
+                      כתיבה מחדש
+                    </button>
+                    <button
+                      type="submit"
+                      formAction={rejectAction}
+                      className={`${btnSecondary} ${btnMd}`}
+                    >
+                      <X aria-hidden className="size-[18px]" />
+                      לא מתאים
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted">
+                    ״כתיבה מחדש״ כותבת את הפוסט שוב עם המודל שבחרתם, כולל הקופונים שבתוקף (בערך סנט
+                    אחד). שינויים שעשיתם בטקסט לא נשמרים בכתיבה מחדש.
+                  </p>
+                </form>
+              </CandidateDrawer>
             </li>
           ))}
         </ul>

@@ -137,8 +137,14 @@ describe("finder writer", () => {
   }
 
   it("keeps a model post that holds and falls back for one that does not", async () => {
-    const good =
-      "מכונית שלט רחוק קטנה לילדים 🚗\nבקנה מידה 1:24\n💰 ₪81.39 במקום ₪166.1\n⭐ 96.5% משוב חיובי, 993 נמכרו ב־30 הימים האחרונים";
+    const good = [
+      "🔥 מכונית שלט רחוק קטנה שהילדים לא יעזבו",
+      "✅ קנה מידה 1:24: קטנה, קלה ונוחה לנסיעה בבית",
+      "✅ שלט רחוק: הילדים שולטים במכונית מכל פינה בחדר",
+      "💰 ₪81.39 במקום ₪166.1 (51% הנחה)",
+      "⭐ 96.5% משוב חיובי · 993 נמכרו ב־30 הימים האחרונים",
+      "👇 לחצו על ״לקנייה באלי אקספרס״ כאן למטה ובדקו את המחיר עכשיו",
+    ].join("\n");
     const llm = new Llm([
       { id: "1", post_he: good, why_he: "993 מכירות בחודש ו־96.5% משוב." },
       { id: "2", post_he: "מכונית ב־₪10 בלבד! הכי זולה שיש", why_he: "זולה" },
@@ -147,6 +153,27 @@ describe("finder writer", () => {
     expect(out.posts.get("1")).toMatchObject({ post_he: good, fallback: false });
     expect(out.posts.get("2")?.fallback).toBe(true);
     expect(out.usage?.outputTokens).toBe(500);
+  });
+
+  it("adds the coupons it is given, every number of them grounded", () => {
+    const coupon = { code: "MATZATI5", offer: "₪5 הנחה", min_order_ils: 40, ends: "31.10" };
+    const withCoupon = writerInput(product("1"), [coupon]);
+    const post = postFromData(withCoupon);
+    expect(post).toContain("🎟️ קוד קופון: MATZATI5");
+    expect(post).toContain("בהזמנה מעל ₪40");
+    expect(textHolds(post, withCoupon, 10, 900)).toBe(true);
+    // Without the coupon in the data, its numbers are not grounded.
+    expect(textHolds(post, input, 10, 900)).toBe(false);
+  });
+
+  it("writes in parallel batches and sums their usage", async () => {
+    const llm = new Llm([]);
+    const out = await writePosts(
+      llm,
+      Array.from({ length: 7 }, (_, i) => product(String(i))),
+    );
+    expect(llm.calls).toBe(3); // batches of 3, 3 and 1
+    expect(out.usage?.outputTokens).toBe(1500);
   });
 
   it("makes no call without a model, and survives a failed one", async () => {
@@ -285,7 +312,7 @@ describe("runFinder", () => {
     // Saved as hot rows before they are queued, so /p and /go work for them.
     expect(store.saved.map((p) => p.productId)).toEqual(store.added.map((c) => c.productId));
     expect(store.saved.every((p) => p.source === "hot")).toBe(true);
-    expect(llmCalls).toHaveLength(1);
+    expect(llmCalls).toHaveLength(Math.ceil(r.added / 3)); // batches of WRITE_BATCH
     expect(store.usage).toEqual(["claude-haiku-5-5"]);
     expect(r.costUsd).toBeGreaterThan(0);
     expect(store.finished).toHaveLength(1);
@@ -310,7 +337,7 @@ describe("runFinder", () => {
   });
 
   it("bounds a writer call's cost by the model", () => {
-    expect(worstCaseCostUsd("claude-haiku-5-5", 10)).toBeLessThan(0.01);
+    expect(worstCaseCostUsd("claude-haiku-5-5", 10)).toBeLessThan(0.02);
     expect(worstCaseCostUsd("claude-opus-5-5", 10)).toBeGreaterThan(0.1);
     expect(worstCaseCostUsd("unknown-model", 10)).toBe(Number.POSITIVE_INFINITY);
   });

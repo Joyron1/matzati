@@ -15,7 +15,7 @@ import { costUsd } from "@/lib/llm/pricing";
 import type { LlmProvider, LlmUsage } from "@/lib/llm/provider";
 import type { AgentSettings } from "../settings";
 import { MAX_CANDIDATES_PER_RUN, scanTargets, selectCandidates, targetsForRun } from "./select";
-import { WRITE_TOKENS, writePosts } from "./write";
+import { WRITE_BATCH, WRITE_TOKENS, writePosts, type CouponInfo } from "./write";
 
 export interface NewCandidate {
   productId: string;
@@ -61,6 +61,8 @@ export interface FinderDeps {
   now?: () => Date;
   sleep?: (ms: number) => Promise<void>;
   aliSpacingMs?: number;
+  /** The coupons valid for a product now (AliExpress's promo code, the owner's coupons). */
+  couponsFor?: (product: AliProduct) => Promise<CouponInfo[]>;
 }
 
 export interface FinderResult {
@@ -74,11 +76,11 @@ export interface FinderResult {
 
 /** The most one writer call may cost with `model`, to keep a run inside the daily budget. */
 export function worstCaseCostUsd(model: string, candidates: number): number {
-  const input = 600 + candidates * 250;
+  const calls = Math.max(1, Math.ceil(candidates / WRITE_BATCH));
   return (
     costUsd(model, {
-      inputTokens: input,
-      outputTokens: WRITE_TOKENS,
+      inputTokens: calls * 1_200 + candidates * 350,
+      outputTokens: calls * WRITE_TOKENS,
       cacheReadTokens: 0,
       cacheWriteTokens: 0,
     }) ?? Number.POSITIVE_INFINITY
@@ -205,7 +207,11 @@ export async function runFinder(
     const affordable =
       deps.llm !== null &&
       spent + worstCaseCostUsd(settings.model, rows.length) <= settings.dailyBudgetUsd;
-    const written = await writePosts(affordable ? deps.llm : null, rows);
+    const coupons = new Map<string, CouponInfo[]>();
+    if (deps.couponsFor) {
+      for (const p of rows) coupons.set(p.productId, await deps.couponsFor(p).catch(() => []));
+    }
+    const written = await writePosts(affordable ? deps.llm : null, rows, coupons);
     if (written.usage && written.model) {
       result.costUsd = costUsd(written.model, written.usage) ?? 0;
       await store.logUsage(written.model, written.usage);

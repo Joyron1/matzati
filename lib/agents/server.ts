@@ -14,15 +14,20 @@ import { toResultProduct } from "@/lib/search/pipeline";
 import { serviceClient } from "@/lib/supabase/server";
 import { postProduct, telegramConfig } from "@/lib/telegram/client";
 import type { ResultProduct } from "@/lib/types";
+import { isPromoCodeCurrent } from "@/lib/aliexpress/promo-code";
+import { couponsForProduct } from "@/lib/coupons/queries";
+import { costUsd } from "@/lib/llm/pricing";
 import { runFinder, type FinderResult } from "./finder/run";
+import { writePosts, type CouponInfo } from "./finder/write";
 import { readAgentSettings, type AgentSettings } from "./settings";
-import { nextSlot } from "./schedule";
+import { israelParts, nextSlot } from "./schedule";
 import {
   decideCandidate,
   dueTelegramPosts,
   getCandidate,
   listCandidates,
   recordTelegram,
+  updateCandidatePost,
   setCandidateVideo,
   SupabaseFinderStore,
   takenTelegramSlots,
@@ -38,6 +43,38 @@ function agentLlm(settings: AgentSettings): LlmProvider | null {
   } catch {
     return null;
   }
+}
+
+function dayMonth(iso: string | null): string | null {
+  if (!iso || Number.isNaN(Date.parse(iso))) return null;
+  const p = israelParts(new Date(iso));
+  return `${p.day}.${p.month}`;
+}
+
+/**
+ * The coupons valid now for a product, for its post: AliExpress's promo code (while valid by its
+ * own dates) and the owner's published coupons for it or sitewide (couponsForProduct).
+ */
+export async function couponsFor(product: AliProduct, now = new Date()): Promise<CouponInfo[]> {
+  const out: CouponInfo[] = [];
+  const code = product.promoCode;
+  if (code && isPromoCodeCurrent(code, now)) {
+    out.push({
+      code: code.code,
+      offer: code.offerText ?? "קוד הנחה של אלי אקספרס",
+      min_order_ils: code.minSpend,
+      ends: dayMonth(code.endsAt),
+    });
+  }
+  for (const c of await couponsForProduct(product.productId, now)) {
+    out.push({
+      code: c.code,
+      offer: c.title,
+      min_order_ils: c.min_spend_ils,
+      ends: dayMonth(c.ends_at),
+    });
+  }
+  return out.slice(0, 3);
 }
 
 /** One finder run with the stored settings. Never throws; the run row says what happened. */
@@ -59,7 +96,43 @@ export async function runFinderFor(trigger: "cron" | "admin"): Promise<FinderRes
     ali: new AliExpressClient(aliexpressConfig()),
     llm: agentLlm(settings),
     store: new SupabaseFinderStore(db),
+    couponsFor: (p) => couponsFor(p),
   });
+}
+
+/**
+ * Writes a pending candidate's post again with the current prompt and coupons (the admin's
+ * "כתיבה מחדש"): one writer call with the admin's model, logged and counted in the day's budget
+ * like a run's. False when the candidate is unknown, no model is available or the text fell back.
+ */
+export async function rewriteCandidate(id: string): Promise<boolean> {
+  const db = serviceClient();
+  const candidate = await getCandidate(db, id);
+  if (!candidate) return false;
+  const { settings } = await readAgentSettings(db);
+  const llm = agentLlm(settings);
+  if (!llm) return false;
+  const coupons = new Map([[candidate.product_id, await couponsFor(candidate.product)]]);
+  const out = await writePosts(llm, [candidate.product], coupons);
+  const store = new SupabaseFinderStore(db);
+  if (out.usage && out.model) {
+    await store.logUsage(out.model, out.usage);
+    const cost = costUsd(out.model, out.usage) ?? 0;
+    // Counted in the day's agent spend (spentTodayUsd reads agent_runs).
+    const runId = await store.startRun("admin");
+    await store.finishRun(runId, {
+      status: "ok",
+      scanned: 0,
+      added: 0,
+      aliCalls: 0,
+      costUsd: cost,
+      note: "rewrite of one post",
+    });
+  }
+  const post = out.posts.get(candidate.product_id);
+  if (!post || post.fallback) return false;
+  await updateCandidatePost(db, id, post.post_he, post.why_he);
+  return true;
 }
 
 // --- The site's recommended products ------------------------------------------------------------
