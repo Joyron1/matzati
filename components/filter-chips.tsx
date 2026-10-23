@@ -19,6 +19,8 @@ interface FilterChipsProps {
   highlightIds?: string[];
   /** Stated needs that are not filters (SearchResponse.not_filtered), named under the chips. */
   notFiltered?: string[];
+  /** What the category rules did (SearchResponse.category_notes), each on its own line. */
+  categoryNotes?: string[];
 }
 
 /** "״א״", "״א״ ו״ב״", "״א״, ״ב״ ו״ג״". */
@@ -63,6 +65,7 @@ export function FilterChips({
   cat,
   highlightIds = [],
   notFiltered = [],
+  categoryNotes = [],
 }: FilterChipsProps) {
   const categoryChip = searchCategoryChip(cat);
   return (
@@ -121,6 +124,11 @@ export function FilterChips({
       {notFiltered.length > 0 && (
         <p className="w-full text-sm text-pretty text-muted">{notFilteredNote(notFiltered)}</p>
       )}
+      {categoryNotes.map((note) => (
+        <p key={note} className="w-full text-sm text-pretty text-muted">
+          {note}
+        </p>
+      ))}
       {/* A removed chip took keyboard focus with it: it goes to the next place to act. */}
       <RestoreFocus
         when={`${without.join(",")}|${cat ?? ""}`}

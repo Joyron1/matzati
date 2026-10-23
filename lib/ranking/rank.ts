@@ -1,4 +1,5 @@
 // Deterministic filter and rank (CLAUDE.md §6.5-6). Pure: no I/O, no LLM.
+import { ageFits } from "./age";
 import type { AliProduct } from "@/lib/aliexpress/schemas";
 import { RESULTS_PER_PAGE } from "@/lib/config/site";
 import type { SearchFilters, SortPreference } from "@/lib/search/filters";
@@ -104,6 +105,7 @@ export function rejectReason(
   if (!isRequestedProduct(p.title, f)) return "type";
   if (!f.requirements.every((r) => requirementMatches(p.title, r))) return "requirement";
   if (!fitsSmallCapacity(p.title, f)) return "requirement";
+  if (f.child_age !== undefined && !ageFits(p.title, f.child_age)) return "requirement";
   return null;
 }
 

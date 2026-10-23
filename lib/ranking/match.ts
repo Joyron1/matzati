@@ -221,5 +221,6 @@ export function phraseMatches(title: string, phrase: string): boolean {
 /** True when the title states the requirement in any of its phrasings. */
 export function requirementMatches(title: string, req: Requirement): boolean {
   const titleStems = stems(title);
+  if (req.not?.some((phrase) => phraseInTitle(title, titleStems, phrase))) return false;
   return requirementPhrases(req).some((phrase) => phraseInTitle(title, titleStems, phrase));
 }

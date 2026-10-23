@@ -137,6 +137,7 @@ export function SearchResultsView({
         cat={cat}
         highlightIds={highlightIds(response)}
         notFiltered={response.not_filtered}
+        categoryNotes={response.category_notes}
       />
       {/* One per result set: a sort change or a removed chip is said again, also with the same counts. */}
       <ResultsAnnouncer key={response.filters_key} text={outcome} />

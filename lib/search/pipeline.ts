@@ -45,6 +45,7 @@ import type {
   SearchMode,
   SearchResponse,
 } from "@/lib/types";
+import { applyCategoryRules } from "./category-rules";
 import {
   CACHE_TTL_HOURS,
   EMPTY_RESULTS_TTL_HOURS,
@@ -629,6 +630,8 @@ export interface UnderstoodSearch {
   sort: SortPreference;
   /** SearchResponse.not_filtered. */
   not_filtered?: string[];
+  /** SearchResponse.category_notes. */
+  category_notes?: string[];
 }
 
 function understoodOf(q: string, filters: ParsedQuery): UnderstoodSearch {
@@ -638,6 +641,7 @@ function understoodOf(q: string, filters: ParsedQuery): UnderstoodSearch {
     sort: filters.sort_preference,
     // From this request's parse, like the chips: a need we could not check is never hidden.
     ...(filters.preferences?.length ? { not_filtered: filters.preferences.map((p) => p.he) } : {}),
+    ...(filters.category_notes?.length ? { category_notes: filters.category_notes } : {}),
   };
 }
 
@@ -1292,6 +1296,9 @@ async function search(
   }
   // Limited to a category: from here on the filters carry it (never the stored parse above).
   if (input.category) parsed = { ...parsed, category_id: input.category };
+  // The category's rules (lib/search/category-rules.ts), on every read of the parse, so a rule
+  // change needs no new parse.
+  parsed = applyCategoryRules(parsed, q);
   const filters: ParsedQuery = {
     ...applyOverrides(parsed, without),
     ...(input.sort ? { sort_preference: input.sort } : {}),

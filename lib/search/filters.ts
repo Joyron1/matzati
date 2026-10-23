@@ -12,6 +12,11 @@ export interface Requirement {
   alt: string[];
   /** Short Hebrew chip label: "עמידות למים". */
   he: string;
+  /**
+   * Phrases a title must NOT say for the requirement to hold (category rules, 2026-10-23: real gold
+   * is never "plated"). Set by code (lib/search/category-rules.ts), never by the parse.
+   */
+  not?: string[];
 }
 
 /**
@@ -46,6 +51,11 @@ export interface SearchFilters {
    * category_ids and part of the results cache key when set.
    */
   category_id?: string;
+  /**
+   * The child's age a toy or kids search states ("לילד בן 5"; lib/search/category-rules.ts): a
+   * title stating an older minimum age fails (lib/ranking/age.ts). Set by code, never by the parse.
+   */
+  child_age?: number;
 }
 
 /** Parse output: the filters plus labels and hints that do not change results. */
@@ -61,4 +71,6 @@ export interface ParsedQuery extends SearchFilters {
    * results cache key.
    */
   category_guess?: string[];
+  /** What the category rules did, said under the chips (Hebrew; lib/search/category-rules.ts). */
+  category_notes?: string[];
 }

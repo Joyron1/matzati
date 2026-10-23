@@ -93,6 +93,8 @@ export function canonicalFilters(
     r: f.requirements.map((r) => [
       normalizePhrase(r.en),
       ...sortedUnique(r.alt.map(normalizePhrase)).filter((a) => a !== normalizePhrase(r.en)),
+      // A category rule's exclusions (2026-10-23); absent before, so older keys stay the same.
+      ...(r.not?.length ? [`!${sortedUnique(r.not.map(normalizePhrase)).join("|")}`] : []),
     ]),
     p: (f.preferences ?? []).map((p) => sortedUnique(p.words.map((w) => w.toLowerCase()))),
     h: words(f.category_hint ?? "").join(" "),
@@ -101,6 +103,7 @@ export function canonicalFilters(
     max: round(f.max_price_ils),
     s: f.sort_preference,
     ...(f.category_id ? { c: f.category_id } : {}),
+    ...(f.child_age !== undefined ? { a: f.child_age } : {}),
     // The assigned categories, only when the page set none (that one wins); absent before 2026-10-23.
     ...(!f.category_id && f.category_guess?.length ? { g: f.category_guess } : {}),
   };

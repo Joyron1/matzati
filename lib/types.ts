@@ -129,6 +129,11 @@ export interface SearchResponse {
    */
   not_filtered?: string[];
   /**
+   * What the category rules did or mean for this search (lib/search/category-rules.ts), said under
+   * the chips: "זהב" in jewelry is nearly always plating, the age kept out, sizes not checked.
+   */
+  category_notes?: string[];
+  /**
    * "simple" for a simple search (SearchMode): `results` holds every product kept (up to
    * RESULTS_KEPT) in AliExpress's order, with AliExpress's Hebrew titles, no line and no trust tier;
    * `extra_results` is empty and "עוד N" does not apply. Absent on the smart search.
