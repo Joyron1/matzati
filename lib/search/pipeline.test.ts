@@ -1003,7 +1003,8 @@ describe("fetch until enough pass (plan item 5)", () => {
   it("stops after one call once TARGET_PASSED (15) pass", async () => {
     const { deps, fetchMock } = setup();
     const { meta } = await runSearch({ q: Q }, deps);
-    expect(meta).toMatchObject({ aliCalls: 1, fetchStop: "enough" });
+    // The first product.query and the hot list's call for the same keywords (2026-10-24).
+    expect(meta).toMatchObject({ aliCalls: 2, fetchStop: "enough" });
     expect(queries(fetchMock)).toEqual(["usb cable p1"]);
   });
 
@@ -1016,7 +1017,7 @@ describe("fetch until enough pass (plan item 5)", () => {
       "240w cable p1",
       "usb cable p1",
     ]);
-    expect(meta).toMatchObject({ aliCalls: MAX_ALI_CALLS, fetchStop: "calls" });
+    expect(meta).toMatchObject({ aliCalls: MAX_ALI_CALLS + 1, fetchStop: "calls" }); // + the hot call
     expect(response.results.every((r) => /240w/i.test(r.title_en))).toBe(true);
   });
 
@@ -1029,13 +1030,15 @@ describe("fetch until enough pass (plan item 5)", () => {
     const errors = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
       const { response, meta, log } = await runSearch({ q: "כבל 240W" }, deps);
-      expect(meta).toMatchObject({ aliCalls: 2, fetchStop: "failed" });
+      // The hot call fails too and is only logged; product.query 2 stops the fetch.
+      expect(meta).toMatchObject({ aliCalls: 3, fetchStop: "failed" });
       expect(response.results.length).toBeGreaterThan(0);
       expect(log.failure).toBeNull();
       expect(store.results.get(response.filters_key!)?.products.length).toBe(
         response.results.length,
       );
       expect(errors.mock.calls.map(([m]) => String(m))).toEqual([
+        expect.stringContaining("[search] hotproduct.query failed"),
         expect.stringContaining("[search] product.query 2 failed"),
       ]);
     } finally {
@@ -1248,7 +1251,7 @@ describe("search_log owner and diag (plan item 10)", () => {
     await runSearch({ q: Q }, deps);
     expect(store.logs[0].diag).toEqual({
       fetch_stop: "enough",
-      keywords_tried: ["usb cable"],
+      keywords_tried: ["usb cable", "usb cable [hot]"],
       demoted: [],
       explain_failed: false,
       explain_rejected: expect.any(Number),

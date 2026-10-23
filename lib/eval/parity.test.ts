@@ -8,10 +8,10 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/aliexpress/affiliate", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/aliexpress/affiliate")>();
-  return { ...actual, queryProducts: vi.fn(), generateLinks: vi.fn() };
+  return { ...actual, queryProducts: vi.fn(), queryHotProducts: vi.fn(), generateLinks: vi.fn() };
 });
 
-import { generateLinks, queryProducts } from "@/lib/aliexpress/affiliate";
+import { generateLinks, queryHotProducts, queryProducts } from "@/lib/aliexpress/affiliate";
 import { AliExpressClient } from "@/lib/aliexpress/client";
 import { RESULTS_PER_PAGE } from "@/lib/config/site";
 import type { LlmProvider } from "@/lib/llm/provider";
@@ -69,6 +69,8 @@ async function runPipeline(snap: Snapshot, shopCap: ShopCapMode) {
       totalRecords: c.totalRecords,
     };
   });
+  // The snapshots hold no hot-list call (2026-10-24): the search's extra call finds nothing here.
+  vi.mocked(queryHotProducts).mockResolvedValue({ products: [], skipped: 0, totalRecords: 0 });
   // The replay assumes link.generate succeeds for a product without a link.
   vi.mocked(generateLinks).mockImplementation(async (_client, urls) =>
     urls.map((u) => ({

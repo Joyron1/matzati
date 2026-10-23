@@ -104,8 +104,18 @@ export function queryProducts(client: AliExpressClient, q: ProductQuery): Promis
 }
 
 export interface HotProductQuery {
-  /** One first-level category id; omitted, the whole hot list (mostly phone cases, per the probe). */
+  /**
+   * One first-level category id, or a comma list; omitted, the whole hot list (mostly phone cases,
+   * per the probe).
+   */
   categoryId?: string;
+  /**
+   * Keywords, as product.query takes them (the search's extra call, 2026-10-24: verified with
+   * real calls that hotproduct.query narrows to them, scripts/probe-wider.ts). Omitted, the list.
+   */
+  keywords?: string;
+  minPriceIls?: number;
+  maxPriceIls?: number;
   pageNo?: number;
   pageSize?: number;
   sort?: ProductSort;
@@ -123,6 +133,9 @@ export function hotProductQueryParams(
 ): Record<string, ParamValue> {
   return {
     category_ids: q.categoryId,
+    ...(q.keywords ? { keywords: q.keywords } : {}),
+    ...(q.minPriceIls !== undefined ? { min_sale_price: toMinorUnits(q.minPriceIls) } : {}),
+    ...(q.maxPriceIls !== undefined ? { max_sale_price: toMinorUnits(q.maxPriceIls) } : {}),
     page_no: q.pageNo ?? 1,
     page_size: Math.min(q.pageSize ?? MAX_PAGE_SIZE, MAX_PAGE_SIZE),
     sort: q.sort ?? "LAST_VOLUME_DESC",

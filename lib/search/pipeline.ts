@@ -8,6 +8,7 @@
 import {
   generateLinks,
   getProductDetails,
+  queryHotProducts,
   queryProducts,
   type ProductSort,
 } from "@/lib/aliexpress/affiliate";
@@ -439,6 +440,8 @@ export interface FetchOptions {
   kept?: number;
   /** Asked before each call after the first: false stops the fetch ("time"). */
   mayCall?: () => boolean;
+  /** The hot list's call for the same keywords after the first call (default on). */
+  hotCall?: boolean;
 }
 
 /**
@@ -452,7 +455,13 @@ export async function fetchAndRank(
   parsed: ParsedQuery,
   deps: Required<Pick<SearchDeps, "ali" | "sleep" | "aliSpacingMs" | "now" | "shopCap">>,
   meta: Pick<SearchMeta, "fetchStop" | "aliCalls" | "keywordsTried" | "rejected">,
-  { limits, budgetMs = FETCH_BUDGET_MS, kept = RESULTS_KEPT, mayCall }: FetchOptions = {},
+  {
+    limits,
+    budgetMs = FETCH_BUDGET_MS,
+    kept = RESULTS_KEPT,
+    mayCall,
+    hotCall = true,
+  }: FetchOptions = {},
 ): Promise<Fetched> {
   const seen = new Map<string, AliProduct>();
   const calls: FetchedPage[] = [];
@@ -497,6 +506,7 @@ export async function fetchAndRank(
       break;
     }
     for (const p of products) if (!seen.has(p.productId)) seen.set(p.productId, p);
+    const firstCall = !calls.length;
     calls.push({
       keywords,
       pageNo,
@@ -505,6 +515,34 @@ export async function fetchAndRank(
       totalRecords,
       lowestUnitsSold: lowestUnitsSold(products),
     });
+    // The hot list for the same keywords, once, right after the first call (2026-10-24, "wider
+    // fetch"): on 8 stored searches it added 27 passing products page 1 by sales did not have (car
+    // phone holders +13, power banks +11; nothing for niche products), where AliExpress's own
+    // relevance order added 8 (scripts/probe-wider.ts). Its products join the pool, so the policy
+    // counts them; it is not a policy step (the offline replay has no hot calls).
+    if (
+      firstCall &&
+      hotCall &&
+      deps.now().getTime() - started < budgetMs &&
+      !(mayCall && !mayCall())
+    ) {
+      await deps.sleep(deps.aliSpacingMs);
+      meta.aliCalls++;
+      meta.keywordsTried.push(`${keywords} [hot${categoryIds ? ` cat ${categoryIds}` : ""}]`);
+      try {
+        const hot = await queryHotProducts(deps.ali, {
+          keywords,
+          categoryId: parsed.category_id ?? categoryIds,
+          minPriceIls: parsed.min_price_ils,
+          maxPriceIls: parsed.max_price_ils,
+          sort: FETCH_SORT,
+          language: "EN",
+        });
+        for (const p of hot.products) if (!seen.has(p.productId)) seen.set(p.productId, p);
+      } catch (err) {
+        console.error(`[search] hotproduct.query failed: ${errorText(err)}`);
+      }
+    }
   }
   const pool = [...seen.values()];
   meta.rejected = rejectionCounts(pool, parsed);

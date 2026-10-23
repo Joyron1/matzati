@@ -496,6 +496,8 @@ export async function collectSeoResults(
             budgetMs: SEO_RUN_LIMITS.fetchBudgetMs,
             kept: SEO_MAX_PRODUCTS,
             mayCall: () => run.left() >= ALI_CALL_ROOM_MS,
+            // The run's time is planned around product.query calls (SEO_RUN_LIMITS): no hot call.
+            hotCall: false,
           },
         ),
       );
