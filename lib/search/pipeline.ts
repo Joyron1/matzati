@@ -5,7 +5,12 @@
 // fetch keeps its checked pool with its result set (./pool.ts, item 13): a sort change or a removed
 // requirement is ranked from it with no product.query call, and only the products shown without a
 // line that still holds for them are explained.
-import { generateLinks, queryProducts, type ProductSort } from "@/lib/aliexpress/affiliate";
+import {
+  generateLinks,
+  getProductDetails,
+  queryProducts,
+  type ProductSort,
+} from "@/lib/aliexpress/affiliate";
 import type { AliExpressClient } from "@/lib/aliexpress/client";
 import { AliExpressError } from "@/lib/aliexpress/errors";
 import type { AliProduct } from "@/lib/aliexpress/schemas";
@@ -46,6 +51,7 @@ import type {
   SearchResponse,
 } from "@/lib/types";
 import { applyCategoryRules } from "./category-rules";
+import { matchOrder } from "./match";
 import {
   CACHE_TTL_HOURS,
   EMPTY_RESULTS_TTL_HOURS,
@@ -53,6 +59,7 @@ import {
   isFreshResults,
   normalizeQuery,
   queryKey,
+  matchResultsKey,
   simpleResultsKey,
 } from "./cache-key";
 import { applyOverrides, buildChips } from "./chips";
@@ -1099,11 +1106,18 @@ function simpleResponse(
   fromCache: boolean,
 ): SearchResponse {
   const { not_filtered: _notFiltered, ...understood } = understoodOf(q, filters);
+  const exact = new Set(results.match ? (results.exactIds ?? []) : []);
   return {
     ...understood,
     checked_count: results.checked,
     passed_count: results.products.length,
-    results: results.products.map(simpleResult),
+    // A match search's exact matches carry their trust tier (the card's "פחות מוכח" badge).
+    results: results.products.map((p) =>
+      exact.has(p.productId)
+        ? { ...simpleResult(p), passed_tier: trustTierOf(p) }
+        : simpleResult(p),
+    ),
+    ...(results.match ? { match: true as const, exact_count: exact.size } : {}),
     extra_results: [],
     more_available: false,
     more_after_first_view: false,
@@ -1130,12 +1144,14 @@ async function simpleSearch(
   filters: ParsedQuery,
   state: SearchRun,
   stages: Stages,
+  match = false,
 ): Promise<SearchOutcome> {
   const { deps, meta, run, now, sleep } = state;
-  const key = simpleResultsKey(filters);
+  const key = match ? matchResultsKey(filters) : simpleResultsKey(filters);
   const hit = await deps.store.getResults(key, now());
   let results: CachedResults;
-  if (hit?.simple) {
+  let exactIds: string[] = [];
+  if (hit?.simple && Boolean(hit.match) === match) {
     meta.cache = "results";
     results = hit;
   } else {
@@ -1145,7 +1161,7 @@ async function simpleSearch(
     let checked = 0;
     const products = await timed(run, meta, "fetch_ms", async () => {
       meta.fetchStop = "calls";
-      const query = async (categoryIds: string | undefined) => {
+      const query = async (categoryIds: string | undefined, language: "HE" | "EN" = "HE") => {
         if (meta.aliCalls > 0) await sleep(deps.aliSpacingMs ?? 1_100);
         meta.aliCalls++;
         meta.keywordsTried.push(
@@ -1155,13 +1171,55 @@ async function simpleSearch(
           keywords: filters.keywords_en,
           pageNo: 1,
           sort: FETCH_SORT,
-          language: "HE",
+          language,
           minPriceIls: filters.min_price_ils,
           maxPriceIls: filters.max_price_ils,
           ...(categoryIds ? { categoryIds } : {}),
         });
       };
       try {
+        if (match) {
+          // English titles, so the relevance checks read the seller's own words (lib/search/match.ts).
+          const guess = filters.category_id ? undefined : filters.category_guess?.join(",");
+          const first = await query(filters.category_id ?? guess, "EN");
+          let fetched = first.products;
+          let order = matchOrder(simpleShowable(fetched), filters);
+          if (guess && order.exactIds.size < RESULTS_PER_PAGE) {
+            fetched = [...fetched, ...(await query(undefined, "EN")).products];
+            order = matchOrder(simpleShowable(fetched), filters);
+          }
+          checked = fetched.length;
+          const linked = await ensureLinks(
+            deps.ali,
+            order.products,
+            meta,
+            sleep,
+            deps.aliSpacingMs ?? 1_100,
+          );
+          if (order.products.length && !linked.length) {
+            throw new SearchError("upstream", "no product of the match search could be linked");
+          }
+          exactIds = linked.filter((p) => order.exactIds.has(p.productId)).map((p) => p.productId);
+          // AliExpress's Hebrew titles for the cards (one productdetail.get); on a failure the
+          // cards keep the English titles.
+          try {
+            await sleep(deps.aliSpacingMs ?? 1_100);
+            meta.aliCalls++;
+            const he = await getProductDetails(
+              deps.ali,
+              linked.map((p) => p.productId),
+              "HE",
+            );
+            const titles = new Map(he.products.map((d) => [d.productId, d.title]));
+            return linked.map((p) => {
+              const title = titles.get(p.productId);
+              return title ? { ...p, title, source: "hot" as const } : p;
+            });
+          } catch (err) {
+            console.error(`[search] match titles: ${errorText(err)}`);
+            return linked;
+          }
+        }
         // The page's category, else the parse's assigned ones; under a page of products in them,
         // one more call without (as the smart search's fetch does).
         const guess = filters.category_id ? undefined : filters.category_guess?.join(",");
@@ -1190,6 +1248,7 @@ async function simpleSearch(
       explanations: {},
       createdAt: now().toISOString(),
       simple: true,
+      ...(match ? { match: true as const, exactIds } : {}),
     };
     // The rows the cards' /go links read, before the cards show.
     if (products.length) {
@@ -1305,7 +1364,9 @@ async function search(
   };
   state.filters = filters;
   stages.understood.resolve(understoodOf(q, filters));
-  if (input.mode === "simple") return simpleSearch(q, filters, state, stages);
+  if (input.mode === "simple" || input.mode === "match") {
+    return simpleSearch(q, filters, state, stages, input.mode === "match");
+  }
 
   // 2. The results: cached for exactly these filters (under this shop cap mode), ranked again from
   // a pool a fetch already checked (a sort change, a removed requirement; item 13), or fetched.

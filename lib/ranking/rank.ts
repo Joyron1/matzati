@@ -109,6 +109,21 @@ export function rejectReason(
   return null;
 }
 
+/**
+ * The product is the one asked for, whatever its trust numbers: an ILS price within the bounds, the
+ * type gate, every requirement, a small capacity and a child's age (a photo or link search's exact
+ * matches, lib/search/match.ts).
+ */
+export function matchesRequest(p: AliProduct, f: SearchFilters): boolean {
+  if (p.currency !== "ILS") return false;
+  if (f.min_price_ils !== undefined && p.price < f.min_price_ils) return false;
+  if (f.max_price_ils !== undefined && p.price > f.max_price_ils) return false;
+  if (!isRequestedProduct(p.title, f)) return false;
+  if (!f.requirements.every((r) => requirementMatches(p.title, r))) return false;
+  if (!fitsSmallCapacity(p.title, f)) return false;
+  return f.child_age === undefined || ageFits(p.title, f.child_age);
+}
+
 /** How many products each filter removed. Drives the "no results" hint in the UI. */
 export function rejectionCounts(
   products: AliProduct[],

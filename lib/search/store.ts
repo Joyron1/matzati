@@ -194,6 +194,9 @@ export interface CachedResults {
    * Hebrew titles, no lines. Never served to "עוד N" (loadMore), which explains products.
    */
   simple?: true;
+  /** A photo or link search's set (SearchMode "match"): its exact matches' ids, first in order. */
+  match?: true;
+  exactIds?: string[];
 }
 
 /**

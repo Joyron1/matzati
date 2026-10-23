@@ -7,7 +7,7 @@ export type SortPreference = "best_value" | "cheapest" | "most_popular";
  * agent (our filters, ranking and lines, CLAUDE.md §6); "simple" shows what AliExpress returns for
  * the search's English keywords, by 30-day sales, with none of our filters ("חיפוש פשוט").
  */
-export type SearchMode = "smart" | "simple";
+export type SearchMode = "smart" | "simple" | "match";
 
 export type ChipKind = "keywords" | "must_have" | "min_price" | "max_price" | "category";
 
@@ -141,6 +141,12 @@ export interface SearchResponse {
   mode?: "simple";
   /** A simple search: the English keywords sent to AliExpress (the parse's keywords_en). */
   searched_keywords?: string;
+  /**
+   * A photo or link search (SearchMode "match", lib/search/match.ts): a simple search whose exact
+   * matches come first, `exact_count` of them, each with its trust tier.
+   */
+  match?: true;
+  exact_count?: number;
 }
 
 export type DealType = "deal" | "holiday" | "dont_buy";

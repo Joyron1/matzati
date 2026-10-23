@@ -85,7 +85,7 @@ function useFromInput() {
       const res = await fetch("/api/search/from-input", { method: "POST", ...init });
       const data = (await res.json().catch(() => ({}))) as {
         q?: string;
-        mode?: "simple";
+        mode?: "simple" | "match";
         cat?: string;
         productId?: string;
         error?: string;

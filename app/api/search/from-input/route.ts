@@ -76,7 +76,7 @@ async function simpleSearchAnswer(
     await store.putParse(key, normalizeQuery(out.query), out.parsed);
   }
   return Response.json(
-    { q: out.query, mode: "simple", ...(cat ? { cat } : {}) },
+    { q: out.query, mode: "match", ...(cat ? { cat } : {}) },
     { headers: noStore },
   );
 }

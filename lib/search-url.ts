@@ -55,8 +55,10 @@ export function searchCategoryChip(categoryId: string | undefined): string | nul
  * The search mode a /search URL asks for (owner request 2026-10-19): "simple" for mode=simple,
  * otherwise undefined (the smart search, the default).
  */
-export function parseMode(value: Param): Extract<SearchMode, "simple"> | undefined {
-  return firstParam(value) === "simple" ? "simple" : undefined;
+export function parseMode(value: Param): Extract<SearchMode, "simple" | "match"> | undefined {
+  const v = firstParam(value);
+  // "match": a photo or link search (owner request 2026-10-23, lib/search/match.ts).
+  return v === "simple" || v === "match" ? v : undefined;
 }
 
 /** The `from` of one of our own links, or undefined for a query the visitor typed. */
@@ -105,7 +107,7 @@ export function searchHref({ q, sort, without = [], from, cat, mode }: SearchHre
   if (unique.length) params.set("without", unique.join(","));
   if (from) params.set("from", from);
   if (cat && parseSearchCategory(cat)) params.set("cat", cat);
-  if (mode === "simple") params.set("mode", "simple");
+  if (mode === "simple" || mode === "match") params.set("mode", mode);
   return `/search?${params.toString()}`;
 }
 

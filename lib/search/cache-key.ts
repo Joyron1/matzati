@@ -140,6 +140,16 @@ export function simpleResultsKey(
 }
 
 /**
+ * The results key of a photo or link search (SearchMode "match", lib/search/match.ts): every filter
+ * that decides an exact match, under its own prefix.
+ */
+export function matchResultsKey(
+  f: SearchFilters & Partial<Pick<ParsedQuery, "category_hint" | "product_he" | "category_guess">>,
+): string {
+  return sha256(`m1:${JSON.stringify(canonicalFilters(f, "none"))}`);
+}
+
+/**
  * How long a result set with no products is reused: the 48h of before the 14-day decision, so a
  * momentary gap in the AliExpress catalog does not say "nothing found" for two weeks. The same
  * holds for the parse of a search whose own filters found nothing (emptyParseCreatedAt in

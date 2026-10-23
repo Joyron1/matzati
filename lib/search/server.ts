@@ -358,8 +358,8 @@ function sharedRun(
     sort ?? null,
     deps.shopCap ?? null,
     ...(input.category ? [input.category] : []),
-    // A simple search never joins the smart one, or the other way.
-    ...(input.mode === "simple" ? ["simple"] : []),
+    // A simple or match search never joins the smart one, or each other.
+    ...(input.mode && input.mode !== "smart" ? [input.mode] : []),
   ]);
   const running = inFlight.get(key);
   if (running) {
@@ -475,7 +475,7 @@ export async function startSearchForRequest(
         ...(input.arrival ? { arrival: input.arrival } : {}),
         owner: await requestIsOwner(),
         ...(input.category ? { category: input.category } : {}),
-        ...(input.mode === "simple" ? { mode: "simple" as const } : {}),
+        ...(input.mode && input.mode !== "smart" ? { mode: input.mode } : {}),
       },
       deps,
     );
@@ -567,7 +567,7 @@ export async function cachedSearchForBot(
         cacheOnly: true,
         bot: true,
         ...(input.category ? { category: input.category } : {}),
-        ...(input.mode === "simple" ? { mode: "simple" as const } : {}),
+        ...(input.mode && input.mode !== "smart" ? { mode: input.mode } : {}),
       },
       deps,
     );
