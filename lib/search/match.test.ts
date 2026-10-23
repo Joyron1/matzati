@@ -22,7 +22,17 @@ function parseLlm(raw: ParsedQueryRaw): LlmProvider {
   return {
     name: "anthropic",
     model: "claude-haiku-4-5",
-    async generateStructured<T extends z.ZodType>(_req: StructuredRequest<T>) {
+    // Every call is the parse here: no call follows it in a match search.
+    async generateStructured<T extends z.ZodType>(): Promise<{
+      data: z.infer<T>;
+      usage: {
+        inputTokens: number;
+        outputTokens: number;
+        cacheReadTokens: number;
+        cacheWriteTokens: number;
+      };
+      model: string;
+    }> {
       const usage = {
         inputTokens: 900,
         outputTokens: 100,
