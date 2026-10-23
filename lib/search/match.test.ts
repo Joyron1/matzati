@@ -22,17 +22,9 @@ function parseLlm(raw: ParsedQueryRaw): LlmProvider {
   return {
     name: "anthropic",
     model: "claude-haiku-4-5",
-    // Every call is the parse here: no call follows it in a match search.
-    async generateStructured<T extends z.ZodType>(): Promise<{
-      data: z.infer<T>;
-      usage: {
-        inputTokens: number;
-        outputTokens: number;
-        cacheReadTokens: number;
-        cacheWriteTokens: number;
-      };
-      model: string;
-    }> {
+    // Only the parse may call: no LLM call follows it in a match search.
+    async generateStructured<T extends z.ZodType>(req: StructuredRequest<T>) {
+      if (!req.system.includes("Hebrew shopping request")) throw new Error("not a parse call");
       const usage = {
         inputTokens: 900,
         outputTokens: 100,
