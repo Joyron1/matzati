@@ -3,6 +3,7 @@ import { AliExpressClient } from "@/lib/aliexpress/client";
 import {
   amountOf,
   listOrders,
+  moneyOf,
   ORDER_STATUSES,
   pacificTime,
   parseOrder,
@@ -52,6 +53,36 @@ describe("order.list parsing", () => {
     expect(amountOf("")).toBeNull();
     expect(amountOf(undefined)).toBeNull();
     expect(amountOf(Number.NaN)).toBeNull();
+  });
+
+  it("reads money in cents as real orders send it, and decimal strings as units", () => {
+    expect(moneyOf(283)).toBe(2.83);
+    expect(moneyOf("283")).toBe(2.83);
+    expect(moneyOf(25)).toBe(0.25);
+    expect(moneyOf("25.50")).toBe(25.5);
+    expect(moneyOf("")).toBeNull();
+  });
+
+  it("parses a real order's amounts (cents) into dollars", () => {
+    // The shape order.list returned on 2026-10-23 (title shortened).
+    const real = {
+      sub_order_id: "3000000000001",
+      order_status: "Payment Completed",
+      paid_time: "2026-10-23 09:00:17",
+      product_id: "1005000000001",
+      product_title: "USB Type C Cable Fast Charging",
+      product_count: 1,
+      paid_amount: 283,
+      estimated_paid_commission: 25,
+      commission_rate: "9.00%",
+      settled_currency: "USD",
+    };
+    expect(parseOrder(real)).toMatchObject({
+      paidAmount: 2.83,
+      estimatedCommission: 0.25,
+      commissionRatePct: 9,
+      currency: "USD",
+    });
   });
 
   it("parses an order as the docs describe it", () => {

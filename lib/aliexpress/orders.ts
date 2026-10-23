@@ -1,9 +1,10 @@
 // Orders our affiliate links earned (aliexpress.affiliate.order.list, docs 1913 and 1914), for the
 // admin's revenue page (owner request 2026-10-19). Owner-side only: never shown to visitors.
 // The method is open to this app (probed 2026-09-28 and 2026-10-19: resp_code 405 "The result is
-// empty" for every status over 30 days, i.e. no orders yet). Field names follow the docs; amounts
-// come as strings in the settlement currency, so every number is parsed defensively and a value
-// that is not a number is null, never 0.
+// empty" for every status over 30 days, i.e. no orders yet). Field names follow the docs. Amounts
+// are JSON integers in CENTS of the settlement currency (real orders, 2026-10-23: a cable paid
+// $2.83 came as paid_amount 283 and its 9% commission as estimated_paid_commission 25), not the
+// decimal strings the docs show; moneyOf reads both. A value that is not a number is null, never 0.
 import type { AliExpressClient } from "./client";
 import { AliExpressError } from "./errors";
 import { unwrapList } from "./unwrap";
@@ -50,6 +51,17 @@ export function amountOf(value: unknown): number | null {
   return m ? Number(m[0]) : null;
 }
 
+/**
+ * A money field in the settlement currency's units: an integer (a JSON number or a string of
+ * digits, the form real orders use) is cents; a decimal string ("25.50", the docs' form) is units.
+ */
+export function moneyOf(value: unknown): number | null {
+  const n = amountOf(value);
+  if (n === null) return null;
+  const decimal = typeof value === "string" && /\d\.\d/.test(value);
+  return decimal ? n : Math.round(n) / 100;
+}
+
 const text = (value: unknown): string | null =>
   typeof value === "string" && value.trim() !== ""
     ? value.trim()
@@ -75,9 +87,9 @@ export function parseOrder(raw: unknown): AffiliateOrder | null {
     productId: text(raw.product_id),
     productTitle: text(raw.product_title),
     productCount: amountOf(raw.product_count),
-    paidAmount: amountOf(raw.paid_amount),
-    estimatedCommission: amountOf(raw.estimated_paid_commission),
-    finishedCommission: amountOf(raw.estimated_finished_commission),
+    paidAmount: moneyOf(raw.paid_amount),
+    estimatedCommission: moneyOf(raw.estimated_paid_commission),
+    finishedCommission: moneyOf(raw.estimated_finished_commission),
     commissionRatePct: amountOf(raw.commission_rate),
     currency: text(raw.settled_currency),
     isNewBuyer: boolOf(raw.is_new_buyer),

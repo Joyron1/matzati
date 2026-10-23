@@ -29,7 +29,7 @@ const cachedOrders = unstable_cache(
       return null;
     }
   },
-  ["affiliate-orders", "1"],
+  ["affiliate-orders", "2"] // 2: amounts in cents (2026-10-23),
   { revalidate: 3600 },
 );
 
