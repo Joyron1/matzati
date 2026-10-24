@@ -1,9 +1,10 @@
 // Shared class strings for buttons and surfaces, so sizes and states stay consistent.
 const base =
-  "inline-flex items-center justify-center gap-2 rounded-full font-semibold whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex items-center justify-center gap-2 rounded-[10px] font-semibold whitespace-nowrap transition-transform active:scale-[0.98] motion-reduce:transition-none disabled:cursor-not-allowed disabled:opacity-60";
 
-export const btnPrimary = `${base} bg-accent text-on-accent hover:bg-accent-ink`;
-export const btnSecondary = `${base} border border-line bg-surface text-ink hover:border-accent hover:text-accent-ink`;
+/** Design 9: the action gradient, red at the start (right) into orange, white bold label. */
+export const btnPrimary = `${base} bg-gradient-to-l from-cta-from to-cta-to font-bold text-white hover:brightness-95`;
+export const btnSecondary = `${base} border-[1.5px] border-line bg-surface text-ink hover:border-muted`;
 export const btnGold = `${base} bg-gold text-on-gold hover:brightness-95`;
 
 /**

@@ -138,7 +138,7 @@ export function FooterView({
 }) {
   const Root = preview ? "div" : "footer";
   return (
-    <Root className="mt-20 border-t border-line bg-surface">
+    <Root data-site-chrome className="mt-20 border-t border-line bg-surface">
       <div className="mx-auto max-w-6xl px-4 pt-10 pb-4 sm:px-6 sm:pt-14">
         {newsletter}
 

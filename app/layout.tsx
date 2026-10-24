@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Sans_Hebrew, Secular_One } from "next/font/google";
+import { Rubik } from "next/font/google";
+import { BottomNav } from "@/components/bottom-nav";
 import { GoogleAnalytics } from "@/components/analytics/google-analytics";
 import { MetaPixel } from "@/components/analytics/meta-pixel";
 import { VercelAnalytics } from "@/components/analytics/vercel-analytics";
@@ -16,17 +17,11 @@ import { OG_BASE } from "@/lib/seo/page-meta";
 import { publicSettings } from "@/lib/settings/queries";
 import "./globals.css";
 
-const plex = IBM_Plex_Sans_Hebrew({
-  variable: "--font-plex",
+// Design 9 (2026-10-24): Rubik for text, headings and numbers.
+const rubik = Rubik({
+  variable: "--font-rubik",
   subsets: ["hebrew", "latin"],
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
-});
-
-const secular = Secular_One({
-  variable: "--font-secular",
-  subsets: ["hebrew", "latin"],
-  weight: "400",
+  weight: ["400", "500", "600", "700", "800"],
   display: "swap",
 });
 
@@ -63,12 +58,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     saleBarSales(),
   ]);
   return (
-    <html
-      lang="he"
-      dir="rtl"
-      className={`${plex.variable} ${secular.variable} antialiased`}
-      suppressHydrationWarning
-    >
+    <html lang="he" dir="rtl" className={`${rubik.variable} antialiased`} suppressHydrationWarning>
       <head>
         {/* Product photos come from AliExpress's image host on every page with cards; the first
             ones are the largest paint on phones, and the connection (DNS, TCP, TLS) would otherwise
@@ -98,6 +88,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             {children}
           </main>
           <SiteFooter />
+          {/* Below lg: the thumb bar (בית, חיפוש, כל המוצרים, שמורים); hidden on /admin and /dev. */}
+          <BottomNav />
           {/* Last in the DOM: Tab reaches the cookie banner after the footer. Client-only, so the
               layout reads no cookies and pages stay static. */}
           <ConsentManager

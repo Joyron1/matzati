@@ -41,15 +41,16 @@ async function offerLinks(): Promise<OfferLink[]> {
 export async function SiteHeader() {
   const offers = await offerLinks();
   return (
-    <header className="border-b border-line bg-bg">
+    <header data-site-chrome className="border-b border-line bg-bg">
       {/* Tight gaps and icon-only links on phones: logo, recent searches, all products, one offers
           icon (or the offers menu) and the theme toggle fit from 375px; at 320px without a
           horizontal scroll (the nav then takes most of the side padding). Relative: the offers
           menu and the categories panel open under this row. */}
       <div className="relative mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-4 sm:h-20 sm:gap-3 sm:px-6">
         <Logo />
-        {/* Below lg (owner request 2026-10-24): the saved-products heart and one menu button
-            (components/mobile-menu.tsx) instead of a row of icons; from lg the links show. */}
+        {/* Below lg (owner request 2026-10-24): one menu button (components/mobile-menu.tsx) instead of a row
+            of icons, the saved products in the bottom bar (components/bottom-nav.tsx); from lg the
+            links show. */}
         <nav aria-label="ניווט ראשי" className="flex items-center gap-1 whitespace-nowrap sm:gap-2">
           <Link
             href="/"
@@ -76,7 +77,9 @@ export async function SiteHeader() {
             <OffersNav links={offers} />
           </div>
           {/* "המוצרים ששמרתי" (owner request 2026-10-24): the heart and how many are saved. */}
-          <SavedNavLink />
+          <div className="hidden lg:flex">
+            <SavedNavLink />
+          </div>
           <div className="hidden lg:flex">
             <ThemeToggle />
           </div>

@@ -144,7 +144,7 @@ export function LinkSearch({
           onChange={(e) => setLink(e.target.value)}
           placeholder="https://… קישור מאמזון, שיין, טמו, KSP או אלי אקספרס"
           dir="ltr"
-          className={`min-w-0 flex-1 rounded-2xl border-2 border-muted/70 bg-bg px-4 text-ink placeholder:text-muted hover:border-muted focus-visible:border-accent ${
+          className={`min-w-0 flex-1 rounded-xl border-[1.5px] border-muted/55 bg-surface-2 focus-visible:bg-surface px-4 text-ink placeholder:text-muted hover:border-muted focus-visible:border-accent ${
             variant === "hero" ? "h-16 text-lg" : "h-12 text-base"
           }`}
         />
@@ -227,7 +227,7 @@ export function ImageSearch({ variant }: { variant: "hero" | "bar" }) {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <label
           htmlFor={inputId}
-          className={`flex flex-1 cursor-pointer items-center gap-3 rounded-2xl border-2 border-dashed border-muted/70 bg-bg px-4 hover:border-accent ${
+          className={`flex flex-1 cursor-pointer items-center gap-3 rounded-xl border-[1.5px] border-dashed border-muted/55 bg-surface-2 px-4 hover:border-accent ${
             variant === "hero" ? "min-h-20 py-3" : "min-h-12 py-1.5"
           }`}
         >

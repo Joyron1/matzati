@@ -3,58 +3,69 @@
 /* Theme is driven by next-themes via [data-theme] on <html>. */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
+/* Design 9, "Vivid Marketplace" (owner's choice from Stitch, 2026-10-24): crisp white, red-to-orange
+   actions, yellow deal flags, green trust marks, Rubik. Shades adjusted for 4.5:1 text contrast
+   (the gradient's white label is bold 18px, large text: 3:1). */
 :root,
 [data-theme="light"] {
   color-scheme: light;
-  --bg: #eef1f5;
+  --bg: #ffffff;
   --surface: #ffffff;
-  --surface-2: #e3e8ef;
-  --ink: #0f1b2d;
-  --muted: #536076;
-  --line: #d3dae4;
-  --accent: #2446d8;
+  --surface-2: #f4f5f7;
+  --ink: #111827;
+  --muted: #6b7280;
+  --line: #e5e7eb;
+  --accent: #e2241f;
   --on-accent: #ffffff;
-  --accent-soft: #e2e7fc;
-  --accent-ink: #1e3bb8;
-  --gold: #f2b43a;
-  --gold-soft: #fdf1d6;
-  --on-gold: #0f1b2d;
-  --invert-bg: #0f1b2d;
-  --invert-ink: #f3f6fb;
-  --shadow: 0 18px 40px -22px rgba(15, 27, 45, 0.35);
-  /* The top sale bar (components/sale-bar.tsx): deep navy into cobalt in both themes. */
-  --promo-from: #0f1b2d;
-  --promo-to: #1e3bb8;
-  --promo-ink: #f3f6fb;
-  --promo-muted: #c3cde0;
-  --promo-cell: rgba(255, 255, 255, 0.1);
-  --promo-line: rgba(255, 255, 255, 0.16);
+  --accent-soft: #ffeceb;
+  --accent-ink: #bc000a;
+  --cta-from: #e2241f;
+  --cta-to: #e8590c;
+  --gold: #ffc400;
+  --gold-soft: #fff6d6;
+  --on-gold: #111827;
+  --trust: #007a52;
+  --trust-soft: #e6f6ef;
+  --invert-bg: #111827;
+  --invert-ink: #f9fafb;
+  --shadow: 0 4px 12px -2px rgba(17, 24, 39, 0.08);
+  /* The top sale bar (components/sale-bar.tsx): the action gradient. */
+  --promo-from: #e2241f;
+  --promo-to: #e8590c;
+  --promo-ink: #ffffff;
+  --promo-muted: #ffe4d9;
+  --promo-cell: rgba(17, 24, 39, 0.28);
+  --promo-line: rgba(255, 255, 255, 0.28);
 }
 
 [data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0b1120;
-  --surface: #131b2e;
-  --surface-2: #1c2640;
-  --ink: #e8edf6;
-  --muted: #9ca8bf;
-  --line: #26324d;
-  --accent: #7d95ff;
-  --on-accent: #0b1120;
-  --accent-soft: #1f2b55;
-  --accent-ink: #b3c0ff;
-  --gold: #f4c25a;
-  --gold-soft: #33291a;
-  --on-gold: #0b1120;
-  --invert-bg: #e8edf6;
-  --invert-ink: #0b1120;
-  --shadow: 0 0 0 1px #26324d;
-  --promo-from: #131b2e;
-  --promo-to: #1f2b55;
-  --promo-ink: #e8edf6;
-  --promo-muted: #b3c0d9;
-  --promo-cell: rgba(255, 255, 255, 0.08);
-  --promo-line: #26324d;
+  --bg: #0f1115;
+  --surface: #171a21;
+  --surface-2: #1f232c;
+  --ink: #f3f4f6;
+  --muted: #9ca3af;
+  --line: #2a2f3a;
+  --accent: #ff5a4e;
+  --on-accent: #0f1115;
+  --accent-soft: #3a1714;
+  --accent-ink: #ff8a80;
+  --cta-from: #e2241f;
+  --cta-to: #e8590c;
+  --gold: #ffc400;
+  --gold-soft: #3a2f0a;
+  --on-gold: #111827;
+  --trust: #4ade9b;
+  --trust-soft: #0f2a1f;
+  --invert-bg: #f3f4f6;
+  --invert-ink: #0f1115;
+  --shadow: 0 0 0 1px #2a2f3a;
+  --promo-from: #8f1510;
+  --promo-to: #8a3a07;
+  --promo-ink: #ffffff;
+  --promo-muted: #f5c9bb;
+  --promo-cell: rgba(0, 0, 0, 0.3);
+  --promo-line: rgba(255, 255, 255, 0.2);
 }
 
 @theme inline {
@@ -71,6 +82,10 @@
   --color-gold: var(--gold);
   --color-gold-soft: var(--gold-soft);
   --color-on-gold: var(--on-gold);
+  --color-trust: var(--trust);
+  --color-trust-soft: var(--trust-soft);
+  --color-cta-from: var(--cta-from);
+  --color-cta-to: var(--cta-to);
   --color-invert-bg: var(--invert-bg);
   --color-invert-ink: var(--invert-ink);
   --color-promo-ink: var(--promo-ink);
@@ -80,12 +95,12 @@
 
   --shadow-soft: var(--shadow);
 
-  --font-sans: var(--font-plex), system-ui, sans-serif;
-  --font-display: var(--font-secular), var(--font-plex), system-ui, sans-serif;
+  --font-sans: var(--font-rubik), system-ui, sans-serif;
+  --font-display: var(--font-rubik), system-ui, sans-serif;
 
-  --radius-composer: 28px;
-  --radius-card: 22px;
-  --radius-tile: 16px;
+  --radius-composer: 16px;
+  --radius-card: 12px;
+  --radius-tile: 8px;
 }
 
 @layer base {
@@ -154,9 +169,7 @@
   overflow: hidden;
   border-radius: var(--radius-composer);
   padding: 2px;
-  box-shadow:
-    0 24px 56px -26px color-mix(in oklab, var(--accent) 75%, transparent),
-    0 0 0 7px color-mix(in oklab, var(--accent) 9%, transparent);
+  box-shadow: 0 12px 32px -14px color-mix(in oklab, var(--cta-from) 45%, transparent);
 }
 
 .composer-frame::before {
@@ -167,11 +180,11 @@
   z-index: -1;
   background: conic-gradient(
     from 0deg,
-    var(--accent),
-    color-mix(in oklab, var(--accent) 30%, var(--surface)) 22%,
-    var(--accent-ink) 50%,
-    color-mix(in oklab, var(--accent) 30%, var(--surface)) 78%,
-    var(--accent)
+    var(--cta-from),
+    color-mix(in oklab, var(--cta-to) 35%, var(--surface)) 22%,
+    var(--cta-to) 50%,
+    color-mix(in oklab, var(--cta-from) 35%, var(--surface)) 78%,
+    var(--cta-from)
   );
 }
 
@@ -243,6 +256,12 @@ textarea:placeholder-shown:not(:focus) + .composer-caret {
       content-visibility: visible;
     }
   }
+}
+
+/* The admin has its own frame (app/admin/admin-nav.tsx: sidebar, top bar, bottom bar): the site's
+   header and footer step aside while it is on the page. */
+body:has([data-admin-shell]) [data-site-chrome] {
+  display: none;
 }
 
 /* The phone menu's side sheet (components/mobile-menu.tsx): slides in from the start side (the

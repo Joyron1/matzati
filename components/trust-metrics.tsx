@@ -58,7 +58,7 @@ function MetricList({ product, short }: { product: TrustFields; short?: boolean 
     <ul className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-muted">
       {positive_feedback_pct !== null && (
         <li className="flex items-center gap-1.5">
-          <ThumbsUp aria-hidden className="size-4 shrink-0 text-accent" />
+          <ThumbsUp aria-hidden className="size-4 shrink-0 text-trust" />
           <span>
             <bdi dir="ltr" className="font-semibold text-ink">
               {formatPct(positive_feedback_pct)}
@@ -69,7 +69,7 @@ function MetricList({ product, short }: { product: TrustFields; short?: boolean 
       )}
       {units_sold !== null && (
         <li className="flex items-center gap-1.5">
-          <ShoppingCart aria-hidden className="size-4 shrink-0 text-accent" />
+          <ShoppingCart aria-hidden className="size-4 shrink-0 text-trust" />
           <span>
             <bdi dir="ltr" className="font-semibold text-ink">
               {formatCount(units_sold)}

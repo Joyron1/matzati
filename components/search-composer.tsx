@@ -148,7 +148,7 @@ export function SearchComposer({
                 aria-describedby={`${hintId} ${noteId}`}
                 // 22px and up, so phones never zoom in on focus. Grows with the text where
                 // field-sizing is supported; 2 rows elsewhere. The site focus ring (globals.css).
-                className="block max-h-60 min-h-[6.5rem] w-full resize-none rounded-2xl border-2 border-muted/70 bg-bg px-4 py-3 text-[1.375rem] leading-relaxed text-ink field-sizing-content placeholder:text-muted hover:border-muted focus-visible:border-accent sm:min-h-[7rem] sm:px-5 sm:py-3.5 sm:text-[1.625rem]"
+                className="block max-h-60 min-h-[6.5rem] w-full resize-none rounded-xl border-[1.5px] border-muted/55 bg-surface-2 focus-visible:bg-surface px-4 py-3 text-[1.375rem] leading-relaxed text-ink field-sizing-content placeholder:text-muted hover:border-muted focus-visible:border-accent sm:min-h-[7rem] sm:px-5 sm:py-3.5 sm:text-[1.625rem]"
               />
               <span aria-hidden className="composer-caret" />
             </div>

@@ -35,6 +35,8 @@ import {
   type SimilarProducts as SimilarProductsData,
 } from "@/lib/similar/select";
 import type { Deal } from "@/lib/types";
+import { AdminAccount } from "@/app/admin/admin-account";
+import { AdminShell } from "@/app/admin/admin-nav";
 import { SettingsIntro } from "@/app/admin/settings/settings-intro";
 import { DEFAULT_SHOP_CAP_MODE, isShopCapMode } from "@/lib/ranking/config";
 import { AdminNewsletterPreview, FooterPreview } from "./footer-previews";
@@ -511,7 +513,10 @@ export default async function PreviewPage({
             enabled: params.community === "on",
           };
     return (
-      <>
+      <AdminShell
+        previewPath="/admin/settings"
+        account={<AdminAccount email="owner@example.com" />}
+      >
         <FakeDataNote>כמו דף ההגדרות בניהול. השמירה כאן לא שומרת כלום.</FakeDataNote>
         <div className="mx-auto max-w-3xl space-y-6 px-4 pt-8 sm:px-6 sm:pt-12">
           <SettingsIntro />
@@ -526,7 +531,7 @@ export default async function PreviewPage({
             <PreviewCommunityForm stored={community} failed={params.error === "1"} />
           </div>
         </div>
-      </>
+      </AdminShell>
     );
   }
 
@@ -543,10 +548,13 @@ export default async function PreviewPage({
   if (screen === "admin-newsletter") {
     // The /admin/newsletter view with ?n= made-up subscribers (./footer-previews.tsx).
     return (
-      <>
+      <AdminShell
+        previewPath="/admin/newsletter"
+        account={<AdminAccount email="owner@example.com" />}
+      >
         <FakeDataNote>כמו דף הניוזלטר בניהול, עם רשומים מומצאים. אין כאן ייצוא.</FakeDataNote>
         <AdminNewsletterPreview params={await searchParams} now={now} />
-      </>
+      </AdminShell>
     );
   }
 
