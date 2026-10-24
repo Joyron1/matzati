@@ -5,6 +5,7 @@
 // only, since dev and preview share the database.
 import { publishDue, runFinderFor } from "@/lib/agents/server";
 import { deployEnv } from "@/lib/env";
+import { publishDueReels } from "@/lib/meta/reels-server";
 import { isCronAuthorized } from "@/lib/seo/cron-auth";
 
 // Eight hot lists 1.1 s apart, two AliExpress calls and one writer call (up to 45 s).
@@ -25,7 +26,17 @@ async function handle(request: Request): Promise<Response> {
         `[agents-cron] publish due=${summary.due} posted=${summary.posted} failed=${summary.failed}`,
       );
     }
-    return Response.json({ ok: true, publish: summary });
+    // The scheduled Reels (owner request 2026-10-24): prepared an hour ahead, published on time.
+    const reels = await publishDueReels().catch((err: unknown) => {
+      console.error(`[agents-cron] reels: ${String(err).slice(0, 200)}`);
+      return null;
+    });
+    if (reels && (reels.prepared || reels.published || reels.failed)) {
+      console.log(
+        `[agents-cron] reels prepared=${reels.prepared} published=${reels.published} failed=${reels.failed}`,
+      );
+    }
+    return Response.json({ ok: true, publish: summary, reels });
   }
   const result = await runFinderFor("cron");
   console.log(
