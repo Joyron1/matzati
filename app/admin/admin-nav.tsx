@@ -50,7 +50,7 @@ const GROUPS: { title: string; links: NavLink[] }[] = [
     title: "ערוצים",
     links: [
       { href: "/admin/agents", label: "טלגרם", icon: Send, section: ["/admin/agents"] },
-      { href: "/admin/reels", label: "רילז", icon: Clapperboard, section: ["/admin/reels"] },
+      { href: "/admin/meta", label: "Meta", icon: Clapperboard, section: ["/admin/meta"] },
       { href: "/admin/newsletter", label: "ניוזלטר", icon: Mail, section: ["/admin/newsletter"] },
     ],
   },
@@ -73,7 +73,7 @@ const GROUPS: { title: string; links: NavLink[] }[] = [
 
 const ALL = GROUPS.flatMap((g) => g.links);
 /** The bottom bar's pages (the daily ones); everything is in the sheet behind "עוד". */
-const THUMB = ["/admin/agents", "/admin/reels", "/admin/revenue", "/admin"].map((href) =>
+const THUMB = ["/admin/agents", "/admin/meta", "/admin/revenue", "/admin"].map((href) =>
   ALL.find((l) => l.href === href)!,
 );
 

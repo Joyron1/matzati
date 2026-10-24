@@ -16,7 +16,9 @@ import type { MetaConfig, MetaResult } from "./publish";
 
 interface GraphAnswer {
   id?: string;
+  post_id?: string;
   video_id?: string;
+  upload_url?: string;
   success?: boolean;
   status_code?: string;
   error?: { message?: string; code?: number; error_subcode?: number };
@@ -170,5 +172,194 @@ export async function publishFacebookReel(
   );
   return answer.status === 200 && answer.body?.success === true
     ? { ok: true, id: reel.videoId }
+    : failed(answer, config.token, "finish");
+}
+
+// --- Posts and stories (owner request 2026-10-24, docs checked the same day) ---------------------
+// Instagram (developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/
+// media): an image container takes image_url (JPEG, 8 MB, ratio 4:5 to 1.91:1); a carousel is up to
+// 20 children made with is_carousel_item=true (no caption on a child), then media_type=CAROUSEL with
+// children (ids, comma-separated) and the caption; a story is media_type=STORIES with image_url or
+// video_url (no caption; video 3-60 s). Each is published with media_publish once FINISHED.
+// Facebook: POST /{page-id}/photos with url and caption posts one photo; for several, each is
+// uploaded with published=false and POST /{page-id}/feed takes message and attached_media[i] =
+// {"media_fbid": id} (docs/graph-api/reference/page/photos). Stories (docs/page-stories-api): a
+// photo story is an unpublished /photos upload, then POST /{page-id}/photo_stories with photo_id;
+// a video story is POST /{page-id}/video_stories upload_phase=start (video_id, upload_url), the
+// upload_url with a file_url header, then upload_phase=finish with video_id.
+
+/** One Instagram container: an image, a carousel child, a carousel or a story. */
+export async function createInstagramContainer(
+  config: MetaConfig,
+  params: Record<string, string>,
+  fetchImpl: typeof fetch = fetch,
+): Promise<MetaResult> {
+  if (!config.igUserId) return { ok: false, error: "META_IG_USER_ID is not set" };
+  const answer = await call(
+    config,
+    graph(config, `${encodeURIComponent(config.igUserId)}/media`),
+    { method: "POST", params },
+    fetchImpl,
+  );
+  const id = answer.body?.id;
+  return answer.status === 200 && id ? { ok: true, id } : failed(answer, config.token, "container");
+}
+
+/** A feed post's container: one image, or a carousel of its images (children made first). */
+export async function createInstagramPost(
+  config: MetaConfig,
+  post: { imageUrls: string[]; caption: string },
+  fetchImpl: typeof fetch = fetch,
+): Promise<MetaResult> {
+  if (post.imageUrls.length === 1) {
+    return createInstagramContainer(
+      config,
+      { image_url: post.imageUrls[0], caption: post.caption },
+      fetchImpl,
+    );
+  }
+  const children: string[] = [];
+  for (const url of post.imageUrls) {
+    const child = await createInstagramContainer(
+      config,
+      { image_url: url, is_carousel_item: "true" },
+      fetchImpl,
+    );
+    if (!child.ok) return child;
+    children.push(child.id);
+  }
+  return createInstagramContainer(
+    config,
+    { media_type: "CAROUSEL", children: children.join(","), caption: post.caption },
+    fetchImpl,
+  );
+}
+
+/** A story's container: one image or one video. */
+export function createInstagramStory(
+  config: MetaConfig,
+  story: { url: string; video: boolean },
+  fetchImpl: typeof fetch = fetch,
+): Promise<MetaResult> {
+  return createInstagramContainer(
+    config,
+    { media_type: "STORIES", [story.video ? "video_url" : "image_url"]: story.url },
+    fetchImpl,
+  );
+}
+
+async function unpublishedPhoto(
+  config: MetaConfig,
+  url: string,
+  fetchImpl: typeof fetch,
+): Promise<MetaResult> {
+  const answer = await call(
+    config,
+    graph(config, `${encodeURIComponent(config.pageId)}/photos`),
+    { method: "POST", params: { url, published: "false" } },
+    fetchImpl,
+  );
+  const id = answer.body?.id;
+  return answer.status === 200 && id ? { ok: true, id } : failed(answer, config.token, "photo");
+}
+
+/** Posts the images on the Page now: one photo post, or a multi-photo post. */
+export async function publishFacebookPhotos(
+  config: MetaConfig,
+  post: { imageUrls: string[]; caption: string },
+  fetchImpl: typeof fetch = fetch,
+): Promise<MetaResult> {
+  const page = encodeURIComponent(config.pageId);
+  if (post.imageUrls.length === 1) {
+    const answer = await call(
+      config,
+      graph(config, `${page}/photos`),
+      { method: "POST", params: { url: post.imageUrls[0], caption: post.caption } },
+      fetchImpl,
+    );
+    const id = answer.body?.post_id ?? answer.body?.id;
+    return answer.status === 200 && id ? { ok: true, id } : failed(answer, config.token, "photo");
+  }
+  const params: Record<string, string> = { message: post.caption };
+  for (const [i, url] of post.imageUrls.entries()) {
+    const photo = await unpublishedPhoto(config, url, fetchImpl);
+    if (!photo.ok) return photo;
+    params[`attached_media[${i}]`] = JSON.stringify({ media_fbid: photo.id });
+  }
+  const answer = await call(
+    config,
+    graph(config, `${page}/feed`),
+    { method: "POST", params },
+    fetchImpl,
+  );
+  const id = answer.body?.id;
+  return answer.status === 200 && id ? { ok: true, id } : failed(answer, config.token, "feed");
+}
+
+/** Posts a photo story on the Page now. */
+export async function publishFacebookPhotoStory(
+  config: MetaConfig,
+  imageUrl: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<MetaResult> {
+  const photo = await unpublishedPhoto(config, imageUrl, fetchImpl);
+  if (!photo.ok) return photo;
+  const answer = await call(
+    config,
+    graph(config, `${encodeURIComponent(config.pageId)}/photo_stories`),
+    { method: "POST", params: { photo_id: photo.id } },
+    fetchImpl,
+  );
+  const id = answer.body?.post_id;
+  return answer.status === 200 && answer.body?.success === true && id
+    ? { ok: true, id }
+    : failed(answer, config.token, "story");
+}
+
+/** Starts a video story's upload and has Meta fetch the file: the video id. */
+export async function uploadFacebookVideoStory(
+  config: MetaConfig,
+  videoUrl: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<MetaResult> {
+  const start = await call(
+    config,
+    graph(config, `${encodeURIComponent(config.pageId)}/video_stories`),
+    { method: "POST", params: { upload_phase: "start" } },
+    fetchImpl,
+  );
+  const videoId = start.body?.video_id;
+  const uploadUrl = start.body?.upload_url;
+  // The token goes only to Meta's upload host.
+  if (start.status !== 200 || !videoId || !uploadUrl?.startsWith("https://rupload.facebook.com/")) {
+    return failed(start, config.token, "start");
+  }
+  const upload = await call(
+    config,
+    uploadUrl,
+    { method: "POST", headers: { Authorization: `OAuth ${config.token}`, file_url: videoUrl } },
+    fetchImpl,
+  );
+  if (upload.status !== 200 || upload.body?.success !== true) {
+    return failed(upload, config.token, "upload");
+  }
+  return { ok: true, id: videoId };
+}
+
+/** Publishes an uploaded video story now. */
+export async function publishFacebookVideoStory(
+  config: MetaConfig,
+  videoId: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<MetaResult> {
+  const answer = await call(
+    config,
+    graph(config, `${encodeURIComponent(config.pageId)}/video_stories`),
+    { method: "POST", params: { upload_phase: "finish", video_id: videoId } },
+    fetchImpl,
+  );
+  const id = answer.body?.post_id ?? videoId;
+  return answer.status === 200 && answer.body?.success === true
+    ? { ok: true, id }
     : failed(answer, config.token, "finish");
 }
