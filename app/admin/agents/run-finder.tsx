@@ -3,7 +3,7 @@
 import { Play } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { btnBusy, btnMd, btnSecondary } from "@/components/styles";
+import { btnBusy, btnMd, btnPrimary } from "@/components/styles";
 
 interface Progress {
   progress: number;
@@ -70,12 +70,12 @@ export function RunFinder() {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="w-full space-y-2 sm:w-auto sm:min-w-64">
       <button
         type="button"
         onClick={() => void start()}
         aria-disabled={running}
-        className={`${btnSecondary} ${btnMd} ${btnBusy}`}
+        className={`${btnPrimary} ${btnMd} ${btnBusy} w-full sm:w-auto`}
       >
         <Play aria-hidden className="size-[18px]" />
         {running ? "רץ…" : "הרצה עכשיו"}
@@ -106,9 +106,9 @@ export function RunFinder() {
           {message}
         </p>
       )}
-      <p className="text-sm text-muted">
-        סורקת 8 רשימות ומושכת תמונות ווידאו, בערך דקה. עולה בערך סנט אחד עם Haiku.
-      </p>
+      {!running && !message && (
+        <p className="text-xs text-muted">8 רשימות, בערך דקה, בערך סנט אחד.</p>
+      )}
     </div>
   );
 }

@@ -37,7 +37,9 @@ import {
 import type { Deal } from "@/lib/types";
 import { AdminAccount } from "@/app/admin/admin-account";
 import { AdminShell } from "@/app/admin/admin-nav";
-import { SettingsIntro } from "@/app/admin/settings/settings-intro";
+import { AdminHeader, AdminTabs } from "@/app/admin/admin-tabs";
+import { BarChart3, Megaphone, SlidersHorizontal, Users } from "lucide-react";
+import { firstParam } from "@/lib/search-url";
 import { DEFAULT_SHOP_CAP_MODE, isShopCapMode } from "@/lib/ranking/config";
 import { AdminNewsletterPreview, FooterPreview } from "./footer-previews";
 import { RecentStripPreview } from "./home-previews";
@@ -512,6 +514,8 @@ export default async function PreviewPage({
             label: "הצטרפו לקהילה שלנו",
             enabled: params.community === "on",
           };
+    const tabParam = firstParam(params.tab);
+    const settingsTab = ["google", "meta", "community"].includes(tabParam) ? tabParam : "search";
     return (
       <AdminShell
         previewPath="/admin/settings"
@@ -519,17 +523,51 @@ export default async function PreviewPage({
       >
         <FakeDataNote>כמו דף ההגדרות בניהול. השמירה כאן לא שומרת כלום.</FakeDataNote>
         <div className="mx-auto max-w-3xl space-y-6 px-4 pt-8 sm:px-6 sm:pt-12">
-          <SettingsIntro />
-          <p className="text-sm text-muted">נשמרה לאחרונה ב־28.9.2026, 23:00 (לדוגמה).</p>
-          <PreviewSettingsForm mode={mode} failed={params.error === "1"} />
-          <div className="space-y-10 pt-6">
+          <AdminHeader title="הגדרות" subtitle="הגדרות האתר. הן חלות על כל המבקרים." />
+          <AdminTabs
+            label="חלקי ההגדרות"
+            base="/dev/preview/admin-settings"
+            current={settingsTab}
+            tabs={[
+              { key: "search", label: "חיפוש", icon: SlidersHorizontal },
+              {
+                key: "google",
+                label: "גוגל",
+                icon: BarChart3,
+                dot: google.measurementId ? "on" : "off",
+              },
+              {
+                key: "meta",
+                label: "Meta Pixel",
+                icon: Megaphone,
+                dot: params.meta === "none" ? "off" : "on",
+              },
+              {
+                key: "community",
+                label: "קהילה",
+                icon: Users,
+                dot: community.enabled ? "on" : "off",
+              },
+            ]}
+          />
+          {settingsTab === "search" && (
+            <>
+              <p className="text-sm text-muted">נשמרה לאחרונה ב־28.9.2026, 23:00 (לדוגמה).</p>
+              <PreviewSettingsForm mode={mode} failed={params.error === "1"} />
+            </>
+          )}
+          {settingsTab === "google" && (
             <PreviewGoogleForm stored={google} failed={params.error === "1"} />
+          )}
+          {settingsTab === "meta" && (
             <PreviewMetaForm
               storedPixelId={params.meta === "none" ? null : "1234567890123456"}
               failed={params.error === "1"}
             />
+          )}
+          {settingsTab === "community" && (
             <PreviewCommunityForm stored={community} failed={params.error === "1"} />
-          </div>
+          )}
         </div>
       </AdminShell>
     );

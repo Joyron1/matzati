@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronDown } from "lucide-react";
 import { useActionState, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { btnBusy, btnLg, btnPrimary, card } from "@/components/styles";
 import {
@@ -111,29 +112,39 @@ export function GoogleSettingsForm({
           extract={extractMeasurementId}
           foundLabel="מזהה המדידה"
         >
-          <div className="space-y-2 rounded-2xl bg-surface-2 p-4 text-sm leading-relaxed">
-            <p>
-              Google Analytics נטען אצל כל המבקרים במצב ההסכמה המתקדם של Google (Consent Mode): בלי
-              אישור הוא שולח מדידה בלי עוגיות ובלי מזהה, ואת עוגיות <Ltr>_ga</Ltr> הוא שומר רק אצל
-              מי שאישר עוגיות סטטיסטיקה. כשיש מזהה שמור, הודעת העוגיות, מדיניות העוגיות ומדיניות
-              הפרטיות מתארות אותו, וכל המבקרים יתבקשו לבחור שוב בהודעת העוגיות.
-            </p>
-            <p>
-              חשוב: האתר שולח צפייה בדף בכל מעבר עמוד בעצמו, בלי טקסט החיפוש. לכן כבו ב־Google
-              Analytics את{" "}
-              <Ltr>
-                Data streams → (the site) → Enhanced measurement → Page views → Show advanced
-                settings → Page changes based on browser history events
-              </Ltr>
-              . אחרת כל צפייה תיספר פעמיים, ו־Google תקבל גם את הכתובת המלאה, כולל מה שחיפשו.
-            </p>
-            <p>
-              חשוב לא פחות: כבו גם את{" "}
-              <Ltr>Data streams → (the site) → Enhanced measurement → Site search</Ltr>. המדידה הזו
-              קוראת את הכתובת בדפדפן בעצמה ושולחת ל־Google את טקסט החיפוש (<Ltr>search_term</Ltr>),
-              בניגוד למה שמדיניות הפרטיות מבטיחה (נבדק בדפדפן אמיתי ב־3.10.2026).
-            </p>
-          </div>
+          <details className="group rounded-[10px] border border-line bg-surface-2/60 text-sm leading-relaxed">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-4 font-semibold [&::-webkit-details-marker]:hidden">
+              חשוב: שתי הגדרות לכבות ב־Google Analytics, ואיך זה עובד עם העוגיות
+              <ChevronDown
+                aria-hidden
+                className="size-4 shrink-0 transition-transform group-open:rotate-180 motion-reduce:transition-none"
+              />
+            </summary>
+            <div className="space-y-2 border-t border-line px-4 pt-3 pb-4">
+              <p>
+                Google Analytics נטען אצל כל המבקרים במצב ההסכמה המתקדם של Google (Consent Mode):
+                בלי אישור הוא שולח מדידה בלי עוגיות ובלי מזהה, ואת עוגיות <Ltr>_ga</Ltr> הוא שומר רק
+                אצל מי שאישר עוגיות סטטיסטיקה. כשיש מזהה שמור, הודעת העוגיות, מדיניות העוגיות
+                ומדיניות הפרטיות מתארות אותו, וכל המבקרים יתבקשו לבחור שוב בהודעת העוגיות.
+              </p>
+              <p>
+                חשוב: האתר שולח צפייה בדף בכל מעבר עמוד בעצמו, בלי טקסט החיפוש. לכן כבו ב־Google
+                Analytics את{" "}
+                <Ltr>
+                  Data streams → (the site) → Enhanced measurement → Page views → Show advanced
+                  settings → Page changes based on browser history events
+                </Ltr>
+                . אחרת כל צפייה תיספר פעמיים, ו־Google תקבל גם את הכתובת המלאה, כולל מה שחיפשו.
+              </p>
+              <p>
+                חשוב לא פחות: כבו גם את{" "}
+                <Ltr>Data streams → (the site) → Enhanced measurement → Site search</Ltr>. המדידה
+                הזו קוראת את הכתובת בדפדפן בעצמה ושולחת ל־Google את טקסט החיפוש (
+                <Ltr>search_term</Ltr>), בניגוד למה שמדיניות הפרטיות מבטיחה (נבדק בדפדפן אמיתי
+                ב־3.10.2026).
+              </p>
+            </div>
+          </details>
         </ConnectionField>
 
         <ConnectionField

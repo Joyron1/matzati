@@ -1,6 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Bot, Check, Download, Film, PenLine, Send, Trash2, Truck, X } from "lucide-react";
+import {
+  Bot,
+  Check,
+  CheckCircle2,
+  CircleDashed,
+  Download,
+  Film,
+  History,
+  Inbox,
+  PenLine,
+  Send,
+  Settings2,
+  Trash2,
+  Truck,
+  X,
+} from "lucide-react";
 import { ProductImage } from "@/components/product-image";
 import { btnBusy, btnMd, btnPrimary, btnSecondary, btnSm, card } from "@/components/styles";
 import { requireAdmin } from "@/lib/admin/auth";
@@ -14,6 +29,7 @@ import { hotTitle } from "@/lib/product-title";
 import { firstParam } from "@/lib/search-url";
 import { serviceClient } from "@/lib/supabase/server";
 import { telegramConfig } from "@/lib/telegram/client";
+import { AdminHeader, AdminTabs } from "../admin-tabs";
 import { inputClass } from "../settings/form-parts";
 import { StatusMessage } from "../status-message";
 import {
@@ -27,6 +43,9 @@ import {
 import { CandidateDrawer } from "./candidate-drawer";
 import { RunFinder } from "./run-finder";
 import { VideoUpload } from "./video-upload";
+
+const TABS = ["queue", "approved", "runs", "settings"] as const;
+type Tab = (typeof TABS)[number];
 
 export const metadata: Metadata = {
   title: "פאנל טלגרם", // the admin layout adds "| ניהול | <brand>"
@@ -128,23 +147,28 @@ export default async function AgentsPage({ searchParams }: PageProps<"/admin/age
     console.error(`[admin-agents] load: ${String(err).slice(0, 300)}`);
   }
   const telegramReady = telegramConfig() !== null;
+  const tabParam = firstParam(params.tab);
+  // A reopened drawer is in the queue.
+  const tab: Tab =
+    !openId && (TABS as readonly string[]).includes(tabParam) ? (tabParam as Tab) : "queue";
 
   return (
-    <div className="mx-auto max-w-6xl space-y-10 px-4 pt-8 sm:px-6 sm:pt-12">
-      <div className="space-y-2">
-        <h1 className="font-display text-4xl">פאנל טלגרם</h1>
-        <p className="max-w-prose text-muted">
-          סוכן מציאת המוצרים סורק את רשימות המוצרים החמים של אלי אקספרס ומחפש מוצרים שהעמלה הרגילה
-          שלהם <bdi dir="ltr">{MIN_STANDARD_PCT}%</bdi> ומעלה ושעוברים את הסינון שלנו (משוב
-          ומכירות). לכל מוצר: התמונות והווידאו להורדה, מקום להעלות סרטון שהכנתם, ופוסט שאפשר לערוך.
-          מוצר שאישרתם מופיע מיד ב
-          <Link href="/recommended" className="font-semibold text-accent-ink underline">
-            מומלצים
-          </Link>{" "}
-          ומתוזמן לערוץ הטלגרם (בשעות <bdi dir="ltr">{TELEGRAM_SLOTS.join(", ")}</bdi>, אף פעם לא
-          משישי <bdi dir="ltr">17:00</bdi> עד שבת <bdi dir="ltr">19:30</bdi>).
-        </p>
-      </div>
+    <div className="mx-auto max-w-6xl space-y-6 px-4 pt-8 sm:px-6 sm:pt-12">
+      <AdminHeader
+        title="טלגרם"
+        subtitle={
+          <>
+            הסוכן מוצא מוצרים עם עמלה רגילה של <bdi dir="ltr">{MIN_STANDARD_PCT}%</bdi> ומעלה שעברו
+            את הסינון. מאשרים, והם עולים ל
+            <Link href="/recommended" className="font-semibold text-accent-ink underline">
+              מומלצים
+            </Link>{" "}
+            ולערוץ.
+          </>
+        }
+      >
+        <RunFinder />
+      </AdminHeader>
 
       {status && <StatusMessage>{status}</StatusMessage>}
 
@@ -154,17 +178,94 @@ export default async function AgentsPage({ searchParams }: PageProps<"/admin/age
         </p>
       ) : (
         <>
-          <Settings settings={data.settings} telegramReady={telegramReady} />
-          <Queue
-            pending={data.pending}
-            telegramOn={data.settings.telegramEnabled && telegramReady}
-            telegramReady={telegramReady}
-            openId={openId}
+          <StatusChips settings={data.settings} telegramReady={telegramReady} />
+          <AdminTabs
+            label="חלקי פאנל הטלגרם"
+            base="/admin/agents"
+            current={tab}
+            tabs={[
+              { key: "queue", label: "ממתינים", icon: Inbox, count: data.pending.length },
+              {
+                key: "approved",
+                label: "מאושרים",
+                icon: CheckCircle2,
+                count: data.approved.length,
+              },
+              { key: "runs", label: "ריצות", icon: History },
+              { key: "settings", label: "הגדרות", icon: Settings2 },
+            ]}
           />
-          <Approved approved={data.approved} telegramReady={telegramReady} />
-          <Runs runs={data.runs} />
+          {tab === "queue" && (
+            <Queue
+              pending={data.pending}
+              telegramOn={data.settings.telegramEnabled && telegramReady}
+              telegramReady={telegramReady}
+              openId={openId}
+            />
+          )}
+          {tab === "approved" && (
+            <Approved approved={data.approved} telegramReady={telegramReady} />
+          )}
+          {tab === "runs" && <Runs runs={data.runs} />}
+          {tab === "settings" && (
+            <Settings settings={data.settings} telegramReady={telegramReady} />
+          )}
         </>
       )}
+    </div>
+  );
+}
+
+/** One line of what is on: the channel, the automatic run, the shipping filter, the budget. */
+function StatusChips({
+  settings,
+  telegramReady,
+}: {
+  settings: Awaited<ReturnType<typeof readAgentSettings>>["settings"];
+  telegramReady: boolean;
+}) {
+  const model = AGENT_MODELS.find((m) => m.id === settings.model)?.label ?? settings.model;
+  const chips: { on: boolean; text: string }[] = [
+    { on: telegramReady, text: telegramReady ? "הערוץ מחובר" : "הערוץ לא מחובר" },
+    {
+      on: settings.telegramEnabled,
+      text: settings.telegramEnabled ? "תזמון לטלגרם פעיל" : "תזמון לטלגרם כבוי",
+    },
+    {
+      on: settings.finderEnabled,
+      text: settings.finderEnabled ? "הרצה אוטומטית פעמיים ביום" : "הרצה אוטומטית כבויה",
+    },
+    {
+      on: settings.freeShippingOnly,
+      text: settings.freeShippingOnly ? "משלוח חינם בלבד" : "כל המשלוחים",
+    },
+  ];
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-sm">
+      {chips.map((c) => {
+        const Icon = c.on ? CheckCircle2 : CircleDashed;
+        return (
+          <span
+            key={c.text}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-semibold ${
+              c.on ? "bg-trust-soft text-trust" : "bg-surface-2 text-muted"
+            }`}
+          >
+            <Icon aria-hidden className="size-4" />
+            {c.text}
+          </span>
+        );
+      })}
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1 font-semibold text-muted">
+        <Bot aria-hidden className="size-4" />
+        <bdi dir="ltr">{model}</bdi> · עד <bdi dir="ltr">${settings.dailyBudgetUsd}</bdi> ליום
+      </span>
+      <Link
+        href="/admin/agents?tab=settings"
+        className="inline-flex min-h-11 items-center px-2 font-semibold text-accent-ink underline-offset-4 hover:underline"
+      >
+        שינוי
+      </Link>
     </div>
   );
 }
@@ -178,10 +279,14 @@ function Settings({
 }) {
   return (
     <section aria-labelledby="agent-settings" className={`${card} space-y-5 p-5 sm:p-6`}>
-      <h2 id="agent-settings" className="flex items-center gap-2 font-display text-2xl">
-        <Bot aria-hidden className="size-6 text-accent-ink" />
-        הגדרות
+      <h2 id="agent-settings" className="flex items-center gap-2 text-xl font-bold">
+        <Bot aria-hidden className="size-5 text-accent" />
+        הגדרות הסוכן
       </h2>
+      <p className="text-sm text-muted">
+        פוסטים מתוזמנים יוצאים בשעות <bdi dir="ltr">{TELEGRAM_SLOTS.join(", ")}</bdi>, אף פעם לא
+        משישי <bdi dir="ltr">17:00</bdi> עד שבת <bdi dir="ltr">19:30</bdi>.
+      </p>
       <form action={saveAgentSettingsAction} className="space-y-5">
         {/* Meta's switches live in its own panel (phase 2); kept here unchanged. */}
         {settings.facebookEnabled && <input type="hidden" name="facebookEnabled" value="on" />}
@@ -266,9 +371,6 @@ function Settings({
           שמירה
         </button>
       </form>
-      <div className="border-t border-line pt-5">
-        <RunFinder />
-      </div>
     </section>
   );
 }
@@ -480,8 +582,8 @@ function Queue({
 }) {
   return (
     <section aria-labelledby="queue" className="space-y-4">
-      <h2 id="queue" className="font-display text-2xl">
-        ממתינים לאישור <span className="text-muted">({pending.length})</span>
+      <h2 id="queue" className="sr-only">
+        ממתינים לאישור ({pending.length})
       </h2>
       {!pending.length ? (
         <p className={`${card} p-5 text-muted`}>
@@ -585,12 +687,17 @@ function Queue({
                       לא מתאים
                     </button>
                   </div>
-                  <p className="text-xs text-muted">
-                    ״פרסום עכשיו״ מאשר ושולח לטלגרם מיד, עם הטקסט שבתיבה, בלי תזמון ובלי הגבלת
-                    שישי־שבת (לבדיקות). הפרסום האוטומטי ממשיך לכבד את השבת. ״כתיבה מחדש״ כותבת את
-                    הפוסט שוב עם המודל שבחרתם, כולל הקופונים שבתוקף (בערך סנט אחד). שינויים שעשיתם
-                    בטקסט לא נשמרים בכתיבה מחדש.
-                  </p>
+                  <details className="text-xs text-muted">
+                    <summary className="min-h-11 cursor-pointer py-3 font-semibold">
+                      מה עושה כל כפתור?
+                    </summary>
+                    <p>
+                      ״אישור״ מעלה למומלצים ומתזמן לשעה הפנויה הבאה. ״פרסום עכשיו״ מאשר ושולח לטלגרם
+                      מיד, בלי תזמון ובלי הגבלת שישי־שבת (לבדיקות). ״כתיבה מחדש״ כותבת את הפוסט שוב
+                      עם המודל שבחרתם, כולל הקופונים שבתוקף (בערך סנט אחד), ומבטלת שינויים שעשיתם
+                      בטקסט. ״לא מתאים״ מסיר את המוצר והוא לא יוצע שוב.
+                    </p>
+                  </details>
                 </form>
               </CandidateDrawer>
             </li>
@@ -615,11 +722,13 @@ function Approved({
   approved: { c: Candidate; videoPreview: string | null }[];
   telegramReady: boolean;
 }) {
-  if (!approved.length) return null;
+  if (!approved.length) {
+    return <p className={`${card} p-5 text-muted`}>עוד אין מוצרים מאושרים.</p>;
+  }
   return (
     <section aria-labelledby="approved" className="space-y-4">
-      <h2 id="approved" className="font-display text-2xl">
-        מאושרים <span className="text-muted">({approved.length})</span>
+      <h2 id="approved" className="sr-only">
+        מאושרים ({approved.length})
       </h2>
       <ul className={`${card} divide-y divide-line`}>
         {approved.map(({ c }) => (
@@ -665,7 +774,7 @@ function Approved({
 function Runs({ runs }: { runs: AgentRun[] }) {
   return (
     <section aria-labelledby="runs" className="space-y-4">
-      <h2 id="runs" className="font-display text-2xl">
+      <h2 id="runs" className="sr-only">
         ריצות אחרונות
       </h2>
       {!runs.length ? (

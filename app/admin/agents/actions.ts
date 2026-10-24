@@ -45,15 +45,16 @@ export async function saveAgentSettingsAction(formData: FormData): Promise<void>
     instagramEnabled: formData.get("instagramEnabled") === "on",
     freeShippingOnly: formData.get("freeShippingOnly") === "on",
   });
-  if (!parsed.success || !AGENT_MODELS.some((m) => m.id === parsed.data.model)) back("invalid");
+  if (!parsed.success || !AGENT_MODELS.some((m) => m.id === parsed.data.model))
+    back("invalid", "&tab=settings");
   try {
     await upsertSetting(serviceClient(), AGENTS_KEY, parsed.data);
   } catch (err) {
     unstable_rethrow(err);
     logError("save settings", err);
-    back("save-failed");
+    back("save-failed", "&tab=settings");
   }
-  back("saved");
+  back("saved", "&tab=settings");
 }
 
 const decisionSchema = z.object({

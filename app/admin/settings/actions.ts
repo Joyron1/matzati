@@ -71,7 +71,7 @@ export async function saveGoogleAction(
     };
   }
   revalidatePath("/admin/settings");
-  redirect("/admin/settings?status=google-saved");
+  redirect("/admin/settings?tab=google&status=google-saved");
 }
 
 /**
@@ -96,7 +96,7 @@ export async function saveMetaAction(
     };
   }
   revalidatePath("/admin/settings");
-  redirect("/admin/settings?status=meta-saved");
+  redirect("/admin/settings?tab=meta&status=meta-saved");
 }
 
 /** Saves the "קישור לקהילה" form: the link, the button label and whether it is shown. */
@@ -118,5 +118,5 @@ export async function saveCommunityAction(
     };
   }
   revalidatePath("/admin/settings");
-  redirect("/admin/settings?status=community-saved");
+  redirect("/admin/settings?tab=community&status=community-saved");
 }

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { CloudOff } from "lucide-react";
+import { BarChart3, CloudOff, Megaphone, SlidersHorizontal, Users } from "lucide-react";
 import { requireAdmin } from "@/lib/admin/auth";
 import { formatDateTime } from "@/lib/format";
 import { DEFAULT_SHOP_CAP_MODE } from "@/lib/ranking/config";
@@ -20,8 +20,12 @@ import { CommunitySettingsForm } from "./community-form";
 import { GoogleSettingsForm } from "./google-form";
 import { MetaSettingsForm } from "./meta-form";
 import { SettingsForm } from "./settings-form";
-import { SettingsIntro } from "./settings-intro";
+import { AdminHeader, AdminTabs } from "../admin-tabs";
 import { StatusMessage } from "../status-message";
+
+/** The page's tabs (owner request 2026-10-24: one section at a time instead of one long page). */
+const TABS = ["search", "google", "meta", "community"] as const;
+type Tab = (typeof TABS)[number];
 
 export const metadata: Metadata = {
   title: "הגדרות", // the admin layout adds "| ניהול | <brand>"
@@ -58,7 +62,10 @@ export default async function AdminSettingsPage({
   // The layout guards /admin too, but it does not re-run on client navigation.
   await requireAdmin();
   // Own keys only: "?status=__proto__" must not pick up Object.prototype.
-  const statusKey = firstParam((await searchParams).status);
+  const params = await searchParams;
+  const statusKey = firstParam(params.status);
+  const tabParam = firstParam(params.tab);
+  const tab: Tab = (TABS as readonly string[]).includes(tabParam) ? (tabParam as Tab) : "search";
   const status = Object.hasOwn(STATUS, statusKey) ? STATUS[statusKey] : undefined;
   const [setting, connections] = await Promise.all([
     shopCapSettingForAdmin(),
@@ -67,37 +74,57 @@ export default async function AdminSettingsPage({
   const google = connections?.google ?? null;
   const community: CommunityValue = connections?.community ?? DEFAULT_COMMUNITY_VALUE;
 
+  const googleOn = Boolean(google?.measurementId || google?.siteVerification);
+  const metaOn = Boolean(connections?.meta.pixelId);
+  const communityOn = community.enabled && community.url !== null;
+
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 pt-8 sm:px-6 sm:pt-12">
-      <SettingsIntro />
-      {status && <StatusMessage>{status}</StatusMessage>}
-      {setting === null ? (
-        <ReadFailed>
-          לא הצלחנו לקרוא את ההגדרה השמורה, ולכן החיפוש משתמש עכשיו בברירת המחדל (ללא הגבלה). אפשר
-          לנסות לשמור שוב.
-        </ReadFailed>
-      ) : (
-        <p className="text-sm text-muted">
-          {setting.updatedAt
-            ? `נשמרה לאחרונה ב־${formatDateTime(setting.updatedAt)}.`
-            : "עוד לא נשמרה הגדרה, ולכן חלה ברירת המחדל."}
-        </p>
-      )}
-      {/* key: a save redirects here with the new stored mode, which starts a fresh form. */}
-      <SettingsForm
-        key={setting?.mode ?? DEFAULT_SHOP_CAP_MODE}
-        action={saveSettingsAction}
-        initial={{ mode: setting?.mode ?? DEFAULT_SHOP_CAP_MODE, error: null }}
+      <AdminHeader title="הגדרות" subtitle="הגדרות האתר. הן חלות על כל המבקרים." />
+      <AdminTabs
+        label="חלקי ההגדרות"
+        base="/admin/settings"
+        current={tab}
+        tabs={[
+          { key: "search", label: "חיפוש", icon: SlidersHorizontal },
+          { key: "google", label: "גוגל", icon: BarChart3, dot: googleOn ? "on" : "off" },
+          { key: "meta", label: "Meta Pixel", icon: Megaphone, dot: metaOn ? "on" : "off" },
+          { key: "community", label: "קהילה", icon: Users, dot: communityOn ? "on" : "off" },
+        ]}
       />
+      {status && <StatusMessage>{status}</StatusMessage>}
+      {tab !== "search" && connections === null && (
+        <ReadFailed>
+          לא הצלחנו לקרוא את החיבורים לגוגל ול־Meta ואת קישור הקהילה, ולכן האתר פועל עכשיו בלעדיהם.
+          אפשר לנסות לשמור שוב.
+        </ReadFailed>
+      )}
 
-      <div className="space-y-10 pt-6">
-        {connections === null && (
-          <ReadFailed>
-            לא הצלחנו לקרוא את החיבורים לגוגל ול־Meta ואת קישור הקהילה, ולכן האתר פועל עכשיו
-            בלעדיהם. אפשר לנסות לשמור שוב.
-          </ReadFailed>
-        )}
-        {/* key: a save redirects here with the new stored values, which starts a fresh form. */}
+      {tab === "search" && (
+        <div className="space-y-3">
+          {setting === null ? (
+            <ReadFailed>
+              לא הצלחנו לקרוא את ההגדרה השמורה, ולכן החיפוש משתמש עכשיו בברירת המחדל (ללא הגבלה).
+              אפשר לנסות לשמור שוב.
+            </ReadFailed>
+          ) : (
+            <p className="text-sm text-muted">
+              {setting.updatedAt
+                ? `נשמרה לאחרונה ב־${formatDateTime(setting.updatedAt)}.`
+                : "עוד לא נשמרה הגדרה, ולכן חלה ברירת המחדל."}
+            </p>
+          )}
+          {/* key: a save redirects here with the new stored mode, which starts a fresh form. */}
+          <SettingsForm
+            key={setting?.mode ?? DEFAULT_SHOP_CAP_MODE}
+            action={saveSettingsAction}
+            initial={{ mode: setting?.mode ?? DEFAULT_SHOP_CAP_MODE, error: null }}
+          />
+        </div>
+      )}
+
+      {tab === "google" && (
+        // key: a save redirects here with the new stored values, which starts a fresh form.
         <GoogleSettingsForm
           key={`${google?.measurementId}|${google?.siteVerification}|${google?.updatedAt}`}
           action={saveGoogleAction}
@@ -108,6 +135,9 @@ export default async function AdminSettingsPage({
           stored={google}
           savedNote={google ? savedNote(google.updatedAt) : null}
         />
+      )}
+
+      {tab === "meta" && (
         <MetaSettingsForm
           key={`${connections?.meta.pixelId}|${connections?.meta.updatedAt}`}
           action={saveMetaAction}
@@ -116,14 +146,17 @@ export default async function AdminSettingsPage({
           readFailed={connections === null}
           savedNote={connections ? savedNote(connections.meta.updatedAt) : null}
         />
+      )}
+
+      {tab === "community" && (
         <CommunitySettingsForm
           key={`${community.url}|${community.label}|${community.enabled}|${connections?.community.updatedAt}`}
           action={saveCommunityAction}
           initial={{ values: communityFormValues(community), errors: {} }}
-          live={community.enabled && community.url !== null}
+          live={communityOn}
           savedNote={connections ? savedNote(connections.community.updatedAt) : null}
         />
-      </div>
+      )}
     </div>
   );
 }
