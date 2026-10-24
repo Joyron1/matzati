@@ -4,6 +4,7 @@ import { hasCurrentCode, type HotProduct } from "@/lib/hot/select";
 import { hotTitle } from "@/lib/product-title";
 import { Price } from "./price";
 import { ProductImage } from "./product-image";
+import { SaveButton } from "./save-button";
 import { card } from "./styles";
 import { TrustMetrics } from "./trust-metrics";
 
@@ -51,6 +52,17 @@ export function HotProductCard({
         sizes={sizes}
         preload={preload}
       />
+      <div className="absolute end-2 top-2">
+        <SaveButton
+          product={{
+            id: product.productId,
+            title: hotTitle(product.title),
+            image: product.imageUrl ?? "",
+            price: product.price,
+            original: product.originalPrice,
+          }}
+        />
+      </div>
       <div className={BODY}>
         {/* No dir="auto": many titles start with a Latin brand or model and would flip to LTR. */}
         <h3 className={TITLE}>

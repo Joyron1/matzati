@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 import { ChevronRight, CircleCheck, CircleMinus } from "lucide-react";
 import { ApiPromoCode } from "@/components/api-promo-code";
 import { BuyButton } from "@/components/buy-button";
+import { SaveButton } from "@/components/save-button";
 import { CategoryTips } from "@/components/category-tips";
 import { CommunityCoupon } from "@/components/community-coupon";
 import { CouponCard } from "@/components/coupon-card";
@@ -195,7 +196,17 @@ export function ProductView({
           <div className="space-y-1">
             {/* The affiliate disclosure stays directly under the buy button (inside BuyButton). */}
             <BuyButton productId={product.product_id} src="product" />
-            <div className="flex justify-center">
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <SaveButton
+                variant="button"
+                product={{
+                  id: product.product_id,
+                  title: title.text,
+                  image: product.image_urls[0] ?? "",
+                  price: product.price_ils,
+                  original: product.original_price_ils,
+                }}
+              />
               <ShareLink text={title.text} path={`/p/${encodeURIComponent(product.product_id)}`} />
             </div>
           </div>

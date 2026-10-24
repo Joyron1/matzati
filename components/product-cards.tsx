@@ -6,6 +6,7 @@ import { CardBadges } from "./card-badges";
 import { TitleText } from "./card-lines";
 import { Price } from "./price";
 import { ProductImage } from "./product-image";
+import { SaveButton, type SaveSnapshot } from "./save-button";
 import {
   aboveCardLink,
   btnLg,
@@ -34,6 +35,17 @@ interface CardProps {
  */
 export const DETAILS_LABEL = "למידע נוסף";
 
+/** What the heart saves of a result (lib/saved/mine.ts): the card as it shows it. */
+function snapshot(p: LoggedResult): SaveSnapshot {
+  return {
+    id: p.product_id,
+    title: p.title_he,
+    image: p.image_urls[0] ?? "",
+    price: p.price_ils,
+    original: p.original_price_ils,
+  };
+}
+
 function productHref(id: string, q: string) {
   const path = `/p/${encodeURIComponent(id)}`;
   return q ? `${path}?q=${encodeURIComponent(q)}` : path;
@@ -61,6 +73,9 @@ export function FeaturedProductCard({ product, rank, q }: CardProps) {
             <Trophy aria-hidden className="size-4" />
             מקום {rank} בדירוג
           </span>
+          <div className="absolute end-3 top-3">
+            <SaveButton product={snapshot(product)} />
+          </div>
         </div>
 
         {/* A container too: its buttons stand side by side when they fit. */}
@@ -126,6 +141,9 @@ export function CompactProductCard({
     <article
       className={`${card} ${linkCard} @container flex flex-col gap-4 p-4 ${tile ? "xl:gap-3 xl:p-3" : ""}`}
     >
+      <div className="absolute end-2 top-2">
+        <SaveButton product={snapshot(product)} />
+      </div>
       <div className={`flex gap-4 ${tile ? "xl:flex-col xl:gap-3" : ""}`}>
         <ProductImage
           src={product.image_urls[0]}
@@ -205,6 +223,9 @@ export function StandardProductCard({
         iconClassName="size-10"
         sizes="(min-width: 1280px) 220px, (min-width: 768px) 30vw, 46vw"
       />
+      <div className="absolute end-2 top-2">
+        <SaveButton product={snapshot(product)} />
+      </div>
       <div className="flex flex-1 flex-col gap-2.5 p-3 sm:p-4">
         {rankOf !== null && (
           <p className="text-xs font-semibold text-muted">

@@ -154,21 +154,23 @@ describe("the notice while Google Analytics is configured", () => {
   });
 
   it("revision 2 (Consent Mode advanced, 2026-10-03) asks again everyone who chose under revision 1", () => {
-    expect(CONSENT_VERSION).toBe(2);
+    // CONSENT_VERSION 3 since 2026-10-24 ("המוצרים ששמרתי"): every version below moved by one.
+    expect(CONSENT_VERSION).toBe(3);
     expect(ANALYTICS_NOTICE_REVISION).toBe(2);
-    expect(ANALYTICS_NOTICE.version).toBe(2002);
-    expect(ANALYTICS_NOTICE.accepts).toEqual([2002]);
+    expect(ANALYTICS_NOTICE.version).toBe(2003);
+    expect(ANALYTICS_NOTICE.accepts).toEqual([2003]);
     // A yes or a no given when the notice said nothing reached Google without consent.
     const underStrict = CONSENT_VERSION + ANALYTICS_NOTICE_OFFSET;
-    expect(underStrict).toBe(1002);
+    expect(underStrict).toBe(1003);
     expect(parseConsent(choiceUnder(underStrict), NOW, ANALYTICS_NOTICE)).toBeNull();
     expect(parseConsent(choiceUnder(1001), NOW, ANALYTICS_NOTICE)).toBeNull();
     // The base notice did not change, so its choices and every revision's still count there.
-    expect(BASE_NOTICE.accepts.slice(0, 3)).toEqual([2, 1002, 2002]);
+    expect(BASE_NOTICE.accepts.slice(0, 3)).toEqual([3, 1003, 2003]);
     expect(parseConsent(choiceUnder(underStrict), NOW, BASE_NOTICE)).not.toBeNull();
     expect(parseConsent(choiceUnder(CONSENT_VERSION), NOW, BASE_NOTICE)).not.toBeNull();
-    // And nothing from before CONSENT_VERSION 2.
-    expect(parseConsent(choiceUnder(1), NOW, BASE_NOTICE)).toBeNull();
+    // And nothing from before CONSENT_VERSION 3.
+    expect(parseConsent(choiceUnder(2), NOW, BASE_NOTICE)).toBeNull();
+    expect(parseConsent(choiceUnder(2002), NOW, BASE_NOTICE)).toBeNull();
   });
 });
 
@@ -190,15 +192,15 @@ describe("the notices while the Meta Pixel is configured", () => {
   it("revision 1 (2026-10-04): the versions, and Google Analytics's stay as they were", () => {
     expect(MARKETING_NOTICE_OFFSET).toBe(100_000);
     expect(MARKETING_NOTICE_REVISION).toBe(1);
-    expect(BASE_NOTICE.version).toBe(2);
-    expect(ANALYTICS_NOTICE.version).toBe(2002);
-    expect(MARKETING_NOTICE.version).toBe(100_002);
-    expect(ANALYTICS_MARKETING_NOTICE.version).toBe(102_002);
+    expect(BASE_NOTICE.version).toBe(3);
+    expect(ANALYTICS_NOTICE.version).toBe(2003);
+    expect(MARKETING_NOTICE.version).toBe(100_003);
+    expect(ANALYTICS_MARKETING_NOTICE.version).toBe(102_003);
     expect(new Set(ALL.map((n) => n.version)).size).toBe(4);
   });
 
   it("the base notice honors every analytics revision and every marketing combination", () => {
-    expect(BASE_NOTICE.accepts).toEqual([2, 1002, 2002, 100_002, 101_002, 102_002]);
+    expect(BASE_NOTICE.accepts).toEqual([3, 1003, 2003, 100_003, 101_003, 102_003]);
     for (const notice of ALL) {
       expect(parseConsent(choiceUnder(notice.version), NOW, BASE_NOTICE)).not.toBeNull();
     }

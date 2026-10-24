@@ -9,6 +9,7 @@ import { hasPublishedDeals, hasUpcomingSales } from "@/lib/deals/queries";
 import { Logo } from "./logo";
 import { OffersNav, type OfferLink } from "./offers-nav";
 import { ProductsNav } from "./products-nav";
+import { SavedNavLink } from "./saved-list";
 import { ThemeToggle } from "./theme-toggle";
 
 /** Deals, sales and coupons, each only while its page has something to show. */
@@ -55,7 +56,7 @@ export async function SiteHeader() {
             href="/searches"
             aria-label="חיפושים אחרונים"
             className={`flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-full font-medium text-muted hover:text-ink sm:px-4 ${
-              offers.length ? "max-[374px]:hidden" : ""
+              offers.length ? "max-[389px]:hidden" : "max-[359px]:hidden"
             }`}
           >
             <History aria-hidden className="size-[18px]" />
@@ -63,6 +64,8 @@ export async function SiteHeader() {
           </Link>
           {/* "כל המוצרים" and its categories (owner request 2026-10-03): an icon button below lg,
               the link and a chevron from lg (components/products-nav.tsx). */}
+          {/* "המוצרים ששמרתי" (owner request 2026-10-24): the heart and how many are saved. */}
+          <SavedNavLink />
           <ProductsNav>
             <CategoriesPanel />
           </ProductsNav>

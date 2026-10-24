@@ -23,8 +23,11 @@ export const CONSENT_COOKIE = "matzati_consent";
  * 2 (2026-10-03): the necessary category now also covers "החיפושים שלי" (matzati_my_searches,
  * localStorage, lib/recent/mine.ts), and its description in the banner's settings says so. No
  * optional category changed, but what a category covers did, which is this rule.
+ *
+ * 3 (2026-10-24): the necessary category now also covers "המוצרים ששמרתי"
+ * (matzati_saved_products, localStorage, lib/saved/mine.ts). The same rule.
  */
-export const CONSENT_VERSION = 2;
+export const CONSENT_VERSION = 3;
 
 /**
  * Added to CONSENT_VERSION while Google Analytics is configured (/admin/settings, "חיבור לגוגל"):
