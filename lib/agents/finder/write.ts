@@ -22,15 +22,15 @@ export const WRITE_TOKENS = 5_000;
 
 export const FINDER_SYSTEM = `You are the copywriter of an Israeli Telegram channel of AliExpress deals. For each product you get its machine-translated Hebrew title (it lists the product's features), its numbers and the coupons valid for it. Write a post that makes people want to buy it now, in natural, lively, fluent Hebrew (fix the machine translation's wording), plural and gender-neutral (never singular address).
 
-post_he, in this order, each part on its own line(s):
-1. A hook: one punchy line with an emoji, naming what the product is and the problem it solves or who it is for.
-2. Two to four benefit lines, each starting with "✅": a feature the title names and what it gives the buyer in plain words (a fleece lining keeps warm, a loop strap adjusts without holes). Use only features the title names; never invent a material, size, spec, use or result the title does not state.
-3. The price line starting with "💰": the price in ₪, "במקום" the original price when given, and the discount % when given.
-4. For each coupon given, a line starting with "🎟️": "קוד קופון: CODE" and what it gives as written, with its minimum order and end date when given. No coupon line when no coupon is given.
-5. When free_shipping_il is true, a line starting with "🚚": "משלוח חינם לישראל", plus the delivery days as given ("7-12 ימי משלוח לפי אלי אקספרס") when both are given. No shipping line otherwise.
-6. The social-proof line starting with "⭐": the % positive feedback and how many were sold in the last 30 days.
-7. A strong call to action starting with "👇", sending them to the "לקנייה באלי אקספרס" button below (for example "לחצו על ״לקנייה באלי אקספרס״ כאן למטה ובדקו את המחיר עכשיו"). You may say that prices on AliExpress change often; never invent scarcity or a deadline ("רק היום", "נשארו מעט", "אחרונים") other than a coupon's end date as given.
-Between 300 and 850 characters. No hashtags, no links, no "הכי זול"/"הכי טוב"/"מומלץ ביותר" or any superlative, no promise of quality; shipping and delivery only as line 5 states them.
+post_he has three blocks, in this order, separated by an empty line (owner's format, 2026-10-24):
+1. The product: a short excited hook line ending with "!!!" or an emoji (e.g. "מחיר מטורף!!!", "מציאה לבית 🏠"), then 2-3 lines saying what the product is, what it does for the buyer and who it is for, with its brand and main specs as the title names them, and a short call to action (e.g. "שווה לבדוק עכשיו 👇"). You may say prices on AliExpress change often; never invent scarcity or a deadline ("רק היום", "נשארו מעט") other than a coupon's end date as given.
+2. The deal, each on its own line:
+   - for each coupon given: "🎟️ קוד קופון: CODE" and what it gives as written, with its minimum order and end date when given (no coupon line when none is given);
+   - when final_price_ils is given: "💰 מחיר סופי עם הקופון: ₪final_price_ils" and "במקום ₪original_price_ils" when given; otherwise "💰 מחיר: ₪price_ils", "במקום ₪original_price_ils" and the discount % when given;
+   - when free_shipping_il is true: "🚚 משלוח חינם לישראל", plus the delivery days as given ("7-12 ימי משלוח לפי אלי אקספרס") when both are given;
+   - then exactly the line "🔗 קישור לקנייה" (the link is added there automatically; never write a link).
+3. Why it is worth it: 3 to 5 lines, each starting with "✅": a feature the title names, said as what it gives the buyer (a fleece lining keeps warm, a loop strap adjusts without holes); the last "✅" line may be the % positive feedback and how many were sold in the last 30 days. Use only features the title names; never invent a material, size, spec, use or result the title does not state.
+Between 350 and 850 characters. No hashtags, no links, no "הכי זול"/"הכי טוב"/"מומלץ ביותר" or any superlative, no promise of quality; shipping and delivery only as block 2 states them.
 
 why_he: one sentence (up to 120 characters) for the site owner: why it is worth posting, from the numbers only.
 
@@ -54,6 +54,51 @@ export interface CouponInfo {
   min_order_ils: number | null;
   /** "dd.mm" in Israel time, or null when it has no end. */
   ends: string | null;
+  /** Shekels off, when the offer states a fixed amount we could read; else null. */
+  off_ils?: number | null;
+  /** Percent off, when the offer states one we could read; else null. */
+  off_pct?: number | null;
+}
+
+/**
+ * The amount an owner's coupon title states ("₪5 הנחה", "5 ש״ח הנחה", "10% הנחה"); nothing when it
+ * states none we can read, so no final price is computed from it.
+ */
+export function ownerCouponAmount(title: string): {
+  off_ils: number | null;
+  off_pct: number | null;
+} {
+  const pct = /(\d+(?:\.\d+)?)\s*%/.exec(title);
+  if (pct) return { off_ils: null, off_pct: Number(pct[1]) };
+  const ils = /₪\s*(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*(?:₪|ש["״]ח|שקל)/.exec(title);
+  if (ils && /הנחה|off/i.test(title)) return { off_ils: Number(ils[1] ?? ils[2]), off_pct: null };
+  return { off_ils: null, off_pct: null };
+}
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/**
+ * The price after the best single coupon that applies (the price meets its minimum and its amount or
+ * percent is known), computed by code so the post's final price is never the model's arithmetic.
+ * Null when no coupon applies.
+ */
+export function finalPrice(
+  price: number,
+  coupons: readonly CouponInfo[],
+): { price: number; code: string } | null {
+  let best: { price: number; code: string } | null = null;
+  for (const c of coupons) {
+    if (c.min_order_ils !== null && price < c.min_order_ils) continue;
+    const after =
+      c.off_ils != null && c.off_ils > 0 && c.off_ils < price
+        ? price - c.off_ils
+        : c.off_pct != null && c.off_pct > 0 && c.off_pct < 100
+          ? price * (1 - c.off_pct / 100)
+          : null;
+    if (after !== null && (!best || after < best.price))
+      best = { price: round2(after), code: c.code };
+  }
+  return best;
 }
 
 export interface WriterInput {
@@ -70,6 +115,9 @@ export interface WriterInput {
   free_shipping_il: boolean | null;
   delivery_days_min: number | null;
   delivery_days_max: number | null;
+  /** The price after the best coupon that applies (finalPrice), or null. */
+  final_price_ils: number | null;
+  final_price_code: string | null;
 }
 
 export function writerInput(p: AliProduct, coupons: CouponInfo[] = []): WriterInput {
@@ -88,6 +136,10 @@ export function writerInput(p: AliProduct, coupons: CouponInfo[] = []): WriterIn
     free_shipping_il: p.shipping ? p.shipping.feeIls === 0 : null,
     delivery_days_min: p.shipping?.minDays ?? null,
     delivery_days_max: p.shipping?.maxDays ?? null,
+    ...(() => {
+      const f = finalPrice(p.price, coupons);
+      return { final_price_ils: f?.price ?? null, final_price_code: f?.code ?? null };
+    })(),
   };
 }
 
@@ -96,36 +148,66 @@ const formatIls = (n: number) => `₪${Number.isInteger(n) ? n : n.toFixed(2)}`;
 
 /** The post built from the data alone: what a candidate gets when the model's text fails a check. */
 export function postFromData(i: WriterInput): string {
-  const lines = [`🔥 ${i.title_he}`];
-  const price =
-    i.original_price_ils !== null && i.original_price_ils > i.price_ils
-      ? `${formatIls(i.price_ils)} במקום ${formatIls(i.original_price_ils)}`
-      : formatIls(i.price_ils);
-  lines.push(`💰 ${price}${i.discount_pct ? ` (${i.discount_pct}% הנחה)` : ""}`);
+  const product = [`🔥 ${i.title_he}`, "שווה לבדוק עכשיו 👇"];
+  const deal: string[] = [];
   for (const c of i.coupons) {
     const terms = [
       c.min_order_ils !== null ? `בהזמנה מעל ${formatIls(c.min_order_ils)}` : null,
       c.ends ? `עד ${c.ends}` : null,
     ].filter(Boolean);
-    lines.push(
+    deal.push(
       `🎟️ קוד קופון: ${c.code} · ${c.offer}${terms.length ? ` (${terms.join(", ")})` : ""}`,
     );
   }
+  const was =
+    i.original_price_ils !== null && i.original_price_ils > i.price_ils
+      ? ` במקום ${formatIls(i.original_price_ils)}`
+      : "";
+  deal.push(
+    i.final_price_ils !== null
+      ? `💰 מחיר סופי עם הקופון: ${formatIls(i.final_price_ils)}${was}`
+      : `💰 מחיר: ${formatIls(i.price_ils)}${was}${i.discount_pct ? ` (${i.discount_pct}% הנחה)` : ""}`,
+  );
   if (i.free_shipping_il) {
     const days =
       i.delivery_days_min !== null && i.delivery_days_max !== null
         ? ` · ${i.delivery_days_min}-${i.delivery_days_max} ימי משלוח לפי אלי אקספרס`
         : "";
-    lines.push(`🚚 משלוח חינם לישראל${days}`);
+    deal.push(`🚚 משלוח חינם לישראל${days}`);
   }
+  deal.push(BUY_LINK_LINE);
   const trust = [
     i.positive_feedback_pct !== null ? `${i.positive_feedback_pct}% משוב חיובי` : null,
     i.units_sold_30d !== null
       ? `${i.units_sold_30d.toLocaleString("en-US")} נמכרו ב־30 הימים האחרונים`
       : null,
   ].filter(Boolean);
-  if (trust.length) lines.push(`⭐ ${trust.join(" · ")}`);
-  lines.push("👇 לפרטים ולקנייה: ״לקנייה באלי אקספרס״ כאן למטה");
+  const blocks = [product.join("\n"), deal.join("\n")];
+  if (trust.length) blocks.push(`✅ ${trust.join(" · ")}`);
+  return blocks.join("\n\n");
+}
+
+/** The deal block's last line; the Telegram client puts the buy link there (withBuyLink). */
+export const BUY_LINK_LINE = "🔗 קישור לקנייה";
+
+/**
+ * The post with the buy link on its "🔗" line (owner's format, 2026-10-24: the link in the text, as
+ * well as the button). A post without that line gets it after its last "💰" line, else at the end.
+ */
+export function withBuyLink(post: string, url: string): string {
+  const line = `🔗 לקנייה: ${url}`;
+  const lines = post.split("\n");
+  const at = lines.findIndex((l) => l.trim().startsWith("🔗"));
+  if (at >= 0) {
+    lines[at] = line;
+    return lines.join("\n");
+  }
+  let price = -1;
+  lines.forEach((l, i) => {
+    if (l.trim().startsWith("💰")) price = i;
+  });
+  if (price >= 0) lines.splice(price + 1, 0, line);
+  else lines.push(line);
   return lines.join("\n");
 }
 

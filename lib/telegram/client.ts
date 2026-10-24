@@ -2,6 +2,7 @@
 // API (sendPhoto). Off until the owner sets TELEGRAM_BOT_TOKEN (from @BotFather) and
 // TELEGRAM_CHAT_ID (the channel, "@name" or its -100… id; the bot must be an admin of it) in
 // Vercel; they set them, never in chat. The token is never logged or put in an error message.
+import { withBuyLink } from "@/lib/agents/finder/write";
 import { absoluteUrl } from "@/lib/config/site";
 
 export interface TelegramConfig {
@@ -68,7 +69,12 @@ export async function postProduct(
       body: JSON.stringify({
         chat_id: config.chatId,
         ...media.field,
-        caption: captionOf(post.postHe),
+        caption: captionOf(
+          withBuyLink(
+            post.postHe,
+            absoluteUrl(`/go/${encodeURIComponent(post.productId)}?src=telegram`),
+          ),
+        ),
         parse_mode: "HTML",
         reply_markup: buttonsOf(post.productId),
       }),

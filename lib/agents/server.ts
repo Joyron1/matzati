@@ -18,7 +18,7 @@ import { isPromoCodeCurrent } from "@/lib/aliexpress/promo-code";
 import { couponsForProduct } from "@/lib/coupons/queries";
 import { costUsd } from "@/lib/llm/pricing";
 import { runFinder, type FinderResult } from "./finder/run";
-import { writePosts, type CouponInfo } from "./finder/write";
+import { ownerCouponAmount, writePosts, type CouponInfo } from "./finder/write";
 import { readAgentSettings, type AgentSettings } from "./settings";
 import { israelParts, nextSlot } from "./schedule";
 import {
@@ -59,11 +59,14 @@ export async function couponsFor(product: AliProduct, now = new Date()): Promise
   const out: CouponInfo[] = [];
   const code = product.promoCode;
   if (code && isPromoCodeCurrent(code, now)) {
+    const offer = code.offer;
     out.push({
       code: code.code,
       offer: code.offerText ?? "קוד הנחה של אלי אקספרס",
       min_order_ils: code.minSpend,
       ends: dayMonth(code.endsAt),
+      off_ils: offer?.kind === "amount" && offer.currency === "ILS" ? offer.off : null,
+      off_pct: offer?.kind === "percent" ? offer.pct : null,
     });
   }
   for (const c of await couponsForProduct(product.productId, now)) {
@@ -72,6 +75,7 @@ export async function couponsFor(product: AliProduct, now = new Date()): Promise
       offer: c.title,
       min_order_ils: c.min_spend_ils,
       ends: dayMonth(c.ends_at),
+      ...ownerCouponAmount(c.title),
     });
   }
   return out.slice(0, 3);
