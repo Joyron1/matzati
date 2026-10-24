@@ -244,3 +244,24 @@ textarea:placeholder-shown:not(:focus) + .composer-caret {
     }
   }
 }
+
+/* The phone menu's side sheet (components/mobile-menu.tsx): slides in from the start side (the
+   right, RTL), only when motion is welcome. */
+@media (prefers-reduced-motion: no-preference) {
+  .mobile-menu[open] {
+    animation: mobile-menu-in 220ms ease-out;
+  }
+  .mobile-menu[open]::backdrop {
+    animation: mobile-menu-fade 220ms ease-out;
+  }
+}
+@keyframes mobile-menu-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+@keyframes mobile-menu-fade {
+  from {
+    opacity: 0;
+  }
+}

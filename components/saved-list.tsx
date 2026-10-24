@@ -6,11 +6,12 @@
 // through /go (src=saved) with its "קישור שותפים" note, "למידע נוסף" and a remove button. The list
 // can be shared on WhatsApp as our product pages' links, never affiliate links.
 import Link from "next/link";
-import { Heart, MessageCircle, Search, Trash2, X } from "lucide-react";
+import { Heart, MessageCircle, Search, Share2, Trash2, X } from "lucide-react";
 import { useSyncExternalStore } from "react";
+import { BRAND } from "@/lib/config/brand";
 import { formatCount, formatDateTime } from "@/lib/format";
 import { clearSaved, forgetProduct } from "@/lib/saved/mine";
-import { SITE_HOST } from "@/lib/config/site";
+import { productUrl, SHARED_MAX, sharedListUrl, whatsappHref } from "@/lib/saved/shared";
 import { BuyButton } from "./buy-button";
 import { ProductImage } from "./product-image";
 import { useSavedList } from "./save-button";
@@ -21,12 +22,18 @@ const noSubscribe = () => () => {};
 
 const formatIls = (n: number) => `₪${Number.isInteger(n) ? n : n.toFixed(2)}`;
 
-/** WhatsApp text with our product pages (never the affiliate links), newest first. */
-function shareText(list: { id: string; title: string }[]): string {
-  const lines = list
-    .slice(0, 20)
-    .map((p) => `• ${p.title.slice(0, 60)}\nhttps://${SITE_HOST}/p/${p.id}`);
-  return `המוצרים ששמרתי במצאתי:\n\n${lines.join("\n\n")}`;
+/**
+ * The whole list for a friend: one link to our page of it (/shared, never affiliate links), which
+ * opens with the products and their hearts. At most SHARED_MAX products, the newest.
+ */
+function listShareText(list: { id: string }[]): string {
+  const ids = list.slice(0, SHARED_MAX).map((p) => p.id);
+  return `שמרתי כמה מוצרים מאלי אקספרס ב${BRAND.name}, תסתכלו:\n${sharedListUrl(ids)}`;
+}
+
+/** One product for a friend: its title and our product page. */
+function productShareText(p: { id: string; title: string }): string {
+  return `${p.title.slice(0, 100)}\n${productUrl(p.id)}`;
 }
 
 export function SavedList() {
@@ -74,13 +81,13 @@ export function SavedList() {
         </div>
         <div className="flex flex-wrap gap-2">
           <a
-            href={`https://wa.me/?text=${encodeURIComponent(shareText(list))}`}
+            href={whatsappHref(listShareText(list))}
             target="_blank"
             rel="noopener"
-            className={`${btnSecondary} ${btnSm} gap-1.5`}
+            className={`${btnPrimary} ${btnSm} gap-1.5`}
           >
             <MessageCircle aria-hidden className="size-4" />
-            שליחה בוואטסאפ
+            שיתוף הרשימה בוואטסאפ
             <span className="sr-only">(נפתח בכרטיסייה חדשה)</span>
           </a>
           <button
@@ -116,6 +123,16 @@ export function SavedList() {
               >
                 <X aria-hidden className="size-5" />
               </button>
+              <a
+                href={whatsappHref(productShareText(p))}
+                target="_blank"
+                rel="noopener"
+                aria-label={`שיתוף בוואטסאפ: ${p.title} (נפתח בכרטיסייה חדשה)`}
+                title="שיתוף בוואטסאפ"
+                className="absolute start-2 top-2 grid size-11 place-items-center rounded-full bg-surface/90 text-ink shadow-soft hover:text-accent-ink"
+              >
+                <Share2 aria-hidden className="size-5" />
+              </a>
               <div className="flex flex-1 flex-col gap-2 p-3 sm:p-4">
                 <h2 className="line-clamp-2 text-[15px] leading-snug font-semibold">
                   <Link href={`/p/${encodeURIComponent(p.id)}`} className="hover:text-accent-ink">
@@ -150,6 +167,18 @@ export function SavedList() {
         ))}
       </ul>
     </div>
+  );
+}
+
+/** The number saved, as a small badge (the phone menu's row); nothing while none or unhydrated. */
+export function SavedCount() {
+  const count = useSavedList().length;
+  if (!count) return null;
+  return (
+    <span className="grid min-w-6 place-items-center rounded-full bg-accent px-1.5 text-xs leading-6 font-bold text-on-accent">
+      <span className="sr-only">שמורים: </span>
+      {count > 99 ? "99+" : count}
+    </span>
   );
 }
 
