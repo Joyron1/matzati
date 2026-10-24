@@ -8,11 +8,20 @@
 // for a post (1080x1920 for a story), and a post image outside Instagram's 4:5 to 1.91:1 is padded
 // with white to the nearest allowed ratio, so Instagram never rejects it.
 import { createClient } from "@supabase/supabase-js";
-import { CalendarClock, Film, Image as ImageIcon, Images, Upload, X } from "lucide-react";
+import {
+  CalendarClock,
+  Film,
+  Link2,
+  Save,
+  Image as ImageIcon,
+  Images,
+  Upload,
+  X,
+} from "lucide-react";
 import { useId, useState } from "react";
 import { btnBusy, btnMd, btnPrimary, btnSecondary } from "@/components/styles";
 import { inputClass } from "../settings/form-parts";
-import { metaUploadAction, scheduleMetaAction } from "./actions";
+import { metaUploadAction, scheduleMetaAction, updateMetaAction } from "./actions";
 
 type Kind = "post" | "story" | "reel";
 
@@ -108,13 +117,37 @@ async function uploadFile(target: "reel" | "image" | "video", body: Blob): Promi
   return signed.path;
 }
 
-export function MetaForm({ defaultWhen, minWhen }: { defaultWhen: string; minWhen: string }) {
-  const ids = { file: useId(), caption: useId(), when: useId() };
-  const [kind, setKind] = useState<Kind>("post");
-  const [files, setFiles] = useState<Uploaded[]>([]);
+/** An item being edited: its saved values (files with signed preview URLs). */
+export interface MetaFormInitial {
+  id: string;
+  kind: Kind;
+  files: Uploaded[];
+  caption: string;
+  disclosure: boolean;
+  when: string;
+  facebook: boolean;
+  instagram: boolean;
+  manual: boolean;
+  link: string;
+}
+
+export function MetaForm({
+  defaultWhen,
+  minWhen,
+  initial,
+}: {
+  defaultWhen: string;
+  minWhen: string;
+  /** Edit mode: the kind is fixed, the fields start with the saved values. */
+  initial?: MetaFormInitial;
+}) {
+  const ids = { file: useId(), caption: useId(), when: useId(), link: useId() };
+  const [kind, setKind] = useState<Kind>(initial?.kind ?? "post");
+  const [files, setFiles] = useState<Uploaded[]>(initial?.files ?? []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [captionLength, setCaptionLength] = useState(0);
+  const [captionLength, setCaptionLength] = useState(initial?.caption.length ?? 0);
+  const [manual, setManual] = useState(initial?.manual ?? false);
 
   const limit = kind === "post" ? MAX_POST_IMAGES : 1;
   const accept =
@@ -125,7 +158,7 @@ export function MetaForm({ defaultWhen, minWhen }: { defaultWhen: string; minWhe
         : "video/mp4,video/quicktime";
 
   function choose(next: Kind) {
-    if (next === kind) return;
+    if (next === kind || initial) return;
     files.forEach((f) => URL.revokeObjectURL(f.preview));
     setFiles([]);
     setError(null);
@@ -203,8 +236,9 @@ export function MetaForm({ defaultWhen, minWhen }: { defaultWhen: string; minWhe
   const label = KINDS.find((k) => k.kind === kind)!.label;
 
   return (
-    <form action={scheduleMetaAction} className="space-y-6">
-      <fieldset className="space-y-2">
+    <form action={initial ? updateMetaAction : scheduleMetaAction} className="space-y-6">
+      {initial && <input type="hidden" name="id" value={initial.id} />}
+      <fieldset className="space-y-2" disabled={!!initial}>
         <legend className="pb-2 font-semibold">1. מה מפרסמים</legend>
         <div className="grid grid-cols-3 gap-1 rounded-[10px] bg-surface-2 p-1">
           {KINDS.map((k) => {
@@ -235,7 +269,11 @@ export function MetaForm({ defaultWhen, minWhen }: { defaultWhen: string; minWhe
             );
           })}
         </div>
-        <p className="text-xs text-muted">{KINDS.find((k) => k.kind === kind)!.hint}</p>
+        <p className="text-xs text-muted">
+          {initial ? "בעריכה אי אפשר לשנות את הסוג." : KINDS.find((k) => k.kind === kind)!.hint}
+        </p>
+        {/* A disabled fieldset sends nothing: the kind still goes with the form. */}
+        {initial && <input type="hidden" name="kind" value={kind} />}
       </fieldset>
 
       <div className="space-y-2">
@@ -331,10 +369,51 @@ export function MetaForm({ defaultWhen, minWhen }: { defaultWhen: string; minWhe
       </div>
 
       {kind === "story" ? (
-        <p className="text-sm text-muted">
-          לסטורי אין כיתוב ב־API של Meta: כתבו את הטקסט על התמונה עצמה. קישור בסטורי (מדבקת קישור)
-          אפשר להוסיף רק מהאפליקציה.
-        </p>
+        <div className="space-y-3 rounded-[10px] border border-line bg-surface-2/60 p-4">
+          <p className="text-sm text-muted">
+            לסטורי אין כיתוב ב־API של Meta: כתבו את הטקסט על התמונה עצמה. מדבקת קישור אפשר להוסיף רק
+            מהאפליקציה.
+          </p>
+          <label className="flex min-h-11 items-start gap-2">
+            <input
+              type="checkbox"
+              name="manual"
+              checked={manual}
+              onChange={(e) => setManual(e.target.checked)}
+              className="mt-0.5 size-5 shrink-0 accent-[var(--accent)]"
+            />
+            <span>
+              <span className="font-semibold">פרסום ידני עם מדבקת קישור</span>
+              <span className="block text-sm text-muted">
+                בזמן שבחרתם הסטורי לא יעלה לבד: הוא יישלח אליכם בטלגרם עם הקובץ והקישור, ואתם מעלים
+                אותו מהאפליקציה עם מדבקה.
+              </span>
+            </span>
+          </label>
+          {manual && (
+            <div className="space-y-1.5">
+              <label htmlFor={ids.link} className="flex items-center gap-1.5 font-semibold">
+                <Link2 aria-hidden className="size-4" />
+                הקישור למוצר
+              </label>
+              <input
+                id={ids.link}
+                name="link"
+                type="text"
+                inputMode="url"
+                dir="ltr"
+                required
+                defaultValue={initial?.link ?? ""}
+                placeholder="https://he.aliexpress.com/item/…"
+                className={`${inputClass} text-start`}
+              />
+              <p className="text-xs text-muted">
+                קישור למוצר באלי אקספרס, לעמוד המוצר אצלנו, או מספר המוצר. נהפוך אותו לקישור השותפים
+                שלנו (נספר כקליק מסטורי). קישור אחר נשמר כמו שהוא.
+              </p>
+            </div>
+          )}
+        </div>
       ) : (
         <div className="space-y-1.5">
           <label htmlFor={ids.caption} className="font-semibold">
@@ -346,6 +425,7 @@ export function MetaForm({ defaultWhen, minWhen }: { defaultWhen: string; minWhe
             rows={7}
             maxLength={2100}
             required
+            defaultValue={initial?.caption}
             onChange={(e) => setCaptionLength(e.target.value.length)}
             className={`${inputClass} leading-relaxed`}
           />
@@ -357,7 +437,7 @@ export function MetaForm({ defaultWhen, minWhen }: { defaultWhen: string; minWhe
             <input
               type="checkbox"
               name="disclosure"
-              defaultChecked
+              defaultChecked={initial?.disclosure ?? true}
               className="size-5 accent-[var(--accent)]"
             />
             להוסיף בסוף את גילוי השותפים (כשה{label} מקדם מוצר מאלי אקספרס)
@@ -366,13 +446,16 @@ export function MetaForm({ defaultWhen, minWhen }: { defaultWhen: string; minWhe
       )}
 
       <fieldset className="space-y-1.5">
-        <legend className="font-semibold">{kind === "story" ? "3" : "4"}. איפה לפרסם</legend>
+        <legend className="font-semibold">
+          {kind === "story" ? "3" : "4"}.{" "}
+          {manual && kind === "story" ? "איפה תפרסמו" : "איפה לפרסם"}
+        </legend>
         <div className="flex flex-wrap gap-4">
           <label className="flex min-h-11 items-center gap-2">
             <input
               type="checkbox"
               name="instagram"
-              defaultChecked
+              defaultChecked={initial?.instagram ?? true}
               className="size-5 accent-[var(--accent)]"
             />
             אינסטגרם
@@ -381,7 +464,7 @@ export function MetaForm({ defaultWhen, minWhen }: { defaultWhen: string; minWhe
             <input
               type="checkbox"
               name="facebook"
-              defaultChecked
+              defaultChecked={initial?.facebook ?? true}
               className="size-5 accent-[var(--accent)]"
             />
             פייסבוק
@@ -398,13 +481,15 @@ export function MetaForm({ defaultWhen, minWhen }: { defaultWhen: string; minWhe
           type="datetime-local"
           name="when"
           required
-          defaultValue={defaultWhen}
+          defaultValue={initial?.when ?? defaultWhen}
           min={minWhen}
           className={`${inputClass} max-w-xs`}
         />
         <p className="text-xs text-muted">
-          לפחות 20 דקות מעכשיו, לא בשישי מ־17:00 עד שבת 19:30. המערכת מכינה את התוכן אצל Meta עד שעה
-          לפני, ומפרסמת בזמן (בדיקה כל 15 דקות).
+          לפחות 20 דקות מעכשיו, לא בשישי מ־17:00 עד שבת 19:30.{" "}
+          {manual && kind === "story"
+            ? "בזמן הזה (בדיקה כל 15 דקות) הסטורי יישלח אליכם בטלגרם."
+            : "המערכת מכינה את התוכן אצל Meta עד שעה לפני, ומפרסמת בזמן (בדיקה כל 15 דקות)."}
         </p>
       </div>
 
@@ -414,8 +499,12 @@ export function MetaForm({ defaultWhen, minWhen }: { defaultWhen: string; minWhe
         disabled={!ready}
         className={`${btnPrimary} ${btnMd} ${btnBusy} gap-2`}
       >
-        <CalendarClock aria-hidden className="size-[18px]" />
-        תזמון ה{label}
+        {initial ? (
+          <Save aria-hidden className="size-[18px]" />
+        ) : (
+          <CalendarClock aria-hidden className="size-[18px]" />
+        )}
+        {initial ? "שמירת השינויים" : `תזמון ה${label}`}
       </button>
     </form>
   );

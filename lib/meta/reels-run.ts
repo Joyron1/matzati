@@ -44,6 +44,16 @@ export interface Reel {
   ig_media_id: string | null;
   ig_posted_at: string | null;
   ig_error: string | null;
+  /**
+   * A story the owner posts from the app (for a link sticker, which the API cannot add): never
+   * published here; at its time it is handed to the owner (notifyManual) and marked done.
+   */
+  manual?: boolean;
+  link_url?: string | null;
+  link_title?: string | null;
+  notified_at?: string | null;
+  notify_error?: string | null;
+  manual_done_at?: string | null;
   created_at: string;
 }
 
@@ -59,6 +69,8 @@ export type ReelPatch = Partial<
     | "ig_media_id"
     | "ig_posted_at"
     | "ig_error"
+    | "notified_at"
+    | "notify_error"
   >
 >;
 
@@ -68,6 +80,11 @@ export interface ReelsDeps {
   update(id: string, patch: ReelPatch): Promise<void>;
   /** A URL Meta can fetch the file from (a signed URL, valid a few hours). */
   videoUrl(path: string): Promise<string | null>;
+  /** Hands a manual story to the owner (their Telegram chat with the bot). */
+  notifyManual(
+    item: Reel,
+    fileUrl: string | null,
+  ): Promise<{ ok: true } | { ok: false; error: string }>;
   meta: {
     createInstagramReel(reel: { videoUrl: string; caption: string }): Promise<MetaResult>;
     createInstagramPost(post: { imageUrls: string[]; caption: string }): Promise<MetaResult>;
@@ -148,6 +165,23 @@ export async function runReels(deps: ReelsDeps, now: Date = new Date()): Promise
     const files = filesOf(r);
     const due = new Date(r.scheduled_at).getTime() <= now.getTime();
 
+    // A manual story: nothing to prepare or publish; at its time it goes to the owner. It is done
+    // either way (the panel lists it with the file and the link), with the hand-off's error kept.
+    if (r.manual) {
+      if (due && !r.notified_at) {
+        const url = files[0] ? await deps.videoUrl(files[0].path) : null;
+        const n = await deps.notifyManual(r, url);
+        set({
+          notified_at: now.toISOString(),
+          notify_error: n.ok ? null : n.error,
+          status: "done",
+        });
+        summary.published++;
+        await deps.update(r.id, patch);
+      }
+      continue;
+    }
+
     // 1. Prepare what is not prepared yet (the first run within the hour, or a late one).
     const needsIg = igWaiting(r) && !r.ig_container_id;
     const needsFb = fbWaiting(r) && fbUploadsAhead(r) && !r.fb_video_id;
@@ -226,9 +260,7 @@ export async function runReels(deps: ReelsDeps, now: Date = new Date()): Promise
                 ? await deps.meta.publishFacebookPhotos({ imageUrls: urls, caption: r.caption })
                 : await deps.meta.publishFacebookPhotoStory(urls[0]);
             set(
-              p.ok
-                ? { fb_video_id: p.id, fb_posted_at: now.toISOString() }
-                : { fb_error: p.error },
+              p.ok ? { fb_video_id: p.id, fb_posted_at: now.toISOString() } : { fb_error: p.error },
             );
           }
         }

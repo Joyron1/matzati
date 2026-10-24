@@ -128,15 +128,14 @@ function item(o: Partial<Reel>): Reel {
 function deps(items: Reel[]) {
   const updates: Record<string, unknown>[] = [];
   const calls: string[] = [];
-  const ok =
-    (name: string, id: string) =>
-    async (): Promise<MetaResult> => {
-      calls.push(name);
-      return { ok: true, id };
-    };
+  const ok = (name: string, id: string) => async (): Promise<MetaResult> => {
+    calls.push(name);
+    return { ok: true, id };
+  };
   const d: ReelsDeps = {
     scheduledBefore: async () => items,
     update: async (_id, patch) => void updates.push(patch),
+    notifyManual: async () => ({ ok: true }),
     videoUrl: async (p) => `https://signed/${p}`,
     meta: {
       createInstagramReel: ok("igReel", "CR"),
@@ -202,5 +201,53 @@ describe("runReels with posts and stories", () => {
     await runReels(d, AT);
     expect(calls).toEqual([]);
     expect(updates[0]).toMatchObject({ status: "failed" });
+  });
+});
+
+describe("runReels with a manual story", () => {
+  const manual = () =>
+    item({
+      kind: "story",
+      manual: true,
+      link_url: "https://www.matzati-il.com/go/1?src=story",
+      media: [{ path: "meta/a.jpg", type: "image" }],
+    });
+
+  it("never prepares or publishes it at Meta, and hands it over at its time", async () => {
+    const early = deps([manual()]);
+    await runReels(early.d, NOW);
+    expect(early.calls).toEqual([]);
+    expect(early.updates).toEqual([]);
+
+    const handed: string[] = [];
+    const due = deps([manual()]);
+    due.d.notifyManual = async (r, url) => {
+      handed.push(`${r.link_url} ${url}`);
+      return { ok: true };
+    };
+    const s = await runReels(due.d, AT);
+    expect(due.calls).toEqual([]);
+    expect(handed).toEqual(["https://www.matzati-il.com/go/1?src=story https://signed/meta/a.jpg"]);
+    expect(due.updates[0]).toMatchObject({ status: "done", notify_error: null });
+    expect(s.published).toBe(1);
+  });
+
+  it("keeps the hand-off's error and is still done (the panel lists it)", async () => {
+    const { d, updates } = deps([manual()]);
+    d.notifyManual = async () => ({ ok: false, error: "the owner's Telegram is not linked" });
+    await runReels(d, AT);
+    expect(updates[0]).toMatchObject({
+      status: "done",
+      notify_error: "the owner's Telegram is not linked",
+    });
+  });
+
+  it("is handed over once", async () => {
+    const { d, updates } = deps([{ ...manual(), notified_at: AT.toISOString() }]);
+    let n = 0;
+    d.notifyManual = async () => (n++, { ok: true });
+    await runReels(d, AT);
+    expect(n).toBe(0);
+    expect(updates).toEqual([]);
   });
 });

@@ -4,6 +4,7 @@
 import "server-only";
 import { deployEnv } from "@/lib/env";
 import { serviceClient } from "@/lib/supabase/server";
+import { sendManualStory } from "@/lib/telegram/owner";
 import { metaConfig } from "./publish";
 import {
   createInstagramPost,
@@ -31,9 +32,11 @@ const TABLE = "meta_reels";
 const BUCKET = "agent-media";
 /** How long Meta may fetch the video from its signed URL. */
 const VIDEO_URL_SECONDS = 3 * 60 * 60;
+/** How long the owner's link to a manual story's file works. */
+const MANUAL_FILE_SECONDS = 48 * 60 * 60;
 
 const COLUMNS =
-  "id, kind, media, video_path, caption, scheduled_at, facebook, instagram, status, prepared_at, fb_video_id, fb_posted_at, fb_error, ig_container_id, ig_media_id, ig_posted_at, ig_error, created_at";
+  "id, kind, media, video_path, caption, scheduled_at, facebook, instagram, status, prepared_at, fb_video_id, fb_posted_at, fb_error, ig_container_id, ig_media_id, ig_posted_at, ig_error, manual, link_url, link_title, notified_at, notify_error, manual_done_at, created_at";
 
 /** Every Reel, the next first, then the posted ones newest first (the admin page). */
 export async function listReels(): Promise<Reel[]> {
@@ -56,8 +59,14 @@ export async function insertReel(reel: {
   scheduledAt: Date;
   facebook: boolean;
   instagram: boolean;
+  manual: boolean;
+  linkUrl: string | null;
+  linkTitle: string | null;
 }): Promise<void> {
   const { error } = await serviceClient().from(TABLE).insert({
+    manual: reel.manual,
+    link_url: reel.linkUrl,
+    link_title: reel.linkTitle,
     kind: reel.kind,
     media: reel.media,
     video_path: reel.videoPath,
@@ -67,6 +76,74 @@ export async function insertReel(reel: {
     instagram: reel.instagram,
   });
   if (error) throw new Error(`reels insert: ${error.message}`);
+}
+
+/** One item (the edit form). */
+export async function getReel(id: string): Promise<Reel | null> {
+  const { data, error } = await serviceClient()
+    .from(TABLE)
+    .select(COLUMNS)
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(`reels get: ${error.message}`);
+  return (data as Reel | null) ?? null;
+}
+
+/**
+ * Edits an item nothing of which has gone out yet: its content, time and networks. What was
+ * prepared at Meta is dropped (the next run prepares it again; an Instagram container simply
+ * expires). False when it can no longer be edited.
+ */
+export async function updateReel(
+  id: string,
+  reel: {
+    media: MetaMedia[];
+    videoPath: string | null;
+    caption: string;
+    scheduledAt: Date;
+    facebook: boolean;
+    instagram: boolean;
+    manual: boolean;
+    linkUrl: string | null;
+    linkTitle: string | null;
+  },
+): Promise<boolean> {
+  const { data, error } = await serviceClient()
+    .from(TABLE)
+    .update({
+      media: reel.media,
+      video_path: reel.videoPath,
+      caption: reel.caption,
+      scheduled_at: reel.scheduledAt.toISOString(),
+      facebook: reel.facebook,
+      instagram: reel.instagram,
+      manual: reel.manual,
+      link_url: reel.linkUrl,
+      link_title: reel.linkTitle,
+      prepared_at: null,
+      ig_container_id: null,
+      ig_error: null,
+      fb_video_id: null,
+      fb_error: null,
+    })
+    .eq("id", id)
+    .eq("status", "scheduled")
+    .is("ig_posted_at", null)
+    .is("fb_posted_at", null)
+    .is("notified_at", null)
+    .select("id");
+  if (error) throw new Error(`reels update: ${error.message}`);
+  return (data ?? []).length > 0;
+}
+
+/** The owner posted a manual story from the app. */
+export async function markManualPosted(id: string): Promise<void> {
+  const { error } = await serviceClient()
+    .from(TABLE)
+    .update({ manual_done_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("manual", true);
+  if (error) throw new Error(`reels manual: ${error.message}`);
 }
 
 /** Cancels a Reel that has not gone out (a prepared container or upload is simply left). */
@@ -93,8 +170,15 @@ export async function signedReelUpload(
   return { path: data.path, token: data.token };
 }
 
-export async function signedReelUrl(path: string, seconds = 3600): Promise<string | null> {
-  const { data } = await serviceClient().storage.from(BUCKET).createSignedUrl(path, seconds);
+export async function signedReelUrl(
+  path: string,
+  seconds = 3600,
+  /** A file name: the URL downloads the file under it instead of showing it. */
+  download?: string,
+): Promise<string | null> {
+  const { data } = await serviceClient()
+    .storage.from(BUCKET)
+    .createSignedUrl(path, seconds, download ? { download } : undefined);
   return data?.signedUrl ?? null;
 }
 
@@ -122,6 +206,21 @@ export async function publishDueReels(now = new Date()): Promise<ReelsSummary | 
         if (error) throw new Error(`reels update: ${error.message}`);
       },
       videoUrl: (path) => signedReelUrl(path, VIDEO_URL_SECONDS),
+      // The owner's copy of a manual story's file stays downloadable for 48 hours.
+      notifyManual: async (item) => {
+        const file = item.media?.[0];
+        const url = file ? await signedReelUrl(file.path, MANUAL_FILE_SECONDS) : null;
+        if (!url || !file) return { ok: false, error: "the file is not in storage" };
+        return sendManualStory({
+          fileUrl: url,
+          video: file.type === "video",
+          linkUrl: item.link_url ?? null,
+          linkTitle: item.link_title ?? null,
+          networks: [item.instagram ? "אינסטגרם" : null, item.facebook ? "פייסבוק" : null]
+            .filter(Boolean)
+            .join(" + "),
+        });
+      },
       meta: {
         createInstagramReel: (reel) => createInstagramReel(config, reel),
         createInstagramPost: (post) => createInstagramPost(config, post),

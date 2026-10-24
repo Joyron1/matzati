@@ -112,6 +112,7 @@ function deps(reels: Reel[], meta: Partial<ReelsDeps["meta"]> = {}) {
   const d: ReelsDeps = {
     scheduledBefore: async () => reels,
     update: async (_id, patch) => void updates.push(patch),
+    notifyManual: async () => ({ ok: true }),
     videoUrl: async () => "https://signed/v.mp4",
     meta: {
       createInstagramReel: async () => ok("C1"),
