@@ -120,6 +120,7 @@ function deps(reels: Reel[], meta: Partial<ReelsDeps["meta"]> = {}) {
       publishInstagramContainer: async () => ok("M1"),
       uploadFacebookReel: async () => ok("V1"),
       publishFacebookReel: async () => ok("V1"),
+      setFacebookReelCover: async () => ok("V1"),
       createInstagramPost: async () => ok("CP"),
       createInstagramStory: async () => ok("CS"),
       publishFacebookPhotos: async () => ok("FP"),

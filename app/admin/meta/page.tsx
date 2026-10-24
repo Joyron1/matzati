@@ -118,6 +118,9 @@ async function editInitial(r: Reel): Promise<MetaFormInitial> {
     instagram: r.instagram,
     manual: !!r.manual,
     link: r.link_url ?? "",
+    cover: r.cover_path
+      ? { path: r.cover_path, preview: (await signedReelUrl(r.cover_path)) ?? "" }
+      : null,
   };
 }
 
@@ -302,7 +305,11 @@ export default async function MetaPage({ searchParams }: PageProps<"/admin/meta"
   const previews = new Map(
     await Promise.all(
       upcoming.map(async (r) => {
-        const files = filesOf(r).slice(0, 4);
+        // A Reel's cover first, then its files.
+        const files: MetaMedia[] = [
+          ...(r.cover_path ? [{ path: r.cover_path, type: "image" as const }] : []),
+          ...filesOf(r),
+        ].slice(0, 4);
         const urls = await Promise.all(files.map((f) => signedReelUrl(f.path)));
         return [r.id, files.map((f, i) => ({ file: f, url: urls[i] }))] as const;
       }),

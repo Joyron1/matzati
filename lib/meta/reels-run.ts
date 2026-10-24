@@ -30,6 +30,8 @@ export interface Reel {
   video_path: string | null;
   /** A post's images (1-10) or a story's one image or video. */
   media?: MetaMedia[];
+  /** A Reel's cover image (JPEG), or null for the first frame. */
+  cover_path?: string | null;
   caption: string;
   scheduled_at: string;
   facebook: boolean;
@@ -86,7 +88,11 @@ export interface ReelsDeps {
     fileUrl: string | null,
   ): Promise<{ ok: true } | { ok: false; error: string }>;
   meta: {
-    createInstagramReel(reel: { videoUrl: string; caption: string }): Promise<MetaResult>;
+    createInstagramReel(reel: {
+      videoUrl: string;
+      caption: string;
+      coverUrl?: string | null;
+    }): Promise<MetaResult>;
     createInstagramPost(post: { imageUrls: string[]; caption: string }): Promise<MetaResult>;
     createInstagramStory(story: { url: string; video: boolean }): Promise<MetaResult>;
     instagramContainerStatus(
@@ -95,6 +101,8 @@ export interface ReelsDeps {
     publishInstagramContainer(id: string): Promise<MetaResult>;
     uploadFacebookReel(videoUrl: string): Promise<MetaResult>;
     publishFacebookReel(reel: { videoId: string; description: string }): Promise<MetaResult>;
+    /** Sets the cover of an uploaded Reel from the image at `imageUrl`. */
+    setFacebookReelCover(videoId: string, imageUrl: string): Promise<MetaResult>;
     publishFacebookPhotos(post: { imageUrls: string[]; caption: string }): Promise<MetaResult>;
     publishFacebookPhotoStory(imageUrl: string): Promise<MetaResult>;
     uploadFacebookVideoStory(videoUrl: string): Promise<MetaResult>;
@@ -196,7 +204,11 @@ export async function runReels(deps: ReelsDeps, now: Date = new Date()): Promise
         if (needsIg) {
           const c =
             kind === "reel"
-              ? await deps.meta.createInstagramReel({ videoUrl: urls[0], caption: r.caption })
+              ? await deps.meta.createInstagramReel({
+                  videoUrl: urls[0],
+                  caption: r.caption,
+                  coverUrl: r.cover_path ? await deps.videoUrl(r.cover_path) : null,
+                })
               : kind === "post"
                 ? await deps.meta.createInstagramPost({ imageUrls: urls, caption: r.caption })
                 : await deps.meta.createInstagramStory({
@@ -241,6 +253,11 @@ export async function runReels(deps: ReelsDeps, now: Date = new Date()): Promise
       if (fbWaiting(r)) {
         if (fbUploadsAhead(r)) {
           if (r.fb_video_id) {
+            // The cover first (Facebook keeps the first frame when it fails: the Reel still goes).
+            if (kind === "reel" && r.cover_path) {
+              const coverUrl = await deps.videoUrl(r.cover_path);
+              if (coverUrl) await deps.meta.setFacebookReelCover(r.fb_video_id, coverUrl);
+            }
             const p =
               kind === "reel"
                 ? await deps.meta.publishFacebookReel({

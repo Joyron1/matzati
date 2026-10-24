@@ -129,6 +129,8 @@ export interface MetaFormInitial {
   instagram: boolean;
   manual: boolean;
   link: string;
+  /** A Reel's cover, with a signed preview URL. */
+  cover: { path: string; preview: string } | null;
 }
 
 export function MetaForm({
@@ -148,6 +150,31 @@ export function MetaForm({
   const [error, setError] = useState<string | null>(null);
   const [captionLength, setCaptionLength] = useState(initial?.caption.length ?? 0);
   const [manual, setManual] = useState(initial?.manual ?? false);
+  const [cover, setCover] = useState<{ path: string; preview: string } | null>(
+    initial?.cover ?? null,
+  );
+  const [coverBusy, setCoverBusy] = useState(false);
+  const [coverError, setCoverError] = useState<string | null>(null);
+  const coverId = useId();
+
+  async function addCover(file: File) {
+    setCoverError(null);
+    if (!file.type.startsWith("image/")) return setCoverError("רק תמונה (JPG, PNG, WebP).");
+    setCoverBusy(true);
+    try {
+      // Fit within 1080x1920; Instagram crops a cover to its middle 9:16.
+      const jpeg = await toJpeg(file, "story");
+      const path = await uploadFile("image", jpeg.blob);
+      setCover((old) => {
+        if (old) URL.revokeObjectURL(old.preview);
+        return { path, preview: URL.createObjectURL(jpeg.blob) };
+      });
+    } catch {
+      setCoverError("לא הצלחנו להעלות את הקאבר. נסו JPG או PNG.");
+    } finally {
+      setCoverBusy(false);
+    }
+  }
 
   const limit = kind === "post" ? MAX_POST_IMAGES : 1;
   const accept =
@@ -232,7 +259,7 @@ export function MetaForm({
 
   const media = kind === "reel" ? [] : files.map(({ path, type }) => ({ path, type }));
   const videoPath = kind === "reel" ? (files[0]?.path ?? "") : "";
-  const ready = files.length > 0 && !busy;
+  const ready = files.length > 0 && !busy && !coverBusy;
   const label = KINDS.find((k) => k.kind === kind)!.label;
 
   return (
@@ -365,8 +392,69 @@ export function MetaForm({
           </p>
         )}
         <input type="hidden" name="videoPath" value={videoPath} />
+        <input type="hidden" name="cover" value={kind === "reel" ? (cover?.path ?? "") : ""} />
         <input type="hidden" name="media" value={JSON.stringify(media)} />
       </div>
+
+      {kind === "reel" && (
+        <div className="space-y-2">
+          <p className="font-semibold">
+            קאבר <span className="font-normal text-muted">(לא חובה)</span>
+          </p>
+          <div className="flex flex-wrap items-start gap-3">
+            {cover && (
+              <div className="relative">
+                {/* A local or signed preview: next/image does not apply. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={cover.preview}
+                  alt="הקאבר"
+                  className="h-40 rounded-lg border border-line bg-surface-2 object-contain"
+                />
+                <button
+                  type="button"
+                  aria-label="הסרת הקאבר"
+                  onClick={() => setCover(null)}
+                  className="absolute end-1 top-1 grid size-8 place-items-center rounded-full bg-surface/90 text-ink shadow hover:bg-surface"
+                >
+                  <X aria-hidden className="size-4" />
+                </button>
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <label
+                htmlFor={coverId}
+                aria-disabled={coverBusy}
+                className={`${btnSecondary} ${btnMd} ${btnBusy} cursor-pointer gap-2`}
+              >
+                <ImageIcon aria-hidden className="size-[18px]" />
+                {coverBusy ? "מעלה…" : cover ? "החלפת הקאבר" : "בחירת תמונת קאבר"}
+              </label>
+              <input
+                id={coverId}
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                disabled={coverBusy}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (file) void addCover(file);
+                }}
+              />
+              <p className="max-w-sm text-xs text-muted">
+                אנכי 9:16 (1080×1920). אינסטגרם חותך קאבר אחר למרכז ב־9:16, ובפרופיל מוצג החלק
+                המרובע שבאמצע. בלי קאבר יוצג הפריים הראשון.
+              </p>
+            </div>
+          </div>
+          {coverError && (
+            <p role="alert" className="text-sm font-semibold text-ink">
+              {coverError}
+            </p>
+          )}
+        </div>
+      )}
 
       {kind === "story" ? (
         <div className="space-y-3 rounded-[10px] border border-line bg-surface-2/60 p-4">

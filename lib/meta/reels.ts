@@ -69,7 +69,7 @@ const graph = (config: MetaConfig, path: string) =>
 /** Creates the Reel's container (Meta then fetches and processes the video). */
 export async function createInstagramReel(
   config: MetaConfig,
-  reel: { videoUrl: string; caption: string },
+  reel: { videoUrl: string; caption: string; coverUrl?: string | null },
   fetchImpl: typeof fetch = fetch,
 ): Promise<MetaResult> {
   if (!config.igUserId) return { ok: false, error: "META_IG_USER_ID is not set" };
@@ -78,7 +78,13 @@ export async function createInstagramReel(
     graph(config, `${encodeURIComponent(config.igUserId)}/media`),
     {
       method: "POST",
-      params: { media_type: "REELS", video_url: reel.videoUrl, caption: reel.caption },
+      params: {
+        media_type: "REELS",
+        video_url: reel.videoUrl,
+        caption: reel.caption,
+        // The Reel's cover (JPEG; Meta crops it to the middle 9:16). Without it, the first frame.
+        ...(reel.coverUrl ? { cover_url: reel.coverUrl } : {}),
+      },
     },
     fetchImpl,
   );
@@ -362,4 +368,38 @@ export async function publishFacebookVideoStory(
   return answer.status === 200 && answer.body?.success === true
     ? { ok: true, id }
     : failed(answer, config.token, "finish");
+}
+
+/**
+ * Sets an uploaded Facebook Reel's cover (owner request 2026-10-24): POST /{video-id}/thumbnails
+ * with the image as a multipart file (`source`, up to 10 MB; the docs take no URL) and
+ * is_preferred=true (docs/graph-api/reference/video/thumbnails, checked 2026-10-24).
+ */
+export async function setFacebookReelCover(
+  config: MetaConfig,
+  videoId: string,
+  image: Blob,
+  fetchImpl: typeof fetch = fetch,
+): Promise<MetaResult> {
+  const form = new FormData();
+  form.append("source", image, "cover.jpg");
+  form.append("is_preferred", "true");
+  try {
+    const res = await fetchImpl(graph(config, `${encodeURIComponent(videoId)}/thumbnails`), {
+      method: "POST",
+      headers: { Authorization: `Bearer ${config.token}` },
+      body: form,
+      signal: AbortSignal.timeout(25_000),
+    });
+    const body = (await res.json().catch(() => null)) as GraphAnswer | null;
+    return res.status === 200 && (body?.success === true || body?.id)
+      ? { ok: true, id: videoId }
+      : failed({ status: res.status, body }, config.token, "cover");
+  } catch (err) {
+    return failed(
+      { status: 0, body: null, name: err instanceof Error ? err.name : "network error" },
+      config.token,
+      "cover",
+    );
+  }
 }

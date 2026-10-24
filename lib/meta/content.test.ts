@@ -145,6 +145,7 @@ function deps(items: Reel[]) {
       publishInstagramContainer: ok("igPublish", "M1"),
       uploadFacebookReel: ok("fbReelUpload", "V1"),
       publishFacebookReel: ok("fbReel", "V1"),
+      setFacebookReelCover: ok("fbCover", "V1"),
       publishFacebookPhotos: ok("fbPhotos", "FP"),
       publishFacebookPhotoStory: ok("fbPhotoStory", "FS"),
       uploadFacebookVideoStory: ok("fbStoryUpload", "VS"),
@@ -249,5 +250,56 @@ describe("runReels with a manual story", () => {
     await runReels(d, AT);
     expect(n).toBe(0);
     expect(updates).toEqual([]);
+  });
+});
+
+describe("a Reel's cover", () => {
+  it("goes to Instagram as cover_url on the Reel's container", async () => {
+    const { createInstagramReel } = await import("./reels");
+    const fetchMock = vi.fn<typeof fetch>(async () => json({ id: "C1" }));
+    await createInstagramReel(
+      CONFIG,
+      { videoUrl: "https://x/v.mp4", caption: "a", coverUrl: "https://x/c.jpg" },
+      fetchMock,
+    );
+    expect(bodyOf(fetchMock.mock.calls[0]).get("cover_url")).toBe("https://x/c.jpg");
+  });
+
+  it("goes to Facebook as a multipart thumbnail, preferred, token in a header", async () => {
+    const { setFacebookReelCover } = await import("./reels");
+    const fetchMock = vi.fn<typeof fetch>(async () => json({ success: true }));
+    const r = await setFacebookReelCover(
+      CONFIG,
+      "V1",
+      new Blob(["x"], { type: "image/jpeg" }),
+      fetchMock,
+    );
+    expect(r.ok).toBe(true);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toMatch(/\/V1\/thumbnails$/);
+    expect(String(url)).not.toContain("SECRET");
+    const form = (init as RequestInit).body as FormData;
+    expect(form.get("is_preferred")).toBe("true");
+    expect(form.get("source")).toBeInstanceOf(Blob);
+  });
+
+  it("is set on Facebook before the Reel is published, and its failure does not stop it", async () => {
+    const reel = item({
+      kind: "reel",
+      video_path: "reels/a.mp4",
+      media: [],
+      cover_path: "meta/c.jpg",
+      instagram: false,
+      fb_video_id: "V1",
+      prepared_at: "x",
+    });
+    const { d, calls, updates } = deps([reel]);
+    d.meta.setFacebookReelCover = async () => {
+      calls.push("fbCover");
+      return { ok: false, error: "cover: no" };
+    };
+    await runReels(d, AT);
+    expect(calls).toEqual(["fbCover", "fbReel"]);
+    expect(updates[0]).toMatchObject({ status: "done" });
   });
 });

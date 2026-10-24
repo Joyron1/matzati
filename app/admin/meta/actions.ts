@@ -60,6 +60,7 @@ const schema = z.object({
   disclosure: z.boolean(),
   manual: z.boolean(),
   link: z.string().trim().max(500),
+  cover: z.string(),
 });
 
 /**
@@ -90,6 +91,7 @@ interface Parsed {
   kind: MetaKind;
   media: MetaMedia[];
   videoPath: string | null;
+  coverPath: string | null;
   caption: string;
   scheduledAt: Date;
   facebook: boolean;
@@ -112,6 +114,7 @@ async function parseForm(formData: FormData, back_: (s: string) => never): Promi
     disclosure: formData.get("disclosure") === "on",
     manual: formData.get("manual") === "on",
     link: formData.get("link") ?? "",
+    cover: formData.get("cover") ?? "",
   });
   if (!parsed.success) back_("invalid");
   const r = parsed.data;
@@ -119,9 +122,14 @@ async function parseForm(formData: FormData, back_: (s: string) => never): Promi
 
   let media: MetaMedia[] = [];
   let videoPath: string | null = null;
+  let coverPath: string | null = null;
   if (r.kind === "reel") {
     if (!/^reels\/[0-9a-f-]{36}\.mp4$/.test(r.videoPath)) back_("no-media");
     videoPath = r.videoPath;
+    if (r.cover) {
+      if (!/^meta\/[0-9a-f-]{36}\.jpg$/.test(r.cover)) back_("invalid");
+      coverPath = r.cover;
+    }
   } else {
     let raw: unknown = null;
     try {
@@ -157,6 +165,7 @@ async function parseForm(formData: FormData, back_: (s: string) => never): Promi
     kind: r.kind,
     media,
     videoPath,
+    coverPath,
     caption:
       r.kind === "story" ? "" : r.disclosure ? `${r.caption}\n\n${META_DISCLOSURE}` : r.caption,
     scheduledAt: at,
