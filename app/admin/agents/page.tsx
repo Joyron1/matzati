@@ -17,7 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { ProductImage } from "@/components/product-image";
-import { btnBusy, btnMd, btnPrimary, btnSecondary, btnSm, card } from "@/components/styles";
+import { btnMd, btnPrimary, btnSecondary, btnSm, card } from "@/components/styles";
 import { requireAdmin } from "@/lib/admin/auth";
 import { HOT_BONUS_PCT, MIN_STANDARD_PCT } from "@/lib/agents/finder/select";
 import { slotLabel, TELEGRAM_SLOTS } from "@/lib/agents/schedule";
@@ -31,7 +31,9 @@ import { serviceClient } from "@/lib/supabase/server";
 import { telegramConfig } from "@/lib/telegram/client";
 import { AdminHeader, AdminTabs } from "../admin-tabs";
 import { inputClass } from "../settings/form-parts";
+import { FormProgress, PendingButton } from "../progress";
 import { StatusMessage } from "../status-message";
+import { statusTone } from "../status-tone";
 import {
   approveAction,
   publishNowAction,
@@ -170,7 +172,9 @@ export default async function AgentsPage({ searchParams }: PageProps<"/admin/age
         <RunFinder />
       </AdminHeader>
 
-      {status && <StatusMessage>{status}</StatusMessage>}
+      {status && (
+        <StatusMessage tone={statusTone(firstParam(params.status))}>{status}</StatusMessage>
+      )}
 
       {!data ? (
         <p className={`${card} p-5 text-muted`}>
@@ -367,9 +371,10 @@ function Settings({
             </span>
           </span>
         </label>
-        <button type="submit" className={`${btnPrimary} ${btnMd}`}>
+        <PendingButton className={`${btnPrimary} ${btnMd}`} busyLabel="שומרים…">
           שמירה
-        </button>
+        </PendingButton>
+        <FormProgress ops={{ default: { label: "שומרים את ההגדרות", expectedMs: 1500 } }} />
       </form>
     </section>
   );
@@ -657,36 +662,51 @@ function Queue({
                     {telegramOn ? "לתזמן לטלגרם (לשעה הפנויה הבאה)" : "טלגרם כבוי או לא מחובר"}
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    <button type="submit" className={`${btnPrimary} ${btnMd}`}>
+                    <PendingButton
+                      op="approve"
+                      busyLabel="מאשרים…"
+                      className={`${btnPrimary} ${btnMd}`}
+                    >
                       <Check aria-hidden className="size-[18px]" />
                       אישור
-                    </button>
-                    <button
-                      type="submit"
+                    </PendingButton>
+                    <PendingButton
+                      op="publish"
+                      busyLabel="שולחים…"
                       formAction={publishNowAction}
-                      aria-disabled={!telegramReady}
-                      className={`${btnSecondary} ${btnMd} ${btnBusy}`}
+                      off={!telegramReady}
+                      className={`${btnSecondary} ${btnMd}`}
                     >
                       <Send aria-hidden className="size-[18px]" />
                       פרסום עכשיו
-                    </button>
-                    <button
-                      type="submit"
+                    </PendingButton>
+                    <PendingButton
+                      op="rewrite"
+                      busyLabel="כותבים…"
                       formAction={rewriteAction}
                       className={`${btnSecondary} ${btnMd}`}
                     >
                       <PenLine aria-hidden className="size-[18px]" />
                       כתיבה מחדש
-                    </button>
-                    <button
-                      type="submit"
+                    </PendingButton>
+                    <PendingButton
+                      op="reject"
+                      busyLabel="מסירים…"
                       formAction={rejectAction}
                       className={`${btnSecondary} ${btnMd}`}
                     >
                       <X aria-hidden className="size-[18px]" />
                       לא מתאים
-                    </button>
+                    </PendingButton>
                   </div>
+                  <FormProgress
+                    ops={{
+                      approve: { label: "מאשרים ומתזמנים לטלגרם", expectedMs: 2000 },
+                      publish: { label: "שולחים לערוץ הטלגרם", expectedMs: 6000 },
+                      rewrite: { label: "המודל כותב את הפוסט מחדש", expectedMs: 20000 },
+                      reject: { label: "מסירים את המוצר", expectedMs: 1500 },
+                    }}
+                  />
                   <details className="text-xs text-muted">
                     <summary className="min-h-11 cursor-pointer py-3 font-semibold">
                       מה עושה כל כפתור?
@@ -749,19 +769,22 @@ function Approved({
             </div>
             <div className="flex flex-wrap gap-2">
               {telegramReady && !c.telegram_posted_at && (
-                <form action={publishNowAction}>
+                <form action={publishNowAction} className="space-y-2">
                   <input type="hidden" name="id" value={c.id} />
-                  <button type="submit" className={`${btnSecondary} ${btnMd}`}>
+                  <FormProgress
+                    ops={{ default: { label: "שולחים לערוץ הטלגרם", expectedMs: 6000 } }}
+                  />
+                  <PendingButton busyLabel="שולחים…" className={`${btnSecondary} ${btnMd}`}>
                     <Send aria-hidden className="size-[18px]" />
                     פרסום עכשיו
-                  </button>
+                  </PendingButton>
                 </form>
               )}
               <form action={rejectAction}>
                 <input type="hidden" name="id" value={c.id} />
-                <button type="submit" className={`${btnSecondary} ${btnMd}`}>
+                <PendingButton busyLabel="מסירים…" className={`${btnSecondary} ${btnMd}`}>
                   הסרה מהאתר
-                </button>
+                </PendingButton>
               </form>
             </div>
           </li>

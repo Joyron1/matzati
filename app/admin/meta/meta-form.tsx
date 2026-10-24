@@ -7,9 +7,11 @@
 // 4.5 MB). Images are turned into JPEG here first (Instagram takes JPEG only): at most 1440 px wide
 // for a post (1080x1920 for a story), and a post image outside Instagram's 4:5 to 1.91:1 is padded
 // with white to the nearest allowed ratio, so Instagram never rejects it.
-import { createClient } from "@supabase/supabase-js";
 import {
   CalendarClock,
+  ChevronLeft,
+  ChevronRight,
+  GripVertical,
   Film,
   Link2,
   Save,
@@ -20,7 +22,9 @@ import {
 } from "lucide-react";
 import { useId, useState } from "react";
 import { btnBusy, btnMd, btnPrimary, btnSecondary } from "@/components/styles";
+import { FormProgress, PendingButton, ProgressBar } from "../progress";
 import { inputClass } from "../settings/form-parts";
+import { uploadToSignedUrl } from "../upload";
 import { metaUploadAction, scheduleMetaAction, updateMetaAction } from "./actions";
 
 type Kind = "post" | "story" | "reel";
@@ -101,21 +105,26 @@ function videoSeconds(file: File): Promise<number | null> {
   });
 }
 
-async function uploadFile(target: "reel" | "image" | "video", body: Blob): Promise<string> {
+/** Uploads one file to the bucket with real progress (0-1). */
+async function uploadFile(
+  target: "reel" | "image" | "video",
+  body: Blob,
+  onProgress: (fraction: number) => void = () => {},
+): Promise<string> {
   const signed = await metaUploadAction(target);
   if (!signed) throw new Error("no upload url");
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  await uploadToSignedUrl(
+    "agent-media",
+    signed,
+    body,
+    target === "image" ? "image/jpeg" : "video/mp4",
+    onProgress,
   );
-  const { error } = await supabase.storage
-    .from("agent-media")
-    .uploadToSignedUrl(signed.path, signed.token, body, {
-      contentType: target === "image" ? "image/jpeg" : "video/mp4",
-    });
-  if (error) throw error;
   return signed.path;
 }
+
+/** "12.4MB" for a progress line. */
+const mb = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)}MB`;
 
 /** An item being edited: its saved values (files with signed preview URLs). */
 export interface MetaFormInitial {
@@ -156,6 +165,22 @@ export function MetaForm({
   const [coverBusy, setCoverBusy] = useState(false);
   const [coverError, setCoverError] = useState<string | null>(null);
   const coverId = useId();
+  // The upload in progress: what it does and how far it is (0-100).
+  const [progress, setProgress] = useState<{ label: string; pct: number; detail?: string } | null>(
+    null,
+  );
+  const [dragFrom, setDragFrom] = useState<number | null>(null);
+
+  /** Moves a post's image to another place in the carousel. */
+  function move(from: number, to: number) {
+    if (to < 0 || to >= files.length || from === to) return;
+    setFiles((old) => {
+      const next = [...old];
+      const [item] = next.splice(from, 1);
+      next.splice(to, 0, item);
+      return next;
+    });
+  }
 
   async function addCover(file: File) {
     setCoverError(null);
@@ -163,8 +188,15 @@ export function MetaForm({
     setCoverBusy(true);
     try {
       // Fit within 1080x1920; Instagram crops a cover to its middle 9:16.
+      setProgress({ label: "מכינים את הקאבר", pct: 5 });
       const jpeg = await toJpeg(file, "story");
-      const path = await uploadFile("image", jpeg.blob);
+      const path = await uploadFile("image", jpeg.blob, (x) =>
+        setProgress({
+          label: "מעלים את הקאבר",
+          pct: 10 + x * 90,
+          detail: `${Math.round(x * 100)}%`,
+        }),
+      );
       setCover((old) => {
         if (old) URL.revokeObjectURL(old.preview);
         return { path, preview: URL.createObjectURL(jpeg.blob) };
@@ -172,6 +204,7 @@ export function MetaForm({
     } catch {
       setCoverError("לא הצלחנו להעלות את הקאבר. נסו JPG או PNG.");
     } finally {
+      setProgress(null);
       setCoverBusy(false);
     }
   }
@@ -202,7 +235,11 @@ export function MetaForm({
     setBusy(true);
     try {
       const done: Uploaded[] = [];
-      for (const file of list) {
+      const total = list.length;
+      for (const [n, file] of list.entries()) {
+        const which = total > 1 ? ` ${n + 1} מתוך ${total}` : "";
+        // Each file is an equal share of the bar.
+        const at = (x: number) => ((n + x) / total) * 100;
         const isVideo = file.type.startsWith("video/");
         if (isVideo) {
           if (!VIDEO_TYPES.includes(file.type)) throw new Error("רק סרטון MP4 או MOV.");
@@ -217,17 +254,35 @@ export function MetaForm({
           if (seconds !== null && (seconds < 3 || seconds > max)) {
             note = `הסרטון ${Math.round(seconds)} שניות, ו־Meta מקבלת ${kind === "story" ? "סטורי" : "רילז"} של 3 עד ${max} שניות.`;
           }
-          const path = await uploadFile(kind === "reel" ? "reel" : "video", file);
+          setProgress({
+            label: `מעלים את הסרטון${which}`,
+            pct: at(0),
+            detail: `0 / ${mb(file.size)}`,
+          });
+          const path = await uploadFile(kind === "reel" ? "reel" : "video", file, (x) =>
+            setProgress({
+              label: `מעלים את הסרטון${which}`,
+              pct: at(x),
+              detail: `${Math.round(x * 100)}% · ${mb(file.size * x)} / ${mb(file.size)}`,
+            }),
+          );
           done.push({ path, type: "video", preview: URL.createObjectURL(file), note });
         } else {
           if (!file.type.startsWith("image/")) throw new Error("רק תמונות (JPG, PNG, WebP).");
           let jpeg: { blob: Blob; note?: string };
+          setProgress({ label: `מכינים את התמונה${which}`, pct: at(0.05) });
           try {
             jpeg = await toJpeg(file, kind);
           } catch {
             throw new Error("לא הצלחנו לקרוא את התמונה. נסו JPG או PNG.");
           }
-          const path = await uploadFile("image", jpeg.blob);
+          const path = await uploadFile("image", jpeg.blob, (x) =>
+            setProgress({
+              label: `מעלים את התמונה${which}`,
+              pct: at(0.1 + x * 0.9),
+              detail: `${Math.round(at(0.1 + x * 0.9))}%`,
+            }),
+          );
           done.push({
             path,
             type: "image",
@@ -245,6 +300,7 @@ export function MetaForm({
         err instanceof Error && /[א-ת]/.test(err.message) ? err.message : "ההעלאה נכשלה. נסו שוב.",
       );
     } finally {
+      setProgress(null);
       setBusy(false);
     }
   }
@@ -265,7 +321,7 @@ export function MetaForm({
   return (
     <form action={initial ? updateMetaAction : scheduleMetaAction} className="space-y-6">
       {initial && <input type="hidden" name="id" value={initial.id} />}
-      <fieldset className="space-y-2" disabled={!!initial}>
+      <fieldset className="space-y-2">
         <legend className="pb-2 font-semibold">1. מה מפרסמים</legend>
         <div className="grid grid-cols-3 gap-1 rounded-[10px] bg-surface-2 p-1">
           {KINDS.map((k) => {
@@ -274,7 +330,7 @@ export function MetaForm({
             return (
               <label
                 key={k.kind}
-                className={`flex min-h-12 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg px-2 py-1.5 text-center has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-accent ${
+                className={`flex min-h-12 cursor-pointer flex-col has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50 items-center justify-center gap-0.5 rounded-lg px-2 py-1.5 text-center has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-accent ${
                   on
                     ? "bg-surface font-bold text-accent-ink shadow-[0_1px_3px_rgba(0,0,0,0.1)]"
                     : "font-semibold text-muted hover:text-ink"
@@ -285,6 +341,7 @@ export function MetaForm({
                   name="kind"
                   value={k.kind}
                   checked={on}
+                  disabled={!!initial && !on}
                   onChange={() => choose(k.kind)}
                   className="sr-only"
                 />
@@ -299,8 +356,6 @@ export function MetaForm({
         <p className="text-xs text-muted">
           {initial ? "בעריכה אי אפשר לשנות את הסוג." : KINDS.find((k) => k.kind === kind)!.hint}
         </p>
-        {/* A disabled fieldset sends nothing: the kind still goes with the form. */}
-        {initial && <input type="hidden" name="kind" value={kind} />}
       </fieldset>
 
       <div className="space-y-2">
@@ -310,7 +365,21 @@ export function MetaForm({
         {files.length > 0 && (
           <ul className="flex flex-wrap gap-3">
             {files.map((f, i) => (
-              <li key={f.path} className="relative">
+              <li
+                key={f.path}
+                className={`relative ${dragFrom === i ? "opacity-40" : ""}`}
+                draggable={kind === "post" && files.length > 1}
+                onDragStart={() => setDragFrom(i)}
+                onDragEnd={() => setDragFrom(null)}
+                onDragOver={(e) => {
+                  if (dragFrom !== null) e.preventDefault();
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (dragFrom !== null) move(dragFrom, i);
+                  setDragFrom(null);
+                }}
+              >
                 {f.type === "video" ? (
                   <video
                     src={f.preview}
@@ -341,6 +410,29 @@ export function MetaForm({
                 >
                   <X aria-hidden className="size-4" />
                 </button>
+                {kind === "post" && files.length > 1 && (
+                  <div className="mt-1 flex items-center justify-between gap-1">
+                    <button
+                      type="button"
+                      aria-label={`הזזת תמונה ${i + 1} מקום אחד קדימה`}
+                      disabled={i === 0}
+                      onClick={() => move(i, i - 1)}
+                      className="grid size-9 place-items-center rounded-lg border border-line bg-surface text-ink hover:border-muted disabled:opacity-30"
+                    >
+                      <ChevronRight aria-hidden className="size-4" />
+                    </button>
+                    <GripVertical aria-hidden className="size-4 cursor-grab text-muted" />
+                    <button
+                      type="button"
+                      aria-label={`הזזת תמונה ${i + 1} מקום אחד אחורה`}
+                      disabled={i === files.length - 1}
+                      onClick={() => move(i, i + 1)}
+                      className="grid size-9 place-items-center rounded-lg border border-line bg-surface text-ink hover:border-muted disabled:opacity-30"
+                    >
+                      <ChevronLeft aria-hidden className="size-4" />
+                    </button>
+                  </div>
+                )}
                 {f.note && <p className="mt-1 max-w-56 text-xs text-muted">{f.note}</p>}
               </li>
             ))}
@@ -379,15 +471,18 @@ export function MetaForm({
             />
             <p className="text-xs text-muted">
               {kind === "post"
-                ? "JPG, PNG או WebP, עד 10. מומלץ מרובע (1080×1080) או 4:5 (1080×1350). הסדר בקרוסלה כסדר הבחירה."
+                ? "JPG, PNG או WebP, עד 10. מומלץ מרובע (1080×1080) או 4:5 (1080×1350). אפשר לבחור כמה ביחד. את הסדר בקרוסלה משנים בגרירה או בחצים: התמונה הראשונה (מימין) היא הראשונה בקרוסלה."
                 : kind === "story"
                   ? "אנכי 9:16 (1080×1920). סרטון MP4 או MOV עד 50MB, 3 עד 60 שניות."
                   : "MP4 או MOV עד 50MB, אנכי 9:16 (1080×1920), 3 עד 90 שניות."}
             </p>
           </div>
         )}
+        {progress && (
+          <ProgressBar value={progress.pct} label={progress.label} detail={progress.detail} />
+        )}
         {error && (
-          <p role="alert" className="text-sm font-semibold text-ink">
+          <p role="alert" className="text-sm font-semibold text-accent-ink">
             {error}
           </p>
         )}
@@ -581,19 +676,30 @@ export function MetaForm({
         </p>
       </div>
 
-      <button
-        type="submit"
-        aria-disabled={!ready}
-        disabled={!ready}
-        className={`${btnPrimary} ${btnMd} ${btnBusy} gap-2`}
-      >
-        {initial ? (
-          <Save aria-hidden className="size-[18px]" />
-        ) : (
+      <FormProgress
+        ops={{
+          default: {
+            label: initial ? "שומרים את השינויים" : "מתזמנים",
+            // A manual story's link loads the product from AliExpress first.
+            expectedMs: manual && kind === "story" ? 5000 : 1500,
+          },
+        }}
+      />
+      {ready ? (
+        <PendingButton className={`${btnPrimary} ${btnMd} gap-2`} busyLabel="שומרים…">
+          {initial ? (
+            <Save aria-hidden className="size-[18px]" />
+          ) : (
+            <CalendarClock aria-hidden className="size-[18px]" />
+          )}
+          {initial ? "שמירת השינויים" : `תזמון ה${label}`}
+        </PendingButton>
+      ) : (
+        <button type="button" disabled className={`${btnPrimary} ${btnMd} gap-2 opacity-50`}>
           <CalendarClock aria-hidden className="size-[18px]" />
-        )}
-        {initial ? "שמירת השינויים" : `תזמון ה${label}`}
-      </button>
+          {busy || coverBusy ? "מחכים לסיום ההעלאה…" : `תזמון ה${label}`}
+        </button>
+      )}
     </form>
   );
 }

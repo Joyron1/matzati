@@ -1,15 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  Ban,
-  CalendarClock,
-  CheckCircle2,
-  CircleAlert,
-  Download,
-  Hand,
-  Pencil,
-  Send,
-} from "lucide-react";
+import { CalendarClock, CheckCircle2, Download, Hand, Send } from "lucide-react";
 import { CopyButton } from "@/components/copy-button";
 import { btnPrimary, btnSecondary, btnSm, card } from "@/components/styles";
 import { requireAdmin } from "@/lib/admin/auth";
@@ -25,22 +16,34 @@ import {
 } from "@/lib/meta/reels-time";
 import { firstParam } from "@/lib/search-url";
 import { ownerTelegramState } from "@/lib/telegram/owner";
+import { FormProgress, PendingButton } from "../progress";
 import { StatusMessage } from "../status-message";
+import { statusTone } from "../status-tone";
 import {
-  cancelMetaAction,
   markPostedAction,
   telegramCodeAction,
   telegramConfirmAction,
   telegramUnlinkAction,
 } from "./actions";
 import { MetaForm, type MetaFormInitial } from "./meta-form";
+import {
+  byDay,
+  editable,
+  filesOf,
+  KIND_LABEL,
+  KIND_PLURAL,
+  KindBadge,
+  KindFilter,
+  kindOf,
+  Networks,
+  Preview,
+  ScheduledCard,
+} from "./scheduled";
 
 export const metadata: Metadata = {
   title: "Meta", // the admin layout adds "| ניהול | <brand>"
   robots: { index: false, follow: false },
 };
-
-const KIND_LABEL: Record<MetaKind, string> = { post: "פוסט", story: "סטורי", reel: "רילז" };
 
 const STATUS: Record<string, string> = {
   "scheduled-post": "הפוסט תוזמן ויעלה בזמן.",
@@ -81,16 +84,6 @@ const STATE: Record<Reel["status"], string> = {
 /** How long a handed-off manual story stays in "לפרסום ידני". */
 const MANUAL_SHOWN_MS = 7 * 24 * 60 * 60_000;
 
-const kindOf = (r: Reel): MetaKind => r.kind ?? "reel";
-const filesOf = (r: Reel): MetaMedia[] =>
-  kindOf(r) === "reel"
-    ? r.video_path
-      ? [{ path: r.video_path, type: "video" }]
-      : []
-    : (r.media ?? []);
-const editable = (r: Reel) =>
-  r.status === "scheduled" && !r.ig_posted_at && !r.fb_posted_at && !r.notified_at;
-
 /** The next 20:00 Israel time far enough ahead and not in the quiet hours: the form's suggestion. */
 function suggestedTime(now: Date): Date {
   for (let d = 0; d < 14; d++) {
@@ -122,88 +115,6 @@ async function editInitial(r: Reel): Promise<MetaFormInitial> {
       ? { path: r.cover_path, preview: (await signedReelUrl(r.cover_path)) ?? "" }
       : null,
   };
-}
-
-function Network({
-  name,
-  asked,
-  postedAt,
-  error,
-}: {
-  name: string;
-  asked: boolean;
-  postedAt: string | null;
-  error: string | null;
-}) {
-  if (!asked) return null;
-  return (
-    <span className="inline-flex items-center gap-1">
-      {postedAt ? (
-        <CheckCircle2 aria-hidden className="size-4 text-trust" />
-      ) : error ? (
-        <CircleAlert aria-hidden className="size-4 text-accent" />
-      ) : (
-        <CalendarClock aria-hidden className="size-4 text-muted" />
-      )}
-      {name}
-      {postedAt ? ": עלה" : error ? `: נכשל (${error})` : ""}
-    </span>
-  );
-}
-
-function Networks({ r }: { r: Reel }) {
-  if (r.manual) {
-    const where = [r.instagram ? "אינסטגרם" : null, r.facebook ? "פייסבוק" : null]
-      .filter(Boolean)
-      .join(" + ");
-    return (
-      <p className="flex items-center gap-1 text-sm">
-        <Hand aria-hidden className="size-4 text-muted" />
-        פרסום ידני ב{where}
-        {r.notified_at &&
-          (r.notify_error ? " · לא נשלח בטלגרם, הקובץ כאן בפאנל" : " · נשלח אליכם בטלגרם")}
-      </p>
-    );
-  }
-  return (
-    <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-      <Network name="אינסטגרם" asked={r.instagram} postedAt={r.ig_posted_at} error={r.ig_error} />
-      <Network name="פייסבוק" asked={r.facebook} postedAt={r.fb_posted_at} error={r.fb_error} />
-    </p>
-  );
-}
-
-function KindBadge({ r }: { r: Reel }) {
-  const kind = kindOf(r);
-  const count = filesOf(r).length;
-  return (
-    <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-bold text-ink">
-      {KIND_LABEL[kind]}
-      {kind === "post" && count > 1 ? ` · ${count} תמונות` : ""}
-      {r.manual ? " · ידני עם קישור" : ""}
-    </span>
-  );
-}
-
-function Preview({ file, url }: { file: MetaMedia; url: string | null }) {
-  if (!url) return null;
-  return file.type === "video" ? (
-    <video
-      src={url}
-      controls
-      playsInline
-      preload="metadata"
-      className="h-44 rounded-lg border border-line bg-black"
-    />
-  ) : (
-    // A signed storage URL: next/image's loader is for AliExpress photos.
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={url}
-      alt=""
-      className="h-44 max-w-44 rounded-lg border border-line bg-surface-2 object-contain"
-    />
-  );
 }
 
 async function TelegramBox() {
@@ -247,10 +158,13 @@ async function TelegramBox() {
             </code>
             <CopyButton value={tg.code} />
           </div>
-          <form action={telegramConfirmAction}>
-            <button type="submit" className={`${btnPrimary} ${btnSm}`}>
+          <form action={telegramConfirmAction} className="space-y-3">
+            <PendingButton className={`${btnPrimary} ${btnSm}`} busyLabel="בודקים…">
               שלחתי, בדיקת החיבור
-            </button>
+            </PendingButton>
+            <FormProgress
+              ops={{ default: { label: "מחפשים את הקוד בהודעות לבוט", expectedMs: 3000 } }}
+            />
           </form>
         </div>
       ) : (
@@ -273,7 +187,11 @@ async function TelegramBox() {
 export default async function MetaPage({ searchParams }: PageProps<"/admin/meta">) {
   await requireAdmin();
   const params = await searchParams;
-  const status = STATUS[firstParam(params.status)] ?? null;
+  const statusKey = firstParam(params.status);
+  const status = STATUS[statusKey] ?? null;
+  const kindParam = firstParam(params.kind);
+  const kindFilter: MetaKind | null =
+    kindParam === "reel" || kindParam === "post" || kindParam === "story" ? kindParam : null;
   const editId = firstParam(params.edit);
   let items: Reel[] = [];
   let loadFailed = false;
@@ -331,9 +249,10 @@ export default async function MetaPage({ searchParams }: PageProps<"/admin/meta"
     ),
   );
   const metaReady = metaConfig() !== null;
+  const shown = kindFilter ? upcoming.filter((r) => kindOf(r) === kindFilter) : upcoming;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-10 px-4 pt-8 sm:px-6 sm:pt-12">
+    <div className="mx-auto max-w-5xl space-y-10 px-4 pt-8 sm:px-6 sm:pt-12">
       <div className="space-y-2">
         <h1 className="font-display text-4xl font-bold">פרסום בפייסבוק ובאינסטגרם</h1>
         <p className="max-w-prose text-muted">
@@ -347,7 +266,7 @@ export default async function MetaPage({ searchParams }: PageProps<"/admin/meta"
           </p>
         )}
       </div>
-      {status && <StatusMessage>{status}</StatusMessage>}
+      {status && <StatusMessage tone={statusTone(statusKey)}>{status}</StatusMessage>}
 
       {manualDue.length > 0 && (
         <section aria-labelledby="manual" className="space-y-4">
@@ -388,10 +307,13 @@ export default async function MetaPage({ searchParams }: PageProps<"/admin/meta"
                       )}
                       <form action={markPostedAction}>
                         <input type="hidden" name="id" value={r.id} />
-                        <button type="submit" className={`${btnPrimary} ${btnSm} gap-1.5`}>
+                        <PendingButton
+                          className={`${btnPrimary} ${btnSm} gap-1.5`}
+                          busyLabel="מסמנים…"
+                        >
                           <CheckCircle2 aria-hidden className="size-4" />
                           פרסמתי
-                        </button>
+                        </PendingButton>
                       </form>
                     </div>
                     <p className="text-xs text-muted">
@@ -441,60 +363,36 @@ export default async function MetaPage({ searchParams }: PageProps<"/admin/meta"
         </section>
       )}
 
-      <section aria-labelledby="upcoming" className="space-y-4">
-        <h2 id="upcoming" className="font-display text-2xl font-bold">
-          מתוזמנים <span className="text-muted">({upcoming.length})</span>
-        </h2>
+      <section aria-labelledby="upcoming" className="space-y-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="upcoming" className="font-display text-2xl font-bold">
+            מתוזמנים <span className="text-muted">({upcoming.length})</span>
+          </h2>
+          <KindFilter items={upcoming} current={kindFilter} />
+        </div>
         {loadFailed ? (
           <p className="text-muted">לא הצלחנו לטעון. ודאו שהמיגרציות של Meta הוחלו.</p>
-        ) : !upcoming.length ? (
-          <p className="text-muted">אין כרגע תוכן מתוזמן.</p>
+        ) : !shown.length ? (
+          <p className={`${card} p-5 text-muted`}>
+            {kindFilter ? `אין ${KIND_PLURAL[kindFilter]} מתוזמנים.` : "אין כרגע תוכן מתוזמן."}
+          </p>
         ) : (
-          <ul className="space-y-3">
-            {upcoming.map((r) => (
-              <li key={r.id} className={`${card} flex flex-wrap gap-4 p-4`}>
-                <div className="flex flex-wrap gap-2">
-                  {(previews.get(r.id) ?? []).map(({ file, url }) => (
-                    <Preview key={file.path} file={file} url={url} />
+          <div className="space-y-6">
+            {byDay(shown).map(([day, list]) => (
+              <section key={day} aria-label={day} className="space-y-3">
+                <h3 className="flex items-center gap-2 text-sm font-bold text-muted">
+                  <CalendarClock aria-hidden className="size-4" />
+                  {day}
+                  <span className="h-px flex-1 bg-line" />
+                </h3>
+                <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {list.map((r) => (
+                    <ScheduledCard key={r.id} r={r} previews={previews.get(r.id) ?? []} />
                   ))}
-                </div>
-                <div className="min-w-0 flex-1 space-y-2">
-                  <p className="flex flex-wrap items-center gap-2 font-bold">
-                    <KindBadge r={r} />
-                    {reelTimeLabel(new Date(r.scheduled_at))}
-                  </p>
-                  {r.caption && (
-                    <p className="line-clamp-4 text-sm whitespace-pre-line text-muted">
-                      {r.caption}
-                    </p>
-                  )}
-                  {r.link_title && <p className="text-sm text-muted">🔗 {r.link_title}</p>}
-                  <Networks r={r} />
-                  {r.prepared_at && (
-                    <p className="text-xs text-muted">הוכן אצל Meta, מחכה לזמן שלו.</p>
-                  )}
-                  <div className="flex flex-wrap gap-2">
-                    {editable(r) && (
-                      <Link
-                        href={`/admin/meta?edit=${r.id}#edit`}
-                        className={`${btnSecondary} ${btnSm} gap-1.5`}
-                      >
-                        <Pencil aria-hidden className="size-4" />
-                        עריכה
-                      </Link>
-                    )}
-                    <form action={cancelMetaAction}>
-                      <input type="hidden" name="id" value={r.id} />
-                      <button type="submit" className={`${btnSecondary} ${btnSm} gap-1.5`}>
-                        <Ban aria-hidden className="size-4" />
-                        ביטול
-                      </button>
-                    </form>
-                  </div>
-                </div>
-              </li>
+                </ul>
+              </section>
             ))}
-          </ul>
+          </div>
         )}
       </section>
 
