@@ -12,6 +12,8 @@ import { HOT_FILTER_NOTE, HOT_TITLES_NOTE } from "@/lib/hot/copy";
 import type { HotProduct } from "@/lib/hot/select";
 import { isAllowedImage } from "@/lib/images";
 import { hotTitle } from "@/lib/product-title";
+import { LOOSE_TIER } from "@/lib/ranking/config";
+import { promoCodeValid } from "@/lib/search/promo";
 import type { Deal, FilterChip, ResultProduct, SortPreference } from "@/lib/types";
 import { actionId, type Action } from "./intent";
 
@@ -133,10 +135,18 @@ export function goUrl(
 }
 
 /** One search result as a photo card with a buy button. */
+/**
+ * The site card's badges in words (CardBadges, components/card-badges.tsx; the bot lacked them,
+ * found 2026-10-25): "פחות מוכח" for a product that meets only LOOSE_TIER, and AliExpress's promo
+ * code while it is valid when the card is sent.
+ */
+export const LESS_PROVEN_LINE = `⚠️ *פחות מוכח:* מתאים בדיוק לחיפוש, אבל עם פחות מכירות או משוב נמוך מהסף הרגיל שלנו (לפחות ${LOOSE_TIER.minPositiveFeedbackPct}% משוב ו־${LOOSE_TIER.minUnitsSold} מכירות בחודש).`;
+
 export function resultCard(
   p: ResultProduct & { search_uid?: string },
   position: number,
   sharedNote: string | null,
+  now: number = Date.now(),
 ): WaMessage {
   const lines = [`*${position}. ${clip(p.title_he, 200)}*`, ""];
   const price = [formatIls(p.price_ils, p.price_is_approx)];
@@ -151,6 +161,10 @@ export function resultCard(
     p.units_sold !== null ? `${formatCount(p.units_sold)} נמכרו ב־30 הימים האחרונים` : null,
   ].filter(Boolean);
   if (trust.length) lines.push(trust.join(" · "));
+  if (p.passed_tier === "loose") lines.push(LESS_PROVEN_LINE);
+  if (p.promo_code && promoCodeValid(p.promo_code, now)) {
+    lines.push(`🎟️ קוד הנחה של אלי אקספרס: \`${p.promo_code.code}\``);
+  }
   lines.push("", p.why_he);
   if (sharedNote) lines.push("", `_${sharedNote}_`);
   if (p.price_is_approx) lines.push("", APPROX_PRICE_NOTE);

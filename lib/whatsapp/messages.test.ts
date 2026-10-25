@@ -103,6 +103,23 @@ describe("resultCard", () => {
     expect(body).not.toContain("משוב חיובי");
     expect(body).not.toContain("במקום");
   });
+  it("says 'פחות מוכח' and a valid AliExpress code, as the site's card badges do", () => {
+    const now = Date.parse("2026-10-25T10:00:00Z");
+    const body = (p: Parameters<typeof product>[0]) => {
+      const m = resultCard(product(p), 1, null, now);
+      assertWithinLimits(m);
+      return m.type === "interactive" && m.interactive.type === "cta_url"
+        ? m.interactive.body.text
+        : "";
+    };
+    expect(body({ passed_tier: "loose" })).toContain("פחות מוכח");
+    expect(body({ passed_tier: "standard" })).not.toContain("פחות מוכח");
+    const code = { code: "ILAFF04", starts_at: null, ends_at: "2026-10-31T00:00:00Z" };
+    expect(body({ promo_code: code })).toContain("קוד הנחה של אלי אקספרס: `ILAFF04`");
+    expect(body({ promo_code: { ...code, ends_at: "2026-10-01T00:00:00Z" } })).not.toContain(
+      "קוד הנחה",
+    );
+  });
   it("carries the note about shared numbers", () => {
     const m = resultCard(product(), 1, "מוצר אחר של החנות הזו מציג בדיוק את מספר המכירות הזה.");
     const body =
