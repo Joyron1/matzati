@@ -12,7 +12,11 @@ import type { LlmProvider } from "@/lib/llm/provider";
 import { hotTitle } from "@/lib/product-title";
 import { toResultProduct } from "@/lib/search/pipeline";
 import { serviceClient } from "@/lib/supabase/server";
-import { postProduct, telegramConfig } from "@/lib/telegram/client";
+import { affiliateUrl } from "@/lib/aliexpress/schemas";
+import { absoluteUrl } from "@/lib/config/site";
+import { postAffiliateLink } from "@/lib/search/server";
+import { postProduct, telegramConfig, type ProductPost } from "@/lib/telegram/client";
+import { allowedMediaUrl } from "./media";
 import type { ResultProduct } from "@/lib/types";
 import { isPromoCodeCurrent } from "@/lib/aliexpress/promo-code";
 import { couponsForProduct } from "@/lib/coupons/queries";
@@ -32,6 +36,7 @@ import {
   SupabaseFinderStore,
   takenTelegramSlots,
 } from "./store";
+import type { Candidate } from "./store";
 
 /** Expired whenever the approved list changes, so /recommended and the home page show it. */
 export const RECOMMENDED_TAG = "recommended";
@@ -254,15 +259,30 @@ export async function publishNow(id: string, postHe?: string): Promise<PublishNo
     await decideCandidate(db, id, "approved", post, null);
     updateTag(RECOMMENDED_TAG);
   }
-  const videoUrl = candidate.video_path ? await signedVideoUrl(candidate.video_path, 3600) : null;
-  const result = await postProduct(config, {
-    productId: candidate.product_id,
-    postHe: post,
-    photoUrl: candidate.product.imageUrls[0] ?? candidate.product.mainImageUrl,
-    videoUrl,
-  });
+  const result = await postProduct(config, await productPostOf(candidate, post));
   await recordTelegram(db, id, result);
   return result.ok ? { ok: true } : { ok: false, reason: "telegram", error: result.error };
+}
+
+/**
+ * What a Telegram post sends (owner request 2026-10-25): every photo of the product (the run's
+ * productdetail.get merged them into the snapshot), the owner's video and AliExpress's video (only
+ * from AliExpress's media hosts), and the affiliate link straight to AliExpress (renewed when old;
+ * /go only when the product has none).
+ */
+async function productPostOf(c: Candidate, postHe: string): Promise<ProductPost> {
+  const p = c.product;
+  const own = c.video_path ? await signedVideoUrl(c.video_path, 3600) : null;
+  const ali = p.videoUrl && allowedMediaUrl(p.videoUrl) ? p.videoUrl : null;
+  const photos = [...p.imageUrls, p.mainImageUrl].filter((u) => !!u && !!allowedMediaUrl(u));
+  const direct = (await postAffiliateLink(c.product_id)) ?? affiliateUrl(p.promotionLink) ?? null;
+  return {
+    productId: c.product_id,
+    postHe,
+    buyUrl: direct ?? absoluteUrl(`/go/${encodeURIComponent(c.product_id)}?src=telegram`),
+    photos,
+    videos: [own, ali].filter((v): v is string => !!v),
+  };
 }
 
 /** Rejects a pending candidate, or takes an approved one off the site (never proposed again). */
@@ -332,13 +352,7 @@ export async function publishDue(now = new Date()): Promise<PublishSummary> {
   const due = await dueTelegramPosts(db, now);
   summary.due = due.length;
   for (const c of due) {
-    const videoUrl = c.video_path ? await signedVideoUrl(c.video_path, 3600) : null;
-    const result = await postProduct(config, {
-      productId: c.product_id,
-      postHe: c.post_he,
-      photoUrl: c.product.imageUrls[0] ?? c.product.mainImageUrl,
-      videoUrl,
-    });
+    const result = await postProduct(config, await productPostOf(c, c.post_he));
     await recordTelegram(db, c.id, result);
     if (result.ok) summary.posted++;
     else summary.failed++;

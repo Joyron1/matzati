@@ -1319,6 +1319,25 @@ async function affiliateLink(
   return (await run) ?? current;
 }
 
+/**
+ * The product's affiliate link to AliExpress for a post that links straight to it (the Telegram
+ * channel, owner request 2026-10-25): the stored link, renewed with link.generate when older than
+ * LINK_MAX_AGE_DAYS, exactly as /go does but without logging a click. Null when the product has no
+ * row or no link (the caller then links /go).
+ */
+export async function postAffiliateLink(productId: string): Promise<string | null> {
+  if (!PRODUCT_ID.test(productId)) return null;
+  try {
+    const db = serviceClient();
+    const stored = await new SupabaseStore(db).getProduct(productId);
+    if (!stored) return null;
+    return affiliateUrl(await affiliateLink(db, stored, new Date()));
+  } catch (err) {
+    logError("go", err);
+    return null;
+  }
+}
+
 const clickUidSchema = z.uuid();
 const clickPositionSchema = z.coerce.number().int().min(1).max(MAX_CLICK_POSITION);
 
