@@ -92,11 +92,37 @@ export function chatWithCode(updates: Update[], code: string, since: Date): stri
 
 export type LinkResult = "linked" | "not-found" | "expired" | "not-configured" | "failed";
 
-/** Looks for the code in the bot's recent messages and stores that chat. */
+/**
+ * The webhook's way (lib/telegram/group/handle.ts): a private message that is exactly the waiting
+ * code, sent after it was made, links that chat at once. True when it was the code.
+ */
+export async function linkFromMessage(
+  chatId: number,
+  text: string,
+  date: number,
+): Promise<boolean> {
+  const s = await read().catch(() => EMPTY);
+  if (!s.code || !s.codeAt || Date.now() - Date.parse(s.codeAt) >= CODE_TTL_MS) return false;
+  const chat = chatWithCode(
+    [{ message: { date, text, chat: { id: chatId, type: "private" } } }],
+    s.code,
+    new Date(s.codeAt),
+  );
+  if (!chat) return false;
+  await write({ chatId: chat, code: null, codeAt: null, linkedAt: new Date().toISOString() });
+  await sendOwnerMessage("✅ החיבור הצליח. מעכשיו סטוריז לפרסום ידני יגיעו לכאן בזמן שלהם.");
+  return true;
+}
+
+/**
+ * The admin's "check": linked already (the webhook linked it when the code arrived), or else the
+ * code in the bot's recent messages (getUpdates, only while no webhook is set).
+ */
 export async function confirmOwnerCode(fetchImpl: typeof fetch = fetch): Promise<LinkResult> {
   const config = telegramConfig();
   if (!config) return "not-configured";
   const s = await read();
+  if (s.chatId && !s.code) return "linked";
   if (!s.code || !s.codeAt || Date.now() - Date.parse(s.codeAt) >= CODE_TTL_MS) return "expired";
   try {
     const res = await fetchImpl(

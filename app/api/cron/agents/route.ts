@@ -7,6 +7,7 @@ import { publishDue, runFinderFor } from "@/lib/agents/server";
 import { deployEnv } from "@/lib/env";
 import { publishDueReels } from "@/lib/meta/reels-server";
 import { isCronAuthorized } from "@/lib/seo/cron-auth";
+import { sendWeeklyPollIfDue } from "@/lib/telegram/group/server";
 
 // Eight hot lists 1.1 s apart, two AliExpress calls and one writer call (up to 45 s).
 export const maxDuration = 60;
@@ -36,7 +37,13 @@ async function handle(request: Request): Promise<Response> {
         `[agents-cron] reels prepared=${reels.prepared} published=${reels.published} failed=${reels.failed}`,
       );
     }
-    return Response.json({ ok: true, publish: summary, reels });
+    // The weekly category poll in the channel (owner request 2026-10-25): Sunday 12:00, when on.
+    const poll = await sendWeeklyPollIfDue().catch((err: unknown) => {
+      console.error(`[agents-cron] poll: ${String(err).slice(0, 200)}`);
+      return false;
+    });
+    if (poll) console.log("[agents-cron] weekly poll sent");
+    return Response.json({ ok: true, publish: summary, reels, poll });
   }
   const result = await runFinderFor("cron");
   console.log(

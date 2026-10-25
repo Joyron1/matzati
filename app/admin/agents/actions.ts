@@ -180,3 +180,69 @@ export async function videoRemoveAction(formData: FormData): Promise<void> {
   }
   back("video-removed", `&open=${id.data}`);
 }
+
+// --- The search group and the weekly poll (owner requests 2026-10-25) ----------------------------
+
+const GROUP = "&tab=group";
+
+export async function connectWebhookAction(): Promise<void> {
+  await requireAdmin();
+  const { connectWebhook } = await import("@/lib/telegram/group/server");
+  const r = await connectWebhook();
+  if (!r.ok) {
+    logError("webhook", r.error);
+    back("webhook-failed", `${GROUP}&err=${encodeURIComponent((r.error ?? "").slice(0, 120))}`);
+  }
+  back("webhook-connected", GROUP);
+}
+
+export async function chooseSearchGroupAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = z
+    .string()
+    .regex(/^-?\d{1,20}$/)
+    .safeParse(formData.get("chatId"));
+  if (!id.success) back("invalid", GROUP);
+  try {
+    const { readGroupSettings, saveGroupSettings } = await import("@/lib/telegram/group/store");
+    const s = await readGroupSettings();
+    const chat = s.seen.find((c) => c.id === id.data);
+    await saveGroupSettings({ searchChatId: id.data, searchChatTitle: chat?.title ?? null });
+  } catch (err) {
+    unstable_rethrow(err);
+    logError("group", err);
+    back("save-failed", GROUP);
+  }
+  back("group-chosen", GROUP);
+}
+
+export async function saveGroupSettingsAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const parsed = z
+    .object({ dailyLimit: z.number().int().min(1).max(100), pollEnabled: z.boolean() })
+    .safeParse({
+      dailyLimit: Number(formData.get("dailyLimit")),
+      pollEnabled: formData.get("pollEnabled") === "on",
+    });
+  if (!parsed.success) back("invalid", GROUP);
+  try {
+    const { saveGroupSettings } = await import("@/lib/telegram/group/store");
+    await saveGroupSettings(parsed.data);
+  } catch (err) {
+    unstable_rethrow(err);
+    logError("group settings", err);
+    back("save-failed", GROUP);
+  }
+  back("saved", GROUP);
+}
+
+export async function sendPollNowAction(): Promise<void> {
+  await requireAdmin();
+  const { sendPoll } = await import("@/lib/telegram/group/server");
+  const r = await sendPoll();
+  if (!r.ok) {
+    logError("poll", r.error);
+    back("poll-failed", `${GROUP}&err=${encodeURIComponent((r.error ?? "").slice(0, 120))}`);
+  }
+  back("poll-sent", GROUP);
+}

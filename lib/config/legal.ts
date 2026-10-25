@@ -83,7 +83,7 @@ export const AFFILIATE_SECTION_ID = "affiliate";
  */
 export const LEGAL_UPDATED_AT: Record<LegalPage, string> = {
   terms: "2026-10-23",
-  privacy: "2026-10-24",
+  privacy: "2026-10-25",
   cookies: "2026-10-24",
   accessibility: "2026-10-03",
 };

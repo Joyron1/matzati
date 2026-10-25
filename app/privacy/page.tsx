@@ -32,6 +32,8 @@ import {
 import { NEWSLETTER_PRIVACY_SECTION, NewsletterPrivacy } from "./newsletter";
 import { WHATSAPP_PRIVACY_SECTION, WhatsAppPrivacy } from "./whatsapp";
 import { whatsappEnabled } from "@/lib/whatsapp/config";
+import { telegramConfig } from "@/lib/telegram/client";
+import { TELEGRAM_PRIVACY_SECTION, TelegramPrivacy } from "./telegram";
 import { pageMetadata } from "@/lib/seo/page-meta";
 
 export const metadata: Metadata = {
@@ -68,6 +70,7 @@ const SEC = {
   tracking: { id: "tracking", title: "עוגיות וכלי מעקב" },
   newsletter: NEWSLETTER_PRIVACY_SECTION,
   whatsapp: WHATSAPP_PRIVACY_SECTION,
+  telegram: TELEGRAM_PRIVACY_SECTION,
   security: { id: "security", title: "אבטחת מידע" },
   rights: { id: "rights", title: "הזכויות שלכם" },
   children: { id: "children", title: "ילדים" },
@@ -84,10 +87,16 @@ export default async function PrivacyPage() {
   const marketing = metaPixelId !== null;
   // The WhatsApp bot (./whatsapp.tsx) is described only while it is switched on (its secrets set).
   const whatsapp = whatsappEnabled();
+  // The Telegram search group (./telegram.tsx), while the bot is configured.
+  const telegram = telegramConfig() !== null;
   return (
     <StaticPage
       page="privacy"
-      sections={Object.values(SEC).filter((s) => whatsapp || s.id !== WHATSAPP_PRIVACY_SECTION.id)}
+      sections={Object.values(SEC).filter(
+        (s) =>
+          (whatsapp || s.id !== WHATSAPP_PRIVACY_SECTION.id) &&
+          (telegram || s.id !== TELEGRAM_PRIVACY_SECTION.id),
+      )}
       intro={
         <>
           <p>
@@ -355,6 +364,13 @@ export default async function PrivacyPage() {
       {whatsapp && (
         <LegalSection {...SEC.whatsapp}>
           <WhatsAppPrivacy />
+        </LegalSection>
+      )}
+
+      {/* The Telegram search group, while the bot is configured: ./telegram.tsx. */}
+      {telegram && (
+        <LegalSection {...SEC.telegram}>
+          <TelegramPrivacy />
         </LegalSection>
       )}
 

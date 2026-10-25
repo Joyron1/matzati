@@ -336,3 +336,121 @@ export async function listCard(input: {
     "jpeg",
   );
 }
+
+/** The search group's medal colors (owner's example, 2026-10-25): gold, silver, bronze, then blue. */
+const MEDAL_COLORS = ["#E6A800", "#9AA3AE", "#B8682F", "#2563EB", "#2563EB"];
+export const COLLAGE_SIZE = { width: 1200, height: 800 };
+
+/**
+ * The search group's answer photo (owner request 2026-10-25): the five products' photos in a 3x2
+ * grid from the right (1 top right), each numbered in its medal color, and the brand in the sixth
+ * cell. Photos are data URIs (imageDataUri); a missing one leaves its cell with the number only.
+ * A JPEG, sent to Telegram as bytes.
+ */
+export async function collageImage(photos: (string | null)[]): Promise<Buffer> {
+  // 3 per row: 3 x (376 + 2 x 8 margin) + 2 x 8 padding = 1192; 2 rows: 2 x 392 + 16 = 800.
+  const cell = 376;
+  // Each photo re-encoded by sharp to a square PNG first: the renderer refuses some JPEGs
+  // AliExpress serves (progressive or unusual ones, "Invalid JPEG"), and a photo it cannot read
+  // would fail the whole image.
+  const cells = await Promise.all(
+    photos.slice(0, 5).map(async (src) => {
+      if (!src) return null;
+      try {
+        const bytes = Buffer.from(src.slice(src.indexOf(",") + 1), "base64");
+        const png = await sharp(bytes)
+          .resize(cell, cell, { fit: "cover" })
+          .flatten({ background: "#FFFFFF" })
+          .png()
+          .toBuffer();
+        return `data:image/png;base64,${png.toString("base64")}`;
+      } catch {
+        return null;
+      }
+    }),
+  );
+  const node = (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "row-reverse",
+        flexWrap: "wrap",
+        width: COLLAGE_SIZE.width,
+        height: COLLAGE_SIZE.height,
+        background: "#F4F5F7",
+        padding: 8,
+        gap: 0,
+      }}
+    >
+      {cells.map((src, i) => (
+        <div
+          key={i}
+          style={{
+            display: "flex",
+            position: "relative",
+            width: cell,
+            height: cell,
+            margin: 8,
+            borderRadius: 18,
+            overflow: "hidden",
+            background: "#FFFFFF",
+            border: "2px solid #E5E7EB",
+          }}
+        >
+          {src && (
+            // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
+            <img src={src} width={cell} height={cell} style={{ objectFit: "cover" }} />
+          )}
+          <div
+            style={{
+              position: "absolute",
+              top: 14,
+              right: 14,
+              width: 72,
+              height: 72,
+              borderRadius: 999,
+              background: MEDAL_COLORS[i],
+              border: "5px solid #FFFFFF",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#FFFFFF",
+              fontFamily: "Plex",
+              fontWeight: 700,
+              fontSize: 40,
+            }}
+          >
+            {String(i + 1)}
+          </div>
+        </div>
+      ))}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          width: cell,
+          height: cell,
+          margin: 8,
+          borderRadius: 18,
+          background: "linear-gradient(225deg, #E2241F, #E8590C)",
+          gap: 14,
+        }}
+      >
+        <Text text={BRAND.name} size={84} color="#FFFFFF" family="Secular" />
+        <Text text="רק מוצרים שעברו סינון" size={30} color="#FFE4D9" weight={700} />
+        <div style={{ display: "flex", fontFamily: "Plex", fontSize: 26, color: "#FFFFFF" }}>
+          {SITE_HOST}
+        </div>
+      </div>
+    </div>
+  );
+  const png = new ImageResponse(node as React.ReactElement, {
+    ...COLLAGE_SIZE,
+    fonts: await fonts,
+  });
+  return sharp(Buffer.from(await png.arrayBuffer()))
+    .jpeg({ quality: 84, mozjpeg: true })
+    .toBuffer();
+}

@@ -156,3 +156,20 @@ export async function consumeDailyLlmBudget(
   const key = COUNTER_PREFIX[env] + LLM_BUDGET_KEY;
   return (await bump(db, key, israelDayWindow(now).start)) <= cap;
 }
+
+/**
+ * A per-user daily count under its own key (the Telegram search group, owner decision 2026-10-25:
+ * 10 searches a day per member): `name` is the counter ("tg", "tgc"), `who` a salted hash. True
+ * while the day's count is within `limit`. Throws GuardUnavailableError when the database fails.
+ */
+export async function withinDailyLimit(
+  db: SupabaseClient,
+  name: string,
+  who: string,
+  limit: number,
+  now: Date,
+  env: DeployEnv = deployEnv(),
+): Promise<boolean> {
+  const day = israelDayWindow(now);
+  return (await bump(db, `${COUNTER_PREFIX[env]}${name}:${who}`, day.start)) <= limit;
+}

@@ -14,6 +14,7 @@ import {
   Settings2,
   Trash2,
   Truck,
+  Users,
   X,
 } from "lucide-react";
 import { ProductImage } from "@/components/product-image";
@@ -43,10 +44,11 @@ import {
   videoRemoveAction,
 } from "./actions";
 import { CandidateDrawer } from "./candidate-drawer";
+import { GroupTab } from "./group-tab";
 import { RunFinder } from "./run-finder";
 import { VideoUpload } from "./video-upload";
 
-const TABS = ["queue", "approved", "runs", "settings"] as const;
+const TABS = ["queue", "approved", "runs", "group", "settings"] as const;
 type Tab = (typeof TABS)[number];
 
 export const metadata: Metadata = {
@@ -71,6 +73,9 @@ const STATUS: Record<string, string> = {
   "video-removed": "הסרטון הוסר מהמוצר. בטלגרם תעלה התמונה.",
   "video-failed": "לא הצלחנו להסיר את הסרטון. נסו שוב.",
   rewritten: "הפוסט נכתב מחדש.",
+  "webhook-connected": "הבוט מחובר. עכשיו הוסיפו אותו לקבוצה כמנהל, והיא תופיע כאן.",
+  "group-chosen": "נבחרה קבוצת החיפושים. כתבו בה חיפוש כדי לבדוק.",
+  "poll-sent": "הסקר נשלח לערוץ.",
   "rewrite-failed":
     "לא הצלחנו לכתוב את הפוסט מחדש (המודל לא ענה או שהטקסט לא עבר את הבדיקות). אפשר לנסות שוב או לערוך ידנית.",
 };
@@ -79,6 +84,8 @@ function statusText(status: string, at: string, err = ""): string | null {
   if (status === "publish-failed") {
     return `הפרסום בטלגרם נכשל${err ? `: ${err}` : "."} נסו שוב.`;
   }
+  if (status === "webhook-failed") return `חיבור הבוט נכשל${err ? `: ${err}` : "."}`;
+  if (status === "poll-failed") return `שליחת הסקר נכשלה${err ? `: ${err}` : "."}`;
   if (status === "approved-scheduled") {
     return `המוצר אושר, מופיע במומלצים ותוזמן לטלגרם: ${at}.`;
   }
@@ -196,6 +203,7 @@ export default async function AgentsPage({ searchParams }: PageProps<"/admin/age
                 count: data.approved.length,
               },
               { key: "runs", label: "ריצות", icon: History },
+              { key: "group", label: "קבוצה וסקר", icon: Users },
               { key: "settings", label: "הגדרות", icon: Settings2 },
             ]}
           />
@@ -211,6 +219,7 @@ export default async function AgentsPage({ searchParams }: PageProps<"/admin/age
             <Approved approved={data.approved} telegramReady={telegramReady} />
           )}
           {tab === "runs" && <Runs runs={data.runs} />}
+          {tab === "group" && <GroupTab />}
           {tab === "settings" && (
             <Settings settings={data.settings} telegramReady={telegramReady} />
           )}
