@@ -1,5 +1,13 @@
 import type { Metadata } from "next";
-import { BarChart3, CloudOff, Megaphone, SlidersHorizontal, Users } from "lucide-react";
+import {
+  BarChart3,
+  CloudOff,
+  Megaphone,
+  MessageCircle,
+  SlidersHorizontal,
+  Users,
+} from "lucide-react";
+import { WhatsAppTab } from "./whatsapp-tab";
 import { requireAdmin } from "@/lib/admin/auth";
 import { formatDateTime } from "@/lib/format";
 import { DEFAULT_SHOP_CAP_MODE } from "@/lib/ranking/config";
@@ -24,7 +32,7 @@ import { AdminHeader, AdminTabs } from "../admin-tabs";
 import { StatusMessage } from "../status-message";
 
 /** The page's tabs (owner request 2026-10-24: one section at a time instead of one long page). */
-const TABS = ["search", "google", "meta", "community"] as const;
+const TABS = ["search", "google", "meta", "community", "whatsapp"] as const;
 type Tab = (typeof TABS)[number];
 
 export const metadata: Metadata = {
@@ -90,10 +98,12 @@ export default async function AdminSettingsPage({
           { key: "google", label: "גוגל", icon: BarChart3, dot: googleOn ? "on" : "off" },
           { key: "meta", label: "Meta Pixel", icon: Megaphone, dot: metaOn ? "on" : "off" },
           { key: "community", label: "קהילה", icon: Users, dot: communityOn ? "on" : "off" },
+          { key: "whatsapp", label: "וואטסאפ", icon: MessageCircle },
         ]}
       />
       {status && <StatusMessage>{status}</StatusMessage>}
-      {tab !== "search" && connections === null && (
+      {tab === "whatsapp" && <WhatsAppTab />}
+      {tab !== "search" && tab !== "whatsapp" && connections === null && (
         <ReadFailed>
           לא הצלחנו לקרוא את החיבורים לגוגל ול־Meta ואת קישור הקהילה, ולכן האתר פועל עכשיו בלעדיהם.
           אפשר לנסות לשמור שוב.

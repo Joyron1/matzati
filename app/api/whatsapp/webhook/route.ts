@@ -11,7 +11,8 @@ import { hotCarouselProducts } from "@/lib/hot/queries";
 import { moreForRequest, searchForRequest } from "@/lib/search/server";
 import { serviceClient } from "@/lib/supabase/server";
 import { handleIncoming, type BotDeps } from "@/lib/whatsapp/bot";
-import { WhatsAppClient } from "@/lib/whatsapp/client";
+import { WhatsAppApiError, WhatsAppClient } from "@/lib/whatsapp/client";
+import { payloadSummary, recordDiag } from "@/lib/whatsapp/diag";
 import { whatsappConfig, whatsappEnabled } from "@/lib/whatsapp/config";
 import { inboundMessages } from "@/lib/whatsapp/inbound";
 import { SupabaseSessionStore } from "@/lib/whatsapp/session";
@@ -47,13 +48,22 @@ function botDeps(config: ReturnType<typeof whatsappConfig>): BotDeps {
     nextSale,
     now: () => new Date(),
     // Name and message only: no stack traces, and our errors never carry secret values.
-    log: (where, err) =>
+    log: (where, err) => {
+      // Meta refusing a send (an expired token, a number not allowed in test mode...) is what
+      // the admin needs to see (lib/whatsapp/diag.ts).
+      if (err instanceof WhatsAppApiError) {
+        void recordDiag({
+          kind: "send_error",
+          error: `${err.status} ${err.message}`.slice(0, 200),
+        });
+      }
       console.error(
         `[${where}] ${err instanceof Error ? `${err.name}: ${err.message}` : String(err)}`.slice(
           0,
           500,
         ),
-      ),
+      );
+    },
   };
 }
 
@@ -62,6 +72,7 @@ export async function POST(request: Request) {
   const config = whatsappConfig();
   const raw = await request.text();
   if (!verifySignature(raw, request.headers.get("x-hub-signature-256"), config.appSecret)) {
+    await recordDiag({ kind: "bad_signature" });
     return new Response("Invalid signature", { status: 401 });
   }
   let payload: unknown;
@@ -71,6 +82,17 @@ export async function POST(request: Request) {
     return new Response("Bad request", { status: 400 });
   }
   const messages = inboundMessages(payload, config.phoneNumberId);
+  const summary = payloadSummary(payload);
+  if (!messages.length) {
+    const ours = summary.numberIds.includes(config.phoneNumberId);
+    await recordDiag({
+      kind: ours || !summary.numberIds.length ? "no_messages" : "other_number",
+      numberIds: summary.numberIds,
+      fields: summary.fields,
+    });
+  } else {
+    await recordDiag({ kind: "received", count: messages.length, fields: summary.fields });
+  }
   if (messages.length) {
     const deps = botDeps(config);
     after(async () => {
