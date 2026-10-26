@@ -24,5 +24,7 @@ export async function signOutAdmin(): Promise<void> {
       if (isSupabaseAuthCookie(name)) store.delete(name);
     }
   }
+  // The admin hint cookie of the site's pages (components/admin-recommend.tsx).
+  (await cookies()).delete("mz_admin");
   redirect(ADMIN_LOGIN_PATH);
 }

@@ -54,6 +54,7 @@ export function ProductView({
   now,
   similar = null,
   backSlot = null,
+  adminSlot = null,
 }: {
   data: ProductPageData;
   q: string;
@@ -61,6 +62,8 @@ export function ProductView({
   now: Date;
   similar?: ReactNode;
   backSlot?: ReactNode;
+  /** The admin's "הוספה למומלצים" (renders nothing for visitors), under the buy button. */
+  adminSlot?: ReactNode;
 }) {
   const {
     product,
@@ -209,6 +212,7 @@ export function ProductView({
               />
               <ShareLink text={title.text} path={`/p/${encodeURIComponent(product.product_id)}`} />
             </div>
+            {adminSlot}
           </div>
 
           <section aria-labelledby="why-title" className={`${card} space-y-4 p-5 sm:p-6`}>

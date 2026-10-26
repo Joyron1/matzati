@@ -166,6 +166,13 @@ export function AdminShell({
     if (sheet.current?.open) sheet.current.close();
   }, [realPath]);
 
+  // The admin hint (components/admin-recommend.tsx): lets the site's pages show the admin's
+  // buttons. No secret: the server checks the admin on every admin request.
+  useEffect(() => {
+    if (previewPath) return;
+    document.cookie = "mz_admin=1; path=/; max-age=2592000; samesite=lax; secure";
+  }, [previewPath]);
+
   const openSheet = () => {
     sheet.current?.showModal();
     setOpen(true);

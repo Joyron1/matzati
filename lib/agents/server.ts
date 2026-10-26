@@ -4,7 +4,10 @@
 // due to Telegram (cron every 15 minutes), and the owner's motion video per product. Server-only.
 import "server-only";
 import { unstable_cache, updateTag } from "next/cache";
+import { getProductDetails } from "@/lib/aliexpress/affiliate";
 import { AliExpressClient } from "@/lib/aliexpress/client";
+import { productForPage } from "@/lib/search/server";
+import { SupabaseStore } from "@/lib/search/supabase-store";
 import type { AliProduct } from "@/lib/aliexpress/schemas";
 import { aliexpressConfig, deployEnv, llmConfig } from "@/lib/env";
 import { AnthropicProvider } from "@/lib/llm/anthropic";
@@ -21,7 +24,7 @@ import type { ResultProduct } from "@/lib/types";
 import { isPromoCodeCurrent } from "@/lib/aliexpress/promo-code";
 import { couponsForProduct } from "@/lib/coupons/queries";
 import { costUsd } from "@/lib/llm/pricing";
-import { runFinder, type FinderResult } from "./finder/run";
+import { runFinder, worstCaseCostUsd, type FinderResult } from "./finder/run";
 import { ownerCouponAmount, writePosts, type CouponInfo } from "./finder/write";
 import { readAgentSettings, type AgentSettings } from "./settings";
 import { israelParts, nextSlot } from "./schedule";
@@ -29,6 +32,7 @@ import {
   decideCandidate,
   dueTelegramPosts,
   getCandidate,
+  getCandidateByProduct,
   listCandidates,
   recordTelegram,
   updateCandidatePost,
@@ -366,4 +370,100 @@ export async function publishDue(now = new Date()): Promise<PublishSummary> {
     else summary.failed++;
   }
   return summary;
+}
+
+// --- "הוספה למומלצים" from the site (owner request 2026-10-27) -----------------------------------
+
+export type RecommendNowResult =
+  | { ok: true; telegram: "posted" | "not-connected" | "failed"; error?: string }
+  | { ok: false; reason: "not-production" | "missing" | "already" };
+
+/**
+ * Adds a product the admin found on the site (a search's results, the hot lists, recent searches:
+ * its /p page) to "המומלצים שלנו" and posts it to the Telegram channel at once, in the finder's
+ * format: every photo and video (one productdetail.get), the post written by the admin's model
+ * within the day's budget (else from the data), the affiliate link. A product already proposed is
+ * approved and posted as it is; one already posted is left alone. Production only (dev and
+ * preview share the database and the channel).
+ */
+export async function recommendNow(productId: string): Promise<RecommendNowResult> {
+  if (deployEnv() !== "production") return { ok: false, reason: "not-production" };
+  const db = serviceClient();
+  const existing = await getCandidateByProduct(db, productId);
+  if (existing?.telegram_posted_at) return { ok: false, reason: "already" };
+
+  let id = existing?.id ?? null;
+  if (!id) {
+    // The stored row (a search's or a hot list's), loaded and saved by /p's path when missing.
+    const search = new SupabaseStore(db);
+    let stored = await search.getProduct(productId);
+    if (!stored) {
+      await productForPage(productId);
+      stored = await search.getProduct(productId);
+    }
+    if (!stored) return { ok: false, reason: "missing" };
+    let product: AliProduct = stored.product;
+    // Every photo and the video, as the finder's runs have them.
+    try {
+      const ali = new AliExpressClient(aliexpressConfig());
+      const details = await getProductDetails(ali, [productId], "HE");
+      const d = details.products[0];
+      if (d) {
+        product = {
+          ...product,
+          imageUrls: [...new Set([...product.imageUrls, ...d.imageUrls])],
+          videoUrl: d.videoUrl ?? product.videoUrl ?? null,
+          promoCode: d.promoCode ?? product.promoCode ?? null,
+        };
+      }
+    } catch (err) {
+      console.error(`[recommend] details ${productId}: ${String(err).slice(0, 200)}`);
+    }
+    const { settings } = await readAgentSettings(db);
+    const store = new SupabaseFinderStore(db);
+    const llm = agentLlm(settings);
+    const affordable =
+      llm !== null &&
+      (await store.spentTodayUsd(new Date())) + worstCaseCostUsd(settings.model, 1) <=
+        settings.dailyBudgetUsd;
+    const coupons = new Map([[productId, await couponsFor(product).catch(() => [])]]);
+    const written = await writePosts(affordable ? llm : null, [product], coupons);
+    const post = written.posts.get(productId)!;
+    const runId = await store.startRun("admin");
+    await store.insertCandidates(runId, [
+      {
+        productId,
+        commissionPct: product.commissionRatePct ?? 0,
+        product,
+        postHe: post.post_he,
+        whyHe: post.why_he,
+      },
+    ]);
+    const cost = written.usage && written.model ? (costUsd(written.model, written.usage) ?? 0) : 0;
+    if (written.usage && written.model) await store.logUsage(written.model, written.usage);
+    await store.finishRun(runId, {
+      status: "ok",
+      scanned: 0,
+      added: 1,
+      aliCalls: 1,
+      costUsd: cost,
+      note: "added from the site",
+    });
+    id = (await getCandidateByProduct(db, productId))?.id ?? null;
+    if (!id) return { ok: false, reason: "missing" };
+  }
+
+  const c = (await getCandidate(db, id))!;
+  if (c.status !== "approved") {
+    await decideCandidate(db, id, "approved", c.post_he, null);
+    updateTag(RECOMMENDED_TAG);
+  }
+  const published = await publishNow(id);
+  if (published.ok) return { ok: true, telegram: "posted" };
+  if (published.reason === "not-connected") return { ok: true, telegram: "not-connected" };
+  return {
+    ok: true,
+    telegram: "failed",
+    error: "error" in published ? published.error : published.reason,
+  };
 }

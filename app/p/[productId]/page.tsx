@@ -9,6 +9,7 @@ import { productTitleView } from "@/lib/product-title";
 import { productForPage } from "@/lib/search/server";
 import { pageMetadata } from "@/lib/seo/page-meta";
 import { BackLink, DefaultBackLink, SimilarFromVisit, type HotBacks } from "./from-visit";
+import { AdminRecommend } from "@/components/admin-recommend";
 import { ProductView } from "./product-view";
 
 // A refresh (productdetail.get, link.generate) can take a few seconds; give it room.
@@ -68,6 +69,7 @@ export default async function ProductPage({ params }: PageProps<"/p/[productId]"
           <BackLink hotBacks={HOT_BACKS} />
         </Suspense>
       }
+      adminSlot={<AdminRecommend productId={data.product.product_id} />}
       similar={
         <Suspense fallback={null}>
           <SimilarFromVisit

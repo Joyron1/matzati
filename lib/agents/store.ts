@@ -340,3 +340,18 @@ export async function listRuns(db: SupabaseClient, limit = 10): Promise<AgentRun
   if (error) fail("runs", error);
   return (data ?? []).map((r) => ({ ...r, cost_usd: Number(r.cost_usd) }) as AgentRun);
 }
+
+/** The candidate of a product, whatever its status (one row per product, ever). */
+export async function getCandidateByProduct(
+  db: SupabaseClient,
+  productId: string,
+): Promise<Candidate | null> {
+  const { data, error } = await db
+    .from(CANDIDATES)
+    .select(COLUMNS)
+    .eq("product_id", productId)
+    .maybeSingle();
+  if (error) fail("get by product", error);
+  const parsed = candidateRow.safeParse(data);
+  return parsed.success ? parsed.data : null;
+}
