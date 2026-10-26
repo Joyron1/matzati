@@ -109,8 +109,14 @@ export async function runFinder(
   trigger: "cron" | "admin",
   settings: AgentSettings,
   deps: FinderDeps,
-  /** An admin's run limited to one catalog category (its key), owner request 2026-10-27. */
-  opts: { categoryKey?: string } = {},
+  /**
+   * An admin's run (owner requests 2026-10-27): limited to one catalog category (its key), and/or
+   * guided by free text, already turned into English keywords and price bounds by the parse.
+   */
+  opts: {
+    categoryKey?: string;
+    guidance?: { keywords: string; minPriceIls?: number; maxPriceIls?: number };
+  } = {},
 ): Promise<FinderResult> {
   const { ali, store } = deps;
   const now = deps.now ?? (() => new Date());
@@ -138,10 +144,16 @@ export async function runFinder(
     // 1. Scan: each list once, spaced; a failed list is skipped (another run will reach it).
     const found: AliProduct[] = [];
     const failed: string[] = [];
-    const oneCategory = Boolean(opts.categoryKey);
+    const guided = opts.guidance;
+    const oneCategory = Boolean(opts.categoryKey || guided);
+    const minPrice = Math.max(settings.minPriceIls ?? 0, guided?.minPriceIls ?? 0);
+    const maxPrice = guided?.maxPriceIls;
     const targets = opts.categoryKey
       ? categoryTargets(opts.categoryKey)
-      : targetsForRun(scanTargets(), runIndex);
+      : guided
+        ? // The whole hot list narrowed to the keywords, pages 1-6.
+          categoryTargets("", undefined, true)
+        : targetsForRun(scanTargets(), runIndex);
     if (!targets.length) {
       result.status = "failed";
       result.note = "unknown category";
@@ -156,9 +168,12 @@ export async function runFinder(
       result.aliCalls++;
       try {
         const page = await queryHotProducts(ali, {
-          categoryId: target.categoryId,
+          ...(target.categoryId ? { categoryId: target.categoryId } : {}),
           pageNo: target.pageNo,
           language: "HE",
+          ...(guided ? { keywords: guided.keywords } : {}),
+          ...(minPrice > 0 ? { minPriceIls: minPrice } : {}),
+          ...(maxPrice ? { maxPriceIls: maxPrice } : {}),
         });
         found.push(...page.products);
       } catch (err) {
@@ -181,6 +196,8 @@ export async function runFinder(
     let chosen = selectCandidates(found, known, {
       max: settings.freeShippingOnly ? SHIPPING_POOL : MAX_CANDIDATES_PER_RUN,
       oneCategory,
+      minPrice,
+      maxPrice,
     });
     if (!chosen.length) {
       result.note = "no new product passed the quality bar, the standard rate and the filters";

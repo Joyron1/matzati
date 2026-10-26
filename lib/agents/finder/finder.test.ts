@@ -144,6 +144,34 @@ describe("finder selection", () => {
     expect(selectCandidates(many, new Set())).toHaveLength(MAX_CANDIDATES_PER_RUN);
   });
 
+  it("never proposes a product under the minimum price, or over a guided run's maximum", () => {
+    const list = [
+      product("cheap", { price: 3 }),
+      product("ok", {
+        price: 45,
+        category: { firstId: "1", firstName: null, secondId: "1a", secondName: null },
+      }),
+      product("dear", {
+        price: 400,
+        category: { firstId: "2", firstName: null, secondId: "2a", secondName: null },
+      }),
+    ];
+    // Same sales and feedback: the id breaks the tie.
+    expect(selectCandidates(list, new Set(), { minPrice: 20 }).map((p) => p.productId)).toEqual([
+      "dear",
+      "ok",
+    ]);
+    expect(
+      selectCandidates(list, new Set(), { minPrice: 20, maxPrice: 100 }).map((p) => p.productId),
+    ).toEqual(["ok"]);
+  });
+
+  it("a guided run without a category scans the whole hot list, pages 1-6", () => {
+    const t = categoryTargets("", undefined, true);
+    expect(t).toHaveLength(CATEGORY_RUN_PAGES);
+    expect(t.every((x) => x.categoryId === "")).toBe(true);
+  });
+
   it("a category run scans that category's pages and drops the first-level cap", () => {
     const targets = categoryTargets(CATALOG[0]!.key);
     expect(targets).toHaveLength(CATEGORY_RUN_PAGES);

@@ -60,7 +60,13 @@ export interface ScanTarget {
  * The lists of an admin's run limited to one catalog category (owner request 2026-10-27): its
  * list, pages 1 to CATEGORY_RUN_PAGES. Empty for an unknown key.
  */
-export function categoryTargets(key: string, catalog = CATALOG): ScanTarget[] {
+export function categoryTargets(key: string, catalog = CATALOG, wholeList = false): ScanTarget[] {
+  if (wholeList && !key) {
+    return Array.from({ length: CATEGORY_RUN_PAGES }, (_, i) => ({
+      categoryId: "",
+      pageNo: i + 1,
+    }));
+  }
   const c = catalog.find((x) => x.key === key);
   if (!c) return [];
   const categoryId = c.slice?.directFetch ? c.slice.subcategoryId : c.firstLevelId;
@@ -104,8 +110,14 @@ export function commissionOf(
 }
 
 /** A product that may be proposed: the standard rate and everything a hot list asks of one. */
-export function isCandidate(p: AliProduct, minStandard = MIN_STANDARD_PCT): boolean {
+export function isCandidate(
+  p: AliProduct,
+  minStandard = MIN_STANDARD_PCT,
+  price: { min?: number; max?: number } = {},
+): boolean {
   return (
+    p.price >= (price.min ?? 0) &&
+    (price.max === undefined || p.price <= price.max) &&
     p.commissionRatePct !== null &&
     p.commissionRatePct >= minStandard &&
     p.currency === "ILS" &&
@@ -133,11 +145,22 @@ export function selectCandidates(
     max = MAX_CANDIDATES_PER_RUN,
     minStandard = MIN_STANDARD_PCT,
     oneCategory = false,
-  }: { max?: number; minStandard?: number; oneCategory?: boolean } = {},
+    minPrice,
+    maxPrice,
+  }: {
+    max?: number;
+    minStandard?: number;
+    oneCategory?: boolean;
+    minPrice?: number;
+    maxPrice?: number;
+  } = {},
 ): AliProduct[] {
   const unique = [...new Map(products.map((p) => [p.productId, p])).values()];
   const ranked = unique
-    .filter((p) => !known.has(p.productId) && isCandidate(p, minStandard))
+    .filter(
+      (p) =>
+        !known.has(p.productId) && isCandidate(p, minStandard, { min: minPrice, max: maxPrice }),
+    )
     .sort(
       (a, b) =>
         (b.unitsSold ?? 0) - (a.unitsSold ?? 0) ||

@@ -17,11 +17,15 @@ export interface GalleryItem {
 export function MediaGallery({ items, title }: { items: GalleryItem[]; title: string }) {
   const ref = useRef<HTMLDialogElement>(null);
   const [index, setIndex] = useState(0);
+  // The large view is rendered only while open: a video in it plays (autoPlay), and rendered in the
+  // closed dialog it played as the page loaded (owner report 2026-10-27, "a sound on load").
+  const [isOpen, setIsOpen] = useState(false);
   const opener = useRef<HTMLButtonElement | null>(null);
 
   const open = (i: number, button: HTMLButtonElement) => {
     opener.current = button;
     setIndex(i);
+    setIsOpen(true);
     ref.current?.showModal();
   };
   const go = useCallback(
@@ -57,7 +61,10 @@ export function MediaGallery({ items, title }: { items: GalleryItem[]; title: st
       <dialog
         ref={ref}
         aria-label={`${title}: גלריה`}
-        onClose={() => opener.current?.focus()}
+        onClose={() => {
+          setIsOpen(false);
+          opener.current?.focus();
+        }}
         onClick={(e) => {
           if (e.target === e.currentTarget) e.currentTarget.close();
         }}
@@ -68,7 +75,7 @@ export function MediaGallery({ items, title }: { items: GalleryItem[]; title: st
         }}
         className="m-auto max-h-[94dvh] w-[min(94vw,56rem)] max-w-none overflow-hidden rounded-[16px] bg-surface p-0 text-ink shadow-2xl backdrop:bg-black/80"
       >
-        {item && (
+        {isOpen && item && (
           <div className="flex flex-col">
             <div className="flex items-center justify-between gap-2 border-b border-line px-3 py-2">
               <span className="text-sm font-semibold">

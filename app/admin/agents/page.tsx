@@ -264,6 +264,10 @@ function StatusChips({
       on: settings.freeShippingOnly,
       text: settings.freeShippingOnly ? "משלוח חינם בלבד" : "כל המשלוחים",
     },
+    {
+      on: settings.minPriceIls > 0,
+      text: settings.minPriceIls > 0 ? `מ־₪${settings.minPriceIls} ומעלה` : "בלי מחיר מינימום",
+    },
   ];
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -359,6 +363,21 @@ function Settings({
           <span>
             <span className="font-semibold">הרצה אוטומטית</span>{" "}
             <span className="text-sm text-muted">· פעמיים ביום, עד 10 מוצרים בכל ריצה</span>
+          </span>
+        </label>
+        <label className="block max-w-xs space-y-1.5">
+          <span className="font-semibold">מחיר מינימום למוצר (בשקלים)</span>
+          <input
+            type="number"
+            name="minPriceIls"
+            min={0}
+            max={2000}
+            step={1}
+            defaultValue={settings.minPriceIls}
+            className={inputClass}
+          />
+          <span className="block text-sm text-muted">
+            מוצרים זולים מזה לא יוצעו (לרוב פריטים חלשים, או מחיר של וריאציה זולה אחת).
           </span>
         </label>
         <label className="flex min-h-11 items-center gap-3">

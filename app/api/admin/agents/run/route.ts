@@ -16,10 +16,16 @@ const noStore = { "Cache-Control": "no-store" };
 export async function POST(request: Request): Promise<Response> {
   if (!(await getAdminUser())) return Response.json({ error: "unauthorized" }, { status: 401 });
   // An optional catalog category to limit the run to (owner request 2026-10-27).
-  const body = (await request.json().catch(() => null)) as { category?: unknown } | null;
+  const body = (await request.json().catch(() => null)) as {
+    category?: unknown;
+    guidance?: unknown;
+  } | null;
   const key = typeof body?.category === "string" ? body.category : "";
   const category = CATALOG.some((c) => c.key === key) ? key : undefined;
-  const result = await runFinderFor("admin", category);
+  // Free text guiding the run (owner request 2026-10-27), at most a search's length.
+  const guidance =
+    typeof body?.guidance === "string" ? body.guidance.trim().slice(0, 150) : undefined;
+  const result = await runFinderFor("admin", category, guidance || undefined);
   return Response.json(result, { headers: noStore });
 }
 

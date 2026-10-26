@@ -11,6 +11,7 @@ import { SupabaseStore } from "@/lib/search/supabase-store";
 import type { AliProduct } from "@/lib/aliexpress/schemas";
 import { aliexpressConfig, deployEnv, llmConfig } from "@/lib/env";
 import { AnthropicProvider } from "@/lib/llm/anthropic";
+import { parseQuery } from "@/lib/llm/parse";
 import type { LlmProvider } from "@/lib/llm/provider";
 import { hotTitle } from "@/lib/product-title";
 import { toResultProduct } from "@/lib/search/pipeline";
@@ -94,6 +95,8 @@ export async function couponsFor(product: AliProduct, now = new Date()): Promise
 export async function runFinderFor(
   trigger: "cron" | "admin",
   categoryKey?: string,
+  /** The admin's free text guiding the run (owner request 2026-10-27), parsed like a search. */
+  guidanceText?: string,
 ): Promise<FinderResult> {
   // Dev and preview share production's database: only the live site fills the owner's queue.
   if (deployEnv() !== "production") {
@@ -108,6 +111,39 @@ export async function runFinderFor(
   }
   const db = serviceClient();
   const { settings } = await readAgentSettings(db);
+  // The guidance through the site's parse (one call with the site's model): its English keywords
+  // and any price bounds it states ("מעל 50 ש״ח").
+  let guidance: { keywords: string; minPriceIls?: number; maxPriceIls?: number } | undefined;
+  if (guidanceText?.trim()) {
+    try {
+      const cfg = llmConfig();
+      const out = await parseQuery(
+        new AnthropicProvider(cfg.apiKey, cfg.model),
+        guidanceText.trim(),
+      );
+      const store = new SupabaseFinderStore(db);
+      for (const u of out.usage) await store.logUsage(out.model, u).catch(() => undefined);
+      if (out.parsed?.keywords_en) {
+        guidance = {
+          keywords: out.parsed.keywords_en,
+          ...(out.parsed.min_price_ils ? { minPriceIls: out.parsed.min_price_ils } : {}),
+          ...(out.parsed.max_price_ils ? { maxPriceIls: out.parsed.max_price_ils } : {}),
+        };
+      }
+    } catch (err) {
+      console.error(`[finder] guidance: ${String(err).slice(0, 200)}`);
+    }
+    if (!guidance) {
+      return {
+        status: "failed",
+        scanned: 0,
+        added: 0,
+        aliCalls: 0,
+        costUsd: 0,
+        note: "the guidance could not be understood",
+      };
+    }
+  }
   return runFinder(
     trigger,
     settings,
@@ -117,7 +153,7 @@ export async function runFinderFor(
       store: new SupabaseFinderStore(db),
       couponsFor: (p) => couponsFor(p),
     },
-    categoryKey ? { categoryKey } : {},
+    { ...(categoryKey ? { categoryKey } : {}), ...(guidance ? { guidance } : {}) },
   );
 }
 

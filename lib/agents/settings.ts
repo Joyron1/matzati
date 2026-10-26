@@ -28,6 +28,11 @@ export const agentSettingsSchema = z.object({
   instagramEnabled: z.boolean().default(false),
   /** Only products AliExpress ships free to Israel (owner request 2026-10-23). */
   freeShippingOnly: z.boolean().default(true),
+  /**
+   * The cheapest product a run proposes, in shekels (owner request 2026-10-27: jewelry at ₪1-5 was
+   * junk, or a bait variant's price).
+   */
+  minPriceIls: z.number().min(0).max(2000).default(20),
 });
 export type AgentSettings = z.infer<typeof agentSettingsSchema>;
 
@@ -40,6 +45,7 @@ export const DEFAULT_AGENT_SETTINGS: AgentSettings = {
   facebookEnabled: false,
   instagramEnabled: false,
   freeShippingOnly: true,
+  minPriceIls: 20,
 };
 
 /** The stored settings, or the defaults when none are saved or the row does not parse. */
