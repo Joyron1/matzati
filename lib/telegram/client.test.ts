@@ -95,7 +95,11 @@ describe("telegram client", () => {
     expect(String(send.mock.calls[0][0])).toMatch(/\/sendMediaGroup$/);
     const body = JSON.parse(String(send.mock.calls[0][1]?.body));
     expect(body.media.map((m: { type: string }) => m.type)).toEqual(["video", "photo", "photo"]);
-    expect(body.media[0].caption).toContain("https://s.click.aliexpress.com/e/_abc");
+    // A short link text on the 🔗 line, never the bare URL (owner request 2026-10-27).
+    expect(body.media[0].caption).toContain(
+      '🔗 <a href="https://s.click.aliexpress.com/e/_abc">לקנייה באלי אקספרס ←</a>',
+    );
+    expect(body.media[0].caption).not.toContain("לקנייה: https");
     expect(body.media[0].caption).not.toContain("/go/");
     expect(body.media[1].caption).toBeUndefined();
   });

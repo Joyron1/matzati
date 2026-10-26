@@ -43,6 +43,7 @@ import {
   saveAgentSettingsAction,
   videoRemoveAction,
 } from "./actions";
+import { CATALOG } from "@/lib/catalog/categories";
 import { CandidateDrawer } from "./candidate-drawer";
 import { GroupTab } from "./group-tab";
 import { RunFinder } from "./run-finder";
@@ -176,7 +177,7 @@ export default async function AgentsPage({ searchParams }: PageProps<"/admin/age
           </>
         }
       >
-        <RunFinder />
+        <RunFinder categories={CATALOG.map((c) => ({ key: c.key, name: c.nameHe }))} />
       </AdminHeader>
 
       {status && (

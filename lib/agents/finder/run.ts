@@ -15,7 +15,13 @@ import { hotLinkSources, withHotLinks } from "@/lib/hot/links";
 import { costUsd } from "@/lib/llm/pricing";
 import type { LlmProvider, LlmUsage } from "@/lib/llm/provider";
 import type { AgentSettings } from "../settings";
-import { MAX_CANDIDATES_PER_RUN, scanTargets, selectCandidates, targetsForRun } from "./select";
+import {
+  categoryTargets,
+  MAX_CANDIDATES_PER_RUN,
+  scanTargets,
+  selectCandidates,
+  targetsForRun,
+} from "./select";
 import { WRITE_BATCH, WRITE_TOKENS, writePosts, type CouponInfo } from "./write";
 
 /** Free shipping: how many products a run may ask about, and until when (the run has 60 s). */
@@ -103,6 +109,8 @@ export async function runFinder(
   trigger: "cron" | "admin",
   settings: AgentSettings,
   deps: FinderDeps,
+  /** An admin's run limited to one catalog category (its key), owner request 2026-10-27. */
+  opts: { categoryKey?: string } = {},
 ): Promise<FinderResult> {
   const { ali, store } = deps;
   const now = deps.now ?? (() => new Date());
@@ -130,7 +138,15 @@ export async function runFinder(
     // 1. Scan: each list once, spaced; a failed list is skipped (another run will reach it).
     const found: AliProduct[] = [];
     const failed: string[] = [];
-    const targets = targetsForRun(scanTargets(), runIndex);
+    const oneCategory = Boolean(opts.categoryKey);
+    const targets = opts.categoryKey
+      ? categoryTargets(opts.categoryKey)
+      : targetsForRun(scanTargets(), runIndex);
+    if (!targets.length) {
+      result.status = "failed";
+      result.note = "unknown category";
+      return result;
+    }
     for (const [i, target] of targets.entries()) {
       await step(
         5 + Math.round((i / targets.length) * 55),
@@ -160,13 +176,14 @@ export async function runFinder(
     }
 
     // 2. Choose: never a product proposed before.
-    await step(62, "בוחר מוצרים לפי עמלה, משוב ומכירות");
+    await step(62, "בוחר את המוצרים הנמכרים והמדורגים ביותר");
     const known = await store.knownProductIds([...new Set(found.map((p) => p.productId))]);
     let chosen = selectCandidates(found, known, {
       max: settings.freeShippingOnly ? SHIPPING_POOL : MAX_CANDIDATES_PER_RUN,
+      oneCategory,
     });
     if (!chosen.length) {
-      result.note = "no new product paid the standard rate and passed the filters";
+      result.note = "no new product passed the quality bar, the standard rate and the filters";
       return result;
     }
     // 2b. Free shipping to Israel (owner request 2026-10-23): one product.shipping.get per product,

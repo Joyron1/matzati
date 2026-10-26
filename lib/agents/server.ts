@@ -87,7 +87,10 @@ export async function couponsFor(product: AliProduct, now = new Date()): Promise
 }
 
 /** One finder run with the stored settings. Never throws; the run row says what happened. */
-export async function runFinderFor(trigger: "cron" | "admin"): Promise<FinderResult> {
+export async function runFinderFor(
+  trigger: "cron" | "admin",
+  categoryKey?: string,
+): Promise<FinderResult> {
   // Dev and preview share production's database: only the live site fills the owner's queue.
   if (deployEnv() !== "production") {
     return {
@@ -101,12 +104,17 @@ export async function runFinderFor(trigger: "cron" | "admin"): Promise<FinderRes
   }
   const db = serviceClient();
   const { settings } = await readAgentSettings(db);
-  return runFinder(trigger, settings, {
-    ali: new AliExpressClient(aliexpressConfig()),
-    llm: agentLlm(settings),
-    store: new SupabaseFinderStore(db),
-    couponsFor: (p) => couponsFor(p),
-  });
+  return runFinder(
+    trigger,
+    settings,
+    {
+      ali: new AliExpressClient(aliexpressConfig()),
+      llm: agentLlm(settings),
+      store: new SupabaseFinderStore(db),
+      couponsFor: (p) => couponsFor(p),
+    },
+    categoryKey ? { categoryKey } : {},
+  );
 }
 
 /**

@@ -23,11 +23,48 @@ export const SCAN_CALLS_PER_RUN = 8;
 export const SCAN_PAGES = 3;
 /** At most this many candidates of one shop per run. */
 export const PER_SHOP = 1;
+/**
+ * Variety (owner request 2026-10-27: every run brought kids' clothing and charging cables): at most
+ * this many candidates of one first-level category, and of one second-level category, per run. A
+ * run the admin limited to one category keeps only the second-level cap.
+ */
+export const PER_CATEGORY = 2;
+export const PER_SUBCATEGORY = 1;
+/**
+ * Quality (owner request 2026-10-27: "products many people buy and review"): above the site's trust
+ * bar (FILTERS: 90% and 100 sales), a recommendation asks this much.
+ */
+export const QUALITY = { minPositiveFeedbackPct: 95, minUnitsSold: 300 };
+/** Pages of one category's hot list an admin's category run scans. */
+export const CATEGORY_RUN_PAGES = 6;
+
+/**
+ * Accessories and parts are not recommendations (owner request 2026-10-27). Read in the title
+ * (hot lists come in Hebrew; English words are kept for titles that stay English).
+ */
+const ACCESSORY =
+  /(כבל|כבלים|מטען|מטענים|מתאם|מפצל|כיסוי|כיסויים|נרתיק|מגן מסך|מגני מסך|זכוכית מגן|רצועה|רצועות|מחזיק|תושבת|מדבקה|מדבקות|חלק חילוף|חלקי חילוף|להחלפה|ראש החלפה|סוללה|סוללות|\bcable|\bcharger|\badapter|\bcase\b|\bcover\b|protector|tempered glass|\bstrap|\bholder|\bmount\b|sticker|replacement|spare part|\bbattery)/i;
+
+/** True when the title names an accessory or a part (never recommended). */
+export function isAccessory(title: string): boolean {
+  return ACCESSORY.test(title);
+}
 
 export interface ScanTarget {
   /** The category id hotproduct.query is asked for (first-level, or a slice fetched directly). */
   categoryId: string;
   pageNo: number;
+}
+
+/**
+ * The lists of an admin's run limited to one catalog category (owner request 2026-10-27): its
+ * list, pages 1 to CATEGORY_RUN_PAGES. Empty for an unknown key.
+ */
+export function categoryTargets(key: string, catalog = CATALOG): ScanTarget[] {
+  const c = catalog.find((x) => x.key === key);
+  if (!c) return [];
+  const categoryId = c.slice?.directFetch ? c.slice.subcategoryId : c.firstLevelId;
+  return Array.from({ length: CATEGORY_RUN_PAGES }, (_, i) => ({ categoryId, pageNo: i + 1 }));
 }
 
 /** Every list the finder scans: each catalog category's own list, pages 1 to SCAN_PAGES. */
@@ -74,38 +111,51 @@ export function isCandidate(p: AliProduct, minStandard = MIN_STANDARD_PCT): bool
     p.currency === "ILS" &&
     Boolean(p.promotionLink) &&
     trustTierOf(p) === "standard" &&
+    (p.positiveFeedbackPct ?? 0) >= QUALITY.minPositiveFeedbackPct &&
+    (p.unitsSold ?? 0) >= QUALITY.minUnitsSold &&
+    !isAccessory(p.title) &&
     !inExcludedCategory(p) &&
     p.imageUrls.length > 0
   );
 }
 
 /**
- * The run's candidates: once per product, never one already proposed (`known`), at most PER_SHOP
- * per shop, the highest standard rate first, then the best-selling, then the higher hot rate, up
- * to `max`.
+ * The run's candidates (owner request 2026-10-27: varied, and the best products, not the best
+ * paying): once per product, never one already proposed (`known`), the best-selling first, then
+ * the higher feedback, the standard rate and the hot rate only breaking ties; at most PER_SHOP per
+ * shop, PER_CATEGORY per first-level category (unless `oneCategory`) and PER_SUBCATEGORY per
+ * second-level one; up to `max`.
  */
 export function selectCandidates(
   products: readonly AliProduct[],
   known: ReadonlySet<string>,
-  { max = MAX_CANDIDATES_PER_RUN, minStandard = MIN_STANDARD_PCT } = {},
+  {
+    max = MAX_CANDIDATES_PER_RUN,
+    minStandard = MIN_STANDARD_PCT,
+    oneCategory = false,
+  }: { max?: number; minStandard?: number; oneCategory?: boolean } = {},
 ): AliProduct[] {
   const unique = [...new Map(products.map((p) => [p.productId, p])).values()];
   const ranked = unique
     .filter((p) => !known.has(p.productId) && isCandidate(p, minStandard))
     .sort(
       (a, b) =>
-        (b.commissionRatePct ?? 0) - (a.commissionRatePct ?? 0) ||
         (b.unitsSold ?? 0) - (a.unitsSold ?? 0) ||
-        (b.hotCommissionRatePct ?? 0) - (a.hotCommissionRatePct ?? 0) ||
         (b.positiveFeedbackPct ?? 0) - (a.positiveFeedbackPct ?? 0) ||
+        (b.commissionRatePct ?? 0) - (a.commissionRatePct ?? 0) ||
+        (b.hotCommissionRatePct ?? 0) - (a.hotCommissionRatePct ?? 0) ||
         a.productId.localeCompare(b.productId),
     );
-  const perShop = new Map<string, number>();
+  const counts = new Map<string, number>();
+  const take = (key: string, cap: number) => (counts.get(key) ?? 0) < cap;
   const out: AliProduct[] = [];
   for (const p of ranked) {
-    const shop = p.shop.id ?? `product:${p.productId}`;
-    if ((perShop.get(shop) ?? 0) >= PER_SHOP) continue;
-    perShop.set(shop, (perShop.get(shop) ?? 0) + 1);
+    const shop = `shop:${p.shop.id ?? p.productId}`;
+    const first = `cat:${p.category.firstId ?? "?"}`;
+    const second = `sub:${p.category.secondId ?? p.productId}`;
+    if (!take(shop, PER_SHOP) || !take(second, oneCategory ? 2 : PER_SUBCATEGORY)) continue;
+    if (!oneCategory && !take(first, PER_CATEGORY)) continue;
+    for (const k of [shop, first, second]) counts.set(k, (counts.get(k) ?? 0) + 1);
     out.push(p);
     if (out.length >= max) break;
   }

@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { CATALOG } from "@/lib/catalog/categories";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { AliExpressClient } from "@/lib/aliexpress/client";
@@ -15,7 +16,11 @@ import {
 import {
   commissionOf,
   HOT_BONUS_PCT,
+  categoryTargets,
+  CATEGORY_RUN_PAGES,
+  isAccessory,
   isCandidate,
+  PER_CATEGORY,
   MAX_CANDIDATES_PER_RUN,
   SCAN_CALLS_PER_RUN,
   scanTargets,
@@ -91,21 +96,66 @@ describe("finder selection", () => {
     ).toBe(false);
   });
 
-  it("never proposes a product twice, one per shop, the highest standard rate first", () => {
+  it("asks more of a recommendation: 95% feedback, 300 sales, no accessory", () => {
+    expect(isCandidate(product("1", { positiveFeedbackPct: 94.9 }))).toBe(false);
+    expect(isCandidate(product("1", { unitsSold: 299 }))).toBe(false);
+    for (const title of [
+      "כבל טעינה USB-C מהיר",
+      "כיסוי לאייפון 15",
+      "מגן מסך זכוכית",
+      "Fast Charger 65W",
+      "Phone Holder for Car",
+    ]) {
+      expect(isCandidate(product("1", { title })), title).toBe(false);
+    }
+    expect(isAccessory("מכונית שלט רחוק 1:24 לילדים")).toBe(false);
+  });
+
+  it("never proposes a product twice; the best-selling first; one per shop; varied categories", () => {
     const chosen = selectCandidates(
       [
-        product("a", { unitsSold: 200, commissionRatePct: 9 }),
-        product("b", { unitsSold: 5000 }),
+        product("a", { unitsSold: 400, commissionRatePct: 15 }),
+        product("b", {
+          unitsSold: 5000,
+          category: { firstId: "1", firstName: null, secondId: "11", secondName: null },
+        }),
         product("c", { unitsSold: 900, shop: { id: "shop-b", name: null, url: null } }),
-        product("d", { unitsSold: 3000, commissionRatePct: 12 }),
+        product("d", { unitsSold: 3000 }),
         product("b", { unitsSold: 5000 }),
-        product("e", { unitsSold: 100 }),
+        product("e", {
+          unitsSold: 800,
+          category: { firstId: "26", firstName: null, secondId: "101", secondName: null },
+        }),
+        product("f", {
+          unitsSold: 700,
+          category: { firstId: "26", firstName: null, secondId: "102", secondName: null },
+        }),
       ],
       new Set(["d"]),
     );
-    expect(chosen.map((p) => p.productId)).toEqual(["a", "b", "e"]);
-    const many = Array.from({ length: 30 }, (_, i) => product(String(i)));
+    // b (5000; its later copy puts it in 26/100) first; c is b's shop; e (26/101) is the second
+    // of category 26, so f (26/102) and a (26/100) are left out.
+    expect(chosen.map((p) => p.productId)).toEqual(["b", "e"]);
+    const many = Array.from({ length: 30 }, (_, i) =>
+      product(String(i), {
+        category: { firstId: String(i), firstName: null, secondId: `s${i}`, secondName: null },
+      }),
+    );
     expect(selectCandidates(many, new Set())).toHaveLength(MAX_CANDIDATES_PER_RUN);
+  });
+
+  it("a category run scans that category's pages and drops the first-level cap", () => {
+    const targets = categoryTargets(CATALOG[0]!.key);
+    expect(targets).toHaveLength(CATEGORY_RUN_PAGES);
+    expect(new Set(targets.map((x) => x.categoryId)).size).toBe(1);
+    expect(categoryTargets("nope")).toEqual([]);
+    const same = Array.from({ length: 5 }, (_, i) =>
+      product(String(i), {
+        category: { firstId: "26", firstName: null, secondId: `s${i}`, secondName: null },
+      }),
+    );
+    expect(selectCandidates(same, new Set())).toHaveLength(PER_CATEGORY);
+    expect(selectCandidates(same, new Set(), { oneCategory: true })).toHaveLength(5);
   });
 });
 

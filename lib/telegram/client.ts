@@ -27,12 +27,27 @@ export function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-/** The caption: the post, then the disclosure in italics, cut to Telegram's limit. */
-export function captionOf(postHe: string): string {
+/** What the buy line says (its text is the link): short, Hebrew, so Telegram aligns it right. */
+export const BUY_LINK_TEXT = "לקנייה באלי אקספרס ←";
+const LINK_TOKEN = "⁣BUYLINK⁣";
+
+/**
+ * The caption: the post, then the disclosure in italics, cut to Telegram's limit. With `buyUrl`
+ * (owner request 2026-10-27: a short link, aligned right), the post's 🔗 line becomes
+ * "🔗 לקנייה באלי אקספרס ←" whose text is the link, instead of the whole URL.
+ */
+export function captionOf(postHe: string, buyUrl?: string): string {
   const tail = `\n\n<i>${escapeHtml(TELEGRAM_DISCLOSURE)}</i>`;
   const room = CAPTION_MAX - tail.length;
-  let body = escapeHtml(postHe.trim());
+  const text = buyUrl ? withBuyLink(postHe, LINK_TOKEN) : postHe;
+  let body = escapeHtml(text.trim());
   if (body.length > room) body = `${body.slice(0, room - 1).trimEnd()}…`;
+  if (buyUrl) {
+    body = body.replace(
+      /🔗[^\n]*⁣BUYLINK⁣/,
+      `🔗 <a href="${escapeHtml(buyUrl)}">${BUY_LINK_TEXT}</a>`,
+    );
+  }
   return `${body}${tail}`;
 }
 
@@ -135,7 +150,7 @@ export async function postProduct(
   post: ProductPost,
   fetchImpl: typeof fetch = fetch,
 ): Promise<TelegramResult> {
-  const caption = captionOf(withBuyLink(post.postHe, post.buyUrl));
+  const caption = captionOf(post.postHe, post.buyUrl);
   const items = albumItems(post);
   const album = (list: typeof items) =>
     call(

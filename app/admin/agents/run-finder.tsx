@@ -16,8 +16,10 @@ interface Progress {
  * (agent_runs.progress, written by the run itself). When it ends, the page refreshes to show the
  * new candidates and says how many were added.
  */
-export function RunFinder() {
+export function RunFinder({ categories = [] }: { categories?: { key: string; name: string }[] }) {
   const router = useRouter();
+  // "" = every category in turn; a key limits the run to that category (owner request 2026-10-27).
+  const [category, setCategory] = useState("");
   const [running, setRunning] = useState(false);
   const [state, setState] = useState<Progress>({ progress: 0, stage: null });
   const [message, setMessage] = useState<string | null>(null);
@@ -49,7 +51,11 @@ export function RunFinder() {
     setState({ progress: 1, stage: "מתחיל" });
     timer.current = setInterval(() => void poll(), 1000);
     try {
-      const res = await fetch("/api/admin/agents/run", { method: "POST" });
+      const res = await fetch("/api/admin/agents/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(category ? { category } : {}),
+      });
       const r = (await res.json()) as { status: string; added: number; note: string | null };
       setState({ progress: 100, stage: "הסתיים" });
       setMessage(
@@ -71,6 +77,24 @@ export function RunFinder() {
 
   return (
     <div className="w-full space-y-2 sm:w-auto sm:min-w-64">
+      {categories.length > 0 && (
+        <label className="block space-y-1">
+          <span className="text-xs font-semibold text-muted">מאיזו קטגוריה</span>
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            disabled={running}
+            className="block min-h-11 w-full rounded-[10px] border border-line bg-surface px-3 text-sm text-ink"
+          >
+            <option value="">מגוון: כל הקטגוריות לפי הסבב</option>
+            {categories.map((c) => (
+              <option key={c.key} value={c.key}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <button
         type="button"
         onClick={() => void start()}
