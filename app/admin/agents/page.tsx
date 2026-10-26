@@ -214,10 +214,15 @@ export default async function AgentsPage({ searchParams }: PageProps<"/admin/age
               telegramOn={data.settings.telegramEnabled && telegramReady}
               telegramReady={telegramReady}
               openId={openId}
+              cat={firstParam(params.cat)}
             />
           )}
           {tab === "approved" && (
-            <Approved approved={data.approved} telegramReady={telegramReady} />
+            <Approved
+              approved={data.approved}
+              telegramReady={telegramReady}
+              cat={firstParam(params.cat)}
+            />
           )}
           {tab === "runs" && <Runs runs={data.runs} />}
           {tab === "group" && <GroupTab />}
@@ -534,52 +539,265 @@ function OwnVideo({ c, preview }: { c: Candidate; preview: string | null }) {
 }
 
 /** The row of the queue: photo, title, rates, price, and what the drawer holds. */
-function Row({ c }: { c: Candidate }) {
+/** The catalog category a candidate belongs to (a slice by its second-level id first). */
+function catalogKeyOf(c: Candidate): string | null {
+  const { firstId, secondId } = c.product.category;
+  const slice = CATALOG.find((x) => x.slice && x.slice.subcategoryId === secondId);
+  if (slice) return slice.key;
+  return CATALOG.find((x) => !x.slice && x.firstLevelId === firstId)?.key ?? null;
+}
+
+/** Filter chips by catalog category (owner request 2026-10-27): the ones present, with counts. */
+function CategoryFilter({
+  items,
+  current,
+  tab,
+}: {
+  items: Candidate[];
+  current: string;
+  tab: "queue" | "approved";
+}) {
+  const counts = new Map<string, number>();
+  for (const c of items) {
+    const k = catalogKeyOf(c) ?? "other";
+    counts.set(k, (counts.get(k) ?? 0) + 1);
+  }
+  if (counts.size < 2) return null;
+  const base = tab === "queue" ? "/admin/agents" : "/admin/agents?tab=approved";
+  const href = (key: string) =>
+    key ? `${base}${tab === "queue" ? "?" : "&"}cat=${encodeURIComponent(key)}` : base;
+  const chips = [
+    { key: "", label: "הכל", n: items.length },
+    ...CATALOG.filter((c) => counts.has(c.key)).map((c) => ({
+      key: c.key,
+      label: c.nameHe,
+      n: counts.get(c.key)!,
+    })),
+    ...(counts.has("other") ? [{ key: "other", label: "אחר", n: counts.get("other")! }] : []),
+  ];
+  return (
+    <nav aria-label="סינון לפי קטגוריה" className="flex flex-wrap gap-1.5">
+      {chips.map((chip) => {
+        const on = chip.key === current;
+        return (
+          <Link
+            key={chip.key || "all"}
+            href={href(chip.key)}
+            aria-current={on ? "page" : undefined}
+            scroll={false}
+            className={`inline-flex min-h-10 items-center gap-1.5 rounded-full border px-3.5 text-sm font-semibold ${
+              on
+                ? "border-ink bg-ink text-invert-ink"
+                : "border-line bg-surface text-ink hover:border-muted"
+            }`}
+          >
+            {chip.label}
+            <span className={on ? "opacity-80" : "text-muted"}>{chip.n}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+const inCategory = (c: Candidate, cat: string) => !cat || (catalogKeyOf(c) ?? "other") === cat;
+
+/** A card's top: the photo, square, with the standard rate and the suspect-price mark on it. */
+function CardMedia({ c }: { c: Candidate }) {
   const p = c.product;
   return (
-    <>
+    <div className="relative aspect-square bg-surface-2">
       <ProductImage
         src={p.imageUrls[0] ?? p.mainImageUrl}
         alt=""
-        className="size-16 shrink-0 rounded-xl border border-line"
-        iconClassName="size-6"
-        sizes="64px"
+        className="size-full"
+        iconClassName="size-8"
+        sizes="(min-width: 1024px) 240px, 50vw"
       />
-      <span className="min-w-0 flex-1 space-y-1">
-        <span className="line-clamp-1 font-semibold">{hotTitle(p.title)}</span>
-        <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-muted">
-          <span>
-            רגילה{" "}
-            <bdi dir="ltr" className="font-bold text-ink">
-              {p.commissionRatePct ?? "-"}%
-            </bdi>
-          </span>
-          {p.hotCommissionRatePct != null &&
-            p.hotCommissionRatePct > (p.commissionRatePct ?? 0) && (
-              <span>
-                Hot <bdi dir="ltr">{p.hotCommissionRatePct}%</bdi>
-              </span>
-            )}
-          <bdi dir="ltr">₪{p.price}</bdi>
-          <span>
-            <bdi dir="ltr">{p.unitsSold === null ? "-" : formatCount(p.unitsSold)}</bdi> נמכרו
-          </span>
-          {p.videoUrl && (
-            <span className="inline-flex items-center gap-1">
-              <Film aria-hidden className="size-3.5" /> וידאו
-            </span>
-          )}
-          {p.shipping?.feeIls === 0 && (
-            <span className="inline-flex items-center gap-1 font-semibold text-ink">
-              <Truck aria-hidden className="size-3.5" /> משלוח חינם
-            </span>
-          )}
-          {c.video_path && <span className="font-semibold text-accent-ink">סרטון שלך הועלה</span>}
-          {p.price < SUSPECT_PRICE_ILS && (
-            <span className="font-semibold text-ink">⚠ מחיר חשוד</span>
-          )}
-        </span>
+      <span className="absolute start-2 top-2 rounded-full bg-surface/95 px-2.5 py-0.5 text-xs font-bold text-ink shadow">
+        עמלה <bdi dir="ltr">{p.commissionRatePct ?? "-"}%</bdi>
       </span>
+      {(p.videoUrl || c.video_path) && (
+        <span className="absolute end-2 top-2 inline-flex items-center gap-1 rounded-full bg-ink/80 px-2 py-0.5 text-xs font-bold text-invert-ink">
+          <Film aria-hidden className="size-3.5" />
+          {c.video_path ? "שלך" : "וידאו"}
+        </span>
+      )}
+      {p.price < SUSPECT_PRICE_ILS && (
+        <span className="absolute end-2 bottom-2 rounded-full bg-gold px-2.5 py-0.5 text-xs font-bold text-on-gold">
+          ⚠ מחיר חשוד
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** A card's text: title, price, sales, feedback, free shipping. */
+function CardBody({ c, note }: { c: Candidate; note?: string }) {
+  const p = c.product;
+  return (
+    <>
+      <p className="line-clamp-2 text-sm font-semibold leading-snug">{hotTitle(p.title)}</p>
+      <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
+        <bdi dir="ltr" className="text-sm font-bold text-ink">
+          ₪{p.price}
+        </bdi>
+        <span>
+          <bdi dir="ltr">{p.unitsSold === null ? "-" : formatCount(p.unitsSold)}</bdi> נמכרו
+        </span>
+        {p.positiveFeedbackPct !== null && (
+          <span>
+            <bdi dir="ltr">{p.positiveFeedbackPct}%</bdi> משוב
+          </span>
+        )}
+        {p.shipping?.feeIls === 0 && (
+          <span className="inline-flex items-center gap-1 font-semibold text-trust">
+            <Truck aria-hidden className="size-3.5" />
+            משלוח חינם
+          </span>
+        )}
+      </p>
+      {note && <p className="text-xs text-muted">{note}</p>}
+    </>
+  );
+}
+
+/** The drawer of a pending candidate: everything, and the editable post with all the actions. */
+function PendingDrawer({
+  c,
+  videoPreview,
+  telegramOn,
+  telegramReady,
+}: {
+  c: Candidate;
+  videoPreview: string | null;
+  telegramOn: boolean;
+  telegramReady: boolean;
+}) {
+  return (
+    <>
+      <div className="flex gap-3">
+        <ProductImage
+          src={c.product.imageUrls[0] ?? c.product.mainImageUrl}
+          alt=""
+          className="size-28 shrink-0 rounded-xl border border-line"
+          iconClassName="size-8"
+          sizes="112px"
+        />
+        <div className="min-w-0 space-y-1.5">
+          <Link
+            href={`/p/${encodeURIComponent(c.product_id)}`}
+            target="_blank"
+            className="line-clamp-3 font-semibold underline-offset-4 hover:underline"
+          >
+            {hotTitle(c.product.title)}
+          </Link>
+          <Rates c={c} />
+          <ProductFacts c={c} />
+          {c.why_he && <p className="text-sm text-muted">{c.why_he}</p>}
+        </div>
+      </div>
+      {c.product.price < SUSPECT_PRICE_ILS && (
+        <p className="rounded-xl bg-gold-soft px-3 py-2 text-sm font-semibold text-ink">
+          מחיר נמוך מאוד: לעיתים זה המחיר של וריאציה זולה אחת (מדבקה, כיסוי) ולא של המוצר בתמונה.
+          בדקו באלי אקספרס לפני שמאשרים.
+        </p>
+      )}
+      <Media c={c} />
+      <section aria-label="סרטון לפרסום" className="space-y-2">
+        <h3 className="font-semibold">סרטון לפרסום</h3>
+        <OwnVideo c={c} preview={videoPreview} />
+      </section>
+      <form action={approveAction} className="space-y-3">
+        <input type="hidden" name="id" value={c.id} />
+        <label className="block space-y-1">
+          <span className="font-semibold">הפוסט לטלגרם (אפשר לערוך)</span>
+          <textarea
+            name="post"
+            rows={12}
+            maxLength={1000}
+            defaultValue={c.post_he}
+            className={`${inputClass} leading-relaxed`}
+          />
+        </label>
+        <p className="text-xs text-muted">
+          השורה ״🔗 קישור לקנייה״ הופכת בטלגרם לקישור הקצר ״לקנייה באלי אקספרס ←״.
+        </p>
+        <label className="flex min-h-11 items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="telegram"
+            defaultChecked={telegramOn}
+            disabled={!telegramOn}
+            className="size-5 accent-[var(--accent)]"
+          />
+          <Send aria-hidden className="size-4" />
+          {telegramOn ? "לתזמן לטלגרם (לשעה הפנויה הבאה)" : "טלגרם כבוי או לא מחובר"}
+        </label>
+        <ActionButtons telegramReady={telegramReady} size={btnMd} />
+        <details className="text-xs text-muted">
+          <summary className="min-h-11 cursor-pointer py-3 font-semibold">
+            מה עושה כל כפתור?
+          </summary>
+          <p>
+            ״אישור״ מעלה למומלצים ומתזמן לשעה הפנויה הבאה. ״פרסום עכשיו״ מאשר ושולח לטלגרם מיד, בלי
+            תזמון ובלי הגבלת שישי־שבת (לבדיקות). ״כתיבה מחדש״ כותבת את הפוסט שוב עם המודל שבחרתם,
+            כולל הקופונים שבתוקף (בערך סנט אחד), ומבטלת שינויים שעשיתם בטקסט. ״לא מתאים״ מסיר את
+            המוצר והוא לא יוצע שוב.
+          </p>
+        </details>
+      </form>
+    </>
+  );
+}
+
+/** The four actions (owner's screenshot, 2026-10-27), in the drawer and on every card. */
+function ActionButtons({ telegramReady, size }: { telegramReady: boolean; size: string }) {
+  const small = size === btnSm;
+  return (
+    <>
+      <div className={small ? "grid grid-cols-2 gap-1.5" : "flex flex-wrap gap-2"}>
+        <PendingButton op="approve" busyLabel="מאשרים…" className={`${btnPrimary} ${size}`}>
+          <Check aria-hidden className="size-4" />
+          אישור
+        </PendingButton>
+        <PendingButton
+          op="publish"
+          busyLabel="שולחים…"
+          formAction={publishNowAction}
+          off={!telegramReady}
+          className={`${btnSecondary} ${size}`}
+        >
+          <Send aria-hidden className="size-4" />
+          {small ? "פרסום" : "פרסום עכשיו"}
+        </PendingButton>
+        <PendingButton
+          op="rewrite"
+          busyLabel="כותבים…"
+          formAction={rewriteAction}
+          className={`${btnSecondary} ${size}`}
+        >
+          <PenLine aria-hidden className="size-4" />
+          {small ? "כתיבה" : "כתיבה מחדש"}
+        </PendingButton>
+        <PendingButton
+          op="reject"
+          busyLabel="מסירים…"
+          formAction={rejectAction}
+          className={`${btnSecondary} ${size}`}
+        >
+          <X aria-hidden className="size-4" />
+          לא מתאים
+        </PendingButton>
+      </div>
+      <FormProgress
+        ops={{
+          approve: { label: "מאשרים ומתזמנים לטלגרם", expectedMs: 2000 },
+          publish: { label: "שולחים לערוץ הטלגרם", expectedMs: 6000 },
+          rewrite: { label: "המודל כותב את הפוסט מחדש", expectedMs: 20000 },
+          reject: { label: "מסירים את המוצר", expectedMs: 1500 },
+        }}
+      />
     </>
   );
 }
@@ -589,146 +807,53 @@ function Queue({
   telegramOn,
   telegramReady,
   openId,
+  cat,
 }: {
   pending: { c: Candidate; videoPreview: string | null }[];
   telegramOn: boolean;
   telegramReady: boolean;
   openId: string;
+  cat: string;
 }) {
+  const shown = pending.filter(({ c }) => inCategory(c, cat));
   return (
     <section aria-labelledby="queue" className="space-y-4">
       <h2 id="queue" className="sr-only">
         ממתינים לאישור ({pending.length})
       </h2>
-      {!pending.length ? (
+      <CategoryFilter items={pending.map((x) => x.c)} current={cat} tab="queue" />
+      {!shown.length ? (
         <p className={`${card} p-5 text-muted`}>
-          אין כרגע מוצרים שממתינים. הסוכן ימצא חדשים בריצה הבאה, או לחצו ״הרצה עכשיו״.
+          אין כרגע מוצרים שממתינים{cat ? " בקטגוריה הזו" : ""}. הסוכן ימצא חדשים בריצה הבאה, או לחצו
+          ״הרצה עכשיו״.
         </p>
       ) : (
-        <ul className={`${card} divide-y divide-line overflow-hidden`}>
-          {pending.map(({ c, videoPreview }) => (
+        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {shown.map(({ c, videoPreview }) => (
             <li key={c.id}>
               <CandidateDrawer
                 title={hotTitle(c.product.title)}
-                row={<Row c={c} />}
                 defaultOpen={openId === c.id}
+                card={{
+                  media: <CardMedia c={c} />,
+                  body: <CardBody c={c} />,
+                  actions: (
+                    // The card's quick actions: the post as written, scheduled when Telegram is on.
+                    <form action={approveAction} className="space-y-2">
+                      <input type="hidden" name="id" value={c.id} />
+                      <input type="hidden" name="post" value={c.post_he} />
+                      {telegramOn && <input type="hidden" name="telegram" value="on" />}
+                      <ActionButtons telegramReady={telegramReady} size={btnSm} />
+                    </form>
+                  ),
+                }}
               >
-                <div className="flex gap-3">
-                  <ProductImage
-                    src={c.product.imageUrls[0] ?? c.product.mainImageUrl}
-                    alt=""
-                    className="size-28 shrink-0 rounded-xl border border-line"
-                    iconClassName="size-8"
-                    sizes="112px"
-                  />
-                  <div className="min-w-0 space-y-1.5">
-                    <Link
-                      href={`/p/${encodeURIComponent(c.product_id)}`}
-                      target="_blank"
-                      className="line-clamp-3 font-semibold underline-offset-4 hover:underline"
-                    >
-                      {hotTitle(c.product.title)}
-                    </Link>
-                    <Rates c={c} />
-                    <ProductFacts c={c} />
-                    {c.why_he && <p className="text-sm text-muted">{c.why_he}</p>}
-                  </div>
-                </div>
-                {c.product.price < SUSPECT_PRICE_ILS && (
-                  <p className="rounded-xl bg-gold-soft px-3 py-2 text-sm font-semibold text-ink">
-                    מחיר נמוך מאוד: לעיתים זה המחיר של וריאציה זולה אחת (מדבקה, כיסוי) ולא של המוצר
-                    בתמונה. בדקו באלי אקספרס לפני שמאשרים.
-                  </p>
-                )}
-                <Media c={c} />
-                <section aria-label="סרטון לפרסום" className="space-y-2">
-                  <h3 className="font-semibold">סרטון לפרסום</h3>
-                  <OwnVideo c={c} preview={videoPreview} />
-                </section>
-                <form action={approveAction} className="space-y-3">
-                  <input type="hidden" name="id" value={c.id} />
-                  <label className="block space-y-1">
-                    <span className="font-semibold">הפוסט לטלגרם (אפשר לערוך)</span>
-                    <textarea
-                      name="post"
-                      rows={12}
-                      maxLength={1000}
-                      defaultValue={c.post_he}
-                      className={`${inputClass} leading-relaxed`}
-                    />
-                  </label>
-                  <p className="text-xs text-muted">
-                    השורה ״🔗 קישור לקנייה״ מתחלפת בקישור לקנייה כשהפוסט נשלח לטלגרם.
-                  </p>
-                  <label className="flex min-h-11 items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      name="telegram"
-                      defaultChecked={telegramOn}
-                      disabled={!telegramOn}
-                      className="size-5 accent-[var(--accent)]"
-                    />
-                    <Send aria-hidden className="size-4" />
-                    {telegramOn ? "לתזמן לטלגרם (לשעה הפנויה הבאה)" : "טלגרם כבוי או לא מחובר"}
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    <PendingButton
-                      op="approve"
-                      busyLabel="מאשרים…"
-                      className={`${btnPrimary} ${btnMd}`}
-                    >
-                      <Check aria-hidden className="size-[18px]" />
-                      אישור
-                    </PendingButton>
-                    <PendingButton
-                      op="publish"
-                      busyLabel="שולחים…"
-                      formAction={publishNowAction}
-                      off={!telegramReady}
-                      className={`${btnSecondary} ${btnMd}`}
-                    >
-                      <Send aria-hidden className="size-[18px]" />
-                      פרסום עכשיו
-                    </PendingButton>
-                    <PendingButton
-                      op="rewrite"
-                      busyLabel="כותבים…"
-                      formAction={rewriteAction}
-                      className={`${btnSecondary} ${btnMd}`}
-                    >
-                      <PenLine aria-hidden className="size-[18px]" />
-                      כתיבה מחדש
-                    </PendingButton>
-                    <PendingButton
-                      op="reject"
-                      busyLabel="מסירים…"
-                      formAction={rejectAction}
-                      className={`${btnSecondary} ${btnMd}`}
-                    >
-                      <X aria-hidden className="size-[18px]" />
-                      לא מתאים
-                    </PendingButton>
-                  </div>
-                  <FormProgress
-                    ops={{
-                      approve: { label: "מאשרים ומתזמנים לטלגרם", expectedMs: 2000 },
-                      publish: { label: "שולחים לערוץ הטלגרם", expectedMs: 6000 },
-                      rewrite: { label: "המודל כותב את הפוסט מחדש", expectedMs: 20000 },
-                      reject: { label: "מסירים את המוצר", expectedMs: 1500 },
-                    }}
-                  />
-                  <details className="text-xs text-muted">
-                    <summary className="min-h-11 cursor-pointer py-3 font-semibold">
-                      מה עושה כל כפתור?
-                    </summary>
-                    <p>
-                      ״אישור״ מעלה למומלצים ומתזמן לשעה הפנויה הבאה. ״פרסום עכשיו״ מאשר ושולח לטלגרם
-                      מיד, בלי תזמון ובלי הגבלת שישי־שבת (לבדיקות). ״כתיבה מחדש״ כותבת את הפוסט שוב
-                      עם המודל שבחרתם, כולל הקופונים שבתוקף (בערך סנט אחד), ומבטלת שינויים שעשיתם
-                      בטקסט. ״לא מתאים״ מסיר את המוצר והוא לא יוצע שוב.
-                    </p>
-                  </details>
-                </form>
+                <PendingDrawer
+                  c={c}
+                  videoPreview={videoPreview}
+                  telegramOn={telegramOn}
+                  telegramReady={telegramReady}
+                />
               </CandidateDrawer>
             </li>
           ))}
@@ -748,55 +873,79 @@ function telegramNote(c: Candidate): string {
 function Approved({
   approved,
   telegramReady,
+  cat,
 }: {
   approved: { c: Candidate; videoPreview: string | null }[];
   telegramReady: boolean;
+  cat: string;
 }) {
   if (!approved.length) {
     return <p className={`${card} p-5 text-muted`}>עוד אין מוצרים מאושרים.</p>;
   }
+  const shown = approved.filter(({ c }) => inCategory(c, cat));
   return (
     <section aria-labelledby="approved" className="space-y-4">
       <h2 id="approved" className="sr-only">
         מאושרים ({approved.length})
       </h2>
-      <ul className={`${card} divide-y divide-line`}>
-        {approved.map(({ c }) => (
-          <li key={c.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
-            <div className="min-w-0 space-y-1">
-              <Link
-                href={`/p/${encodeURIComponent(c.product_id)}`}
-                className="line-clamp-1 font-semibold underline-offset-4 hover:underline"
-              >
-                {hotTitle(c.product.title)}
-              </Link>
-              <p className="text-sm text-muted">
-                אושר {c.decided_at ? formatDateTime(c.decided_at) : ""} · עמלה רגילה{" "}
-                <bdi dir="ltr">{c.product.commissionRatePct ?? "-"}%</bdi>
-                {c.video_path ? " · עם סרטון" : ""}
-                {telegramNote(c)}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {telegramReady && !c.telegram_posted_at && (
-                <form action={publishNowAction} className="space-y-2">
-                  <input type="hidden" name="id" value={c.id} />
-                  <FormProgress
-                    ops={{ default: { label: "שולחים לערוץ הטלגרם", expectedMs: 6000 } }}
+      <CategoryFilter items={approved.map((x) => x.c)} current={cat} tab="approved" />
+      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {shown.map(({ c }) => (
+          <li key={c.id}>
+            <CandidateDrawer
+              title={hotTitle(c.product.title)}
+              card={{
+                media: <CardMedia c={c} />,
+                body: (
+                  <CardBody
+                    c={c}
+                    note={`אושר ${c.decided_at ? formatDateTime(c.decided_at) : ""}${telegramNote(c)}`}
                   />
-                  <PendingButton busyLabel="שולחים…" className={`${btnSecondary} ${btnMd}`}>
-                    <Send aria-hidden className="size-[18px]" />
-                    פרסום עכשיו
-                  </PendingButton>
-                </form>
-              )}
-              <form action={rejectAction}>
-                <input type="hidden" name="id" value={c.id} />
-                <PendingButton busyLabel="מסירים…" className={`${btnSecondary} ${btnMd}`}>
-                  הסרה מהאתר
-                </PendingButton>
-              </form>
-            </div>
+                ),
+                actions: (
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {telegramReady && !c.telegram_posted_at && (
+                      <form action={publishNowAction}>
+                        <input type="hidden" name="id" value={c.id} />
+                        <PendingButton
+                          busyLabel="שולחים…"
+                          className={`${btnSecondary} ${btnSm} w-full`}
+                        >
+                          <Send aria-hidden className="size-4" />
+                          פרסום
+                        </PendingButton>
+                      </form>
+                    )}
+                    <form action={rejectAction}>
+                      <input type="hidden" name="id" value={c.id} />
+                      <PendingButton
+                        busyLabel="מסירים…"
+                        className={`${btnSecondary} ${btnSm} w-full`}
+                      >
+                        <Trash2 aria-hidden className="size-4" />
+                        הסרה
+                      </PendingButton>
+                    </form>
+                  </div>
+                ),
+              }}
+            >
+              <div className="space-y-1.5">
+                <Link
+                  href={`/p/${encodeURIComponent(c.product_id)}`}
+                  target="_blank"
+                  className="line-clamp-3 font-semibold underline-offset-4 hover:underline"
+                >
+                  {hotTitle(c.product.title)}
+                </Link>
+                <Rates c={c} />
+                <ProductFacts c={c} />
+              </div>
+              <Media c={c} />
+              <p className="whitespace-pre-line rounded-[10px] bg-surface-2 p-3 text-sm">
+                {c.post_he}
+              </p>
+            </CandidateDrawer>
           </li>
         ))}
       </ul>

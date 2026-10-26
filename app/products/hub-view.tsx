@@ -7,6 +7,7 @@ import { ProductImage } from "@/components/product-image";
 import { card } from "@/components/styles";
 import { CATALOG, categoryPath } from "@/lib/catalog/categories";
 import { cachedCategoryPhoto } from "@/lib/catalog/load";
+import { categoryPhotosFromDb } from "@/lib/catalog/photos";
 import { siteUrl } from "@/lib/config/site";
 import { formatDateTime } from "@/lib/format";
 import { hotCategoryLabel } from "@/lib/hot/categories";
@@ -37,7 +38,10 @@ export const TITLE = "כל המוצרים";
  * category, spaced).
  */
 export async function ProductsHubView({ filter }: { filter: HotFilter }) {
-  const mix = await loadHotMix();
+  const [mix, tilePhotos] = await Promise.all([
+    loadHotMix(),
+    categoryPhotosFromDb().catch(() => ({}) as Record<string, string>),
+  ]);
   // The default view is cached 12 hours: a failed or empty mix must not stay that long.
   if (!mix.ok) await shortLived();
   const now = new Date();
@@ -67,7 +71,7 @@ export async function ProductsHubView({ filter }: { filter: HotFilter }) {
         </div>
       </div>
 
-      <CategoryTiles />
+      <CategoryTiles fallback={tilePhotos} />
 
       <section aria-labelledby="mix-title" className="space-y-5 sm:space-y-6">
         <h2 id="mix-title" className="font-display text-3xl">
@@ -93,8 +97,12 @@ export async function ProductsHubView({ filter }: { filter: HotFilter }) {
   );
 }
 
-/** A tile per category: icon, name and, when a list is already at hand, one of its photos. */
-function CategoryTiles() {
+/**
+ * A tile per category: a photo and the name. The photo of a list this instance already holds, else
+ * (owner request 2026-10-27) the best-selling product of the category we stored lately
+ * (categoryPhotosFromDb, cached 12 hours); the icon only when there is neither.
+ */
+function CategoryTiles({ fallback }: { fallback: Record<string, string> }) {
   return (
     <nav aria-labelledby="categories-title">
       <h2 id="categories-title" className="sr-only">
@@ -102,7 +110,7 @@ function CategoryTiles() {
       </h2>
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-6">
         {CATALOG.map((c) => {
-          const photo = cachedCategoryPhoto(c);
+          const photo = cachedCategoryPhoto(c) ?? fallback[c.key] ?? null;
           return (
             <li key={c.key} className="min-w-0">
               <Link

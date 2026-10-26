@@ -4,19 +4,23 @@ import { ChevronLeft, X } from "lucide-react";
 import { useEffect, useRef, type ReactNode } from "react";
 
 /**
- * One row of the queue that opens its candidate in a drawer from the left (owner request
- * 2026-10-23): the row is a real button; the drawer is a native modal <dialog> (focus moves into
- * it and back, Escape and the backdrop close it, the page behind is inert). `defaultOpen` reopens
- * it after an action that reloaded the page (?open=<id>). The contents are rendered on the server.
+ * A candidate that opens in a drawer from the left (owner requests 2026-10-23 and 10-27). Either a
+ * list row (`row`, a real button), or a card (`card`): the whole card opens the drawer through one
+ * button stretched under it, while its quick actions (`card.actions`, forms) stand above that
+ * button and work without opening it. The drawer is a native modal <dialog> (focus moves into it
+ * and back, Escape and the backdrop close it, the page behind is inert). `defaultOpen` reopens it
+ * after an action that reloaded the page (?open=<id>). The contents are rendered on the server.
  */
 export function CandidateDrawer({
   title,
   row,
+  card,
   children,
   defaultOpen = false,
 }: {
   title: string;
-  row: ReactNode;
+  row?: ReactNode;
+  card?: { media: ReactNode; body: ReactNode; actions?: ReactNode };
   children: ReactNode;
   defaultOpen?: boolean;
 }) {
@@ -26,16 +30,35 @@ export function CandidateDrawer({
     if (defaultOpen && ref.current && !ref.current.open) ref.current.showModal();
   }, [defaultOpen]);
 
+  const open = () => ref.current?.showModal();
+
   return (
     <>
-      <button
-        type="button"
-        onClick={() => ref.current?.showModal()}
-        className="flex w-full items-center gap-3 p-3 text-start hover:bg-surface-2/60 focus-visible:bg-surface-2/60 sm:p-4"
-      >
-        {row}
-        <ChevronLeft aria-hidden className="ms-auto size-5 shrink-0 text-muted" />
-      </button>
+      {card ? (
+        <div className="relative flex h-full flex-col overflow-hidden rounded-card border border-line bg-surface transition-shadow hover:border-muted hover:shadow-[0_4px_12px_-2px_rgba(17,24,39,0.08)] has-[[data-open-card]:focus-visible]:outline-3 has-[[data-open-card]:focus-visible]:outline-accent">
+          <button
+            type="button"
+            data-open-card
+            onClick={open}
+            aria-label={`פרטים ועריכה: ${title}`}
+            className="absolute inset-0 focus-visible:outline-none"
+          />
+          {card.media}
+          <div className="flex flex-1 flex-col gap-2 p-3">
+            {card.body}
+            {card.actions && <div className="relative z-10 mt-auto pt-1">{card.actions}</div>}
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={open}
+          className="flex w-full items-center gap-3 p-3 text-start hover:bg-surface-2/60 focus-visible:bg-surface-2/60 sm:p-4"
+        >
+          {row}
+          <ChevronLeft aria-hidden className="ms-auto size-5 shrink-0 text-muted" />
+        </button>
+      )}
       <dialog
         ref={ref}
         aria-label={title}
