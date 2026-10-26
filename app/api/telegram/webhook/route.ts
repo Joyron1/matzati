@@ -6,6 +6,7 @@
 import { after } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { webhookSecret } from "@/lib/telegram/api";
+import { recordTgDiag, updateSummary } from "@/lib/telegram/diag";
 import { telegramConfig } from "@/lib/telegram/client";
 import { handleUpdate, type TgUpdate } from "@/lib/telegram/group/handle";
 import { groupDeps } from "@/lib/telegram/group/server";
@@ -28,7 +29,21 @@ export async function POST(request: Request): Promise<Response> {
   const update = (await request.json().catch(() => null)) as TgUpdate | null;
   const deps = groupDeps();
   if (update && typeof update.update_id === "number" && deps) {
-    after(() => handleUpdate(update, deps));
+    after(async () => {
+      const summary = updateSummary(update);
+      // Errors inside are recorded too (deps.log), so the admin sees why a message did nothing.
+      const errors: string[] = [];
+      await handleUpdate(update, {
+        ...deps,
+        log: (event, detail) => {
+          errors.push(`${event}: ${String(detail instanceof Error ? detail.message : detail)}`);
+          deps.log(event, detail);
+        },
+      });
+      await recordTgDiag(
+        errors.length ? { ...summary, error: errors.join("; ").slice(0, 200) } : summary,
+      );
+    });
   }
   return new Response("ok");
 }

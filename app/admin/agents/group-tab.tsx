@@ -6,6 +6,7 @@ import { btnPrimary, btnSecondary, btnSm, card } from "@/components/styles";
 import { formatDateTime } from "@/lib/format";
 import { listPolls, readGroupSettings, type StoredPoll } from "@/lib/telegram/group/store";
 import { webhookStatus } from "@/lib/telegram/group/server";
+import { readTgDiag } from "@/lib/telegram/diag";
 import { FormProgress, PendingButton } from "../progress";
 import { inputClass } from "../settings/form-parts";
 import {
@@ -62,10 +63,11 @@ function PollResult({ poll }: { poll: StoredPoll }) {
 }
 
 export async function GroupTab() {
-  const [hook, settings, polls] = await Promise.all([
+  const [hook, settings, polls, diag] = await Promise.all([
     webhookStatus().catch(() => null),
     readGroupSettings().catch(() => null),
     listPolls(6).catch(() => null),
+    readTgDiag().catch(() => []),
   ]);
   const groups = (settings?.seen ?? []).filter(
     (c) =>
@@ -133,6 +135,43 @@ export async function GroupTab() {
                     </PendingButton>
                   </form>
                 )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section aria-labelledby="tg-diag" className={`${card} space-y-3 p-5 sm:p-6`}>
+        <h2 id="tg-diag" className="text-lg font-bold">
+          מה הגיע לאחרונה מטלגרם
+        </h2>
+        {hook && (
+          <p className="text-sm text-muted">
+            ממתינים אצל טלגרם: {hook.pending}
+            {hook.lastError ? ` · שגיאה אחרונה של טלגרם: ${hook.lastError}` : " · אין שגיאות"}
+          </p>
+        )}
+        {!diag.length ? (
+          <p className="text-sm">
+            עוד לא הגיע שום עדכון מטלגרם מאז שהבדיקה הותקנה. כתבו הודעה בקבוצה ורעננו את העמוד.
+          </p>
+        ) : (
+          <ul className="divide-y divide-line text-sm">
+            {diag.map((e, i) => (
+              <li key={i} className="py-2">
+                <span className="font-semibold">{formatDateTime(e.at)}</span> · {e.kind}
+                {e.chatType ? ` · ${e.chatType}` : ""}
+                {e.chatTitle ? ` · ״${e.chatTitle}״` : ""}
+                {e.chatId ? (
+                  <>
+                    {" "}
+                    ·{" "}
+                    <bdi dir="ltr" className="font-mono">
+                      {e.chatId}
+                    </bdi>
+                  </>
+                ) : null}
+                {e.error && <span className="block text-accent-ink">{e.error}</span>}
               </li>
             ))}
           </ul>
