@@ -17,6 +17,7 @@ import { tg, webhookSecret } from "../api";
 import { telegramConfig } from "../client";
 import { linkFromMessage } from "../owner";
 import { isProductSearch } from "./classify";
+import { describeProducts } from "./describe";
 import { couponsHtml, type GroupDeps, type SearchOutcome } from "./handle";
 import { POLL_QUESTION, pollDue, pollOptions } from "./poll";
 import { insertPoll, lastPollAt, noteChat, readGroupSettings, updatePoll } from "./store";
@@ -91,6 +92,15 @@ export function groupDeps(): GroupDeps | null {
       return (
         (await postAffiliateLink(productId)) ??
         absoluteUrl(`/go/${encodeURIComponent(productId)}?src=telegram_group`)
+      );
+    },
+    async describe(products) {
+      const db = serviceClient();
+      if (!(await consumeDailyLlmBudget(db, new Date(), guardEnv().dailyCap))) return new Map();
+      const cfg = llmConfig();
+      return describeProducts(
+        new AnthropicProvider(cfg.apiKey, LINK_MODEL),
+        products.map((p) => ({ id: p.product_id, title: p.title_en || p.title_he })),
       );
     },
     async collage(products) {

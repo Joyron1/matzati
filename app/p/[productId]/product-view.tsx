@@ -199,7 +199,7 @@ export function ProductView({
           <div className="space-y-1">
             {/* The affiliate disclosure stays directly under the buy button (inside BuyButton). */}
             <BuyButton productId={product.product_id} src="product" />
-            <div className="flex flex-wrap items-center justify-center gap-2">
+            <div className="grid grid-cols-2 gap-2 pt-1">
               <SaveButton
                 variant="button"
                 product={{
@@ -210,7 +210,11 @@ export function ProductView({
                   original: product.original_price_ils,
                 }}
               />
-              <ShareLink text={title.text} path={`/p/${encodeURIComponent(product.product_id)}`} />
+              <ShareLink
+                variant="button"
+                text={title.text}
+                path={`/p/${encodeURIComponent(product.product_id)}`}
+              />
             </div>
             {adminSlot}
           </div>

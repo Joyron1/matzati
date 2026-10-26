@@ -15,7 +15,7 @@ import {
   subscribeSaved,
   type SavedProduct,
 } from "@/lib/saved/mine";
-import { aboveCardLink, btnMd, btnSecondary } from "./styles";
+import { aboveCardLink } from "./styles";
 
 export type SaveSnapshot = Omit<SavedProduct, "at">;
 
@@ -41,13 +41,20 @@ export function SaveButton({
         type="button"
         onClick={toggle}
         aria-pressed={saved}
-        className={`${btnSecondary} ${btnMd} gap-2`}
+        // Owner request 2026-10-27 ("looked poor"): a full button beside WhatsApp's, the heart red;
+        // saved, it fills soft red with a full heart.
+        className={`inline-flex h-12 items-center justify-center gap-2 rounded-[10px] border-[1.5px] px-4 text-[15px] font-bold whitespace-nowrap transition-transform active:scale-[0.98] motion-reduce:transition-none ${
+          saved
+            ? "border-accent bg-accent-soft text-accent-ink"
+            : "border-line bg-surface text-ink hover:border-accent hover:text-accent-ink"
+        }`}
       >
         <Heart
           aria-hidden
-          className={`size-[18px] ${saved ? "fill-current text-accent-ink" : ""}`}
+          className={`size-5 text-accent ${saved ? "fill-current" : ""}`}
+          strokeWidth={2.4}
         />
-        {saved ? "נשמר ברשימה" : "שמירה לרשימה"}
+        {saved ? "נשמר ברשימה ✓" : "שמירה לרשימה"}
       </button>
     );
   }

@@ -246,3 +246,49 @@ export async function sendPollNowAction(): Promise<void> {
   }
   back("poll-sent", GROUP);
 }
+
+// --- Many at once (owner request 2026-10-27) -------------------------------------------------------
+
+const idsSchema = z.array(z.string().uuid()).min(1).max(60);
+
+/** Approves every selected pending candidate with its post as written, scheduled to Telegram. */
+export async function bulkApproveAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const ids = idsSchema.safeParse(formData.getAll("ids"));
+  if (!ids.success) back("bulk-none");
+  const telegram = formData.get("telegram") === "on";
+  let done = 0;
+  try {
+    const { getCandidate } = await import("@/lib/agents/store");
+    // One after another: each takes the next free Telegram slot.
+    for (const id of ids.data) {
+      const c = await getCandidate(serviceClient(), id);
+      if (!c || c.status !== "pending") continue;
+      const r = await approveCandidate(id, c.post_he, telegram);
+      if (r.ok) done++;
+    }
+  } catch (err) {
+    unstable_rethrow(err);
+    logError("bulk approve", err);
+  }
+  revalidatePath("/recommended");
+  back(done ? "bulk-approved" : "approve-failed", `&n=${done}`);
+}
+
+/** Marks every selected pending candidate as not suitable (never proposed again). */
+export async function bulkRejectAction(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const ids = idsSchema.safeParse(formData.getAll("ids"));
+  if (!ids.success) back("bulk-none");
+  let done = 0;
+  try {
+    for (const id of ids.data) {
+      await rejectCandidate(id);
+      done++;
+    }
+  } catch (err) {
+    unstable_rethrow(err);
+    logError("bulk reject", err);
+  }
+  back(done ? "bulk-rejected" : "reject-failed", `&n=${done}`);
+}

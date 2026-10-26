@@ -5,7 +5,6 @@ import {
   Check,
   CheckCircle2,
   CircleDashed,
-  Download,
   Film,
   History,
   Inbox,
@@ -44,7 +43,9 @@ import {
   videoRemoveAction,
 } from "./actions";
 import { CATALOG } from "@/lib/catalog/categories";
+import { BULK_FORM_ID, BulkBar } from "./bulk-bar";
 import { CandidateDrawer } from "./candidate-drawer";
+import { MediaGallery, type GalleryItem } from "./media-gallery";
 import { GroupTab } from "./group-tab";
 import { RunFinder } from "./run-finder";
 import { VideoUpload } from "./video-upload";
@@ -77,14 +78,18 @@ const STATUS: Record<string, string> = {
   "webhook-connected": "הבוט מחובר. עכשיו הוסיפו אותו לקבוצה כמנהל, והיא תופיע כאן.",
   "group-chosen": "נבחרה קבוצת החיפושים. כתבו בה חיפוש כדי לבדוק.",
   "poll-sent": "הסקר נשלח לערוץ.",
+  "bulk-none": "לא נבחר אף מוצר.",
   "rewrite-failed":
     "לא הצלחנו לכתוב את הפוסט מחדש (המודל לא ענה או שהטקסט לא עבר את הבדיקות). אפשר לנסות שוב או לערוך ידנית.",
 };
 
-function statusText(status: string, at: string, err = ""): string | null {
+function statusText(status: string, at: string, err = "", n = "0"): string | null {
   if (status === "publish-failed") {
     return `הפרסום בטלגרם נכשל${err ? `: ${err}` : "."} נסו שוב.`;
   }
+  if (status === "bulk-approved")
+    return `אושרו ${n} מוצרים. הם במומלצים, ומתוזמנים לטלגרם אם התזמון פעיל.`;
+  if (status === "bulk-rejected") return `${n} מוצרים סומנו כלא מתאימים ולא יוצעו שוב.`;
   if (status === "webhook-failed") return `חיבור הבוט נכשל${err ? `: ${err}` : "."}`;
   if (status === "poll-failed") return `שליחת הסקר נכשלה${err ? `: ${err}` : "."}`;
   if (status === "approved-scheduled") {
@@ -147,6 +152,7 @@ export default async function AgentsPage({ searchParams }: PageProps<"/admin/age
     firstParam(params.status),
     firstParam(params.at),
     firstParam(params.err),
+    firstParam(params.n),
   );
   // Reopens the candidate's drawer after an action that reloaded the page.
   const openId = firstParam(params.open);
@@ -474,42 +480,30 @@ function ProductFacts({ c }: { c: Candidate }) {
 function Media({ c }: { c: Candidate }) {
   const p = c.product;
   const photos = p.imageUrls.length ? p.imageUrls : [p.mainImageUrl];
+  const items: GalleryItem[] = [
+    ...(p.videoUrl
+      ? [
+          {
+            type: "video" as const,
+            src: p.videoUrl,
+            download: downloadHref(p.videoUrl, `${c.product_id}-video.mp4`),
+          },
+        ]
+      : []),
+    ...photos.map((url, i) => ({
+      type: "image" as const,
+      src: url,
+      download: downloadHref(url, `${c.product_id}-${i + 1}.jpg`),
+    })),
+  ];
   return (
-    <details className="rounded-xl border border-line p-3">
-      <summary className="cursor-pointer text-sm font-semibold">
-        תמונות ווידאו להורדה (<bdi dir="ltr">{photos.length}</bdi> תמונות
-        {p.videoUrl ? " ווידאו" : ", אין וידאו"})
-      </summary>
-      <ul className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5">
-        {photos.map((url, i) => (
-          <li key={url} className="space-y-1">
-            <ProductImage
-              src={url}
-              alt=""
-              className="aspect-square w-full rounded-lg border border-line"
-              iconClassName="size-6"
-              sizes="120px"
-            />
-            <a
-              href={downloadHref(url, `${c.product_id}-${i + 1}.jpg`)}
-              className="flex min-h-11 items-center justify-center gap-1 text-xs font-semibold text-accent-ink underline"
-            >
-              <Download aria-hidden className="size-3.5" />
-              הורדה
-            </a>
-          </li>
-        ))}
-      </ul>
-      {p.videoUrl && (
-        <a
-          href={downloadHref(p.videoUrl, `${c.product_id}-video.mp4`)}
-          className={`${btnSecondary} ${btnSm} mt-3 inline-flex gap-1`}
-        >
-          <Download aria-hidden className="size-4" />
-          הורדת הווידאו של המוצר
-        </a>
-      )}
-    </details>
+    <section aria-label="תמונות ווידאו" className="space-y-2">
+      <h3 className="text-sm font-semibold">
+        תמונות ווידאו (<bdi dir="ltr">{photos.length}</bdi> תמונות{p.videoUrl ? " ווידאו" : ""}).
+        לחיצה מגדילה, ושם אפשר גם להוריד.
+      </h3>
+      <MediaGallery items={items} title={hotTitle(p.title)} />
+    </section>
   );
 }
 
@@ -606,7 +600,7 @@ const inCategory = (c: Candidate, cat: string) => !cat || (catalogKeyOf(c) ?? "o
 function CardMedia({ c }: { c: Candidate }) {
   const p = c.product;
   return (
-    <div className="relative aspect-square bg-surface-2">
+    <div className="pointer-events-none relative aspect-square bg-surface-2">
       <ProductImage
         src={p.imageUrls[0] ?? p.mainImageUrl}
         alt=""
@@ -822,6 +816,7 @@ function Queue({
         ממתינים לאישור ({pending.length})
       </h2>
       <CategoryFilter items={pending.map((x) => x.c)} current={cat} tab="queue" />
+      {shown.length > 1 && <BulkBar telegramOn={telegramOn} total={shown.length} />}
       {!shown.length ? (
         <p className={`${card} p-5 text-muted`}>
           אין כרגע מוצרים שממתינים{cat ? " בקטגוריה הזו" : ""}. הסוכן ימצא חדשים בריצה הבאה, או לחצו
@@ -835,7 +830,21 @@ function Queue({
                 title={hotTitle(c.product.title)}
                 defaultOpen={openId === c.id}
                 card={{
-                  media: <CardMedia c={c} />,
+                  media: (
+                    <div className="relative">
+                      <CardMedia c={c} />
+                      <label className="absolute end-2 bottom-2 z-10 grid size-11 cursor-pointer place-items-center rounded-full bg-surface/95 shadow">
+                        <span className="sr-only">בחירת {hotTitle(c.product.title)}</span>
+                        <input
+                          type="checkbox"
+                          name="ids"
+                          value={c.id}
+                          form={BULK_FORM_ID}
+                          className="size-5 accent-[var(--accent)]"
+                        />
+                      </label>
+                    </div>
+                  ),
                   body: <CardBody c={c} />,
                   actions: (
                     // The card's quick actions: the post as written, scheduled when Telegram is on.

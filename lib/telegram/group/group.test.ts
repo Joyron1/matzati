@@ -107,6 +107,10 @@ function setup(over: Partial<GroupDeps> = {}) {
     search: async () => ({ ok: true, products: [product(), product({ product_id: "2" })] }),
     linkFor: async (pid) => `https://s.click.aliexpress.com/e/_${pid}`,
     collage: async () => Buffer.from("jpeg"),
+    describe: async () =>
+      new Map([
+        ["1005001", { name: "אוהל קל לשניים", line: "אוהל עמיד למים עם מוטות אלומיניום." }],
+      ]),
     couponsText: async () => "<b>קופונים</b>",
     siteSearchUrl: (q) => `https://www.matzati-il.com/search?q=${encodeURIComponent(q)}`,
     noteChat: vi.fn(async () => {}),
@@ -144,7 +148,20 @@ describe("the search group", () => {
     const keyboard = (photo.payload.reply_markup as { inline_keyboard: { text: string }[][] })
       .inline_keyboard[0]!;
     expect(keyboard.map((b) => b.text)).toEqual(["🔎 חיפוש רחב באתר", "🎟️ קופונים"]);
-    expect(calls.some((c) => c.method === "deleteMessage")).toBe(false);
+    // A "searching" note first, as a reply, removed once the answer is ready; the member's
+    // message stays.
+    const note = calls.find((c) => c.method === "sendMessage")!;
+    expect(String(note.payload.text)).toContain("מחפש עבורכם");
+    expect(calls.indexOf(note)).toBeLessThan(calls.indexOf(photo));
+    const deleted = calls
+      .filter((c) => c.method === "deleteMessage")
+      .map((c) => c.payload.message_id);
+    expect(deleted).toEqual([101]);
+    // Every line right to left, and the model's short name and description.
+    const caption = String(photo.payload.caption);
+    for (const line of caption.split("\n").filter(Boolean)) expect(line.startsWith("‏")).toBe(true);
+    expect(caption).toContain("אוהל קל לשניים");
+    expect(caption).toContain("אוהל עמיד למים עם מוטות אלומיניום.");
   });
 
   it("deletes a message that is not a search, after a short note", async () => {
@@ -181,7 +198,10 @@ describe("the search group", () => {
     const { deps, calls } = setup({ collage: async () => null });
     await handleUpdate(groupMessage("אוזניות"), deps);
     expect(calls.some((c) => c.method === "sendPhoto")).toBe(false);
-    expect(String(calls.find((c) => c.method === "sendMessage")!.payload.text)).toContain("🥇");
+    const texts = calls
+      .filter((c) => c.method === "sendMessage")
+      .map((c) => String(c.payload.text));
+    expect(texts.at(-1)).toContain("🥇");
   });
 
   it("ignores other chats and bots, and records where the bot was added", async () => {
@@ -237,5 +257,26 @@ describe("the search group", () => {
     );
     expect(calls.map((c) => c.method)).toEqual(["answerCallbackQuery", "sendMessage"]);
     expect(calls[1]!.payload.text).toBe("<b>קופונים</b>");
+  });
+});
+
+describe("the short names and lines", () => {
+  it("keeps a Hebrew name and line whose numbers the title has", async () => {
+    const { checkDescribed } = await import("./describe");
+    expect(
+      checkDescribed(
+        { name_he: "ריסים מגנטיים 14 זוגות", line_he: "ערכת ריסים רכים למראה טבעי." },
+        "14/10/7/5 Pairs Magnetic Eyelashes Natural Soft",
+      ),
+    ).toEqual({ name: "ריסים מגנטיים 14 זוגות", line: "ערכת ריסים רכים למראה טבעי." });
+  });
+  it("drops an invented number, a price or praise, and English-only text", async () => {
+    const { checkDescribed } = await import("./describe");
+    const title = "Magnetic Eyelashes Natural Soft";
+    expect(checkDescribed({ name_he: "ריסים 20 זוגות", line_he: "" }, title)).toBeNull();
+    expect(checkDescribed({ name_he: "Magnetic lashes", line_he: "" }, title)).toBeNull();
+    expect(
+      checkDescribed({ name_he: "ריסים מגנטיים", line_he: "הריסים הכי טובים במחיר מעולה" }, title),
+    ).toEqual({ name: "ריסים מגנטיים", line: null });
   });
 });

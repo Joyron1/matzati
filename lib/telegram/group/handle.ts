@@ -17,6 +17,7 @@ import {
   groupCaption,
   GROUP_RESULTS,
   noResultsText,
+  searchingText,
   type GroupProduct,
 } from "./format";
 import type { ResultProduct } from "@/lib/types";
@@ -82,6 +83,8 @@ export interface GroupDeps {
   search(q: string, userId: number): Promise<SearchOutcome>;
   /** The product's affiliate link (or /go). */
   linkFor(productId: string): Promise<string>;
+  /** A clean short name and a one-line description per product id (describe.ts); {} on failure. */
+  describe(products: ResultProduct[]): Promise<Map<string, { name: string; line: string | null }>>;
   /** The collage of up to five products, or null when it could not be drawn. */
   collage(products: ResultProduct[]): Promise<Buffer | null>;
   /** The coupons valid now, as Telegram HTML; null when there are none. */
@@ -151,8 +154,20 @@ async function onGroupMessage(m: TgMessage, deps: GroupDeps): Promise<void> {
     );
   }
 
-  await deps.send("sendChatAction", { chat_id: m.chat.id, action: "upload_photo" });
   const q = verdict.query;
+  // A first answer at once (owner request 2026-10-27), removed when the results are in.
+  const searching = await deps.send("sendMessage", {
+    chat_id: m.chat.id,
+    text: searchingText(q),
+    parse_mode: "HTML",
+    ...replyTo(m),
+  });
+  const done = async () => {
+    if (searching.messageId) {
+      await deps.send("deleteMessage", { chat_id: m.chat.id, message_id: searching.messageId });
+    }
+  };
+  await deps.send("sendChatAction", { chat_id: m.chat.id, action: "upload_photo" });
   const out = await deps.search(q, m.from.id);
   const buttons = answerButtons(deps.siteSearchUrl(q));
   if (!out.ok) {
@@ -162,9 +177,11 @@ async function onGroupMessage(m: TgMessage, deps: GroupDeps): Promise<void> {
         : out.error === "capacity"
           ? "החיפוש עמוס היום. נסו שוב מחר, או חפשו באתר."
           : "משהו השתבש בחיפוש. נסו שוב בעוד רגע.";
+    await done();
     return noteThenDelete(m, text, deps);
   }
   if (!out.products.length) {
+    await done();
     await deps.send("sendMessage", {
       chat_id: m.chat.id,
       text: noResultsText(q),
@@ -176,11 +193,17 @@ async function onGroupMessage(m: TgMessage, deps: GroupDeps): Promise<void> {
   }
 
   const shown = out.products.slice(0, GROUP_RESULTS);
-  const items: GroupProduct[] = await Promise.all(
-    shown.map(async (product) => ({ product, link: await deps.linkFor(product.product_id) })),
-  );
+  const [links, described, photo] = await Promise.all([
+    Promise.all(shown.map((p) => deps.linkFor(p.product_id))),
+    deps.describe(shown).catch(() => new Map<string, { name: string; line: string | null }>()),
+    deps.collage(shown),
+  ]);
+  const items: GroupProduct[] = shown.map((product, i) => {
+    const d = described.get(product.product_id);
+    return { product, link: links[i]!, ...(d ? { name: d.name, line: d.line } : {}) };
+  });
   const caption = groupCaption(q, items);
-  const photo = await deps.collage(shown);
+  await done();
   if (photo) {
     const sent = await deps.send(
       "sendPhoto",
