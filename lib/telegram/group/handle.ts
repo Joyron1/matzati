@@ -89,6 +89,10 @@ export interface GroupDeps {
   /** The site's results page for this query. */
   siteSearchUrl(q: string): string;
   noteChat(chat: { id: string; title: string; type: string; status: string }): Promise<void>;
+  /** Whether the bot already knows this chat (recorded by my_chat_member or a message). */
+  knownChat(chatId: string): Promise<boolean>;
+  /** The bot's status in a chat ("administrator", "member", ...), from getChatMember. */
+  chatStatus(chatId: number): Promise<string | null>;
   updatePoll(poll: NonNullable<TgUpdate["poll"]>): Promise<void>;
   /** The owner's linking code, when a private message is it. */
   linkOwner(chatId: number, text: string, date: number): Promise<boolean>;
@@ -245,6 +249,20 @@ export async function handleUpdate(u: TgUpdate, deps: GroupDeps): Promise<void> 
         });
       }
       return;
+    }
+    // A group the bot never heard of (2026-10-27: Telegram's "added to a group" notice was lost
+    // when the webhook was connected with drop_pending_updates): any message there records it, with
+    // the bot's status, so the admin can pick it.
+    if (
+      (m.chat.type === "group" || m.chat.type === "supergroup") &&
+      !(await deps.knownChat(String(m.chat.id)))
+    ) {
+      await deps.noteChat({
+        id: String(m.chat.id),
+        title: m.chat.title ?? "",
+        type: m.chat.type,
+        status: (await deps.chatStatus(m.chat.id)) ?? "member",
+      });
     }
     const searchChat = await deps.searchChatId();
     if (searchChat && String(m.chat.id) === searchChat) await onGroupMessage(m, deps);

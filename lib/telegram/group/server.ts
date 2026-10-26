@@ -108,6 +108,18 @@ export function groupDeps(): GroupDeps | null {
     },
     siteSearchUrl: (q) => absoluteUrl(`/search?q=${encodeURIComponent(q)}`),
     noteChat: (chat) => noteChat(chat),
+    async knownChat(chatId) {
+      return (await readGroupSettings()).seen.some((c) => c.id === chatId);
+    },
+    async chatStatus(chatId) {
+      const me = await tg<{ id: number }>(config, "getMe", {});
+      if (!me.ok) return null;
+      const member = await tg<{ status: string }>(config, "getChatMember", {
+        chat_id: chatId,
+        user_id: me.result.id,
+      });
+      return member.ok ? member.result.status : null;
+    },
     updatePoll: (poll) => updatePoll(poll),
     linkOwner: (chatId, text, date) => linkFromMessage(chatId, text, date),
     sleep: (ms) => new Promise((r) => setTimeout(r, ms)),

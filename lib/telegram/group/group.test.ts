@@ -110,6 +110,8 @@ function setup(over: Partial<GroupDeps> = {}) {
     couponsText: async () => "<b>קופונים</b>",
     siteSearchUrl: (q) => `https://www.matzati-il.com/search?q=${encodeURIComponent(q)}`,
     noteChat: vi.fn(async () => {}),
+    knownChat: async () => true,
+    chatStatus: async () => "administrator",
     updatePoll: vi.fn(async () => {}),
     linkOwner: async () => false,
     sleep: vi.fn(async () => {}),
@@ -200,6 +202,20 @@ describe("the search group", () => {
     expect(deps.noteChat).toHaveBeenCalledWith({
       id: "-300",
       title: "חדשה",
+      type: "supergroup",
+      status: "administrator",
+    });
+  });
+
+  it("records a group it never heard of from any message there, with the bot's status", async () => {
+    const { deps } = setup({ knownChat: async () => false, searchChatId: async () => null });
+    await handleUpdate(
+      groupMessage("שלום", { chat: { id: -500, type: "supergroup", title: "חיפושים" } }),
+      deps,
+    );
+    expect(deps.noteChat).toHaveBeenCalledWith({
+      id: "-500",
+      title: "חיפושים",
       type: "supergroup",
       status: "administrator",
     });
