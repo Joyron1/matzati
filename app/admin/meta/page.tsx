@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CalendarClock, CheckCircle2, Download, Hand, Send } from "lucide-react";
+import { CheckCircle2, Download, Hand, Send } from "lucide-react";
 import { CopyButton } from "@/components/copy-button";
 import { btnPrimary, btnSecondary, btnSm, card } from "@/components/styles";
 import { requireAdmin } from "@/lib/admin/auth";
@@ -8,6 +8,7 @@ import { isQuietTime } from "@/lib/agents/schedule";
 import { META_DISCLOSURE, metaConfig } from "@/lib/meta/publish";
 import type { MetaKind, MetaMedia, Reel } from "@/lib/meta/reels-run";
 import { getReel, listReels, signedReelUrl } from "@/lib/meta/reels-server";
+import { dayKeyOf, monthOf, parseDay, parseMonth } from "@/lib/meta/calendar";
 import {
   fromIsraelLocal,
   REEL_MIN_LEAD_MS,
@@ -25,19 +26,24 @@ import {
   telegramConfirmAction,
   telegramUnlinkAction,
 } from "./actions";
+import {
+  calendarHref,
+  DayAgenda,
+  itemsByDayKey,
+  MetaCalendar,
+  type CalendarLinks,
+} from "./calendar";
 import { MetaForm, type MetaFormInitial } from "./meta-form";
 import {
-  byDay,
   editable,
   filesOf,
   KIND_LABEL,
-  KIND_PLURAL,
   KindBadge,
   KindFilter,
   kindOf,
   Networks,
+  PastItem,
   Preview,
-  ScheduledCard,
 } from "./scheduled";
 
 export const metadata: Metadata = {
@@ -71,14 +77,6 @@ const STATUS: Record<string, string> = {
   "tg-not-configured": "הבוט של טלגרם לא מוגדר (TELEGRAM_BOT_TOKEN ב־Vercel).",
   "tg-failed": "טלגרם לא ענה. נסו שוב בעוד דקה.",
   "tg-unlinked": "החיבור לטלגרם שלכם נותק.",
-};
-
-const STATE: Record<Reel["status"], string> = {
-  scheduled: "מתוזמן",
-  cancelled: "בוטל",
-  done: "עלה",
-  partial: "עלה חלקית",
-  failed: "נכשל",
 };
 
 /** How long a handed-off manual story stays in "לפרסום ידני". */
@@ -193,6 +191,14 @@ export default async function MetaPage({ searchParams }: PageProps<"/admin/meta"
   const kindFilter: MetaKind | null =
     kindParam === "reel" || kindParam === "post" || kindParam === "story" ? kindParam : null;
   const editId = firstParam(params.edit);
+  // The calendar's day (?day=) and month (?month=); a day sets its month.
+  const selectedDay = parseDay(firstParam(params.day));
+  const now = new Date();
+  const today = dayKeyOf(now);
+  const month =
+    (selectedDay ? parseMonth(selectedDay.slice(0, 7)) : null) ??
+    parseMonth(firstParam(params.month)) ??
+    monthOf(now);
   let items: Reel[] = [];
   let loadFailed = false;
   try {
@@ -201,7 +207,6 @@ export default async function MetaPage({ searchParams }: PageProps<"/admin/meta"
     console.error(`[admin-meta] ${String(err).slice(0, 200)}`);
     loadFailed = true;
   }
-  const now = new Date();
   const upcoming = items
     .filter((r) => r.status === "scheduled")
     .sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at));
@@ -250,6 +255,9 @@ export default async function MetaPage({ searchParams }: PageProps<"/admin/meta"
   );
   const metaReady = metaConfig() !== null;
   const shown = kindFilter ? upcoming.filter((r) => kindOf(r) === kindFilter) : upcoming;
+  const calendarItems = kindFilter ? items.filter((r) => kindOf(r) === kindFilter) : items;
+  const links: CalendarLinks = { basePath: "/admin/meta", kind: kindFilter };
+  const dayItems = selectedDay ? (itemsByDayKey(calendarItems).get(selectedDay) ?? []) : [];
 
   return (
     <div className="mx-auto max-w-5xl space-y-10 px-4 pt-8 sm:px-6 sm:pt-12">
@@ -363,36 +371,38 @@ export default async function MetaPage({ searchParams }: PageProps<"/admin/meta"
         </section>
       )}
 
-      <section aria-labelledby="upcoming" className="space-y-5">
+      <section id="calendar" aria-labelledby="upcoming" className="scroll-mt-20 space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 id="upcoming" className="font-display text-2xl font-bold">
             מתוזמנים <span className="text-muted">({upcoming.length})</span>
           </h2>
-          <KindFilter items={upcoming} current={kindFilter} />
+          <KindFilter
+            items={upcoming}
+            current={kindFilter}
+            href={(kind) => calendarHref({ ...links, kind }, { month, day: selectedDay })}
+          />
         </div>
         {loadFailed ? (
           <p className="text-muted">לא הצלחנו לטעון. ודאו שהמיגרציות של Meta הוחלו.</p>
-        ) : !shown.length ? (
-          <p className={`${card} p-5 text-muted`}>
-            {kindFilter ? `אין ${KIND_PLURAL[kindFilter]} מתוזמנים.` : "אין כרגע תוכן מתוזמן."}
-          </p>
         ) : (
-          <div className="space-y-6">
-            {byDay(shown).map(([day, list]) => (
-              <section key={day} aria-label={day} className="space-y-3">
-                <h3 className="flex items-center gap-2 text-sm font-bold text-muted">
-                  <CalendarClock aria-hidden className="size-4" />
-                  {day}
-                  <span className="h-px flex-1 bg-line" />
-                </h3>
-                <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {list.map((r) => (
-                    <ScheduledCard key={r.id} r={r} previews={previews.get(r.id) ?? []} />
-                  ))}
-                </ul>
-              </section>
-            ))}
-          </div>
+          <>
+            <MetaCalendar
+              items={calendarItems}
+              month={month}
+              today={today}
+              selected={selectedDay}
+              links={links}
+              previews={previews}
+            />
+            <DayAgenda
+              day={selectedDay}
+              items={dayItems}
+              shown={shown}
+              kindFilter={kindFilter}
+              allHref={calendarHref(links, { month }, "day")}
+              previews={previews}
+            />
+          </>
         )}
       </section>
 
@@ -405,19 +415,7 @@ export default async function MetaPage({ searchParams }: PageProps<"/admin/meta"
           </h2>
           <ul className={`${card} divide-y divide-line`}>
             {past.map((r) => (
-              <li key={r.id} className="space-y-1 p-4">
-                <p className="flex flex-wrap items-center gap-2 font-semibold">
-                  <KindBadge r={r} />
-                  {reelTimeLabel(new Date(r.scheduled_at))} ·{" "}
-                  {r.manual && r.status === "done"
-                    ? r.manual_done_at
-                      ? "פורסם ידנית"
-                      : "נשלח לפרסום ידני"
-                    : STATE[r.status]}
-                </p>
-                {r.caption && <p className="line-clamp-2 text-sm text-muted">{r.caption}</p>}
-                <Networks r={r} />
-              </li>
+              <PastItem key={r.id} r={r} />
             ))}
           </ul>
         </section>

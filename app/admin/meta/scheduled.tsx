@@ -120,8 +120,17 @@ export function byDay(items: Reel[]): [string, Reel[]][] {
   return [...days.entries()].map(([key, list]) => [key.split("|")[1], list]);
 }
 
-/** הכל / רילז / פוסט / סטורי with counts: links, so a filter is its own address. */
-export function KindFilter({ items, current }: { items: Reel[]; current: MetaKind | null }) {
+/** הכל / רילז / פוסט / סטורי with counts: links, so a filter is its own address. `href` builds a
+ *  kind's address (keeping the calendar's month and day); by default the panel's list. */
+export function KindFilter({
+  items,
+  current,
+  href = (kind) => (kind ? `/admin/meta?kind=${kind}#upcoming` : "/admin/meta#upcoming"),
+}: {
+  items: Reel[];
+  current: MetaKind | null;
+  href?: (kind: MetaKind | null) => string;
+}) {
   const count = (k: MetaKind) => items.filter((r) => kindOf(r) === k).length;
   const chips: { key: MetaKind | null; label: string; n: number }[] = [
     { key: null, label: "הכל", n: items.length },
@@ -139,7 +148,7 @@ export function KindFilter({ items, current }: { items: Reel[]; current: MetaKin
         return (
           <Link
             key={c.label}
-            href={c.key ? `/admin/meta?kind=${c.key}#upcoming` : "/admin/meta#upcoming"}
+            href={href(c.key)}
             aria-current={on ? "page" : undefined}
             scroll={false}
             className={`flex min-h-11 items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-semibold whitespace-nowrap ${
@@ -231,6 +240,33 @@ export function ScheduledCard({
           </form>
         </div>
       </div>
+    </li>
+  );
+}
+
+export const STATE: Record<Reel["status"], string> = {
+  scheduled: "מתוזמן",
+  cancelled: "בוטל",
+  done: "עלה",
+  partial: "עלה חלקית",
+  failed: "נכשל",
+};
+
+/** A published, failed or cancelled item: one row of a list. */
+export function PastItem({ r }: { r: Reel }) {
+  return (
+    <li className="space-y-1 p-4">
+      <p className="flex flex-wrap items-center gap-2 font-semibold">
+        <KindBadge r={r} />
+        {reelTimeLabel(new Date(r.scheduled_at))} ·{" "}
+        {r.manual && r.status === "done"
+          ? r.manual_done_at
+            ? "פורסם ידנית"
+            : "נשלח לפרסום ידני"
+          : STATE[r.status]}
+      </p>
+      {r.caption && <p className="line-clamp-2 text-sm text-muted">{r.caption}</p>}
+      <Networks r={r} />
     </li>
   );
 }

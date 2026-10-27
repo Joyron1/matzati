@@ -7,8 +7,16 @@ import { notFound } from "next/navigation";
 import { AdminAccount } from "@/app/admin/admin-account";
 import { AdminShell } from "@/app/admin/admin-nav";
 import { MetaForm } from "@/app/admin/meta/meta-form";
-import { byDay, KindFilter, kindOf, ScheduledCard } from "@/app/admin/meta/scheduled";
+import {
+  calendarHref,
+  DayAgenda,
+  itemsByDayKey,
+  MetaCalendar,
+  type CalendarLinks,
+} from "@/app/admin/meta/calendar";
+import { KindFilter, kindOf } from "@/app/admin/meta/scheduled";
 import { card } from "@/components/styles";
+import { dayKeyOf, monthOf, parseDay, parseMonth } from "@/lib/meta/calendar";
 import type { MetaKind, MetaMedia, Reel } from "@/lib/meta/reels-run";
 import { firstParam } from "@/lib/search-url";
 
@@ -77,6 +85,38 @@ const ITEMS: Reel[] = [
     caption: "3 גאדג׳טים למטבח שלא ידעתם שאתם צריכים",
     instagram: false,
   }),
+  sample({
+    id: "00000000-0000-4000-8000-000000000005",
+    kind: "post",
+    scheduled_at: "2026-10-29T09:30:00Z",
+    media: [{ path: "meta/p5.jpg", type: "image" }],
+    caption: "מבצע 11.11 מתקרב: הרשימה שלנו",
+  }),
+  sample({
+    id: "00000000-0000-4000-8000-000000000006",
+    kind: "story",
+    scheduled_at: "2026-11-03T18:00:00Z",
+    media: [{ path: "meta/s2.jpg", type: "image" }],
+  }),
+  sample({
+    id: "00000000-0000-4000-8000-000000000007",
+    kind: "post",
+    scheduled_at: "2026-10-22T17:00:00Z",
+    status: "done",
+    caption: "פוסט שכבר עלה",
+    media: [{ path: "meta/p6.jpg", type: "image" }],
+    ig_posted_at: "2026-10-22T17:01:00Z",
+    fb_posted_at: "2026-10-22T17:01:00Z",
+  }),
+  sample({
+    id: "00000000-0000-4000-8000-000000000008",
+    kind: "reel",
+    scheduled_at: "2026-10-20T17:00:00Z",
+    status: "failed",
+    video_path: "reels/c.mp4",
+    caption: "רילז שנכשל",
+    ig_error: "timeout",
+  }),
 ];
 
 const PREVIEWS: Record<string, { file: MetaMedia; url: string | null }[]> = {
@@ -96,10 +136,21 @@ const PREVIEWS: Record<string, { file: MetaMedia; url: string | null }[]> = {
 
 export default async function MetaPreview({ searchParams }: PageProps<"/dev/meta-preview">) {
   if (process.env.NODE_ENV === "production") notFound();
-  const kindParam = firstParam((await searchParams).kind);
+  const params = await searchParams;
+  const kindParam = firstParam(params.kind);
   const kind: MetaKind | null =
     kindParam === "reel" || kindParam === "post" || kindParam === "story" ? kindParam : null;
-  const shown = kind ? ITEMS.filter((r) => kindOf(r) === kind) : ITEMS;
+  const all = kind ? ITEMS.filter((r) => kindOf(r) === kind) : ITEMS;
+  const upcoming = ITEMS.filter((r) => r.status === "scheduled");
+  const shown = all.filter((r) => r.status === "scheduled");
+  const now = new Date();
+  const selectedDay = parseDay(firstParam(params.day));
+  const month =
+    (selectedDay ? parseMonth(selectedDay.slice(0, 7)) : null) ??
+    parseMonth(firstParam(params.month)) ??
+    monthOf(now);
+  const links: CalendarLinks = { basePath: "/dev/meta-preview", kind };
+  const previews = new Map(Object.entries(PREVIEWS));
   return (
     <AdminShell previewPath="/admin/meta" account={<AdminAccount email="owner@example.com" />}>
       <div className="mx-auto max-w-5xl space-y-10 px-4 pt-8 pb-16 sm:px-6 sm:pt-12">
@@ -113,28 +164,33 @@ export default async function MetaPreview({ searchParams }: PageProps<"/dev/meta
           <h2 className="font-display text-2xl font-bold">תזמון חדש</h2>
           <MetaForm defaultWhen="2026-10-25T20:00" minWhen="2026-10-24T12:00" />
         </section>
-        <section id="upcoming" className="space-y-5">
+        <section id="calendar" className="space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="font-display text-2xl font-bold">
-              מתוזמנים <span className="text-muted">({ITEMS.length})</span>
+              מתוזמנים <span className="text-muted">({upcoming.length})</span>
             </h2>
-            <KindFilter items={ITEMS} current={kind} />
+            <KindFilter
+              items={upcoming}
+              current={kind}
+              href={(k) => calendarHref({ ...links, kind: k }, { month, day: selectedDay })}
+            />
           </div>
-          <div className="space-y-6">
-            {byDay(shown).map(([day, list]) => (
-              <section key={day} aria-label={day} className="space-y-3">
-                <h3 className="flex items-center gap-2 text-sm font-bold text-muted">
-                  {day}
-                  <span className="h-px flex-1 bg-line" />
-                </h3>
-                <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {list.map((r) => (
-                    <ScheduledCard key={r.id} r={r} previews={PREVIEWS[r.id] ?? []} />
-                  ))}
-                </ul>
-              </section>
-            ))}
-          </div>
+          <MetaCalendar
+            items={all}
+            month={month}
+            today={dayKeyOf(now)}
+            selected={selectedDay}
+            links={links}
+            previews={previews}
+          />
+          <DayAgenda
+            day={selectedDay}
+            items={selectedDay ? (itemsByDayKey(all).get(selectedDay) ?? []) : []}
+            shown={shown}
+            kindFilter={kind}
+            allHref={calendarHref(links, { month }, "day")}
+            previews={previews}
+          />
         </section>
       </div>
     </AdminShell>
