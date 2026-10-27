@@ -15,6 +15,7 @@ import {
 import { SaleCountdown } from "@/components/sale-countdown";
 import { SearchComposer } from "@/components/search-composer";
 import { SearchIdeas } from "@/components/search-guide";
+import { TelegramJoin } from "@/components/telegram-join";
 import { card } from "@/components/styles";
 import { BRAND } from "@/lib/config/brand";
 import { RESULTS_FIRST_VIEW, RESULTS_PER_PAGE } from "@/lib/config/site";
@@ -156,6 +157,11 @@ export default function HomePage() {
       {/* The owner's approved picks (owner request 2026-10-19); nothing while there are none. */}
       <Suspense fallback={null}>
         <RecommendedStrip />
+      </Suspense>
+
+      {/* The Telegram channel and search group (owner request 2026-10-27); nothing without links. */}
+      <Suspense fallback={null}>
+        <TelegramJoin />
       </Suspense>
 
       {/* As wide as the sections around it, so 6 photo tiles fit in one row on desktop. */}

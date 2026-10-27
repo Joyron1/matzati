@@ -26,6 +26,12 @@
   --on-gold: #111827;
   --trust: #007a52;
   --trust-soft: #e6f6ef;
+  /* The Telegram section of the home page (components/telegram-join.tsx): Telegram's blue,
+     darkened so white bold text on it is 4.9:1. */
+  --tg: #1877ae;
+  --tg-to: #229ed9;
+  --tg-soft: #e8f4fb;
+  --tg-ink: #13628f;
   --invert-bg: #111827;
   --invert-ink: #f9fafb;
   --shadow: 0 4px 12px -2px rgba(17, 24, 39, 0.08);
@@ -57,6 +63,10 @@
   --on-gold: #111827;
   --trust: #4ade9b;
   --trust-soft: #0f2a1f;
+  --tg: #1877ae;
+  --tg-to: #1f8fc7;
+  --tg-soft: #10283a;
+  --tg-ink: #6cc3f0;
   --invert-bg: #f3f4f6;
   --invert-ink: #0f1115;
   --shadow: 0 0 0 1px #2a2f3a;
@@ -84,6 +94,10 @@
   --color-on-gold: var(--on-gold);
   --color-trust: var(--trust);
   --color-trust-soft: var(--trust-soft);
+  --color-tg: var(--tg);
+  --color-tg-to: var(--tg-to);
+  --color-tg-soft: var(--tg-soft);
+  --color-tg-ink: var(--tg-ink);
   --color-cta-from: var(--cta-from);
   --color-cta-to: var(--cta-to);
   --color-invert-bg: var(--invert-bg);
