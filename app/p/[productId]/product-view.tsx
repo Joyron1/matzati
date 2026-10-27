@@ -122,7 +122,7 @@ export function ProductView({
       {/* From lg the gallery sticks (the header scrolls away, so just under the window's top) while
           the details scroll, until the tips below the two columns. On phones nothing sticks. */}
       <div className="mt-3 grid gap-8 lg:grid-cols-2 lg:items-start lg:gap-x-12">
-        <div className="min-w-0 lg:sticky lg:top-6">
+        <div className="min-w-0 lg:sticky lg:top-[calc(var(--header-offset,0px)+1.5rem)] lg:transition-[top] lg:duration-200 motion-reduce:transition-none">
           <ProductGallery images={product.image_urls} alt={title.text} video={video} />
         </div>
 

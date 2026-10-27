@@ -125,6 +125,8 @@
   html {
     -webkit-text-size-adjust: 100%;
     scroll-padding-bottom: var(--consent-banner-h, 0px);
+    /* The sticky header (components/sticky-header.tsx) while it shows. */
+    scroll-padding-top: var(--header-offset, 0px);
   }
 
   body {

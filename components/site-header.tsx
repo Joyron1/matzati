@@ -21,6 +21,7 @@ import { MobileMenu } from "./mobile-menu";
 import { OffersNav, type OfferLink } from "./offers-nav";
 import { ProductsNav } from "./products-nav";
 import { SavedCount, SavedNavLink } from "./saved-list";
+import { StickyHeader } from "./sticky-header";
 import { ThemeToggle } from "./theme-toggle";
 
 /** Deals, sales and coupons, each only while its page has something to show. */
@@ -41,7 +42,7 @@ async function offerLinks(): Promise<OfferLink[]> {
 export async function SiteHeader() {
   const offers = await offerLinks();
   return (
-    <header data-site-chrome className="border-b border-line bg-bg">
+    <StickyHeader>
       {/* Tight gaps and icon-only links on phones: logo, recent searches, all products, one offers
           icon (or the offers menu) and the theme toggle fit from 375px; at 320px without a
           horizontal scroll (the nav then takes most of the side padding). Relative: the offers
@@ -88,7 +89,7 @@ export async function SiteHeader() {
           </MobileMenu>
         </nav>
       </div>
-    </header>
+    </StickyHeader>
   );
 }
 
