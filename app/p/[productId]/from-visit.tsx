@@ -60,8 +60,8 @@ export function BackLink({ hotBacks }: { hotBacks: HotBacks }) {
 
 /**
  * The similar products of the list the visitor came from, loaded once the page is in the
- * browser. Nothing when the visitor came from neither a search nor a hot list, or nothing is
- * cached for it.
+ * browser; for a visitor who came from neither, or whose list is not cached, our products of the
+ * same category (lib/similar/load.ts). Nothing when there is none.
  */
 export function SimilarFromVisit({
   productId,
@@ -71,7 +71,6 @@ export function SimilarFromVisit({
   categoryId: string | null;
 }) {
   const params = useSearchParams();
-  const fromList = Boolean(params.get("q")?.trim()) || params.get("from") === "hot";
   const query = new URLSearchParams({ id: productId });
   if (categoryId) query.set("category", categoryId);
   for (const key of VISIT_KEYS) for (const value of params.getAll(key)) query.append(key, value);
@@ -79,7 +78,6 @@ export function SimilarFromVisit({
   const [loaded, setLoaded] = useState<{ url: string; data: SimilarData | null } | null>(null);
 
   useEffect(() => {
-    if (!fromList) return;
     let live = true;
     fetch(url)
       .then((res) => (res.ok ? res.json() : { data: null }))
@@ -92,8 +90,8 @@ export function SimilarFromVisit({
     return () => {
       live = false;
     };
-  }, [url, fromList]);
+  }, [url]);
 
-  if (!fromList || loaded?.url !== url) return null;
+  if (loaded?.url !== url) return null;
   return <SimilarProducts data={loaded.data} className="mt-12" />;
 }

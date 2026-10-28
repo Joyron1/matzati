@@ -5,7 +5,14 @@ import { describe, expect, it } from "vitest";
 import { parseProductPage, type AliProduct } from "@/lib/aliexpress/schemas";
 import type { HotProduct } from "@/lib/hot/select";
 import type { CachedResults } from "@/lib/search/store";
-import { SIMILAR_LIMIT, searchProductHref, similarFromHot, similarFromSearch } from "./select";
+import {
+  SIMILAR_LIMIT,
+  searchProductHref,
+  similarFromCatalog,
+  similarFromHot,
+  similarFromSearch,
+  titleWords,
+} from "./select";
 
 const PRODUCTS: AliProduct[] = parseProductPage(
   JSON.parse(readFileSync("fixtures/aliexpress/aliexpress.affiliate.product.query.json", "utf8"))
@@ -209,5 +216,62 @@ describe("similarFromHot", () => {
       list[3].productId,
     ]);
     expect(similarFromHot(list, { ...args, stored: new Map() })).toBeNull();
+  });
+});
+
+describe("similarFromCatalog", () => {
+  const base = PRODUCTS[0];
+  const make = (id: string, title: string, over: Partial<AliProduct> = {}): AliProduct => ({
+    ...base,
+    productId: id,
+    title,
+    currency: "ILS",
+    positiveFeedbackPct: 95,
+    unitsSold: 500,
+    shop: { ...base.shop, id: `shop-${id}` },
+    ...over,
+  });
+  const row = (p: AliProduct, titleHe: string | null = null, checkedAt = CREATED_AT) => ({
+    product: p,
+    titleHe,
+    checkedAt,
+  });
+  const current = row(make("1", "Portable Dehumidifier Quiet"), "מייבש אוויר נייד שקט");
+
+  it("puts titles that share more words first, then by sales", () => {
+    const out = similarFromCatalog(current, [
+      row(make("2", "Electric Kettle", { unitsSold: 9000 })),
+      row(make("3", "Mini Dehumidifier", { unitsSold: 200 })),
+      row(make("4", "Portable Quiet Dehumidifier", { unitsSold: 150 })),
+    ]);
+    expect(out?.items.map((i) => i.productId)).toEqual(["4", "3", "2"]);
+    expect(out?.source).toEqual({ kind: "catalog", machineTitles: false });
+    expect(out?.items[0].href).toBe("/p/4");
+  });
+
+  it("leaves out the page's product, failed filters, other currencies and photoless rows", () => {
+    const out = similarFromCatalog(current, [
+      row(make("1", "Portable Dehumidifier")),
+      row(make("5", "Dehumidifier", { positiveFeedbackPct: 80 })),
+      row(make("6", "Dehumidifier", { unitsSold: 20 })),
+      row(make("7", "Dehumidifier", { currency: "USD" })),
+      row(make("8", "Dehumidifier", { mainImageUrl: "", imageUrls: [] })),
+    ]);
+    expect(out).toBeNull();
+  });
+
+  it("shows at most two of a shop and the oldest check", () => {
+    const shop = { ...base.shop, id: "same" };
+    const out = similarFromCatalog(current, [
+      row(make("2", "Dehumidifier A", { shop }), null, "2026-10-27T00:00:00.000Z"),
+      row(make("3", "Dehumidifier B", { shop }), null, "2026-10-25T00:00:00.000Z"),
+      row(make("4", "Dehumidifier C", { shop })),
+    ]);
+    expect(out?.items.map((i) => i.productId)).toEqual(["2", "3"]);
+    expect(out?.checkedAt).toBe("2026-10-25T00:00:00.000Z");
+  });
+
+  it("strips Hebrew prefixes (the same way on both sides) and stop words", () => {
+    expect([...titleWords("מייבש לבית עם תקע for Home")]).toEqual(["ייבש", "בית", "תקע", "home"]);
   });
 });
