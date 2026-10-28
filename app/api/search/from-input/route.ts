@@ -137,11 +137,13 @@ export async function POST(request: Request): Promise<Response> {
 
       const direct = aliexpressItemId(start);
       const canSpend = () => consumeDailyLlmBudget(db, new Date(), env.dailyCap);
-      if (direct) return aliexpressSimilar(store, direct, canSpend);
+      // `return await` throughout: a returned promise that rejects inside `try` skips the catch, and
+      // the visitor got a bare 500 instead of the Hebrew "unavailable" (2026-10-28).
+      if (direct) return await aliexpressSimilar(store, direct, canSpend);
       const page = await fetchPage(start);
       // A short AliExpress link resolves to its item.
       const resolved = page ? aliexpressItemId(page.url) : null;
-      if (resolved) return aliexpressSimilar(store, resolved, canSpend);
+      if (resolved) return await aliexpressSimilar(store, resolved, canSpend);
       if (isAliexpressShortLink(start)) return fail("unreadable", 422);
 
       const found = page?.html ? productFromHtml(page.html) : { name: null, brand: null };
@@ -150,7 +152,7 @@ export async function POST(request: Request): Promise<Response> {
       if (!(await canSpend())) return fail("capacity", 503);
       const out = await parseFromProductName(llm(LINK_MODEL), name, found.brand);
       await logUsage(store, out);
-      return simpleSearchAnswer(store, out, "unreadable");
+      return await simpleSearchAnswer(store, out, "unreadable");
     }
 
     // --- An image -------------------------------------------------------------------------------
@@ -171,7 +173,7 @@ export async function POST(request: Request): Promise<Response> {
     if (!(await consumeDailyLlmBudget(db, new Date(), env.dailyCap))) return fail("capacity", 503);
     const out = await parseFromImage(llm(IMAGE_MODEL), jpeg);
     await logUsage(store, out);
-    return simpleSearchAnswer(store, out, "not_found");
+    return await simpleSearchAnswer(store, out, "not_found");
   } catch (err) {
     const text = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
     console.error(`[search-from-input] ${text.slice(0, 300)}`);

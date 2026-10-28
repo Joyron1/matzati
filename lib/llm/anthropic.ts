@@ -3,6 +3,15 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import type { z } from "zod";
 import type { LlmProvider, StructuredRequest, StructuredResult } from "./provider";
 
+/**
+ * Models released after Claude Opus 4.6 reject any temperature but 1 with a 400 (the SDK's
+ * `temperature` doc); the link and photo searches sent 0 to Haiku and Sonnet 5.5 and failed every
+ * time (2026-10-28). Those models get no temperature; older ones keep the caller's.
+ */
+export function acceptsTemperature(model: string): boolean {
+  return !/^claude-(?:fable|mythos|(?:opus|sonnet|haiku)-(?:[5-9]|4-[7-9]))/.test(model);
+}
+
 export class AnthropicProvider implements LlmProvider {
   readonly name = "anthropic" as const;
   private readonly client: Anthropic;
@@ -42,7 +51,9 @@ export class AnthropicProvider implements LlmProvider {
           },
         ],
         output_config: { format },
-        ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
+        ...(req.temperature !== undefined && acceptsTemperature(this.model)
+          ? { temperature: req.temperature }
+          : {}),
       },
       {
         ...(req.timeoutMs !== undefined ? { timeout: req.timeoutMs } : {}),
