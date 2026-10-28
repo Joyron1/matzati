@@ -3,7 +3,7 @@
 // approving a candidate (shown on the site at once, given the next Telegram slot), posting what is
 // due to Telegram (cron every 15 minutes), and the owner's motion video per product. Server-only.
 import "server-only";
-import { unstable_cache, updateTag } from "next/cache";
+import { revalidateTag, unstable_cache, updateTag } from "next/cache";
 import { getProductDetails } from "@/lib/aliexpress/affiliate";
 import { AliExpressClient } from "@/lib/aliexpress/client";
 import { productForPage } from "@/lib/search/server";
@@ -28,7 +28,7 @@ import { costUsd } from "@/lib/llm/pricing";
 import { runFinder, worstCaseCostUsd, type FinderResult } from "./finder/run";
 import { ownerCouponAmount, writePosts, type CouponInfo } from "./finder/write";
 import { readAgentSettings, type AgentSettings } from "./settings";
-import { israelParts, nextSlot } from "./schedule";
+import { israelParts, queueEndSlot } from "./schedule";
 import {
   decideCandidate,
   dueTelegramPosts,
@@ -45,6 +45,19 @@ import type { Candidate } from "./store";
 
 /** Expired whenever the approved list changes, so /recommended and the home page show it. */
 export const RECOMMENDED_TAG = "recommended";
+
+/**
+ * Expires the approved list at once. updateTag works only inside a Server Action and throws in a
+ * route handler, which made the product page's button (a route) fail right after approving
+ * (2026-10-28); there revalidateTag with an immediate expiry does the same.
+ */
+function expireRecommended(): void {
+  try {
+    updateTag(RECOMMENDED_TAG);
+  } catch {
+    revalidateTag(RECOMMENDED_TAG, { expire: 0 });
+  }
+}
 
 function agentLlm(settings: AgentSettings): LlmProvider | null {
   try {
@@ -277,11 +290,11 @@ export async function approveCandidate(
     const { settings } = await readAgentSettings(db);
     if (settings.telegramEnabled && telegramConfig()) {
       const now = new Date();
-      at = nextSlot(now, await takenTelegramSlots(db, now));
+      at = queueEndSlot(now, await takenTelegramSlots(db, now));
     }
   }
   await decideCandidate(db, id, "approved", postHe, telegram ? at : undefined);
-  updateTag(RECOMMENDED_TAG);
+  expireRecommended();
   return { ok: true, telegramAt: telegram ? at : undefined };
 }
 
@@ -305,7 +318,7 @@ export async function publishNow(id: string, postHe?: string): Promise<PublishNo
   const post = postHe ?? candidate.post_he;
   if (candidate.status === "pending") {
     await decideCandidate(db, id, "approved", post, null);
-    updateTag(RECOMMENDED_TAG);
+    expireRecommended();
   }
   const result = await postProduct(config, await productPostOf(candidate, post));
   await recordTelegram(db, id, result);
@@ -336,7 +349,7 @@ async function productPostOf(c: Candidate, postHe: string): Promise<ProductPost>
 /** Rejects a pending candidate, or takes an approved one off the site (never proposed again). */
 export async function rejectCandidate(id: string): Promise<void> {
   await decideCandidate(serviceClient(), id, "rejected");
-  updateTag(RECOMMENDED_TAG);
+  expireRecommended();
 }
 
 // --- The owner's videos (bucket agent-media, private) -------------------------------------------
@@ -411,16 +424,23 @@ export async function publishDue(now = new Date()): Promise<PublishSummary> {
 // --- "הוספה למומלצים" from the site (owner request 2026-10-27) -----------------------------------
 
 export type RecommendNowResult =
-  | { ok: true; telegram: "posted" | "not-connected" | "failed"; error?: string }
+  | {
+      ok: true;
+      /** scheduled: given the slot after every post already queued (`at`); off: the admin's
+       *  Telegram switch is off; not-connected: no channel configured. */
+      telegram: "scheduled" | "off" | "not-connected";
+      at?: string;
+    }
   | { ok: false; reason: "not-production" | "missing" | "already" };
 
 /**
  * Adds a product the admin found on the site (a search's results, the hot lists, recent searches:
- * its /p page) to "המומלצים שלנו" and posts it to the Telegram channel at once, in the finder's
- * format: every photo and video (one productdetail.get), the post written by the admin's model
- * within the day's budget (else from the data), the affiliate link. A product already proposed is
- * approved and posted as it is; one already posted is left alone. Production only (dev and
- * preview share the database and the channel).
+ * its /p page) to "המומלצים שלנו" and queues it for the Telegram channel at the END of the queue
+ * (owner request 2026-10-28: after every post already scheduled, never posted at once), in the
+ * finder's format: every photo and video (one productdetail.get), the post written by the admin's
+ * model within the day's budget (else from the data), the affiliate link. A product already proposed
+ * is approved as it is; one already scheduled keeps its slot; one already posted is left alone.
+ * Production only (dev and preview share the database and the channel).
  */
 export async function recommendNow(productId: string): Promise<RecommendNowResult> {
   if (deployEnv() !== "production") return { ok: false, reason: "not-production" };
@@ -490,16 +510,25 @@ export async function recommendNow(productId: string): Promise<RecommendNowResul
   }
 
   const c = (await getCandidate(db, id))!;
-  if (c.status !== "approved") {
-    await decideCandidate(db, id, "approved", c.post_he, null);
-    updateTag(RECOMMENDED_TAG);
+  if (c.status === "approved" && c.telegram_due_at) {
+    return { ok: true, telegram: "scheduled", at: c.telegram_due_at };
   }
-  const published = await publishNow(id);
-  if (published.ok) return { ok: true, telegram: "posted" };
-  if (published.reason === "not-connected") return { ok: true, telegram: "not-connected" };
-  return {
-    ok: true,
-    telegram: "failed",
-    error: "error" in published ? published.error : published.reason,
-  };
+  const { settings } = await readAgentSettings(db);
+  if (!telegramConfig()) {
+    await decideCandidate(db, id, "approved", c.post_he);
+    expireRecommended();
+    return { ok: true, telegram: "not-connected" };
+  }
+  if (!settings.telegramEnabled) {
+    await decideCandidate(db, id, "approved", c.post_he);
+    expireRecommended();
+    return { ok: true, telegram: "off" };
+  }
+  const now = new Date();
+  const at = queueEndSlot(now, await takenTelegramSlots(db, now));
+  await decideCandidate(db, id, "approved", c.post_he, at);
+  expireRecommended();
+  return at
+    ? { ok: true, telegram: "scheduled", at: at.toISOString() }
+    : { ok: true, telegram: "off" };
 }

@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { isQuietTime, israelParts, israelTime, nextSlot, slotLabel } from "./schedule";
+import {
+  isQuietTime,
+  israelParts,
+  israelTime,
+  nextSlot,
+  queueEndSlot,
+  slotLabel,
+} from "./schedule";
 
 // 2026-10-23 is a Friday; Israel is UTC+3 until 2026-10-25 (then UTC+2).
 describe("agent schedule", () => {
@@ -30,5 +37,16 @@ describe("agent schedule", () => {
   it("leaves time to look again before a slot", () => {
     const at = nextSlot(israelTime(2026, 10, 26, 9, 55), []);
     expect(at && slotLabel(at)).toBe("יום ב׳ 15:00, 26.10");
+  });
+
+  it("puts a new post after every scheduled one, never into an earlier gap", () => {
+    const now = israelTime(2026, 10, 27, 9, 0);
+    const scheduled = [israelTime(2026, 10, 27, 15, 0), israelTime(2026, 10, 28, 20, 0)];
+    // Today 10:00 and 20:00 are free, but the queue ends on Wednesday 20:00.
+    const at = queueEndSlot(now, scheduled);
+    expect(at && slotLabel(at)).toBe("יום ה׳ 10:00, 29.10");
+    // An empty queue: the next free slot.
+    const first = queueEndSlot(now, []);
+    expect(first && slotLabel(first)).toBe("יום ג׳ 10:00, 27.10");
   });
 });

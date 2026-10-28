@@ -102,6 +102,20 @@ export function nextSlot(
   return null;
 }
 
+/**
+ * The first free slot after every post already scheduled (owner request 2026-10-28: a product added
+ * to the recommended list goes to the end of the Telegram queue, never into a gap before posts
+ * scheduled earlier). With nothing scheduled, the next free slot.
+ */
+export function queueEndSlot(
+  now: Date,
+  taken: readonly Date[],
+  slots: readonly string[] = TELEGRAM_SLOTS,
+): Date | null {
+  const last = taken.reduce((max, d) => Math.max(max, d.getTime()), 0);
+  return nextSlot(last > now.getTime() ? new Date(last) : now, taken, slots);
+}
+
 /** "יום ג׳ 20:00, 27.10" for the admin. */
 export function slotLabel(date: Date): string {
   const p = israelParts(date);

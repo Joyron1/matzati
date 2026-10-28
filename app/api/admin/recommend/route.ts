@@ -1,15 +1,15 @@
 // The admin's "הוספה למומלצים" on a product page (owner request 2026-10-27). GET: whether the
 // visitor is a signed-in admin and where the product stands (none, pending, approved, posted); the
 // button asks only when the admin hint cookie is set (components/admin-recommend.tsx), so visitors
-// never call it. POST: adds the product to "המומלצים שלנו" and posts it to the Telegram channel
-// (recommendNow). Signed-in admins only; never cached.
+// never call it. POST: adds the product to "המומלצים שלנו" and queues it at the end of the Telegram
+// queue (recommendNow, owner request 2026-10-28). Signed-in admins only; never cached.
 import { z } from "zod";
 import { getAdminUser } from "@/lib/admin/auth";
 import { recommendNow } from "@/lib/agents/server";
 import { getCandidateByProduct } from "@/lib/agents/store";
 import { serviceClient } from "@/lib/supabase/server";
 
-// productdetail.get, one writer call and the Telegram album (up to about 40 s).
+// productdetail.get and one writer call (up to about 30 s).
 export const maxDuration = 60;
 
 const noStore = { "Cache-Control": "no-store" };
@@ -24,12 +24,17 @@ export async function GET(request: Request): Promise<Response> {
     ? "none"
     : c.telegram_posted_at
       ? "posted"
-      : c.status === "approved"
-        ? "approved"
-        : c.status === "pending"
-          ? "pending"
-          : "rejected";
-  return Response.json({ admin: true, state }, { headers: noStore });
+      : c.status === "approved" && c.telegram_due_at
+        ? "scheduled"
+        : c.status === "approved"
+          ? "approved"
+          : c.status === "pending"
+            ? "pending"
+            : "rejected";
+  return Response.json(
+    { admin: true, state, ...(state === "scheduled" ? { at: c!.telegram_due_at } : {}) },
+    { headers: noStore },
+  );
 }
 
 export async function POST(request: Request): Promise<Response> {

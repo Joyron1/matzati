@@ -261,7 +261,7 @@ export async function bulkApproveAction(formData: FormData): Promise<void> {
   let done = 0;
   try {
     const { getCandidate } = await import("@/lib/agents/store");
-    // One after another: each takes the next free Telegram slot.
+    // One after another: each goes to the end of the Telegram queue.
     for (const id of ids.data) {
       const c = await getCandidate(serviceClient(), id);
       if (!c || c.status !== "pending") continue;
