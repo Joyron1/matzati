@@ -4,12 +4,12 @@
 // (11.11, from the admin's sales calendar) and a join bar fixed to the bottom of the screen.
 // Only what the group really does: the thresholds come from FILTERS, no member count or
 // testimonial we do not have.
+import Image from "next/image";
 import Link from "next/link";
 import { Baby, ChevronDown, Filter, Plug, ShoppingCart, Sparkles, VolumeX } from "lucide-react";
 import { saleCalendarHref } from "@/components/sale-card";
 import { SaleCountdown } from "@/components/sale-countdown";
 import { card } from "@/components/styles";
-import { ChannelPreview } from "@/components/telegram-join";
 import { AFFILIATE_SECTION_ID, LEGAL_PATHS } from "@/lib/config/legal";
 import type { Deal } from "@/lib/types";
 import { FILTERS } from "@/lib/ranking/config";
@@ -63,10 +63,31 @@ function Hero({ sale }: { sale: LandingSale | null }) {
           </a>
         )}
       </div>
-      <div aria-hidden className="mx-auto w-full max-w-sm rounded-card bg-tg-soft p-5 shadow-soft">
-        <ChannelPreview />
-      </div>
+      <SamplePost />
     </section>
+  );
+}
+
+// A real post of the group (screenshot of t.me/s/matzati_deals, 2026-11-01: its first row of photos
+// and its whole text). Its price and coupon were true when it was posted, and the caption says so.
+function SamplePost() {
+  return (
+    <figure className="mx-auto w-full max-w-sm">
+      <div className="rounded-card bg-tg-soft p-3 shadow-soft">
+        <Image
+          src="/telegram/sample-post.webp"
+          width={714}
+          height={1290}
+          priority
+          sizes="(min-width: 640px) 360px, 90vw"
+          alt="פוסט מהקבוצה: מטגנת אוויר עם תמונות, מחיר, קוד קופון, משוב ומספר מכירות, וקישור לקנייה באלי אקספרס"
+          className="w-full rounded-2xl"
+        />
+      </div>
+      <figcaption className="mt-2 text-center text-sm text-muted">
+        פוסט אמיתי מהקבוצה. המחיר והקופון נכונים לזמן הפרסום.
+      </figcaption>
+    </figure>
   );
 }
 
