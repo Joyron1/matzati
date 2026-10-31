@@ -3,6 +3,7 @@
 // props (the page loads it), so the view never reads the database itself.
 import Link from "next/link";
 import { ChevronLeft, CloudOff, Inbox, Search } from "lucide-react";
+import { AdminCouponsTelegram } from "@/components/admin-coupons-telegram";
 import { API_CODE_DISCLAIMER, ApiOffer } from "@/components/api-promo-code";
 import { CouponCard, CouponCodeRow, CouponValidity } from "@/components/coupon-card";
 import { ProductImage } from "@/components/product-image";
@@ -214,6 +215,7 @@ export function CouponsView({
           אקספרס, וההנחה לפי תנאי הקופון.
         </p>
       </div>
+      <AdminCouponsTelegram />
       <OwnerCoupons coupons={coupons} now={now} />
       <ApiCodes codes={apiCodes} now={now} />
       <HowToUse />

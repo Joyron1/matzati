@@ -1423,12 +1423,17 @@ export async function clickOutHome(src: string): Promise<string> {
       ),
     )
     .catch((err) => logError("go", err));
-  const [link] = await Promise.all([
-    cachedHomeLink().catch((err) => {
-      logError("go", err);
-      return ALIEXPRESS_HOME;
-    }),
-    log,
-  ]);
+  const [link] = await Promise.all([homeAffiliateLink(), log]);
   return link;
+}
+
+/**
+ * Our affiliate link to AliExpress's home page without logging a click (the Telegram coupons post
+ * links straight to it, as product posts do); the plain home page when none can be made.
+ */
+export async function homeAffiliateLink(): Promise<string> {
+  return cachedHomeLink().catch((err) => {
+    logError("go", err);
+    return ALIEXPRESS_HOME;
+  });
 }
