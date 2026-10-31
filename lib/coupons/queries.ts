@@ -62,7 +62,7 @@ function logError(where: string, err: unknown) {
 // Errors are thrown inside, so a failure is never cached.
 const cachedPublished = unstable_cache(
   async (): Promise<Coupon[]> => selectPublishedCoupons(publicClient(), new Date()),
-  ["published-coupons"],
+  ["published-coupons", "2026-11-01"], // the date: rows added in SQL (the 11.11 codes) read fresh after the deploy
   { revalidate: LAYOUT_DATA_REVALIDATE_SECONDS, tags: [COUPONS_TAG] },
 );
 
@@ -123,7 +123,7 @@ export const hasPublishedCoupons = unstable_cache(
       return false;
     }
   },
-  ["has-published-coupons"],
+  ["has-published-coupons", "2026-11-01"],
   { revalidate: LAYOUT_DATA_REVALIDATE_SECONDS, tags: [COUPONS_TAG] },
 );
 

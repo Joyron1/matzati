@@ -5,6 +5,7 @@
 import "server-only";
 import { APIError as LlmApiError } from "@anthropic-ai/sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { unstable_cache } from "next/cache";
 import { after } from "next/server";
 import { cache } from "react";
 import { z } from "zod";
@@ -1386,4 +1387,48 @@ export async function clickOut(
     logError("go", err);
     return null;
   }
+}
+
+/** AliExpress's home page, the target of /go/aliexpress (sitewide coupons, owner request 2026-11-01). */
+export const ALIEXPRESS_HOME = "https://www.aliexpress.com/";
+/** What /go/aliexpress logs as the clicked "product" in `clicks`. */
+export const HOME_CLICK_ID = "aliexpress_home";
+
+// One link.generate call (type 0, our tracking id) shared for a week. A failure throws, so it is
+// never cached and the next click asks again (verified 2026-11-01: an s.click.aliexpress.com link).
+const cachedHomeLink = unstable_cache(
+  async () => {
+    const [link] = await generateLinks(aliClient(), [ALIEXPRESS_HOME]);
+    const safe = affiliateUrl(link?.promotionLink);
+    if (!safe) throw new Error("link.generate gave no link for the home page");
+    return safe;
+  },
+  ["aliexpress-home-link", "v1"],
+  { revalidate: 7 * 24 * 3600 },
+);
+
+/**
+ * /go/aliexpress: logs the click (product_id `HOME_CLICK_ID`) and returns our affiliate link to
+ * AliExpress's home page. When no link can be made it returns the plain home page, so the
+ * visitor still gets there (that click earns nothing; the error is logged).
+ */
+export async function clickOutHome(src: string): Promise<string> {
+  const log = requestIsOwner()
+    .then((owner) =>
+      new SupabaseStore(serviceClient()).logClick(
+        HOME_CLICK_ID,
+        CLICK_SRC.test(src) ? src : "other",
+        NO_CLICK_REF,
+        owner,
+      ),
+    )
+    .catch((err) => logError("go", err));
+  const [link] = await Promise.all([
+    cachedHomeLink().catch((err) => {
+      logError("go", err);
+      return ALIEXPRESS_HOME;
+    }),
+    log,
+  ]);
+  return link;
 }

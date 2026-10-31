@@ -18,7 +18,8 @@ import { RESULTS_FIRST_VIEW } from "@/lib/config/site";
 export const COUPONS_TITLE = "קופונים לאלי אקספרס";
 
 const sectionTitle = "font-display text-2xl sm:text-3xl";
-const grid = "grid gap-4 md:grid-cols-2 lg:grid-cols-3";
+// grid-cols-1 (minmax(0, 1fr)): a card never widens its track past the screen.
+const grid = "grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3";
 
 function OwnerCoupons({ coupons, now }: { coupons: PublicCoupons | null; now: Date }) {
   if (coupons === null) {
@@ -52,7 +53,7 @@ function OwnerCoupons({ coupons, now }: { coupons: PublicCoupons | null; now: Da
         {active.length > 0 ? (
           <ul className={grid}>
             {active.map((coupon) => (
-              <li key={coupon.id} className="grid">
+              <li key={coupon.id} className="grid grid-cols-1">
                 <CouponCard coupon={coupon} now={now} />
               </li>
             ))}
@@ -70,7 +71,7 @@ function OwnerCoupons({ coupons, now }: { coupons: PublicCoupons | null; now: Da
           </h2>
           <ul className={grid}>
             {upcoming.map((coupon) => (
-              <li key={coupon.id} className="grid">
+              <li key={coupon.id} className="grid grid-cols-1">
                 <CouponCard coupon={coupon} now={now} />
               </li>
             ))}
@@ -161,7 +162,7 @@ function ApiCodes({ codes, now }: { codes: ApiCodeProduct[] | null; now: Date })
       ) : (
         <ul className={grid}>
           {codes.map((item) => (
-            <li key={item.productId} className="grid">
+            <li key={item.productId} className="grid grid-cols-1">
               <ApiCodeCard item={item} now={now} />
             </li>
           ))}

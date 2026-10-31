@@ -2,13 +2,14 @@
 // validity line is computed from the `now` prop, so the HTML is final and never re-rendered on
 // the client (only CopyButton is interactive).
 import Link from "next/link";
-import { ChevronDown, ChevronLeft, Search, TicketPercent } from "lucide-react";
+import { ChevronDown, ChevronLeft, ExternalLink, Search, TicketPercent } from "lucide-react";
 import { couponTiming, minSpendText, OWNER_COUPON_NOTE, timeOfDay } from "@/lib/coupons/display";
 import type { Coupon } from "@/lib/coupons/types";
 import { lastCoveredInstant } from "@/lib/deals/time";
 import { formatShortDate } from "@/lib/format";
 import { CopyButton } from "./copy-button";
-import { btnMd, btnSecondary, card } from "./styles";
+import { AffiliateNoteLink } from "./buy-button";
+import { btnMd, btnPrimary, btnSecondary, card } from "./styles";
 
 export interface CouponCardProps {
   coupon: Coupon;
@@ -123,7 +124,8 @@ export function CouponCodeRow({ code, className = "" }: { code: string; classNam
 }
 
 function CouponLink({ coupon }: { coupon: Coupon }) {
-  // A sitewide coupon has no product to open; it never links to AliExpress directly.
+  // A sitewide coupon has no product to open: it goes to AliExpress's home page through our
+  // affiliate link (/go/aliexpress, owner request 2026-11-01), never a direct AliExpress link.
   if (coupon.scope === "product" && coupon.product_id) {
     return (
       <Link
@@ -137,10 +139,25 @@ function CouponLink({ coupon }: { coupon: Coupon }) {
     );
   }
   return (
-    <Link href="/" className={`${btnSecondary} ${btnMd} mt-auto self-start`}>
-      <Search aria-hidden className="size-4" />
-      לחיפוש מוצר
-    </Link>
+    <div className="mt-auto flex flex-wrap items-start gap-3">
+      <div className="flex flex-col">
+        <a
+          href="/go/aliexpress?src=coupons"
+          target="_blank"
+          rel="sponsored nofollow noopener"
+          className={`${btnPrimary} ${btnMd}`}
+        >
+          לקנייה באלי אקספרס
+          <ExternalLink aria-hidden className="size-4 shrink-0" />
+          <span className="sr-only">(נפתח בכרטיסייה חדשה)</span>
+        </a>
+        <AffiliateNoteLink className="self-center" />
+      </div>
+      <Link href="/" className={`${btnSecondary} ${btnMd}`}>
+        <Search aria-hidden className="size-4" />
+        לחיפוש מוצר
+      </Link>
+    </div>
   );
 }
 
