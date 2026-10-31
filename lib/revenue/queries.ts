@@ -1,65 +1,61 @@
 // The admin's revenue page (owner request 2026-10-19): AliExpress's orders for our links and the
-// clicks to AliExpress we counted, over REVENUE_DAYS. Server-only; admin pages only.
+// clicks to AliExpress we counted, over a range of Israel days (lib/revenue/range.ts, owner
+// request 2026-10-29). Server-only; admin pages only.
 import "server-only";
 import { unstable_cache } from "next/cache";
 import { AliExpressClient } from "@/lib/aliexpress/client";
+import { AliExpressError } from "@/lib/aliexpress/errors";
 import { listOrders, type AffiliateOrder } from "@/lib/aliexpress/orders";
-import { aliexpressConfig } from "@/lib/env";
+import { aliexpressConfig, usdIlsFallback } from "@/lib/env";
+import { fetchUsdIlsRate, type UsdIlsRate } from "@/lib/fx/boi";
 import { serviceClient } from "@/lib/supabase/server";
-
-export const REVENUE_DAYS = 30;
-
-const DAY_MS = 86_400_000;
+import { orderWindows, rangeInstants, type RevenueRange } from "./range";
 
 /**
- * Orders paid in the last REVENUE_DAYS (4 order.list calls when there are none), cached an hour so
- * reloading the page does not call AliExpress again; null when AliExpress could not be read.
+ * Orders paid between two instants, a WINDOW_DAYS window at a time (4 order.list calls a window
+ * when there are none), cached an hour per range so reloading the page does not call AliExpress
+ * again. A failure throws, so it is never cached: the next load asks again (2026-10-29: a failed
+ * read was cached as "unavailable" for an hour, and the page showed no orders and no commission).
  */
 const cachedOrders = unstable_cache(
-  async (): Promise<AffiliateOrder[] | null> => {
-    const end = new Date();
-    try {
-      return await listOrders(new AliExpressClient(aliexpressConfig()), {
-        start: new Date(end.getTime() - REVENUE_DAYS * DAY_MS),
-        end,
-      });
-    } catch (err) {
-      const text = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
-      console.error(`[revenue] order.list failed: ${text.slice(0, 300)}`);
-      return null;
+  async (startIso: string, endIso: string): Promise<AffiliateOrder[]> => {
+    const client = new AliExpressClient(aliexpressConfig());
+    const seen = new Map<string, AffiliateOrder>();
+    for (const w of orderWindows(new Date(startIso), new Date(endIso))) {
+      for (const o of await listOrders(client, w)) seen.set(o.id, o);
     }
+    return [...seen.values()].sort((a, b) => (b.paidTime ?? "").localeCompare(a.paidTime ?? ""));
   },
-  // Key version 2: amounts in cents (2026-10-23), so amounts cached before are not served.
-  ["affiliate-orders", "2"],
+  // Key version 3: a range per entry (2026-10-29).
+  ["affiliate-orders", "3"],
   { revalidate: 3600 },
 );
 
-export interface ClickCounts {
-  days30: number;
-  days7: number;
+/** Why the orders could not be read, for the page: the error's kind only, never its details. */
+export type OrdersError = "rate_limit" | "auth" | "network" | "other";
+
+function ordersErrorOf(err: unknown): OrdersError {
+  if (err instanceof AliExpressError) {
+    if (err.kind === "rate_limit" || err.kind === "auth") return err.kind;
+    if (err.kind === "network" || err.kind === "server") return "network";
+  }
+  return "other";
 }
 
 /** Clicks to AliExpress through our links (/go) on the live site, not the owner's; null on error. */
-async function clickCounts(now: Date): Promise<ClickCounts | null> {
-  const db = serviceClient();
-  const since = (days: number) => new Date(now.getTime() - days * DAY_MS).toISOString();
-  const count = async (days: number) => {
-    const { count, error } = await db
-      .from("clicks")
-      .select("id", { count: "exact", head: true })
-      .eq("env", "production")
-      .eq("owner", false)
-      .gte("created_at", since(days));
-    if (error) throw new Error(error.message);
-    return count ?? 0;
-  };
-  try {
-    const [days30, days7] = await Promise.all([count(REVENUE_DAYS), count(7)]);
-    return { days30, days7 };
-  } catch (err) {
-    console.error(`[revenue] clicks: ${String(err).slice(0, 300)}`);
+async function clickCount(start: Date, end: Date): Promise<number | null> {
+  const { count, error } = await serviceClient()
+    .from("clicks")
+    .select("id", { count: "exact", head: true })
+    .eq("env", "production")
+    .eq("owner", false)
+    .gte("created_at", start.toISOString())
+    .lt("created_at", end.toISOString());
+  if (error) {
+    console.error(`[revenue] clicks: ${error.message.slice(0, 300)}`);
     return null;
   }
+  return count ?? 0;
 }
 
 /** Our Hebrew (or stored) titles of the ordered products, by product id. */
@@ -78,16 +74,45 @@ async function titlesOf(ids: string[]): Promise<Record<string, string>> {
   );
 }
 
-export interface RevenueData {
-  orders: AffiliateOrder[] | null;
-  clicks: ClickCounts | null;
-  titles: Record<string, string>;
-  /** When the orders were read (the cache may be up to an hour old: then "now" is earlier). */
-  loadedAt: string;
+/** USD_ILS_FALLBACK, or its default when the configured value is invalid. */
+function fallbackRate(): number {
+  try {
+    return usdIlsFallback();
+  } catch {
+    return usdIlsFallback({ ...process.env, USD_ILS_FALLBACK: undefined });
+  }
 }
 
-export async function loadRevenue(now = new Date()): Promise<RevenueData> {
-  const [orders, clicks] = await Promise.all([cachedOrders(), clickCounts(now)]);
+export interface RevenueData {
+  orders: AffiliateOrder[] | null;
+  /** Set when `orders` is null. */
+  ordersError: OrdersError | null;
+  clicks: number | null;
+  titles: Record<string, string>;
+  /** The day's USD→ILS rate, for the amounts in shekels (lib/fx/boi.ts, never throws). */
+  fx: UsdIlsRate;
+}
+
+export async function loadRevenue(range: RevenueRange, now = new Date()): Promise<RevenueData> {
+  const { start, end } = rangeInstants(range, now);
+  // A range that ends today ends now, which changes every second; the cache key ends at the hour.
+  const endKey =
+    end.getTime() >= now.getTime()
+      ? new Date(Math.ceil(now.getTime() / 3_600_000) * 3_600_000)
+      : end;
+  const ordersRead = cachedOrders(start.toISOString(), endKey.toISOString()).then(
+    (orders) => ({ orders, ordersError: null }),
+    (err: unknown) => {
+      const text = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+      console.error(`[revenue] order.list failed: ${text.slice(0, 300)}`);
+      return { orders: null, ordersError: ordersErrorOf(err) };
+    },
+  );
+  const [{ orders, ordersError }, clicks, fx] = await Promise.all([
+    ordersRead,
+    clickCount(start, end),
+    fetchUsdIlsRate(fallbackRate()),
+  ]);
   const ids = [...new Set((orders ?? []).flatMap((o) => (o.productId ? [o.productId] : [])))];
-  return { orders, clicks, titles: await titlesOf(ids), loadedAt: now.toISOString() };
+  return { orders, ordersError, clicks, titles: await titlesOf(ids), fx };
 }
