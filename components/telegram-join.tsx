@@ -69,7 +69,7 @@ function JoinCard({
 }
 
 /** A post of the channel, drawn: a photo, text lines and the buy line. */
-function ChannelPreview() {
+export function ChannelPreview() {
   return (
     <div className="mx-auto w-full max-w-[17rem] rounded-2xl bg-surface p-2 shadow-soft">
       <div className="grid grid-cols-3 gap-1">

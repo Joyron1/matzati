@@ -11,7 +11,8 @@ import { useSavedList } from "./save-button";
 // do not load the composer's module).
 const COMPOSER_INPUT_ID = "composer-q";
 
-const HIDDEN_ON = /^\/(admin|dev)(\/|$)/;
+// /telegram is a campaign page with its own join bar fixed to the bottom.
+const HIDDEN_ON = /^\/(admin|dev|telegram)(\/|$)/;
 
 const TABS = [
   { href: "/", label: "בית", icon: Home, match: (p: string) => p === "/" },

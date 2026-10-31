@@ -7,15 +7,17 @@
 // opens the Telegram app.
 import { joinButton, TelegramMark } from "@/components/telegram-mark";
 
-/** White on the blue band (`light`), else Telegram's blue. */
+/** White on the blue band (`light`), else Telegram's blue; `compact` for the sticky bar. */
 export function JoinButton({
   href,
   label,
   light,
+  compact,
 }: {
   href: string;
   label: string;
   light?: boolean;
+  compact?: boolean;
 }) {
   return (
     <a
@@ -23,12 +25,14 @@ export function JoinButton({
       rel="noopener"
       onClick={() => {
         const fbq = (window as unknown as { fbq?: (...args: unknown[]) => void }).fbq;
-        if (typeof fbq === "function") fbq("track", "Lead", { content_name: "telegram_group" });
+        if (typeof fbq === "function") fbq("track", "Lead", { content_name: "telegram_deals" });
       }}
       className={
         light
           ? "inline-flex h-14 w-full items-center justify-center gap-2 rounded-[10px] bg-white px-8 text-base font-bold text-tg-ink hover:brightness-95 sm:w-auto"
-          : `${joinButton} h-14 text-base sm:w-auto sm:px-10`
+          : compact
+            ? `${joinButton} sm:w-auto sm:px-8`
+            : `${joinButton} h-14 text-base sm:w-auto sm:px-10`
       }
     >
       <TelegramMark className="size-6" />
