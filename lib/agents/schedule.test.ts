@@ -25,28 +25,28 @@ describe("agent schedule", () => {
   });
 
   it("gives the next free slot, never in the quiet time, never twice", () => {
-    // Friday 16:00: 15:00 passed and 20:00 is quiet; Saturday's 10:00 and 15:00 too; Saturday
-    // 20:00 is the first.
+    // Friday 16:00: 15:00 passed and 18:00-22:00 are quiet; Saturday's 09:00-18:00 too; Saturday
+    // 20:00 is the first, then 22:00.
     const friday = israelTime(2026, 10, 23, 16, 0);
     const first = nextSlot(friday, []);
     expect(first && slotLabel(first)).toBe("יום ש׳ 20:00, 24.10");
     const second = nextSlot(friday, [first!]);
-    expect(second && slotLabel(second)).toBe("יום א׳ 10:00, 25.10");
+    expect(second && slotLabel(second)).toBe("יום ש׳ 22:00, 24.10");
   });
 
   it("leaves time to look again before a slot", () => {
-    const at = nextSlot(israelTime(2026, 10, 26, 9, 55), []);
-    expect(at && slotLabel(at)).toBe("יום ב׳ 15:00, 26.10");
+    const at = nextSlot(israelTime(2026, 10, 26, 8, 55), []);
+    expect(at && slotLabel(at)).toBe("יום ב׳ 12:00, 26.10");
   });
 
   it("puts a new post after every scheduled one, never into an earlier gap", () => {
     const now = israelTime(2026, 10, 27, 9, 0);
     const scheduled = [israelTime(2026, 10, 27, 15, 0), israelTime(2026, 10, 28, 20, 0)];
-    // Today 10:00 and 20:00 are free, but the queue ends on Wednesday 20:00.
+    // Today 12:00 and 18:00 are free, but the queue ends on Wednesday 20:00.
     const at = queueEndSlot(now, scheduled);
-    expect(at && slotLabel(at)).toBe("יום ה׳ 10:00, 29.10");
+    expect(at && slotLabel(at)).toBe("יום ד׳ 22:00, 28.10");
     // An empty queue: the next free slot.
     const first = queueEndSlot(now, []);
-    expect(first && slotLabel(first)).toBe("יום ג׳ 10:00, 27.10");
+    expect(first && slotLabel(first)).toBe("יום ג׳ 12:00, 27.10");
   });
 });

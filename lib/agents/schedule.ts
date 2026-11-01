@@ -3,8 +3,12 @@
 
 export const ISRAEL_TZ = "Asia/Jerusalem";
 
-/** Telegram's daily slots (Israel time); at most one post per slot. */
-export const TELEGRAM_SLOTS = ["10:00", "15:00", "20:00"] as const;
+/**
+ * Telegram's daily slots (Israel time); at most one post per slot. Six a day (owner request
+ * 2026-11-01; was 10:00, 15:00, 20:00): morning commute, lunch, end of the work day, the way home,
+ * the evening's peak of scrolling, and before sleep.
+ */
+export const TELEGRAM_SLOTS = ["09:00", "12:00", "15:00", "18:00", "20:00", "22:00"] as const;
 
 /** A slot sooner than this after the approval is skipped (time to look at the post again). */
 export const MIN_LEAD_MS = 10 * 60_000;
