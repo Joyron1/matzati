@@ -1,5 +1,5 @@
 // The weekly category poll in the channel (owner request 2026-10-25): "which category would you
-// like to see products from this week", so the owner knows what to post. Sunday at 12:00 Israel
+// like to see products from this week", so the owner knows what to post. Sunday at 12:30 Israel
 // time, from the agents' cron (every 15 minutes) when the admin switched it on. Anonymous (a
 // channel allows nothing else) and multiple-choice; 9 of the catalog's categories (alternating
 // halves week by week, so all are asked about) and "משהו אחר". Pure parts tested.
@@ -21,15 +21,16 @@ export function pollOptions(now: Date): string[] {
   return [...options, POLL_OTHER];
 }
 
-/** This week's poll time: the last Sunday 12:00 Israel time at or before `now`. */
+/** This week's poll time: the last Sunday 12:30 Israel time (owner request 2026-11-01: was 12:00, the
+ * time of a product post) at or before `now`. */
 export function weeklySlot(now: Date): Date {
   const day = israelParts(now).weekday; // 0 = Sunday
   const sunday = new Date(now.getTime() - day * 24 * 60 * 60_000);
-  const at = fromIsraelLocal(`${toIsraelLocal(sunday).slice(0, 10)}T12:00`)!;
+  const at = fromIsraelLocal(`${toIsraelLocal(sunday).slice(0, 10)}T12:30`)!;
   return at.getTime() <= now.getTime()
     ? at
     : fromIsraelLocal(
-        `${toIsraelLocal(new Date(sunday.getTime() - 7 * 24 * 60 * 60_000)).slice(0, 10)}T12:00`,
+        `${toIsraelLocal(new Date(sunday.getTime() - 7 * 24 * 60 * 60_000)).slice(0, 10)}T12:30`,
       )!;
 }
 

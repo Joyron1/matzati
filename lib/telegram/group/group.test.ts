@@ -76,13 +76,13 @@ describe("the caption", () => {
 });
 
 describe("the weekly poll", () => {
-  it("is due once Sunday 12:00 Israel time has passed, once a week", () => {
-    const sundayNoon = new Date("2026-10-25T10:00:00Z"); // 12:00 Israel (winter, UTC+2)
+  it("is due once Sunday 12:30 Israel time has passed, once a week", () => {
+    const sundayNoon = new Date("2026-10-25T10:30:00Z"); // 12:30 Israel (winter, UTC+2)
     expect(weeklySlot(new Date("2026-10-26T08:00:00Z")).toISOString()).toBe(
       sundayNoon.toISOString(),
     );
-    expect(pollDue(new Date("2026-10-25T09:59:00Z"), new Date("2026-10-18T10:00:00Z"))).toBe(false);
-    expect(pollDue(new Date("2026-10-25T10:00:00Z"), new Date("2026-10-18T10:00:00Z"))).toBe(true);
+    expect(pollDue(new Date("2026-10-25T10:29:00Z"), new Date("2026-10-18T10:30:00Z"))).toBe(false);
+    expect(pollDue(new Date("2026-10-25T10:30:00Z"), new Date("2026-10-18T10:30:00Z"))).toBe(true);
     expect(pollDue(new Date("2026-10-27T10:00:00Z"), sundayNoon)).toBe(false);
     expect(pollDue(new Date("2026-10-27T10:00:00Z"), null)).toBe(true);
   });

@@ -204,7 +204,7 @@ export async function GroupTab() {
             <span>
               <span className="font-semibold">סקר שבועי בערוץ</span>{" "}
               <span className="text-sm text-muted">
-                · כל ראשון ב־12:00: ״מאיזו קטגוריה הייתם רוצים לראות מוצרים השבוע?״
+                · כל ראשון ב־12:30: ״מאיזו קטגוריה הייתם רוצים לראות מוצרים השבוע?״
               </span>
             </span>
           </label>

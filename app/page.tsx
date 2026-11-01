@@ -145,19 +145,22 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Right under the composer (owner request 2026-09-28): the hot products, moving on by
-          themselves (components/hot-products-scroller.tsx). The carousel brings its own width and
-          gutters; when it renders nothing, this margin collapses into the next one. */}
+      {/* Right under the composer (owner request 2026-11-01): the owner's approved picks as a
+          carousel in a random order; nothing while there are none. */}
+      <div className="mt-10 empty:hidden sm:mt-14">
+        <Suspense fallback={null}>
+          <RecommendedStrip />
+        </Suspense>
+      </div>
+
+      {/* Then the hot products (owner request 2026-09-28), moving on by themselves
+          (components/hot-products-scroller.tsx). The carousel brings its own width and gutters;
+          when it renders nothing, this margin collapses into the next one. */}
       <div className="mt-10 sm:mt-14">
         <Suspense fallback={<HotProductsCarouselPlaceholder />}>
           <HotProductsCarousel />
         </Suspense>
       </div>
-
-      {/* The owner's approved picks (owner request 2026-10-19); nothing while there are none. */}
-      <Suspense fallback={null}>
-        <RecommendedStrip />
-      </Suspense>
 
       {/* The Telegram channel and search group (owner request 2026-10-27); nothing without links. */}
       <Suspense fallback={null}>
