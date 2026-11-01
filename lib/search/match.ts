@@ -4,10 +4,12 @@
 // (type gate, requirements, a small capacity, a child's age, the price bounds:
 // matchesRequest in lib/ranking/rank.ts); exact matches come by trust tier (FILTERS, FILL_TIER,
 // LOOSE_TIER, then the rest), AliExpress's order kept within a tier. The others follow only while
-// fewer exact matches than a first view were found.
+// fewer exact matches than a first view were found, never an accessory or part made for the
+// requested product (isMadeForProduct: a link to a Xiaomi H50 showed its brushes and dust bags,
+// 2026-11-01).
 import type { AliProduct } from "@/lib/aliexpress/schemas";
 import { RESULTS_FIRST_VIEW } from "@/lib/config/site";
-import { matchesRequest, trustTierOf, type TrustTier } from "@/lib/ranking/rank";
+import { isMadeForProduct, matchesRequest, trustTierOf, type TrustTier } from "@/lib/ranking/rank";
 import type { SearchFilters } from "./filters";
 
 /** The most products a match search keeps (one productdetail.get gives them Hebrew titles). */
@@ -33,7 +35,7 @@ export function matchOrder(products: readonly AliProduct[], f: SearchFilters): M
     .sort((a, b) => tierRank(a.p) - tierRank(b.p) || a.i - b.i)
     .map(({ p }) => p);
   const exactIds = new Set(exact.map((p) => p.productId));
-  const rest = products.filter((p) => !exactIds.has(p.productId));
+  const rest = products.filter((p) => !exactIds.has(p.productId) && !isMadeForProduct(p.title, f));
   const list = (exact.length >= RESULTS_FIRST_VIEW ? exact : [...exact, ...rest]).slice(
     0,
     MATCH_KEPT,

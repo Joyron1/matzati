@@ -1035,6 +1035,26 @@ function apiCouponFor(p: AliProduct, now: Date): AliPromoCode | null {
 }
 
 /**
+ * The AliExpress item a visitor pasted as a link (/search?pin=, saved by /api/search/from-input),
+ * as a result card: the stored row only, never refreshed, so a made-up pin costs no AliExpress
+ * call. Null when the id has no row or the read fails.
+ */
+export async function linkedProduct(productId: string): Promise<ResultProduct | null> {
+  if (!PRODUCT_ID.test(productId)) return null;
+  try {
+    const stored = await new SupabaseStore(serviceClient()).getProduct(productId);
+    if (!stored) return null;
+    return toResultProduct(
+      stored.product,
+      stored.titleHe ? { title_he: stored.titleHe, why_he: "" } : undefined,
+    );
+  } catch (err) {
+    logError("product", err);
+    return null;
+  }
+}
+
+/**
  * Everything /p shows: the product (see loadPageProduct) with its video and AliExpress promo code,
  * its category tips, owner coupons and the community coupon. Tips and coupons never fail the page;
  * they are simply left out. Products saved before videos and promo codes were read lack them.

@@ -4,6 +4,7 @@ import {
   goHref,
   parseArrival,
   parseFrom,
+  parsePin,
   parseSort,
   parseWithout,
   searchHref,
@@ -88,5 +89,22 @@ describe("goHref", () => {
     expect(goHref("1005", "search_more", { searchUid: undefined })).toBe(
       "/go/1005?src=search_more",
     );
+  });
+});
+
+describe("the pasted item of a link search (?pin=)", () => {
+  it("keeps an AliExpress product id and nothing else", () => {
+    expect(parsePin("1005013457363886")).toBe("1005013457363886");
+    expect(parsePin(["1005013457363886", "1"])).toBe("1005013457363886");
+    expect(parsePin("abc")).toBeNull();
+    expect(parsePin("123")).toBeNull();
+    expect(parsePin(undefined)).toBeNull();
+  });
+
+  it("goes into the search link", () => {
+    expect(searchHref({ q: "x", mode: "match", pin: "1005013457363886" })).toBe(
+      "/search?q=x&mode=match&pin=1005013457363886",
+    );
+    expect(searchHref({ q: "x", pin: "nope" })).toBe("/search?q=x");
   });
 });

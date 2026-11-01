@@ -56,6 +56,24 @@ const ACCESSORY_NOUNS = new Set([
 const HOLDER_NOUNS = new Set(["holder", "stand", "mount", "bracket", "cradle"]);
 
 /**
+ * Spare parts named after the device a "For ..." title fits (2026-11-01: "For Xiaomi Robot Vacuum
+ * H50 Pro / OV42GL Accessories Main Side Brush Mop Cloth" passed for the H50 itself). They count
+ * only in that shape, a "for" before the product term and one of these after it (a holder after it
+ * may be the product: "Car For Magsafe Wireless Charger Pad ... Phone Holder"); a search that
+ * names one of them allows it.
+ */
+const PART_NOUNS = new Set([
+  "accessory",
+  "replacement",
+  "brush",
+  "filter",
+  "part",
+  "spare",
+  "refill",
+  "consumable",
+]);
+
+/**
  * Cables right after a charger's name: "Fast Charger Cable" and "Phone Charger Data Cord" are
  * cables. Only after a charger (CHARGER_NOUNS): a "Power Bank Retractable Cables" is a power bank.
  * A search for a cable or a cord allows both.
@@ -452,6 +470,18 @@ export function productMatch(title: string, f: GateFilters): ProductMatch | null
   };
   const first = Math.min(...spans.map((s) => s.start));
   for (let i = 0; i < first; i++) if (isAccessory(words[i])) return null;
+  // "For <device> ... Accessories / Brush / Filter": parts for the product, not the product. What
+  // follows "with" is what the product comes with ("... Robot Vacuum With Dust Bag").
+  const afterSpan = opening.slice(first);
+  const bundleAt = afterSpan.findIndex((w) => BUNDLE_WORDS.has(w));
+  if (
+    words.slice(0, first).includes("for") &&
+    (bundleAt < 0 ? afterSpan : afterSpan.slice(0, bundleAt)).some(
+      (w) => PART_NOUNS.has(w) && !searched.has(w),
+    )
+  ) {
+    return null;
+  }
   const cableSearched = [...CABLE_NOUNS].some((w) => searched.has(w));
   const isCableFor = (i: number, s: Span) =>
     !cableSearched && CABLE_NOUNS.has(words[i]) && CHARGER_NOUNS.has(words[s.end]);
@@ -481,6 +511,22 @@ export function productMatch(title: string, f: GateFilters): ProductMatch | null
     primary: matched.some((m) => m.primary),
     close: matched.every((m) => m.close),
   };
+}
+
+/**
+ * True when the title names a product term (in the opening, as productMatch reads it) though it
+ * is not the product: an accessory, part or holder for it ("For Xiaomi Robot Vacuum H50 ...
+ * Brush", "Dust Bag for Xiaomi Robot Vacuum"). A photo or link search never shows these as its
+ * similar products (lib/search/match.ts).
+ */
+export function isMadeForProduct(title: string, f: GateFilters): boolean {
+  if (!f.product_terms.length || productMatch(title, f) !== null) return false;
+  const words = tokenize(title);
+  const opening = words.slice(0, openingEnd(words));
+  return f.product_terms.some(
+    (term) =>
+      phraseSpans(opening, tokenize(term).join(" "), splitWords, TYPE_GATE.maxGap).length > 0,
+  );
 }
 
 /** True when the title names the requested product itself (see productMatch). */

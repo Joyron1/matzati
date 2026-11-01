@@ -39,7 +39,7 @@ import {
 import { isRequestedProduct, productMatch } from "./type-gate";
 
 export { dedupeListings, diversifyShops } from "./diversity";
-export { isRequestedProduct, productMatch } from "./type-gate";
+export { isMadeForProduct, isRequestedProduct, productMatch } from "./type-gate";
 export { relevance } from "./relevance";
 export {
   findSharedNumbers,

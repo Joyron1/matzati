@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Requirement, SearchFilters } from "@/lib/search/filters";
 import { tokenize } from "./match";
 import { PRODUCT_SYNONYM_GROUPS } from "./synonyms";
-import { isRequestedProduct, productMatch, termPhrasings } from "./type-gate";
+import { isMadeForProduct, isRequestedProduct, productMatch, termPhrasings } from "./type-gate";
 
 type Gate = Pick<SearchFilters, "keywords_en" | "product_terms"> &
   Partial<Pick<SearchFilters, "requirements">>;
@@ -484,5 +484,39 @@ describe("productMatch", () => {
       primary: true,
       close: false,
     });
+  });
+});
+
+// A visitor's link to a Xiaomi H50 (2026-11-01): its parse, and what product.query returned.
+describe("parts made for the searched device", () => {
+  const h50: Gate = {
+    keywords_en: "xiaomi h50 robot vacuum mop",
+    product_terms: ["robot vacuum", "robotic vacuum", "vacuum cleaner robot"],
+    requirements: [req("xiaomi"), req("h50")],
+  };
+  const parts = [
+    "For Xiaomi Robot Vacuum H50 Pro / OV42GL Accessories Main Side Brush Mop Cloth HEPA Filter",
+    "For Xiaomi Robot Vacuum H50 Vacuum Cleaner Replacement Accessories Main Side Brush",
+    "Dust Bag for Xiaomi Robot Vacuum 5pro H50 Pro 5 OV31GL H40 OV51 X20 Plus X20 Max",
+  ];
+
+  it("are not the device, and are made for it", () => {
+    for (const title of parts) {
+      expect(isRequestedProduct(title, h50), title).toBe(false);
+      expect(isMadeForProduct(title, h50), title).toBe(true);
+    }
+  });
+
+  it("keeps the device itself, also with what it comes with", () => {
+    for (const title of [
+      "Xiaomi Robot Vacuum H50 Robot Vacuum and Mop 10000Pa Suction LDS Laser Navigation",
+      "For Home Xiaomi Robot Vacuum Cleaner 3000Pa With Dust Bag",
+    ]) {
+      expect(isRequestedProduct(title, h50), title).toBe(true);
+    }
+  });
+
+  it("does not call another kind of product a part", () => {
+    expect(isMadeForProduct("Cordless Stick Vacuum Cleaner 25000Pa", h50)).toBe(false);
   });
 });

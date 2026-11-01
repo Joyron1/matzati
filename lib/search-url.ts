@@ -97,10 +97,26 @@ export interface SearchHrefInput {
   cat?: string;
   /** "simple" for the simple search (parseMode); omitted, the smart search. */
   mode?: SearchMode;
+  /** An AliExpress item pasted as a link, shown above the results (parsePin). */
+  pin?: string;
+}
+
+/** The pasted AliExpress item of a link search (?pin=), or null. */
+export function parsePin(value: string | string[] | undefined): string | null {
+  const id = firstParam(value).trim();
+  return /^\d{6,20}$/.test(id) ? id : null;
 }
 
 /** Builds a /search URL. Empty values are omitted to keep URLs short and shareable. */
-export function searchHref({ q, sort, without = [], from, cat, mode }: SearchHrefInput): string {
+export function searchHref({
+  q,
+  sort,
+  without = [],
+  from,
+  cat,
+  mode,
+  pin,
+}: SearchHrefInput): string {
   const params = new URLSearchParams({ q });
   if (sort) params.set("sort", sort);
   const unique = [...new Set(without)];
@@ -108,6 +124,7 @@ export function searchHref({ q, sort, without = [], from, cat, mode }: SearchHre
   if (from) params.set("from", from);
   if (cat && parseSearchCategory(cat)) params.set("cat", cat);
   if (mode === "simple" || mode === "match") params.set("mode", mode);
+  if (pin && parsePin(pin)) params.set("pin", pin);
   return `/search?${params.toString()}`;
 }
 

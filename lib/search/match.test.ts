@@ -90,19 +90,18 @@ const LAMP: ParsedQuery = {
 };
 
 describe("matchOrder", () => {
-  it("puts exact matches first, the more trusted first, and the others after", () => {
+  it("puts exact matches first, the more trusted first, and the others after, never a part", () => {
     const list = [
       product("Night Light Warm White"), // no requirement
       product("Motion Sensor Night Light LED", { positiveFeedbackPct: 85, unitsSold: 10 }),
       product("Motion Sensor Night Light Rechargeable"),
-      product("Night Light Bulb Holder"), // an accessory: not the product
+      product("Night Light Bulb Holder"), // an accessory made for the product: left out
     ];
     const { products, exactIds } = matchOrder(list, LAMP);
     expect(products.map((p) => p.title)).toEqual([
       "Motion Sensor Night Light Rechargeable",
       "Motion Sensor Night Light LED",
       "Night Light Warm White",
-      "Night Light Bulb Holder",
     ]);
     expect([...exactIds]).toEqual([
       "Motion Sensor Night Light Rechargeable",

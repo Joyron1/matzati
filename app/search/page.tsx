@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { PendingNavigation } from "@/components/pending-navigation";
 import { SearchComposer } from "@/components/search-composer";
@@ -10,6 +11,7 @@ import {
   parseArrival,
   parseFrom,
   parseMode,
+  parsePin,
   parseSearchCategory,
   parseSort,
   parseWithout,
@@ -21,6 +23,7 @@ import { cachedSearchForBot, settledStream, startSearchForRequest } from "@/lib/
 import { pageMetadata } from "@/lib/seo/page-meta";
 import { RememberSearch } from "@/components/my-searches";
 import { BotSearchNotice } from "./bot-notice";
+import { LinkedProduct } from "./linked-product";
 import { completeResults, rankedSignal, understoodSignal } from "./results";
 
 // A fresh search (parse, up to 3 AliExpress calls, explain) takes 7-15 s; give it room.
@@ -60,7 +63,9 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
   const cat = parseSearchCategory(params.cat);
   // "חיפוש פשוט" (mode=simple, owner request 2026-10-19); otherwise the smart search.
   const mode = parseMode(params.mode);
-  const href = searchHref({ q, sort, without, from, cat, mode });
+  // The AliExpress item a link search came from, shown above its results (./linked-product.tsx).
+  const pin = parsePin(params.pin);
+  const href = searchHref({ q, sort, without, from, cat, mode, pin: pin ?? undefined });
   // Switching the mode of the same query shows the wait again: another kind of results.
   const viewKey = mode ? `${q}\u0000${mode}` : q;
   const requestHeaders = await headers();
@@ -108,6 +113,11 @@ export default async function SearchPage({ searchParams }: PageProps<"/search">)
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-4 pt-6 sm:px-6 sm:pt-10">
       <SearchComposer variant="bar" defaultValue={q} mode={mode} />
+      {pin && (
+        <Suspense fallback={null}>
+          <LinkedProduct productId={pin} q={q} />
+        </Suspense>
+      )}
       <PendingNavigation>
         <SearchView key={viewKey} query={q} view={view} />
       </PendingNavigation>

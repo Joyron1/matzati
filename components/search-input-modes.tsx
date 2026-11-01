@@ -88,11 +88,13 @@ function useFromInput() {
         mode?: "simple" | "match";
         cat?: string;
         productId?: string;
+        pin?: string;
         error?: string;
       };
       if (data.productId) router.push(`/p/${encodeURIComponent(data.productId)}`);
-      else if (data.q) router.push(searchHref({ q: data.q, mode: data.mode, cat: data.cat }));
-      else {
+      else if (data.q) {
+        router.push(searchHref({ q: data.q, mode: data.mode, cat: data.cat, pin: data.pin }));
+      } else {
         setError(ERRORS[data.error ?? "unavailable"] ?? ERRORS.unavailable);
         setBusy(false);
       }

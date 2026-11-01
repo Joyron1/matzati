@@ -4,11 +4,12 @@
 // - JSON {"link": "https://..."}: an AliExpress item opens our product page (saved first with
 //   productdetail.get, so /p and /go work); another store's page is read for its product name
 //   (lib/search/from-input.ts) and the LLM makes it a short Hebrew query.
-// Answers {q} (the page then opens /search?q=…) or {productId}. Visitors only (a crawler gets
+// Answers {q} (the page then opens /search?q=…, with pin=<id> for an AliExpress item) or {productId}. Visitors only (a crawler gets
 // 403), counted against the per-IP search limit, and an LLM call only within the daily budget.
 import sharp from "sharp";
 import { z } from "zod";
 import { getProductDetails } from "@/lib/aliexpress/affiliate";
+import type { AliProduct } from "@/lib/aliexpress/schemas";
 import { AliExpressClient } from "@/lib/aliexpress/client";
 import { aliexpressConfig, ConfigError, llmConfig } from "@/lib/env";
 import { isBotUserAgent } from "@/lib/guard/bots";
@@ -69,14 +70,18 @@ async function simpleSearchAnswer(
   out: InputOutcome,
   empty: Fail,
   cat?: string | null,
+  pin?: string,
 ): Promise<Response> {
-  if (!out.query || !out.parsed) return fail(empty, 422);
+  // The linked item opens the search even when the model named no product: it is shown on top.
+  if (!out.query || !out.parsed) {
+    return pin ? Response.json({ productId: pin }, { headers: noStore }) : fail(empty, 422);
+  }
   const key = queryKey(out.query);
   if (!(await store.getParse(key, new Date()))) {
     await store.putParse(key, normalizeQuery(out.query), out.parsed);
   }
   return Response.json(
-    { q: out.query, mode: "match", ...(cat ? { cat } : {}) },
+    { q: out.query, mode: "match", ...(cat ? { cat } : {}), ...(pin ? { pin } : {}) },
     { headers: noStore },
   );
 }
@@ -84,32 +89,43 @@ async function simpleSearchAnswer(
 /**
  * An AliExpress item (owner request 2026-10-23: show very similar products, not the same link): its
  * English title from productdetail.get becomes the parse (one cheap call), searched in its
- * first-level category by the simple search.
+ * first-level category by the simple search. Since 2026-11-01 (owner request: a new Xiaomi H50 with
+ * no sales yet, which product.query never returns, so the visitor found nothing) the item itself is
+ * saved and shown on top of those results (?pin=, app/search/linked-product.tsx), marked when it
+ * has not passed our filters.
  */
 async function aliexpressSimilar(
   store: SupabaseStore,
   productId: string,
   canSpend: () => Promise<boolean>,
 ): Promise<Response> {
-  let title: string;
-  let cat: string | null;
+  let product: AliProduct | undefined;
   try {
     const page = await getProductDetails(
       new AliExpressClient(aliexpressConfig()),
       [productId],
       "EN",
     );
-    const product = page.products[0];
-    if (!product) return fail("not_found", 404);
-    title = product.title;
-    cat = product.category.firstId;
+    product = page.products.find((p) => p.productId === productId);
   } catch {
     return fail("not_found", 404);
   }
-  if (!(await canSpend())) return fail("capacity", 503);
-  const out = await parseFromProductName(llm(LINK_MODEL), title, null);
+  if (!product) return fail("not_found", 404);
+  const stored = await store.getProduct(productId).catch(() => null);
+  if (!(await canSpend())) {
+    // No model call left today: the item alone, on its own page.
+    await store.saveProducts([product], { [productId]: stored?.titleHe ?? null }).catch(() => {});
+    return Response.json({ productId }, { headers: noStore });
+  }
+  const out = await parseFromProductName(llm(LINK_MODEL), product.title, null);
   await logUsage(store, out);
-  return simpleSearchAnswer(store, out, "not_found", cat);
+  // Our Hebrew title when the row has one; else the short Hebrew name the model just wrote.
+  await store
+    .saveProducts([product], { [productId]: stored?.titleHe ?? out.query ?? null })
+    .catch((err: unknown) =>
+      console.error(`[search-from-input] save: ${String(err).slice(0, 200)}`),
+    );
+  return simpleSearchAnswer(store, out, "not_found", product.category.firstId, productId);
 }
 
 export async function POST(request: Request): Promise<Response> {
