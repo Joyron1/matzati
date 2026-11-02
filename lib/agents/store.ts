@@ -260,6 +260,16 @@ export async function updateCandidatePost(
   if (error) fail("rewrite", error);
 }
 
+/** A candidate's product as AliExpress had it when it was posted (the site shows that price). */
+export async function updateCandidateProduct(
+  db: SupabaseClient,
+  id: string,
+  product: AliProduct,
+): Promise<void> {
+  const { error } = await db.from(CANDIDATES).update({ product }).eq("id", id);
+  if (error) fail("product", error);
+}
+
 /** The owner's video for a candidate (its path in the agent-media bucket), or none. */
 export async function setCandidateVideo(
   db: SupabaseClient,

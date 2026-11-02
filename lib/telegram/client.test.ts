@@ -70,11 +70,9 @@ describe("telegram client", () => {
     expect(JSON.stringify(failed)).not.toContain("SECRET-TOKEN");
   });
 
-  it("sends every photo and video as one album, then the post with its buttons under it", async () => {
-    const send = vi.fn<typeof fetch>(async (url) =>
-      String(url).endsWith("/sendMessage")
-        ? new Response(JSON.stringify({ ok: true, result: { message_id: 9 } }))
-        : new Response(JSON.stringify({ ok: true, result: [{ message_id: 7 }, { message_id: 8 }] })),
+  it("sends one message: the main photo with the post and its buttons", async () => {
+    const send = vi.fn<typeof fetch>(
+      async () => new Response(JSON.stringify({ ok: true, result: { message_id: 9 } })),
     );
     const config = { token: "T", chatId: "@c" };
     const r = await postProduct(
@@ -82,45 +80,37 @@ describe("telegram client", () => {
       {
         productId: "1",
         postHe:
-          "מחיר מטורף!!!\n\n🎟️ קוד קופון: ILAFF60 · US$60 הנחה\n💰 מחיר סופי עם הקופון: כ־₪1189\n🔗 קישור לקנייה",
+          "מחיר מטורף!!!\n\n💰 מחיר: ₪1381\n🎟️ קוד קופון: ILAFF60 · US$60 הנחה\n💰 מחיר סופי עם הקופון: כ־₪1189\n🔗 קישור לקנייה",
         buyUrl: "https://s.click.aliexpress.com/e/_abc",
-        photos: [
-          "https://ae01.alicdn.com/1.jpg",
-          "https://ae01.alicdn.com/2.jpg",
-          "https://ae01.alicdn.com/1.jpg",
-        ],
-        videos: ["https://video.aliexpress-media.com/v.mp4"],
+        photos: ["https://ae01.alicdn.com/1.jpg", "https://ae01.alicdn.com/2.jpg"],
+        videos: [],
       },
       send,
     );
     expect(r).toEqual({ ok: true, messageId: "9" });
-    expect(String(send.mock.calls[0][0])).toMatch(/\/sendMediaGroup$/);
-    const album = JSON.parse(String(send.mock.calls[0][1]?.body));
-    expect(album.media.map((m: { type: string }) => m.type)).toEqual(["video", "photo", "photo"]);
-    expect(album.media[0].caption).toBeUndefined();
-    expect(String(send.mock.calls[1][0])).toMatch(/\/sendMessage$/);
-    const msg = JSON.parse(String(send.mock.calls[1][1]?.body));
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(String(send.mock.calls[0][0])).toMatch(/\/sendPhoto$/);
+    const msg = JSON.parse(String(send.mock.calls[0][1]?.body));
+    expect(msg.photo).toBe("https://ae01.alicdn.com/1.jpg");
     // A short link text on the 🔗 line, never the bare URL (owner request 2026-10-27).
-    expect(msg.text).toContain(
+    expect(msg.caption).toContain(
       '🔗 <a href="https://s.click.aliexpress.com/e/_abc">לקנייה באלי אקספרס ←</a>',
     );
-    expect(msg.text).not.toContain("/go/");
-    expect(msg.text).toContain("<b>מחיר מטורף!!!</b>");
-    expect(msg.text).toContain("קוד קופון: <code>ILAFF60</code>");
-    expect(msg.text).toContain("<b>💰 מחיר סופי עם הקופון: כ־₪1189</b>");
-    expect(msg.link_preview_options).toEqual({ is_disabled: true });
+    expect(msg.caption).not.toContain("/go/");
+    expect(msg.caption).toContain("<b>מחיר מטורף!!!</b>");
+    expect(msg.caption).toContain("קוד קופון: <code>ILAFF60</code>");
+    expect(msg.caption).toContain("<b>💰 מחיר סופי עם הקופון: כ־₪1189</b>");
     expect(msg.reply_markup.inline_keyboard[0][0]).toEqual({
       text: "לקנייה באלי אקספרס",
       url: "https://s.click.aliexpress.com/e/_abc",
     });
   });
 
-  it("falls back to the photos only, then to one photo, when Telegram refuses the album", async () => {
+  it("leads with the owner's video, and sends the main photo when Telegram refuses it", async () => {
     const calls: string[] = [];
-    const send = vi.fn<typeof fetch>(async (url, init) => {
+    const send = vi.fn<typeof fetch>(async (url) => {
       const method = String(url).split("/").pop()!;
-      const media = JSON.parse(String(init?.body)).media as { type: string }[] | undefined;
-      calls.push(`${method}:${media ? media.length : 1}`);
+      calls.push(method);
       if (method === "sendPhoto")
         return new Response(JSON.stringify({ ok: true, result: { message_id: 9 } }));
       return new Response(
@@ -139,7 +129,7 @@ describe("telegram client", () => {
       },
       send,
     );
-    expect(calls).toEqual(["sendMediaGroup:3", "sendMediaGroup:2", "sendPhoto:1"]);
+    expect(calls).toEqual(["sendVideo", "sendPhoto"]);
     expect(r).toEqual({ ok: true, messageId: "9" });
   });
 

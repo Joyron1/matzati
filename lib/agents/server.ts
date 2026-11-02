@@ -28,7 +28,14 @@ import { bestSitewideCoupon, usdTier } from "@/lib/coupons/tiers";
 import { fetchUsdIlsRate } from "@/lib/fx/boi";
 import { costUsd } from "@/lib/llm/pricing";
 import { runFinder, worstCaseCostUsd, type FinderResult } from "./finder/run";
-import { ownerCouponAmount, withCoupons, writePosts, type CouponInfo } from "./finder/write";
+import {
+  atPostingTime,
+  dealLines,
+  ownerCouponAmount,
+  writePosts,
+  writerInput,
+  type CouponInfo,
+} from "./finder/write";
 import { readAgentSettings, type AgentSettings } from "./settings";
 import { israelParts, queueEndSlot } from "./schedule";
 import {
@@ -42,6 +49,7 @@ import {
   setCandidateVideo,
   SupabaseFinderStore,
   takenTelegramSlots,
+  updateCandidateProduct,
 } from "./store";
 import type { Candidate } from "./store";
 
@@ -346,31 +354,76 @@ export async function publishNow(id: string, postHe?: string): Promise<PublishNo
     await decideCandidate(db, id, "approved", post, null);
     expireRecommended();
   }
-  const result = await postProduct(config, await productPostOf(candidate, post));
+  const prepared = await productPostOf(db, candidate, post);
+  if ("error" in prepared && prepared.retry) {
+    return { ok: false, reason: "telegram", error: prepared.error };
+  }
+  const result =
+    "error" in prepared
+      ? { ok: false as const, error: prepared.error }
+      : await postProduct(config, prepared);
   await recordTelegram(db, id, result);
   return result.ok ? { ok: true } : { ok: false, reason: "telegram", error: result.error };
 }
 
 /**
- * What a Telegram post sends (owner request 2026-10-25): every photo of the product (the run's
- * productdetail.get merged them into the snapshot), the owner's video and AliExpress's video (only
- * from AliExpress's media hosts), and the affiliate link straight to AliExpress (renewed when old;
- * /go only when the product has none).
+ * The product as AliExpress has it now (owner request 2026-11-02: a post once went out with a
+ * price that had changed), one productdetail.get: price, discount, feedback, sales, promo code and
+ * photos fresh, the rest (shipping, links) as saved. Null when AliExpress no longer returns it;
+ * throws when the call fails.
  */
-async function productPostOf(c: Candidate, postHe: string): Promise<ProductPost> {
-  const p = c.product;
+async function freshProduct(p: AliProduct): Promise<AliProduct | null> {
+  const ali = new AliExpressClient(aliexpressConfig());
+  const d = (await getProductDetails(ali, [p.productId], "HE")).products[0];
+  if (!d) return null;
+  return {
+    ...p,
+    price: d.price,
+    originalPrice: d.originalPrice,
+    discountPct: d.discountPct,
+    positiveFeedbackPct: d.positiveFeedbackPct ?? p.positiveFeedbackPct,
+    unitsSold: d.unitsSold ?? p.unitsSold,
+    promoCode: d.promoCode ?? null,
+    mainImageUrl: d.mainImageUrl || p.mainImageUrl,
+    imageUrls: [...new Set([...d.imageUrls, ...p.imageUrls])],
+    videoUrl: d.videoUrl ?? p.videoUrl ?? null,
+  };
+}
+
+type PreparedPost = ProductPost | { error: string; retry: boolean };
+
+/**
+ * What a Telegram post sends (owner requests 2026-10-25 and 11-02): the product checked again on
+ * AliExpress (freshProduct; the snapshot saved with it), the post with its deal block rebuilt from
+ * that data and the coupons valid now (atPostingTime), the main photo (photos from AliExpress's
+ * hosts only) or the owner's video, and the affiliate link straight to AliExpress (renewed when
+ * old; /go only when the product has none). An error when AliExpress no longer has the product, or
+ * (retry) when the check could not be made: nothing goes out with a price not checked.
+ */
+async function productPostOf(
+  db: ReturnType<typeof serviceClient>,
+  c: Candidate,
+  postHe: string,
+): Promise<PreparedPost> {
+  let p: AliProduct | null;
+  try {
+    p = await freshProduct(c.product);
+  } catch (err) {
+    console.error(`[agents] price check ${c.product_id}: ${String(err).slice(0, 200)}`);
+    return { error: "בדיקת המחיר באלי אקספרס נכשלה", retry: true };
+  }
+  if (!p) return { error: "המוצר כבר לא זמין באלי אקספרס", retry: false };
+  await updateCandidateProduct(db, c.id, p).catch(() => {});
   const own = c.video_path ? await signedVideoUrl(c.video_path, 3600) : null;
-  const ali = p.videoUrl && allowedMediaUrl(p.videoUrl) ? p.videoUrl : null;
-  const photos = [...p.imageUrls, p.mainImageUrl].filter((u) => !!u && !!allowedMediaUrl(u));
+  const photos = [p.mainImageUrl, ...p.imageUrls].filter((u) => !!u && !!allowedMediaUrl(u));
   const direct = (await postAffiliateLink(c.product_id)) ?? affiliateUrl(p.promotionLink) ?? null;
-  // The coupons valid now, for a post written without any (queued before, or none then).
-  const coupons = /🎟/.test(postHe) ? [] : await couponsFor(p).catch(() => []);
+  const coupons = await couponsFor(p).catch(() => []);
   return {
     productId: c.product_id,
-    postHe: withCoupons(postHe, p.price, coupons),
+    postHe: atPostingTime(postHe, dealLines(writerInput(p, coupons))),
     buyUrl: direct ?? absoluteUrl(`/go/${encodeURIComponent(c.product_id)}?src=telegram`),
-    photos,
-    videos: [own, ali].filter((v): v is string => !!v),
+    photos: [...new Set(photos)],
+    videos: own ? [own] : [],
   };
 }
 
@@ -441,7 +494,16 @@ export async function publishDue(now = new Date()): Promise<PublishSummary> {
   const due = await dueTelegramPosts(db, now);
   summary.due = due.length;
   for (const c of due) {
-    const result = await postProduct(config, await productPostOf(c, c.post_he));
+    const prepared = await productPostOf(db, c, c.post_he);
+    // A check that could not be made keeps the slot: the next run (15 minutes) tries again.
+    if ("error" in prepared && prepared.retry) {
+      summary.failed++;
+      continue;
+    }
+    const result =
+      "error" in prepared
+        ? { ok: false as const, error: prepared.error }
+        : await postProduct(config, prepared);
     await recordTelegram(db, c.id, result);
     if (result.ok) summary.posted++;
     else summary.failed++;

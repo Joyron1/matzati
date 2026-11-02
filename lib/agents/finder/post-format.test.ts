@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  atPostingTime,
   BUY_LINK_LINE,
+  dealLines,
   finalPrice,
   ownerCouponAmount,
   postFromData,
-  withCoupons,
   withBuyLink,
   type WriterInput,
 } from "./write";
@@ -47,17 +48,21 @@ describe("finalPrice", () => {
   });
 });
 
-describe("the post's format (owner's example, 2026-10-24)", () => {
-  it("built from the data: product, then the deal with the final price and link line, then the benefits", () => {
+describe("the post's format (owner's requests, 2026-10-24 and 11-02)", () => {
+  it("built from the data: product, then the deal with the sales, feedback and link line", () => {
     const post = postFromData(INPUT);
     const blocks = post.split("\n\n");
-    expect(blocks).toHaveLength(3);
+    expect(blocks).toHaveLength(2);
     expect(blocks[0]).toMatch(/^🔥 /);
-    expect(blocks[1]).toContain("🎟️ קוד קופון: ILAFFC2");
-    expect(blocks[1]).toContain("💰 מחיר סופי עם הקופון: ₪42.40 במקום ₪104.80");
-    expect(blocks[1]).toContain("🚚 משלוח חינם לישראל");
-    expect(blocks[1].split("\n").at(-1)).toBe(BUY_LINK_LINE);
-    expect(blocks[2]).toMatch(/^✅ 97% משוב חיובי/);
+    expect(blocks[1].split("\n")).toEqual([
+      "💰 מחיר: ₪52.40 במקום ₪104.80 (50% הנחה)",
+      "🎟️ קוד קופון: ILAFFC2 · ₪10 הנחה (בהזמנה מעל ₪40, עד 31.10)",
+      "💰 מחיר סופי עם הקופון: ₪42.40",
+      "🚚 משלוח חינם לישראל · 7-12 ימי משלוח לפי אלי אקספרס",
+      "🛒 1,240 נמכרו ב־30 הימים האחרונים",
+      "⭐ 97% משוב חיובי",
+      BUY_LINK_LINE,
+    ]);
   });
 
   it("puts the buy link on the 🔗 line, or after the price when the line is missing", () => {
@@ -71,39 +76,35 @@ describe("the post's format (owner's example, 2026-10-24)", () => {
   });
 });
 
-describe("withCoupons (a post queued without a coupon, 2026-11-02)", () => {
+describe("atPostingTime (the deal checked again and placed last, 2026-11-02)", () => {
+  // A post queued in the old order: product, deal (a price since changed), benefits with feedback.
   const POST =
-    "רובוט שואב במחיר מטורף!!!\nXiaomi H50.\n\n💰 מחיר: ₪1381.67\nבמקום ₪4431.66\n68% הנחה\n🔗 קישור לקנייה\n\n✅ שאיבה של 10000Pa";
-  const ILAFF60 = {
-    code: "ILAFF60",
-    offer: "US$60 הנחה בהזמנה מעל US$349",
-    min_order_ils: null,
-    ends: "18.11",
-    off_ils: 192,
-    off_pct: null,
-    approx: true,
-  };
+    "רובוט שואב במחיר מטורף!!!\nXiaomi H50.\n\n🎟️ קוד קופון: OLD\n💰 מחיר: ₪1381.67\nבמקום ₪4431.66\n68% הנחה\n🚚 משלוח חינם לישראל\n🔗 קישור לקנייה\n\n✅ שאיבה של 10000Pa\n✅ מיפוי לייזר\n✅ 96% משוב חיובי · 50 נמכרו";
+  const DEAL = ["💰 מחיר: ₪1299", "🛒 60 נמכרו ב־30 הימים האחרונים", "🔗 קישור לקנייה"];
 
-  it("adds the coupon before the price and the final price after the price lines", () => {
-    expect(withCoupons(POST, 1381.67, [ILAFF60]).split("\n")).toEqual([
+  it("keeps the product and its benefits, and puts the fresh deal under them", () => {
+    expect(atPostingTime(POST, DEAL).split("\n")).toEqual([
       "רובוט שואב במחיר מטורף!!!",
       "Xiaomi H50.",
       "",
-      "🎟️ קוד קופון: ILAFF60 · US$60 הנחה בהזמנה מעל US$349 (עד 18.11)",
-      "💰 מחיר: ₪1381.67",
-      "במקום ₪4431.66",
-      "68% הנחה",
-      "💰 מחיר סופי עם הקופון: כ־₪1189.67",
-      "🔗 קישור לקנייה",
-      "",
       "✅ שאיבה של 10000Pa",
+      "✅ מיפוי לייזר",
+      "",
+      ...DEAL,
     ]);
   });
 
-  it("leaves a post that names a coupon, or with none to add, as written", () => {
-    const named = POST.replace("💰", "🎟️ קוד קופון: X\n💰");
-    expect(withCoupons(named, 1381.67, [ILAFF60])).toBe(named);
-    expect(withCoupons(POST, 1381.67, [])).toBe(POST);
+  it("drops benefits from the end to stay within the length, never the deal", () => {
+    const out = atPostingTime(POST, DEAL, 120);
+    expect(out).toContain("✅ שאיבה של 10000Pa");
+    expect(out).not.toContain("מיפוי");
+    expect(out.endsWith(DEAL.join("\n"))).toBe(true);
+  });
+
+  it("builds the deal from the data", () => {
+    expect(dealLines({ ...INPUT, coupons: [], final_price_ils: null })[0]).toBe(
+      "💰 מחיר: ₪52.40 במקום ₪104.80 (50% הנחה)",
+    );
   });
 });
 

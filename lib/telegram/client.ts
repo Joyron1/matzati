@@ -1,5 +1,5 @@
 // Posting an approved product to the Telegram channel (owner request 2026-10-19) through the Bot
-// API (an album of every photo and video, sendMediaGroup; owner request 2026-10-25). Off until the owner sets TELEGRAM_BOT_TOKEN (from @BotFather) and
+// API (one photo or video with the post and its buttons; owner request 2026-11-02). Off until the owner sets TELEGRAM_BOT_TOKEN (from @BotFather) and
 // TELEGRAM_CHAT_ID (the channel, "@name" or its -100… id; the bot must be an admin of it) in
 // Vercel; they set them, never in chat. The token is never logged or put in an error message.
 import { withBuyLink } from "@/lib/agents/finder/write";
@@ -69,14 +69,15 @@ export function emphasized(escaped: string): string {
         return `<b>${line}</b>`;
       }
       if (t.startsWith("💰")) return `<b>${line}</b>`;
-      if (t.startsWith("🎟")) return line.replace(/(קוד קופון:?\s*)([A-Za-z0-9_-]{3,30})/, "$1<code>$2</code>");
+      if (t.startsWith("🎟"))
+        return line.replace(/(קוד קופון:?\s*)([A-Za-z0-9_-]{3,30})/, "$1<code>$2</code>");
       return line;
     })
     .join("\n");
 }
 
 /**
- * The post's buttons (a single photo or video only: an album takes none): buy at `buyUrl` (the
+ * The post's buttons: buy at `buyUrl` (the
  * affiliate link, or /go with src=telegram when there is none) and our product page.
  */
 export function buttonsOf(productId: string, buyUrl?: string) {
@@ -102,9 +103,9 @@ export interface ProductPost {
    * AliExpress; /go only when the product has none.
    */
   buyUrl: string;
-  /** Every photo of the product, in AliExpress's order. */
+  /** Every photo of the product, the main one first. */
   photos: string[];
-  /** The owner's video first, then AliExpress's. */
+  /** The owner's video, when they uploaded one (it leads the post). */
   videos: string[];
 }
 
@@ -161,13 +162,10 @@ async function call(
 }
 
 /**
- * Posts one product (owner request 2026-10-25: all its photos and videos, and the affiliate link
- * straight to AliExpress). With two or more items, one album (sendMediaGroup: Telegram fetches
- * each URL, a photo up to 5 MB and a video up to 20 MB), then the post as a text message with the
- * buttons (an album takes none; owner request 2026-11-02), the buy link also on its 🔗 line; its id
- * is the one returned. When Telegram refuses the album (a video it cannot fetch, mostly) it is
- * sent again with the photos only, and then as one photo with the post as its caption and the
- * buttons. A single item goes as before: sendPhoto or sendVideo with the buttons. Never throws: a
+ * Posts one product as ONE message (owner request 2026-11-02: the photos never apart from the
+ * post, and a buy button under it, which an album cannot carry): the owner's video, else the main
+ * photo, with the post as its caption and the buttons; the buy link also on its 🔗 line. When
+ * Telegram refuses the video (one it cannot fetch) the main photo goes instead. Never throws: a
  * failure comes back as its reason (no secret in it).
  */
 export async function postProduct(
@@ -177,44 +175,23 @@ export async function postProduct(
 ): Promise<TelegramResult> {
   const caption = captionOf(post.postHe, post.buyUrl);
   const items = albumItems(post);
-  const album = (list: typeof items) => call(config, "sendMediaGroup", { media: list }, fetchImpl);
-  let first: TelegramResult | null = null;
-  if (items.length >= 2) {
-    first = await album(items);
-    const photos = items.filter((x) => x.type === "photo");
-    if (!first.ok && photos.length >= 2 && photos.length < items.length) {
-      const again = await album(photos);
-      if (again.ok) first = again;
-    }
-    // An album takes no buttons (owner request 2026-11-02: a buy button under the post), so the
-    // post follows it as a text message with the buttons, right under the photos.
-    if (first.ok) {
-      return call(
-        config,
-        "sendMessage",
-        {
-          text: caption,
-          parse_mode: "HTML",
-          link_preview_options: { is_disabled: true },
-          reply_markup: buttonsOf(post.productId, post.buyUrl),
-        },
-        fetchImpl,
-      );
-    }
+  const photo = items.find((x) => x.type === "photo");
+  const tries = [...new Set([items[0], photo])].filter((x) => !!x);
+  let last: TelegramResult = { ok: false, error: "no photo or video" };
+  for (const item of tries) {
+    last = await call(
+      config,
+      item.type === "video" ? "sendVideo" : "sendPhoto",
+      {
+        [item.type]: item.media,
+        ...(item.type === "video" ? { supports_streaming: true } : {}),
+        caption,
+        parse_mode: "HTML",
+        reply_markup: buttonsOf(post.productId, post.buyUrl),
+      },
+      fetchImpl,
+    );
+    if (last.ok) return last;
   }
-  const single = items.find((x) => x.type === "photo") ?? items[0];
-  if (!single) return first ?? { ok: false, error: "no photo or video" };
-  const sent = await call(
-    config,
-    single.type === "video" ? "sendVideo" : "sendPhoto",
-    {
-      [single.type]: single.media,
-      ...(single.type === "video" ? { supports_streaming: true } : {}),
-      caption,
-      parse_mode: "HTML",
-      reply_markup: buttonsOf(post.productId, post.buyUrl),
-    },
-    fetchImpl,
-  );
-  return sent.ok || !first ? sent : first;
+  return last;
 }

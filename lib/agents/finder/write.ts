@@ -22,14 +22,17 @@ export const WRITE_TOKENS = 5_000;
 
 export const FINDER_SYSTEM = `You are the copywriter of an Israeli Telegram channel of AliExpress deals. For each product you get its machine-translated Hebrew title (it lists the product's features), its numbers and the coupons valid for it. Write a post that makes people want to buy it now, in natural, lively, fluent Hebrew (fix the machine translation's wording), plural and gender-neutral (never singular address).
 
-post_he has three blocks, in this order, separated by an empty line (owner's format, 2026-10-24):
-1. The product: a short excited hook line ending with "!!!" or an emoji (e.g. "מחיר מטורף!!!", "מציאה לבית 🏠"), then 2-3 lines saying what the product is, what it does for the buyer and who it is for, with its brand and main specs as the title names them, and a short call to action (e.g. "שווה לבדוק עכשיו 👇"). You may say prices on AliExpress change often; never invent scarcity or a deadline ("רק היום", "נשארו מעט") other than a coupon's end date as given.
-2. The deal, each on its own line:
+post_he has three blocks, in this order, separated by an empty line (owner's format, 2026-11-02):
+1. The product: a short excited hook line ending with "!!!" or an emoji (e.g. "מחיר מטורף!!!", "מציאה לבית 🏠"), then 2-3 lines saying what the product is, what it does for the buyer and who it is for, with its brand and main specs as the title names them, and a short call to action (e.g. "שווה לבדוק עכשיו 👇"). No price, coupon or sales number in this block. You may say prices on AliExpress change often; never invent scarcity or a deadline ("רק היום", "נשארו מעט") other than a coupon's end date as given.
+2. Why it is worth it: 3 to 5 lines, each starting with "✅": a feature the title names, said as what it gives the buyer (a fleece lining keeps warm, a loop strap adjusts without holes). Use only features the title names; never invent a material, size, spec, use or result the title does not state. No feedback or sales numbers here.
+3. The deal, each on its own line:
+   - "💰 מחיר: ₪price_ils" with "במקום ₪original_price_ils" and the discount % when given;
    - for each coupon given: "🎟️ קוד קופון: CODE" and what it gives as written, with its minimum order and end date when given (no coupon line when none is given);
-   - when final_price_ils is given: "💰 מחיר סופי עם הקופון: ₪final_price_ils" ("כ־₪final_price_ils" when final_price_approx is true: a dollar coupon at the day's rate) and "במקום ₪original_price_ils" when given; otherwise "💰 מחיר: ₪price_ils", "במקום ₪original_price_ils" and the discount % when given;
+   - when final_price_ils is given: "💰 מחיר סופי עם הקופון: ₪final_price_ils" ("כ־₪final_price_ils" when final_price_approx is true: a dollar coupon at the day's rate);
    - when free_shipping_il is true: "🚚 משלוח חינם לישראל", plus the delivery days as given ("7-12 ימי משלוח לפי אלי אקספרס") when both are given;
+   - when given: "🛒 units_sold_30d נמכרו ב־30 הימים האחרונים" and "⭐ positive_feedback_pct% משוב חיובי";
    - then exactly the line "🔗 קישור לקנייה" (the link is added there automatically; never write a link).
-3. Why it is worth it: 3 to 5 lines, each starting with "✅": a feature the title names, said as what it gives the buyer (a fleece lining keeps warm, a loop strap adjusts without holes); the last "✅" line may be the % positive feedback and how many were sold in the last 30 days. Use only features the title names; never invent a material, size, spec, use or result the title does not state.
+   The deal block is rebuilt from AliExpress's current data when the post goes out.
 Between 350 and 850 characters. No hashtags, no links, no "הכי זול"/"הכי טוב"/"מומלץ ביותר" or any superlative, no promise of quality; shipping and delivery only as block 2 states them.
 
 why_he: one sentence (up to 120 characters) for the site owner: why it is worth posting, from the numbers only.
@@ -157,42 +160,78 @@ const formatIls = (n: number) => `₪${Number.isInteger(n) ? n : n.toFixed(2)}`;
 /** The post built from the data alone: what a candidate gets when the model's text fails a check. */
 export function postFromData(i: WriterInput): string {
   const product = [`🔥 ${i.title_he}`, "שווה לבדוק עכשיו 👇"];
-  const deal: string[] = [];
+  return [product.join("\n"), dealLines(i).join("\n")].join("\n\n");
+}
+
+/**
+ * The post's last block, from the data (owner request 2026-11-02: under the product and its
+ * benefits): the price, each coupon, the final price with the best one, shipping, the sales of the
+ * last 30 days, the % positive feedback, then the buy-link line.
+ */
+export function dealLines(i: WriterInput): string[] {
+  const was =
+    i.original_price_ils !== null && i.original_price_ils > i.price_ils
+      ? ` במקום ${formatIls(i.original_price_ils)}`
+      : "";
+  const lines = [
+    `💰 מחיר: ${formatIls(i.price_ils)}${was}${i.discount_pct ? ` (${i.discount_pct}% הנחה)` : ""}`,
+  ];
   for (const c of i.coupons) {
     const terms = [
       c.min_order_ils !== null ? `בהזמנה מעל ${formatIls(c.min_order_ils)}` : null,
       c.ends ? `עד ${c.ends}` : null,
     ].filter(Boolean);
-    deal.push(
+    lines.push(
       `🎟️ קוד קופון: ${c.code} · ${c.offer}${terms.length ? ` (${terms.join(", ")})` : ""}`,
     );
   }
-  const was =
-    i.original_price_ils !== null && i.original_price_ils > i.price_ils
-      ? ` במקום ${formatIls(i.original_price_ils)}`
-      : "";
-  deal.push(
-    i.final_price_ils !== null
-      ? `💰 מחיר סופי עם הקופון: ${i.final_price_approx ? "כ־" : ""}${formatIls(i.final_price_ils)}${was}`
-      : `💰 מחיר: ${formatIls(i.price_ils)}${was}${i.discount_pct ? ` (${i.discount_pct}% הנחה)` : ""}`,
-  );
+  if (i.final_price_ils !== null) {
+    lines.push(
+      `💰 מחיר סופי עם הקופון: ${i.final_price_approx ? "כ־" : ""}${formatIls(i.final_price_ils)}`,
+    );
+  }
   if (i.free_shipping_il) {
     const days =
       i.delivery_days_min !== null && i.delivery_days_max !== null
         ? ` · ${i.delivery_days_min}-${i.delivery_days_max} ימי משלוח לפי אלי אקספרס`
         : "";
-    deal.push(`🚚 משלוח חינם לישראל${days}`);
+    lines.push(`🚚 משלוח חינם לישראל${days}`);
   }
-  deal.push(BUY_LINK_LINE);
-  const trust = [
-    i.positive_feedback_pct !== null ? `${i.positive_feedback_pct}% משוב חיובי` : null,
-    i.units_sold_30d !== null
-      ? `${i.units_sold_30d.toLocaleString("en-US")} נמכרו ב־30 הימים האחרונים`
-      : null,
-  ].filter(Boolean);
-  const blocks = [product.join("\n"), deal.join("\n")];
-  if (trust.length) blocks.push(`✅ ${trust.join(" · ")}`);
-  return blocks.join("\n\n");
+  if (i.units_sold_30d !== null) {
+    lines.push(`🛒 ${i.units_sold_30d.toLocaleString("en-US")} נמכרו ב־30 הימים האחרונים`);
+  }
+  if (i.positive_feedback_pct !== null) lines.push(`⭐ ${i.positive_feedback_pct}% משוב חיובי`);
+  lines.push(BUY_LINK_LINE);
+  return lines;
+}
+
+// A written post's lines that state the deal or the numbers, replaced at posting time.
+const DEAL_LINE = /^(🎟|💰|🔗|🚚|🛒|⭐|במקום)|^\d+%\s*הנחה|₪\s*\d/;
+const TRUST_LINE = /משוב|נמכר|מכירות|ביקורות|רכישות|הזמנות/;
+
+/**
+ * The post as it goes out (owner request 2026-11-02: the deal checked again just before posting,
+ * and placed under the product): the written text about the product, then its "✅" benefits, then
+ * `deal` (dealLines of the product as AliExpress has it now). Every line of the written post that
+ * stated a price, coupon, shipping, sales or feedback is left out, so a number that changed since
+ * the post was written never goes out. Benefits are dropped from the end while it is over `max`.
+ */
+export function atPostingTime(post: string, deal: readonly string[], max = POST_MAX): string {
+  const about: string[] = [];
+  const benefits: string[] = [];
+  for (const block of post.split(/\n\s*\n/)) {
+    const kept: string[] = [];
+    for (const raw of block.split("\n")) {
+      const line = raw.trim();
+      if (!line || DEAL_LINE.test(line)) continue;
+      if (!line.startsWith("✅")) kept.push(line);
+      else if (!TRUST_LINE.test(line)) benefits.push(line);
+    }
+    if (kept.length) about.push(kept.join("\n"));
+  }
+  const text = () => [...about, benefits.join("\n"), deal.join("\n")].filter(Boolean).join("\n\n");
+  while (text().length > max && benefits.length > 1) benefits.pop();
+  return text();
 }
 
 /** The deal block's last line; the Telegram client puts the buy link there (withBuyLink). */
@@ -217,40 +256,6 @@ export function withBuyLink(post: string, url: string): string {
   if (price >= 0) lines.splice(price + 1, 0, line);
   else lines.push(line);
   return lines.join("\n");
-}
-
-/**
- * The coupons valid at posting time added to a post written without any (owner request
- * 2026-11-02: every post names the coupon its price can use, also the posts queued before): before
- * the first "💰" line a "🎟️" line per coupon, and when one applies a "💰 מחיר סופי עם הקופון" line
- * after the price lines. A post that already names a coupon, or none given, is left as written.
- */
-export function withCoupons(post: string, price: number, coupons: readonly CouponInfo[]): string {
-  if (!coupons.length || /🎟/.test(post)) return post;
-  const lines = post.split("\n");
-  const priceAt = lines.findIndex((l) => l.trim().startsWith("💰"));
-  if (priceAt < 0) return post;
-  const couponLines = coupons.map((c) => {
-    const terms = [
-      c.min_order_ils !== null ? `בהזמנה מעל ${formatIls(c.min_order_ils)}` : null,
-      c.ends ? `עד ${c.ends}` : null,
-    ].filter(Boolean);
-    return `🎟️ קוד קופון: ${c.code} · ${c.offer}${terms.length ? ` (${terms.join(", ")})` : ""}`;
-  });
-  // The price block runs from the 💰 line to the next empty, 🔗, 🚚 or ✅ line.
-  let end = priceAt + 1;
-  while (end < lines.length && lines[end].trim() && !/^(🔗|🚚|✅)/.test(lines[end].trim())) end++;
-  const f = finalPrice(price, coupons);
-  const finalLine = f
-    ? [`💰 מחיר סופי עם הקופון: ${f.approx ? "כ־" : ""}${formatIls(f.price)}`]
-    : [];
-  return [
-    ...lines.slice(0, priceAt),
-    ...couponLines,
-    ...lines.slice(priceAt, end),
-    ...finalLine,
-    ...lines.slice(end),
-  ].join("\n");
 }
 
 export function whyFromData(i: WriterInput): string {
