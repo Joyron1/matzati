@@ -4,6 +4,7 @@ import {
   finalPrice,
   ownerCouponAmount,
   postFromData,
+  withCoupons,
   withBuyLink,
   type WriterInput,
 } from "./write";
@@ -67,6 +68,42 @@ describe("the post's format (owner's example, 2026-10-24)", () => {
       `hook\n💰 מחיר: ₪5\n🔗 לקנייה: ${url}\n✅ טוב`,
     );
     expect(withBuyLink("hook", url)).toBe(`hook\n🔗 לקנייה: ${url}`);
+  });
+});
+
+describe("withCoupons (a post queued without a coupon, 2026-11-02)", () => {
+  const POST =
+    "רובוט שואב במחיר מטורף!!!\nXiaomi H50.\n\n💰 מחיר: ₪1381.67\nבמקום ₪4431.66\n68% הנחה\n🔗 קישור לקנייה\n\n✅ שאיבה של 10000Pa";
+  const ILAFF60 = {
+    code: "ILAFF60",
+    offer: "US$60 הנחה בהזמנה מעל US$349",
+    min_order_ils: null,
+    ends: "18.11",
+    off_ils: 192,
+    off_pct: null,
+    approx: true,
+  };
+
+  it("adds the coupon before the price and the final price after the price lines", () => {
+    expect(withCoupons(POST, 1381.67, [ILAFF60]).split("\n")).toEqual([
+      "רובוט שואב במחיר מטורף!!!",
+      "Xiaomi H50.",
+      "",
+      "🎟️ קוד קופון: ILAFF60 · US$60 הנחה בהזמנה מעל US$349 (עד 18.11)",
+      "💰 מחיר: ₪1381.67",
+      "במקום ₪4431.66",
+      "68% הנחה",
+      "💰 מחיר סופי עם הקופון: כ־₪1189.67",
+      "🔗 קישור לקנייה",
+      "",
+      "✅ שאיבה של 10000Pa",
+    ]);
+  });
+
+  it("leaves a post that names a coupon, or with none to add, as written", () => {
+    const named = POST.replace("💰", "🎟️ קוד קופון: X\n💰");
+    expect(withCoupons(named, 1381.67, [ILAFF60])).toBe(named);
+    expect(withCoupons(POST, 1381.67, [])).toBe(POST);
   });
 });
 

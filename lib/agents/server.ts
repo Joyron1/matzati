@@ -28,7 +28,7 @@ import { bestSitewideCoupon, usdTier } from "@/lib/coupons/tiers";
 import { fetchUsdIlsRate } from "@/lib/fx/boi";
 import { costUsd } from "@/lib/llm/pricing";
 import { runFinder, worstCaseCostUsd, type FinderResult } from "./finder/run";
-import { ownerCouponAmount, writePosts, type CouponInfo } from "./finder/write";
+import { ownerCouponAmount, withCoupons, writePosts, type CouponInfo } from "./finder/write";
 import { readAgentSettings, type AgentSettings } from "./settings";
 import { israelParts, queueEndSlot } from "./schedule";
 import {
@@ -363,9 +363,11 @@ async function productPostOf(c: Candidate, postHe: string): Promise<ProductPost>
   const ali = p.videoUrl && allowedMediaUrl(p.videoUrl) ? p.videoUrl : null;
   const photos = [...p.imageUrls, p.mainImageUrl].filter((u) => !!u && !!allowedMediaUrl(u));
   const direct = (await postAffiliateLink(c.product_id)) ?? affiliateUrl(p.promotionLink) ?? null;
+  // The coupons valid now, for a post written without any (queued before, or none then).
+  const coupons = /🎟/.test(postHe) ? [] : await couponsFor(p).catch(() => []);
   return {
     productId: c.product_id,
-    postHe,
+    postHe: withCoupons(postHe, p.price, coupons),
     buyUrl: direct ?? absoluteUrl(`/go/${encodeURIComponent(c.product_id)}?src=telegram`),
     photos,
     videos: [own, ali].filter((v): v is string => !!v),

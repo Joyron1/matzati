@@ -219,6 +219,40 @@ export function withBuyLink(post: string, url: string): string {
   return lines.join("\n");
 }
 
+/**
+ * The coupons valid at posting time added to a post written without any (owner request
+ * 2026-11-02: every post names the coupon its price can use, also the posts queued before): before
+ * the first "💰" line a "🎟️" line per coupon, and when one applies a "💰 מחיר סופי עם הקופון" line
+ * after the price lines. A post that already names a coupon, or none given, is left as written.
+ */
+export function withCoupons(post: string, price: number, coupons: readonly CouponInfo[]): string {
+  if (!coupons.length || /🎟/.test(post)) return post;
+  const lines = post.split("\n");
+  const priceAt = lines.findIndex((l) => l.trim().startsWith("💰"));
+  if (priceAt < 0) return post;
+  const couponLines = coupons.map((c) => {
+    const terms = [
+      c.min_order_ils !== null ? `בהזמנה מעל ${formatIls(c.min_order_ils)}` : null,
+      c.ends ? `עד ${c.ends}` : null,
+    ].filter(Boolean);
+    return `🎟️ קוד קופון: ${c.code} · ${c.offer}${terms.length ? ` (${terms.join(", ")})` : ""}`;
+  });
+  // The price block runs from the 💰 line to the next empty, 🔗, 🚚 or ✅ line.
+  let end = priceAt + 1;
+  while (end < lines.length && lines[end].trim() && !/^(🔗|🚚|✅)/.test(lines[end].trim())) end++;
+  const f = finalPrice(price, coupons);
+  const finalLine = f
+    ? [`💰 מחיר סופי עם הקופון: ${f.approx ? "כ־" : ""}${formatIls(f.price)}`]
+    : [];
+  return [
+    ...lines.slice(0, priceAt),
+    ...couponLines,
+    ...lines.slice(priceAt, end),
+    ...finalLine,
+    ...lines.slice(end),
+  ].join("\n");
+}
+
 export function whyFromData(i: WriterInput): string {
   const parts = [
     i.units_sold_30d !== null ? `${i.units_sold_30d.toLocaleString("en-US")} מכירות בחודש` : null,
