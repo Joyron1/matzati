@@ -38,10 +38,12 @@ const LINK_TOKEN = "⁣BUYLINK⁣";
  */
 export function captionOf(postHe: string, buyUrl?: string): string {
   const tail = `\n\n<i>${escapeHtml(TELEGRAM_DISCLOSURE)}</i>`;
-  const room = CAPTION_MAX - tail.length;
+  // Room for the tags `emphasized` adds (two <b> lines and one <code>), so the HTML stays within it.
+  const room = CAPTION_MAX - tail.length - 40;
   const text = buyUrl ? withBuyLink(postHe, LINK_TOKEN) : postHe;
   let body = escapeHtml(text.trim());
   if (body.length > room) body = `${body.slice(0, room - 1).trimEnd()}…`;
+  body = emphasized(body);
   if (buyUrl) {
     body = body.replace(
       /🔗[^\n]*⁣BUYLINK⁣/,
@@ -49,6 +51,28 @@ export function captionOf(postHe: string, buyUrl?: string): string {
     );
   }
   return `${body}${tail}`;
+}
+
+/**
+ * The post's emphasis (owner request 2026-11-02, a reader should see the deal at a glance): the hook
+ * line and the price line bold, each coupon code in <code> (a tap copies it). On escaped text.
+ */
+export function emphasized(escaped: string): string {
+  let hook = false;
+  return escaped
+    .split("\n")
+    .map((line) => {
+      const t = line.trim();
+      if (!t) return line;
+      if (!hook) {
+        hook = true;
+        return `<b>${line}</b>`;
+      }
+      if (t.startsWith("💰")) return `<b>${line}</b>`;
+      if (t.startsWith("🎟")) return line.replace(/(קוד קופון:?\s*)([A-Za-z0-9_-]{3,30})/, "$1<code>$2</code>");
+      return line;
+    })
+    .join("\n");
 }
 
 /**
@@ -139,10 +163,11 @@ async function call(
 /**
  * Posts one product (owner request 2026-10-25: all its photos and videos, and the affiliate link
  * straight to AliExpress). With two or more items, one album (sendMediaGroup: Telegram fetches
- * each URL, a photo up to 5 MB and a video up to 20 MB) with the post as the first item's caption;
- * an album takes no buttons, so the buy link is the 🔗 line in the text. When Telegram refuses the
- * album (a video it cannot fetch, mostly) it is sent again with the photos only, and then as one
- * photo. A single item goes as before: sendPhoto or sendVideo with the buttons. Never throws: a
+ * each URL, a photo up to 5 MB and a video up to 20 MB), then the post as a text message with the
+ * buttons (an album takes none; owner request 2026-11-02), the buy link also on its 🔗 line; its id
+ * is the one returned. When Telegram refuses the album (a video it cannot fetch, mostly) it is
+ * sent again with the photos only, and then as one photo with the post as its caption and the
+ * buttons. A single item goes as before: sendPhoto or sendVideo with the buttons. Never throws: a
  * failure comes back as its reason (no secret in it).
  */
 export async function postProduct(
@@ -152,23 +177,29 @@ export async function postProduct(
 ): Promise<TelegramResult> {
   const caption = captionOf(post.postHe, post.buyUrl);
   const items = albumItems(post);
-  const album = (list: typeof items) =>
-    call(
-      config,
-      "sendMediaGroup",
-      {
-        media: list.map((item, i) => (i === 0 ? { ...item, caption, parse_mode: "HTML" } : item)),
-      },
-      fetchImpl,
-    );
+  const album = (list: typeof items) => call(config, "sendMediaGroup", { media: list }, fetchImpl);
   let first: TelegramResult | null = null;
   if (items.length >= 2) {
     first = await album(items);
-    if (first.ok) return first;
     const photos = items.filter((x) => x.type === "photo");
-    if (photos.length >= 2 && photos.length < items.length) {
+    if (!first.ok && photos.length >= 2 && photos.length < items.length) {
       const again = await album(photos);
-      if (again.ok) return again;
+      if (again.ok) first = again;
+    }
+    // An album takes no buttons (owner request 2026-11-02: a buy button under the post), so the
+    // post follows it as a text message with the buttons, right under the photos.
+    if (first.ok) {
+      return call(
+        config,
+        "sendMessage",
+        {
+          text: caption,
+          parse_mode: "HTML",
+          link_preview_options: { is_disabled: true },
+          reply_markup: buttonsOf(post.productId, post.buyUrl),
+        },
+        fetchImpl,
+      );
     }
   }
   const single = items.find((x) => x.type === "photo") ?? items[0];

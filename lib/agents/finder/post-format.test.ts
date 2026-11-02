@@ -23,6 +23,7 @@ const INPUT: WriterInput = {
   delivery_days_max: 12,
   final_price_ils: 42.4,
   final_price_code: "ILAFFC2",
+  final_price_approx: false,
 };
 
 describe("finalPrice", () => {
@@ -32,7 +33,7 @@ describe("finalPrice", () => {
         { code: "A", offer: "", min_order_ils: 40, ends: null, off_ils: 10 },
         { code: "B", offer: "", min_order_ils: null, ends: null, off_pct: 25 },
       ]),
-    ).toEqual({ price: 39.3, code: "B" });
+    ).toEqual({ price: 39.3, code: "B", approx: false });
   });
 
   it("skips a coupon whose minimum the price does not meet, or whose amount is unknown", () => {

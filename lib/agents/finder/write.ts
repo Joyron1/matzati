@@ -26,7 +26,7 @@ post_he has three blocks, in this order, separated by an empty line (owner's for
 1. The product: a short excited hook line ending with "!!!" or an emoji (e.g. "מחיר מטורף!!!", "מציאה לבית 🏠"), then 2-3 lines saying what the product is, what it does for the buyer and who it is for, with its brand and main specs as the title names them, and a short call to action (e.g. "שווה לבדוק עכשיו 👇"). You may say prices on AliExpress change often; never invent scarcity or a deadline ("רק היום", "נשארו מעט") other than a coupon's end date as given.
 2. The deal, each on its own line:
    - for each coupon given: "🎟️ קוד קופון: CODE" and what it gives as written, with its minimum order and end date when given (no coupon line when none is given);
-   - when final_price_ils is given: "💰 מחיר סופי עם הקופון: ₪final_price_ils" and "במקום ₪original_price_ils" when given; otherwise "💰 מחיר: ₪price_ils", "במקום ₪original_price_ils" and the discount % when given;
+   - when final_price_ils is given: "💰 מחיר סופי עם הקופון: ₪final_price_ils" ("כ־₪final_price_ils" when final_price_approx is true: a dollar coupon at the day's rate) and "במקום ₪original_price_ils" when given; otherwise "💰 מחיר: ₪price_ils", "במקום ₪original_price_ils" and the discount % when given;
    - when free_shipping_il is true: "🚚 משלוח חינם לישראל", plus the delivery days as given ("7-12 ימי משלוח לפי אלי אקספרס") when both are given;
    - then exactly the line "🔗 קישור לקנייה" (the link is added there automatically; never write a link).
 3. Why it is worth it: 3 to 5 lines, each starting with "✅": a feature the title names, said as what it gives the buyer (a fleece lining keeps warm, a loop strap adjusts without holes); the last "✅" line may be the % positive feedback and how many were sold in the last 30 days. Use only features the title names; never invent a material, size, spec, use or result the title does not state.
@@ -58,6 +58,8 @@ export interface CouponInfo {
   off_ils?: number | null;
   /** Percent off, when the offer states one we could read; else null. */
   off_pct?: number | null;
+  /** The amount off was converted from dollars (lib/coupons/tiers.ts): the final price is "כ־". */
+  approx?: boolean;
 }
 
 /**
@@ -85,8 +87,8 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 export function finalPrice(
   price: number,
   coupons: readonly CouponInfo[],
-): { price: number; code: string } | null {
-  let best: { price: number; code: string } | null = null;
+): { price: number; code: string; approx: boolean } | null {
+  let best: { price: number; code: string; approx: boolean } | null = null;
   for (const c of coupons) {
     if (c.min_order_ils !== null && price < c.min_order_ils) continue;
     const after =
@@ -96,7 +98,7 @@ export function finalPrice(
           ? price * (1 - c.off_pct / 100)
           : null;
     if (after !== null && (!best || after < best.price))
-      best = { price: round2(after), code: c.code };
+      best = { price: round2(after), code: c.code, approx: c.approx === true };
   }
   return best;
 }
@@ -118,6 +120,8 @@ export interface WriterInput {
   /** The price after the best coupon that applies (finalPrice), or null. */
   final_price_ils: number | null;
   final_price_code: string | null;
+  /** The final price came from a dollar coupon at the day's rate: said with "כ־". */
+  final_price_approx: boolean;
 }
 
 export function writerInput(p: AliProduct, coupons: CouponInfo[] = []): WriterInput {
@@ -138,7 +142,11 @@ export function writerInput(p: AliProduct, coupons: CouponInfo[] = []): WriterIn
     delivery_days_max: p.shipping?.maxDays ?? null,
     ...(() => {
       const f = finalPrice(p.price, coupons);
-      return { final_price_ils: f?.price ?? null, final_price_code: f?.code ?? null };
+      return {
+        final_price_ils: f?.price ?? null,
+        final_price_code: f?.code ?? null,
+        final_price_approx: f?.approx ?? false,
+      };
     })(),
   };
 }
@@ -165,7 +173,7 @@ export function postFromData(i: WriterInput): string {
       : "";
   deal.push(
     i.final_price_ils !== null
-      ? `💰 מחיר סופי עם הקופון: ${formatIls(i.final_price_ils)}${was}`
+      ? `💰 מחיר סופי עם הקופון: ${i.final_price_approx ? "כ־" : ""}${formatIls(i.final_price_ils)}${was}`
       : `💰 מחיר: ${formatIls(i.price_ils)}${was}${i.discount_pct ? ` (${i.discount_pct}% הנחה)` : ""}`,
   );
   if (i.free_shipping_il) {

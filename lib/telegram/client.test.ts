@@ -70,17 +70,19 @@ describe("telegram client", () => {
     expect(JSON.stringify(failed)).not.toContain("SECRET-TOKEN");
   });
 
-  it("sends every photo and video as one album, the caption on the first, the link direct", async () => {
-    const send = vi.fn<typeof fetch>(
-      async () =>
-        new Response(JSON.stringify({ ok: true, result: [{ message_id: 7 }, { message_id: 8 }] })),
+  it("sends every photo and video as one album, then the post with its buttons under it", async () => {
+    const send = vi.fn<typeof fetch>(async (url) =>
+      String(url).endsWith("/sendMessage")
+        ? new Response(JSON.stringify({ ok: true, result: { message_id: 9 } }))
+        : new Response(JSON.stringify({ ok: true, result: [{ message_id: 7 }, { message_id: 8 }] })),
     );
     const config = { token: "T", chatId: "@c" };
     const r = await postProduct(
       config,
       {
         productId: "1",
-        postHe: "שורה\n🔗 קישור לקנייה",
+        postHe:
+          "מחיר מטורף!!!\n\n🎟️ קוד קופון: ILAFF60 · US$60 הנחה\n💰 מחיר סופי עם הקופון: כ־₪1189\n🔗 קישור לקנייה",
         buyUrl: "https://s.click.aliexpress.com/e/_abc",
         photos: [
           "https://ae01.alicdn.com/1.jpg",
@@ -91,17 +93,26 @@ describe("telegram client", () => {
       },
       send,
     );
-    expect(r).toEqual({ ok: true, messageId: "7" });
+    expect(r).toEqual({ ok: true, messageId: "9" });
     expect(String(send.mock.calls[0][0])).toMatch(/\/sendMediaGroup$/);
-    const body = JSON.parse(String(send.mock.calls[0][1]?.body));
-    expect(body.media.map((m: { type: string }) => m.type)).toEqual(["video", "photo", "photo"]);
+    const album = JSON.parse(String(send.mock.calls[0][1]?.body));
+    expect(album.media.map((m: { type: string }) => m.type)).toEqual(["video", "photo", "photo"]);
+    expect(album.media[0].caption).toBeUndefined();
+    expect(String(send.mock.calls[1][0])).toMatch(/\/sendMessage$/);
+    const msg = JSON.parse(String(send.mock.calls[1][1]?.body));
     // A short link text on the 🔗 line, never the bare URL (owner request 2026-10-27).
-    expect(body.media[0].caption).toContain(
+    expect(msg.text).toContain(
       '🔗 <a href="https://s.click.aliexpress.com/e/_abc">לקנייה באלי אקספרס ←</a>',
     );
-    expect(body.media[0].caption).not.toContain("לקנייה: https");
-    expect(body.media[0].caption).not.toContain("/go/");
-    expect(body.media[1].caption).toBeUndefined();
+    expect(msg.text).not.toContain("/go/");
+    expect(msg.text).toContain("<b>מחיר מטורף!!!</b>");
+    expect(msg.text).toContain("קוד קופון: <code>ILAFF60</code>");
+    expect(msg.text).toContain("<b>💰 מחיר סופי עם הקופון: כ־₪1189</b>");
+    expect(msg.link_preview_options).toEqual({ is_disabled: true });
+    expect(msg.reply_markup.inline_keyboard[0][0]).toEqual({
+      text: "לקנייה באלי אקספרס",
+      url: "https://s.click.aliexpress.com/e/_abc",
+    });
   });
 
   it("falls back to the photos only, then to one photo, when Telegram refuses the album", async () => {

@@ -23,7 +23,9 @@ import { postProduct, telegramConfig, type ProductPost } from "@/lib/telegram/cl
 import { allowedMediaUrl } from "./media";
 import type { ResultProduct } from "@/lib/types";
 import { isPromoCodeCurrent } from "@/lib/aliexpress/promo-code";
-import { couponsForProduct } from "@/lib/coupons/queries";
+import { couponsForProduct, listPublicCoupons } from "@/lib/coupons/queries";
+import { bestSitewideCoupon, usdTier } from "@/lib/coupons/tiers";
+import { fetchUsdIlsRate } from "@/lib/fx/boi";
 import { costUsd } from "@/lib/llm/pricing";
 import { runFinder, worstCaseCostUsd, type FinderResult } from "./finder/run";
 import { ownerCouponAmount, writePosts, type CouponInfo } from "./finder/write";
@@ -76,7 +78,8 @@ function dayMonth(iso: string | null): string | null {
 
 /**
  * The coupons valid now for a product, for its post: AliExpress's promo code (while valid by its
- * own dates) and the owner's published coupons for it or sitewide (couponsForProduct).
+ * own dates), the owner's published coupons for it, and the best sitewide coupon its price meets
+ * (bestSitewideCoupon: the 11.11 tiers are by order amount).
  */
 export async function couponsFor(product: AliProduct, now = new Date()): Promise<CouponInfo[]> {
   const out: CouponInfo[] = [];
@@ -93,6 +96,7 @@ export async function couponsFor(product: AliProduct, now = new Date()): Promise
     });
   }
   for (const c of await couponsForProduct(product.productId, now)) {
+    if (c.scope !== "product") continue;
     out.push({
       code: c.code,
       offer: c.title,
@@ -100,6 +104,28 @@ export async function couponsFor(product: AliProduct, now = new Date()): Promise
       ends: dayMonth(c.ends_at),
       ...ownerCouponAmount(c.title),
     });
+  }
+  // The general coupons (owner request 2026-11-02): the one tier the product's price meets that
+  // takes the most off (one code per order), whether or not it is featured.
+  const sitewide = await listPublicCoupons(now)
+    .then((p) => p.active.filter((c) => c.scope === "sitewide"))
+    .catch(() => []);
+  if (sitewide.length) {
+    const usdIls = sitewide.some((c) => usdTier(c.title))
+      ? (await fetchUsdIlsRate(Number(process.env.USD_ILS_FALLBACK) || 3.7)).rate
+      : 0;
+    const pick = bestSitewideCoupon(sitewide, product.price, usdIls, ownerCouponAmount);
+    if (pick) {
+      out.push({
+        code: pick.coupon.code,
+        offer: pick.coupon.title,
+        min_order_ils: null,
+        ends: dayMonth(pick.coupon.ends_at),
+        off_ils: pick.offIls,
+        off_pct: null,
+        approx: pick.approx,
+      });
+    }
   }
   return out.slice(0, 3);
 }
