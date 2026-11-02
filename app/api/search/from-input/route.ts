@@ -40,7 +40,14 @@ const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const noStore = { "Cache-Control": "no-store" };
 
-type Fail = "invalid" | "rate_limited" | "capacity" | "not_found" | "unreadable" | "unavailable";
+type Fail =
+  | "invalid"
+  | "rate_limited"
+  | "capacity"
+  | "not_found"
+  | "item_unavailable"
+  | "unreadable"
+  | "unavailable";
 
 function fail(error: Fail, status: number, retryAfterSec?: number): Response {
   const headers: Record<string, string> = { ...noStore };
@@ -108,9 +115,10 @@ async function aliexpressSimilar(
     );
     product = page.products.find((p) => p.productId === productId);
   } catch {
-    return fail("not_found", 404);
+    return fail("unavailable", 503);
   }
-  if (!product) return fail("not_found", 404);
+  // Not in AliExpress's affiliate program (2026-11-02: a shared item the API returns nothing for).
+  if (!product) return fail("item_unavailable", 404);
   const stored = await store.getProduct(productId).catch(() => null);
   if (!(await canSpend())) {
     // No model call left today: the item alone, on its own page.
